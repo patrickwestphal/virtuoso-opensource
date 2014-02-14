@@ -478,6 +478,7 @@ struct sqlo_s
   id_hash_t *	so_subq_cache;
   df_elt_t *	so_crossed_oby; /* If placing exp and there is an oby that is crossed, then set this to be the oby so that the exp can be added to its deps */
   df_elt_t *	so_context_dt;
+  dk_set_t	so_crossed_setps;
   uint32	so_last_sample_time; /* used for stopping compilation if longer is elapsed since last sample than the best plan's time */
   int32		so_max_layouts;
   int32		so_max_memory;
