@@ -21,5 +21,11 @@
  */
 
 #include "libutil.h"
-
+#ifdef _SSL
+#include <openssl/md5.h>
+#define MD5Init   MD5_Init
+#define MD5Update MD5_Update
+#define MD5Final  MD5_Final
+#else
 #error "Please provide implementation of MD5 routines"
+#endif

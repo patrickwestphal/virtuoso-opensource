@@ -455,6 +455,7 @@ libwi_la_SOURCES += \
 	bif_soap.c \
 	bif_text.c \
 	bif_tidy.c \
+	file.c \
 	geo.c \
 	geo_de9im.c \
 	geo_shapes.c \
@@ -493,6 +494,7 @@ libwi_odbc_la_SOURCES += \
 	bif_soap.c \
 	bif_text.c \
 	bif_tidy.c \
+	file.c \
  	geo.c \
 	geo_de9im.c \
 	geo_shapes.c \
@@ -686,6 +688,7 @@ SQL_FILES_REPL		= \
 
 SQL_FILES_SPARQL	= \
 	$(srcdir)/ttlpv.sql \
+	$(srcdir)/sparql_colstore.sql \
 	$(srcdir)/sparql.sql \
 	$(srcdir)/sparql_io.sql \
 	$(srcdir)/rdf_sponge.sql \
