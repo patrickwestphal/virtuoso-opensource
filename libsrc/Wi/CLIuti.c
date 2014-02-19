@@ -36,16 +36,15 @@
 
 
 caddr_t
-stmt_param_place_ptr (parm_binding_t * pb, int nth, cli_stmt_t * stmt,
-    SQLULEN length)
+stmt_param_place_ptr (parm_binding_t * pb, int nth, cli_stmt_t * stmt, SQLULEN length)
 {
   /* bind type offset */
   SQLULEN p_offset = nth * (stmt->stmt_param_bind_type ? stmt->stmt_param_bind_type : length);
 
   /* quick rebinding offset */
   p_offset +=
-      stmt ? (stmt->stmt_imp_param_descriptor ? (stmt->
-	  stmt_imp_param_descriptor->d_bind_offset_ptr ? *(stmt->stmt_imp_param_descriptor->d_bind_offset_ptr) : 0) : 0) : 0;
+      stmt ? (stmt->stmt_imp_param_descriptor ? (stmt->stmt_imp_param_descriptor->d_bind_offset_ptr ? *(stmt->
+	      stmt_imp_param_descriptor->d_bind_offset_ptr) : 0) : 0) : 0;
 
   return pb->pb_place ? pb->pb_place + p_offset : NULL;
 }
@@ -93,34 +92,25 @@ sql_type_to_sqlc_default (int sqlt)
     case SQL_LONGVARCHAR:
     case SQL_DECIMAL:
       return SQL_C_CHAR;
-
     case SQL_WCHAR:
     case SQL_WVARCHAR:
     case SQL_WLONGVARCHAR:
       return SQL_C_WCHAR;
-
     case SQL_BIT:
       return SQL_C_BIT;
-
     case SQL_TINYINT:
       return SQL_C_TINYINT;
-
     case SQL_SMALLINT:
       return SQL_C_SHORT;
-
     case SQL_INTEGER:
       return SQL_C_LONG;
-
     case SQL_BIGINT:
       return SQL_C_LONG;
-
     case SQL_REAL:
       return SQL_C_FLOAT;
-
     case SQL_FLOAT:
     case SQL_DOUBLE:
       return SQL_C_DOUBLE;
-
     case SQL_BINARY:
     case SQL_VARBINARY:
     case SQL_LONGVARBINARY:
@@ -138,10 +128,8 @@ sql_type_to_sqlc_default (int sqlt)
     case SQL_TYPE_TIME:
       return SQL_C_TYPE_TIME;
 #endif
-
     case SQL_TIME:
       return SQL_C_TIME;
-
 #if (defined (SQL_TYPE_TIMESTAMP) && defined (SQL_C_TYPE_TIMESTAMP))
     case SQL_TYPE_TIMESTAMP:
       return SQL_C_TYPE_TIMESTAMP;
@@ -162,50 +150,37 @@ dv_to_sql_type (dtp_t dv, int cli_binary_timestamp)
     {
     case DV_SHORT_INT:
       return SQL_SMALLINT;
-
     case DV_LONG_INT:
       return SQL_INTEGER;
-
     case DV_DOUBLE_FLOAT:
       return SQL_DOUBLE;
-
     case DV_NUMERIC:
       return SQL_DECIMAL;
-
     case DV_SINGLE_FLOAT:
       return SQL_REAL;
-
     case DV_BLOB:
     case DV_BLOB_XPER:		/* IvAn/DvBlobXper/001212 case added */
       return SQL_LONGVARCHAR;
-
     case DV_BLOB_BIN:
       return SQL_LONGVARBINARY;
-
     case DV_BLOB_WIDE:
       return SQL_WLONGVARCHAR;
-
     case DV_DATE:
       return SQL_DATE;
-
     case DV_TIMESTAMP:
       return cli_binary_timestamp ? SQL_BINARY : SQL_TIMESTAMP;	/* AK 27-FEB-1997 */
-
     case DV_DATETIME:
       return SQL_TIMESTAMP;
-
     case DV_TIME:
       return SQL_TIME;
-
     case DV_BIN:
       return SQL_VARBINARY;
-
     case DV_WIDE:
     case DV_LONG_WIDE:
       return SQL_WVARCHAR;
 
     case DV_ANY:
-      return SQL_LONGVARCHAR;
+      return SQL_VARCHAR;
 
     case DV_INT64:
       return SQL_INTEGER;
@@ -217,7 +192,6 @@ dv_to_sql_type (dtp_t dv, int cli_binary_timestamp)
       return SQL_VARCHAR;
     }
 }
-
 
 /* SQL data type codes.
    These were taken from ../sqlcli.h and ../sqlcli2.h header files.
@@ -233,40 +207,31 @@ sql_type_to_sql_type_name (int type, char *resbuf, int maxbytes)
     case SQL_CHAR:
       ret = "CHAR";
       break;
-
     case SQL_NUMERIC:
       ret = "NUMERIC";
       break;
-
     case SQL_DECIMAL:
       ret = "DECIMAL";
       break;
-
     case SQL_INTEGER:
       ret = "INTEGER";
       break;
-
     case SQL_SMALLINT:
       ret = "SMALLINT";
       break;
-
     case SQL_FLOAT:
       ret = "FLOAT";
       break;
-
     case SQL_REAL:
       ret = "REAL";
       break;
-
     case SQL_DOUBLE:
       ret = "DOUBLE";
       break;
-
     case SQL_TYPE_DATE:
     case SQL_DATE:
       ret = "DATE";
       break;
-
     case SQL_TYPE_TIME:
     case SQL_TIME:
       ret = "TIME";
@@ -276,57 +241,44 @@ sql_type_to_sql_type_name (int type, char *resbuf, int maxbytes)
     case SQL_TIMESTAMP:
       ret = "TIMESTAMP";
       break;
-
     case SQL_VARCHAR:
       ret = "VARCHAR";
       break;
-
     case SQL_BIT:
       ret = "BIT";
       break;
-
 #if 0
     case SQL_BIT_VARYING:
       ret = "BIT VARYING";
       break;
 #endif
-
     case SQL_LONGVARCHAR:
       ret = "LONG VARCHAR";
       break;
-
     case SQL_BINARY:
       ret = "BINARY";
       break;
-
     case SQL_VARBINARY:
       ret = "VARBINARY";
       break;
-
     case SQL_LONGVARBINARY:
       ret = "LONG VARBINARY";
       break;
-
     case SQL_BIGINT:
       ret = "BIGINT";
       break;
-
     case SQL_TINYINT:
       ret = "TINYINT";
       break;
-
     case SQL_WCHAR:
       ret = "NCHAR";
       break;
-
     case SQL_WVARCHAR:
       ret = "NVARCHAR";
       break;
-
     case SQL_WLONGVARCHAR:
       ret = "LONG NVARCHAR";
       break;
-
     default:
       {
 	char tmp[33];
@@ -337,7 +289,6 @@ sql_type_to_sql_type_name (int type, char *resbuf, int maxbytes)
     }				/* switch */
 
   strncpy (resbuf, ret, maxbytes);
-
   return resbuf;
 }
 
@@ -376,23 +327,18 @@ box_numeric_string (SQLCHAR * str, SQLLEN len1)
   int rc;
   char tmp[NUMERIC_MAX_STRING_BYTES];
   SQLLEN len = len1 == SQL_NTS ? (int) strlen ((char *) str) : len1;
-
   if (len >= sizeof (tmp))
     return (box_n_string (str, len1));
-
   cpy = MIN (len, sizeof (tmp) - 1);
   memcpy (tmp, str, cpy);
   tmp[cpy] = 0;
   box = (caddr_t) numeric_allocate ();
-
   rc = numeric_from_string ((numeric_t) box, tmp);
   if (rc != NUMERIC_STS_SUCCESS)
     {
       numeric_free ((numeric_t) box);
-
       return (box_n_string (str, len1));
     }
-
   return box;
 }
 
@@ -413,9 +359,7 @@ con_new_id (cli_connection_t * con)
 	*ptr = '_';
       ptr++;
     }
-
   str = box_dv_short_string (temp);
-
   return str;
 }
 
@@ -426,7 +370,6 @@ stmt_nth_parm (cli_stmt_t * stmt, int n)
   parm_binding_t **last = &stmt->stmt_parms;
   parm_binding_t *next = NULL;
   int inx = -1;
-
   for (inx = 0; inx < n; inx++)
     {
       next = *last;
@@ -454,7 +397,6 @@ stmt_nth_col (cli_stmt_t * stmt, int n)
   col_binding_t **last = &stmt->stmt_cols;
   col_binding_t *next = NULL;
   int inx = -1;
-
   if (0 == n)
     {
       if (stmt->stmt_bookmark_cb)
@@ -462,11 +404,9 @@ stmt_nth_col (cli_stmt_t * stmt, int n)
       {
 	NEW_VARZ (col_binding_t, cb);
 	stmt->stmt_bookmark_cb = cb;
-
 	return cb;
       }
     }
-
   for (inx = 0; inx < n; inx++)
     {
       next = *last;
@@ -500,7 +440,7 @@ err_queue_append (sql_error_rec_t ** q1, sql_error_rec_t ** q2)
 }
 
 sql_error_rec_t *
-cli_make_error (const char * state, const char *virt_state, const char * msg, int col)
+cli_make_error (const char *state, const char *virt_state, const char *msg, int col)
 {
   caddr_t msg_box;
   int msg_len = msg ? (int) strlen (msg) : 0;
@@ -521,7 +461,6 @@ cli_make_error (const char * state, const char *virt_state, const char * msg, in
   rec->sql_state = box_string (state);
   rec->sql_error_msg = msg_box;
   rec->sql_error_col = col;
-
   return rec;
 }
 
@@ -571,7 +510,7 @@ set_success_info (sql_error_t * err, const char *state, const char *virt_state, 
 
 
 void
-set_data_truncated_success_info (cli_stmt_t *stmt, const char *virt_state, SQLUSMALLINT icol)
+set_data_truncated_success_info (cli_stmt_t * stmt, const char *virt_state, SQLUSMALLINT icol)
 {
   char *base_col = NULL;
   char icol_buf[30];
@@ -582,10 +521,8 @@ set_data_truncated_success_info (cli_stmt_t *stmt, const char *virt_state, SQLUS
   char *alias_name = NULL;
   icol_buf[0] = '\0';
   base_tbl_col[0] = '\0';
-
   if (is_select)
     snprintf (icol_buf, sizeof (icol_buf), " in column %d of the result-set ", icol);
-
   if (is_select && BOX_ELEMENTS (stmt->stmt_compilation->sc_columns) >= icol)
     {
       jammed_col = (col_desc_t *) stmt->stmt_compilation->sc_columns[icol - 1];
@@ -621,7 +558,6 @@ SQLRETURN
 stmt_seq_error (cli_stmt_t * stmt)
 {
   set_error (&stmt->stmt_error, "S1010", "CL063", "Async call in progress");
-
   return SQL_ERROR;
 }
 
@@ -639,7 +575,6 @@ stmt_set_proc_return (cli_stmt_t * stmt, caddr_t * res)
   int nth = (int) (stmt->stmt_parm_rows - stmt->stmt_parm_rows_to_go);
   parm_binding_t *pb;
   int inx = 2;
-
   if (stmt->stmt_return)
     {				/* If there has been SQL_RETURN_VALUE parameter given with
 				   SQLBindParameter (in wicli.c) then handle it first */
@@ -672,7 +607,6 @@ stmt_set_proc_return (cli_stmt_t * stmt, caddr_t * res)
 
 #define STMT_IS_SELECT(stmt) \
 	((stmt)->stmt_compilation && (stmt)->stmt_compilation->sc_is_select == QT_SELECT)
-
 
 SQLRETURN
 stmt_process_result (cli_stmt_t * stmt, int needs_evl)
@@ -711,20 +645,16 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
       if (DKSESSTAT_ISSET (stmt->stmt_connection->con_session, SST_BROKEN_CONNECTION))
 	{
 	  set_error (&stmt->stmt_error, "08S01", "CL064", "Lost connection to server");
-
 	  return SQL_ERROR;
 	}
-
       stmt->stmt_co_last_in_batch = 0;
       res = (caddr_t *) PrpcFutureNextResult (stmt->stmt_future);
 
       if (DKSESSTAT_ISSET (stmt->stmt_connection->con_session, SST_BROKEN_CONNECTION))
 	{
 	  set_error (&stmt->stmt_error, "08S01", "CL065", "Lost connection to server");
-
 	  return SQL_ERROR;
 	}
-
       if (stmt->stmt_future->ft_error)
 	{
 	  set_error (&stmt->stmt_error, "S1T00", "CL066", "Virtuoso Communications Link Failure (timeout)");
@@ -762,7 +692,7 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
       if (IS_BOX_POINTER (res) && ((ptrlong *) res)[0] == QA_ROWS_AFFECTED)
 	{
 	  /* Number of affected rows is known so start with 0 */
- 	  if (stmt->stmt_rows_affected == -1)
+	  if (stmt->stmt_rows_affected == -1)
 	    stmt->stmt_rows_affected = 0;
 
 	  stmt->stmt_rows_affected += (SDWORD) unbox (((caddr_t *) res)[1]);
@@ -776,7 +706,6 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 	  dk_free_tree ((caddr_t) res);
 	  res = (caddr_t *) (ptrlong) rc;	/* oui's change 1-NOV-1997? */
 	}
-
       if (res == (caddr_t *) SQL_NO_DATA_FOUND)
 	{
 	  stmt->stmt_at_end = 1;
@@ -821,7 +750,6 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 	      return SQL_NO_DATA_FOUND;
 	    }
 	}
-
       tag = (int) (ptrlong) res[0];
       switch (tag)
 	{
@@ -838,6 +766,7 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 
 	  stmt->stmt_at_end = 1;
 	  stmt->stmt_is_proc_returned = 1;
+
 
 	  if (0 == stmt->stmt_parm_rows_to_go)
 	    {
@@ -885,9 +814,7 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 	      SQLRETURN rc1 = stmt_process_result (stmt, 1);
 	      return rc1 == SQL_SUCCESS ? rc : rc1;
 	    }
-
 	  set_error (&stmt->stmt_error, NULL, NULL, NULL);
-
 	  return rc;
 
 	case QA_ERROR:
@@ -910,11 +837,9 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 	  }
 	  dk_free_tree ((box_t) res);
 
-          /* In case of SQLSetPos returning SQL_ERROR */
-	  if (stmt->stmt_compilation &&
-	      QT_SELECT != stmt->stmt_compilation->sc_is_select &&
-	      stmt->stmt_rows_affected == -1)
-	      stmt->stmt_rows_affected = 0;
+	  /* In case of SQLSetPos returning SQL_ERROR */
+	  if (stmt->stmt_compilation && QT_SELECT != stmt->stmt_compilation->sc_is_select && stmt->stmt_rows_affected == -1)
+	    stmt->stmt_rows_affected = 0;
 
 	  return SQL_ERROR;
 
@@ -931,7 +856,6 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 
 	case QA_ROW_LAST_IN_BATCH:
 	  stmt->stmt_co_last_in_batch = 1;
-
 	case QA_ROW:
 	case QA_ROW_ADDED:
 	case QA_ROW_UPDATED:
@@ -957,13 +881,11 @@ stmt_process_result (cli_stmt_t * stmt, int needs_evl)
 	  set_error (&stmt->stmt_error, NULL, NULL, NULL);
 	  stmt->stmt_at_end = 0;
 	  stmt->stmt_on_first_row = 1;
-
 	  return rc;
 
 	case QA_NEED_DATA:
 	  stmt->stmt_last_asked_param = (SDWORD) unbox (res[1]);
 	  dk_free_tree ((caddr_t) res);
-
 	  return SQL_NEED_DATA;
 
 	case QA_LOGIN:
@@ -1029,16 +951,14 @@ con_make_current_ofs (cli_connection_t * con, cli_stmt_t * stmt)
 
 
 caddr_t
-buffer_to_bin_dv (char * place, SQLLEN * len, int sql_type)
+buffer_to_bin_dv (char *place, SQLLEN * len, int sql_type)
 {
   dtp_t dtp = 0;
   SQLLEN data_len = -1;
   caddr_t res;
   SQLLEN len1 = len ? *len : SQL_NTS;
-
   if (SQL_NTS == len1)
     len1 = strlen (place);
-
   switch (sql_type)
     {
 #if (ODBCVER >= 0x0300)
@@ -1052,29 +972,24 @@ buffer_to_bin_dv (char * place, SQLLEN * len, int sql_type)
       data_len = DT_LENGTH;
       dtp = DV_DATETIME;
       break;
-
     case SQL_INTEGER:
       data_len = sizeof (long);
       dtp = DV_LONG_INT;
       break;
-
     case SQL_REAL:
       data_len = sizeof (float);
       dtp = DV_SINGLE_FLOAT;
       break;
-
     case SQL_DOUBLE:
     case SQL_FLOAT:
       data_len = sizeof (double);
       dtp = DV_DOUBLE_FLOAT;
       break;
-
     case SQL_NUMERIC:
     case SQL_DECIMAL:
       data_len = _numeric_size ();
       dtp = DV_NUMERIC;
       break;
-
     case SQL_VARCHAR:
       res = dk_alloc_box (len1 + 1, DV_LONG_STRING);
       memcpy (res, place, len1);
@@ -1087,20 +1002,17 @@ buffer_to_bin_dv (char * place, SQLLEN * len, int sql_type)
       memcpy (res, place, len1);
       return res;
     }
-
   res = dk_alloc_box (data_len, dtp);
   memcpy (res, place, DT_LENGTH);
-
   return res;
 }
-
 
 caddr_t numeric_struct_to_nt (SQL_NUMERIC_STRUCT * ns);
 
 caddr_t
-buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
-	      cli_stmt_t * err_stmt, int inprocess)
+buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid, cli_stmt_t * err_stmt, int inprocess)
 {
+
   if (len && (SQL_NULL_DATA == *len || SQL_IGNORE == *len))
     return dk_alloc_box (0, DV_DB_NULL);
 
@@ -1161,9 +1073,7 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
       {
 	TIMESTAMP_STRUCT *par_ts = (TIMESTAMP_STRUCT *) place;
 	caddr_t dv = dk_alloc_box (DT_LENGTH, DV_DATETIME);
-
 	timestamp_struct_to_dt (par_ts, dv);
-
 	return dv;
       }
 
@@ -1174,9 +1084,7 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
       {
 	DATE_STRUCT *par_ts = (DATE_STRUCT *) place;
 	caddr_t dv = dk_alloc_box (DT_LENGTH, DV_DATETIME);
-
 	date_struct_to_dt (par_ts, dv);
-
 	return dv;
       }
 
@@ -1186,9 +1094,7 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
     case SQL_C_TIME:
       {
 	caddr_t dv = dk_alloc_box (DT_LENGTH, DV_DATETIME);
-
 	time_struct_to_dt ((TIME_STRUCT *) place, dv);
-
 	return dv;
       }
 
@@ -1211,7 +1117,7 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
 	  case SQL_DATE:
 	  case SQL_TIME:
 	    {
-              caddr_t err_msg = NULL;
+	      caddr_t err_msg = NULL;
 	      caddr_t res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
 
 	      nlen = nlen > 100 ? 100 : nlen;
@@ -1219,11 +1125,11 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
 		  0, (wchar_t *) place, nlen, (unsigned char *) temp, nlen, NULL, NULL);
 
 	      odbc_string_to_any_dt (temp, res, &err_msg);
-              if (NULL != err_msg)
+	      if (NULL != err_msg)
 		{
 		  char err_buf[1000];
 		  snprintf (err_buf, sizeof (err_buf), "Cannot convert the wide string to date/time : %s", err_msg);
-                  dk_free_box (err_msg);
+		  dk_free_box (err_msg);
 		  set_error (&err_stmt->stmt_error, "S1010", "CL095", err_buf);
 		  dk_free_box (res);
 		  return NULL;
@@ -1317,11 +1223,11 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
 	    caddr_t res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
 	    caddr_t err_msg = NULL;
 	    odbc_string_to_any_dt (place, res, &err_msg);
-            if (NULL != err_msg)
+	    if (NULL != err_msg)
 	      {
 		char err_buf[1500];
 		snprintf (err_buf, sizeof (err_buf), "Cannot convert the string \"%.500s\" to date/time: %s", place, err_msg);
-                dk_free_box (err_msg);
+		dk_free_box (err_msg);
 		set_error (&err_stmt->stmt_error, "S1010", "CL096", err_buf);
 		dk_free_box (res);
 
@@ -1342,29 +1248,21 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
 	case SQL_INTEGER:
 	  {
 	    long n = atoi (place);
-
 	    return (box_num (n));
 	  }
-
 	case SQL_FLOAT:
 	case SQL_DOUBLE:
 	  {
 	    double d = 0;
-
 	    sscanf (place, "%lg", &d);
-
 	    return (box_double (d));
 	  }
-
 	case SQL_REAL:
 	  {
 	    float f = 0;
-
 	    sscanf (place, "%g", &f);
-
 	    return (box_double (f));
 	  }
-
 	case SQL_WCHAR:
 	case SQL_WVARCHAR:
 	case SQL_WLONGVARCHAR:
@@ -1387,14 +1285,11 @@ buffer_to_dv (caddr_t place, SQLLEN * len, int c_type, int sql_type, long bhid,
 	  {
 	    SQLLEN len1 = len ? *len : SQL_NTS;
 	    caddr_t res;
-
 #ifndef MAP_DIRECT_BIN_CHAR
 	    unsigned char *ptr, *src = (unsigned char *) place, _lo, _hi, chr;
 #endif
-
 	    if (SQL_NTS == len1)
 	      len1 = strlen (place);
-
 #ifndef MAP_DIRECT_BIN_CHAR
 	    if (len1 % 2)
 	      {
@@ -1450,9 +1345,11 @@ sqlc_sizeof (int sqlc, SQLULEN deflt)
   switch (sqlc)
     {
 
+
     case SQL_C_LONG:
     case SQL_C_SLONG:
     case SQL_C_ULONG:
+
       return sizeof (long);
 
     case SQL_C_SHORT:
@@ -1475,12 +1372,12 @@ sqlc_sizeof (int sqlc, SQLULEN deflt)
 
     case SQL_C_TIMESTAMP:
       return sizeof (TIMESTAMP_STRUCT);
-
     case SQL_C_DATE:
       return sizeof (DATE_STRUCT);
 
     case SQL_C_TIME:
       return sizeof (TIME_STRUCT);
+
 
     default:
       return deflt;
@@ -1489,7 +1386,7 @@ sqlc_sizeof (int sqlc, SQLULEN deflt)
 
 
 caddr_t
-stmt_parm_to_dv (parm_binding_t * pb, int nth, long bhid, cli_stmt_t *stmt)
+stmt_parm_to_dv (parm_binding_t * pb, int nth, long bhid, cli_stmt_t * stmt)
 {
   caddr_t place = stmt_param_place_ptr (pb, nth, stmt,
       sqlc_sizeof (pb->pb_c_type, pb->pb_max_length));
@@ -1514,13 +1411,11 @@ stmt_collect_parms (cli_stmt_t * stmt)
   int inx;
   int parm_count = 0;
   parm_binding_t *pb = stmt->stmt_parms;
-
   while (pb)
     {
       parm_count++;
       pb = pb->pb_next;
     }
-
   if (stmt->stmt_compilation && stmt->stmt_compilation->sc_params)
     {
       int parms_len = BOX_ELEMENTS (stmt->stmt_compilation->sc_params);
@@ -1554,14 +1449,7 @@ stmt_collect_parms (cli_stmt_t * stmt)
 
 
 SQLRETURN
-str_box_to_buffer (
-  char *box,
-  char *buffer,
-  int buffer_length,
-  void *string_length_ptr,
-  int length_is_long,
-  sql_error_t *error
-)
+str_box_to_buffer (char *box, char *buffer, int buffer_length, void *string_length_ptr, int length_is_long, sql_error_t * error)
 {
   SQLRETURN rc = SQL_SUCCESS;
 
@@ -1588,13 +1476,13 @@ str_box_to_buffer (
 		  buffer[buffer_length - 1] = 0;
 		}
 
-	      snprintf (msg_buf, sizeof (msg_buf), "Data truncated (string is %d bytes long, buffer is only %d bytes long)", len + 1, buffer_length);
+	      snprintf (msg_buf, sizeof (msg_buf), "Data truncated (string is %d bytes long, buffer is only %d bytes long)",
+		  len + 1, buffer_length);
 
 	      set_success_info (error, "01004", "CL087", msg_buf, 0);
 	      rc = SQL_SUCCESS_WITH_INFO;
 	    }
 	}
-
       if (string_length_ptr != NULL)
 	{
 	  if (length_is_long)
@@ -1615,7 +1503,6 @@ str_box_to_buffer (
 	      rc = SQL_SUCCESS_WITH_INFO;
 	    }
 	}
-
       if (string_length_ptr != NULL)
 	{
 	  if (length_is_long)
@@ -1641,20 +1528,17 @@ str_box_to_place (char *box, char *place, int max, int *sz)
   else
     {
       int len = box_length (box) - 1;
-
       if (max < 1)
 	max = 1;
-
       if (len > max - 1)
 	len = max - 1;
-
       memcpy (place, box, len);
       place[len] = 0;
-
       if (sz)
 	*sz = len;
     }
 }
+
 
 
 int
@@ -1662,7 +1546,6 @@ dv_to_sqlc_default (caddr_t xx)
 {
   if (!IS_BOX_POINTER (xx))
     return SQL_C_LONG;
-
   switch (box_tag (xx))
     {
     case DV_LONG_INT:
@@ -1692,7 +1575,6 @@ dv_to_sqlc_default (caddr_t xx)
     case DV_BLOB_WIDE:
       return SQL_C_WCHAR;
     }
-
 /* IvAn/DvBlobXper/001212 DV_BLOB and DV_BLOB_XPER are both handled here: */
   return SQL_C_CHAR;
 }
@@ -1718,10 +1600,8 @@ vector_to_text (caddr_t vec, size_t box_len, dtp_t vectype, char *dest, size_t d
 
 /*  dest_ptr[dest_size-1] = '\0'; */
   snprintf (own_temp, sizeof (own_temp), "%svector(", get_prefixletter_of_vector (vectype));
-
   templen = strlen (own_temp);
   copylen = ((dest + dest_size - 1) - dest_ptr);
-
   if (templen < copylen)
     {
       copylen = templen;
@@ -1738,7 +1618,7 @@ vector_to_text (caddr_t vec, size_t box_len, dtp_t vectype, char *dest, size_t d
 	  *dest_ptr++ = ',';
 	}			/* Separating comma. */
 
-      sprintf_vecitem (dest_ptr, (size_t)(dest_size - (dest_ptr - dest)), sprintf_formatter, vec, vectype, inx);
+      sprintf_vecitem (dest_ptr, (size_t) (dest_size - (dest_ptr - dest)), sprintf_formatter, vec, vectype, inx);
       inx++;
       dest_ptr += strlen (dest_ptr);
     }
@@ -1785,7 +1665,6 @@ vector_to_text (caddr_t vec, size_t box_len, dtp_t vectype, char *dest, size_t d
   return (truncated || (inx < n_elems));	/* Truncated or not? */
 }
 
-
 #ifndef MAP_DIRECT_BIN_CHAR
 # ifdef ROLLBACK_XQ
 
@@ -1801,9 +1680,8 @@ bin_dv_to_str_place (unsigned char *str, char *place, size_t nbytes)
     }
 }
 
-
 void
-bin_dv_to_wstr_place (unsigned char *str, wchar_t *place, size_t nbytes)
+bin_dv_to_wstr_place (unsigned char *str, wchar_t * place, size_t nbytes)
 {
   unsigned char *ptr;
 
@@ -1828,9 +1706,8 @@ bin_dv_to_str_place (unsigned char *str, char *place, size_t nbytes)
     }
 }
 
-
 void
-bin_dv_to_wstr_place (unsigned char *str, wchar_t *place, size_t nbytes)
+bin_dv_to_wstr_place (unsigned char *str, wchar_t * place, size_t nbytes)
 {
   unsigned char *tail = str, *end = str + nbytes;
 
@@ -1843,7 +1720,6 @@ bin_dv_to_wstr_place (unsigned char *str, wchar_t *place, size_t nbytes)
 
 # endif
 #endif
-
 
 /* Returns the length of piece copied, usually the same as
    the whole length stored to *len_ret.
@@ -1989,10 +1865,10 @@ bin_dv_to_wstr_place (unsigned char *str, wchar_t *place, size_t nbytes)
  */
 
 static long
-strses_cp_narrow_to_wide (void *dest_ptr, void *src_ptr, long src_ofs,
-    long copy_bytes, void *state_data)
+strses_cp_narrow_to_wide (void *dest_ptr, void *src_ptr, long src_ofs, long copy_bytes, void *state_data)
 {
-  cli_narrow_to_wide ((wcharset_t *) state_data, 0, ((unsigned char *) (src_ptr)) + src_ofs, copy_bytes, (wchar_t *) dest_ptr, copy_bytes);
+  cli_narrow_to_wide ((wcharset_t *) state_data, 0, ((unsigned char *) (src_ptr)) + src_ofs, copy_bytes, (wchar_t *) dest_ptr,
+      copy_bytes);
 
   return copy_bytes * sizeof (wchar_t);
 }
@@ -2000,8 +1876,7 @@ strses_cp_narrow_to_wide (void *dest_ptr, void *src_ptr, long src_ofs,
 
 static SQLLEN
 dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
-    SQLLEN * len_ret, SQLLEN str_from_pos, cli_stmt_t * stmt, int nth_col,
-    SQLLEN box_len, int c_type, SQLSMALLINT sql_type)
+    SQLLEN * len_ret, SQLLEN str_from_pos, cli_stmt_t * stmt, int nth_col, SQLLEN box_len, int c_type, SQLSMALLINT sql_type)
 {
   dk_session_t *ses = (dk_session_t *) it;
   long len, ses_len;
@@ -2027,7 +1902,6 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	      max *= sizeof (wchar_t);
 	      str_from_pos *= sizeof (wchar_t);
 	    }
-
 	  if (SQL_C_WCHAR == c_type || SQL_C_CHAR == c_type)
 	    {
 	      len -= str_from_pos / sizeof (wchar_t);
@@ -2052,7 +1926,8 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 
 	  if (SQL_C_CHAR == c_type)
 	    {			/* TODO: GK: part of the above hack - remove later */
-	      cli_wide_to_narrow (stmt->stmt_connection->con_charset, 0, wide_ptr, piece_len, (unsigned char *) place, max, NULL, NULL);
+	      cli_wide_to_narrow (stmt->stmt_connection->con_charset, 0, wide_ptr, piece_len, (unsigned char *) place, max, NULL,
+		  NULL);
 	      place[piece_len] = 0;
 	      dk_free (box, ((size_t) - 1));
 	    }
@@ -2060,7 +1935,6 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	    piece_len *= sizeof (wchar_t);
 
 	}
-
       return piece_len;
     }
   else
@@ -2075,7 +1949,6 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	  if (SQL_C_CHAR == c_type)
 	    {
 	      len -= str_from_pos;
-
 	      if (len >= max)
 		{
 		  piece_len = max;
@@ -2099,7 +1972,8 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 
 		  if (piece_len >= 0)
 		    {
-		      strses_get_part_1 (ses, place, str_from_pos / sizeof (wchar_t), piece_len, strses_cp_narrow_to_wide, stmt->stmt_connection->con_charset);
+		      strses_get_part_1 (ses, place, str_from_pos / sizeof (wchar_t), piece_len, strses_cp_narrow_to_wide,
+			  stmt->stmt_connection->con_charset);
 		      ((wchar_t *) place)[piece_len] = 0;
 		    }
 
@@ -2108,14 +1982,14 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	      else
 		{
 		  piece_len = len / sizeof (wchar_t);
-		  strses_get_part_1 (ses, place, str_from_pos / sizeof (wchar_t), len, strses_cp_narrow_to_wide, stmt->stmt_connection->con_charset);
+		  strses_get_part_1 (ses, place, str_from_pos / sizeof (wchar_t), len, strses_cp_narrow_to_wide,
+		      stmt->stmt_connection->con_charset);
 		  ((wchar_t *) place)[len] = 0;
 		}
 
 	      piece_len *= sizeof (wchar_t);
 	    }
 	}
-
       return piece_len;
     }
 }
@@ -2124,7 +1998,7 @@ dv_strses_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 
 SQLLEN
 dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
-    SQLLEN *len_ret, SQLLEN str_from_pos, cli_stmt_t * stmt, int nth_col,
+    SQLLEN * len_ret, SQLLEN str_from_pos, cli_stmt_t * stmt, int nth_col,
     SQLLEN box_len, int c_type, SQLSMALLINT sql_type, SQLLEN * out_chars)
 {
   SQLLEN len = 0, piece_len = 0;
@@ -2144,14 +2018,12 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
   blob_to_char = (dtp == DV_BIN || (col_desc && (col_desc->cd_dtp == DV_BIN || col_desc->cd_dtp == DV_BLOB_BIN)));*/
   blob_to_char = (dtp == DV_BIN && c_type == SQL_C_CHAR);
 #endif
-
 /* IvAn/DvBlobXper/001212 Case for XPER added */
   if (IS_BLOB_HANDLE_DTP (dtp))
     {
       blob_handle_t *bh = (blob_handle_t *) it;
       if (len_ret)
 	*len_ret = (SDWORD) bh->bh_length * ((dtp == DV_BLOB_WIDE_HANDLE) ? sizeof (wchar_t) : sizeof (char));
-
       if (nth_col != -1)
 	{
 #ifndef MAP_DIRECT_BIN_CHAR
@@ -2166,7 +2038,6 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 		  nth_col, bh->bh_length, len_ret ? *len_ret : 0, place));
 
 	}
-
       return (SDWORD) bh->bh_length;
     }
   else if (DV_STRING_SESSION == dtp)
@@ -2184,10 +2055,9 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	switch (dtp)		/* Not SQL_C_CHAR/SQL_C_OID */
 	  {
 	  case DV_STRING:
-          case DV_UNAME:
+	  case DV_UNAME:
 	    len--;		/* Exclude the termination byte */
 	    break;
-
 	  case DV_WIDE:
 	  case DV_LONG_WIDE:
 	    len -= sizeof (wchar_t);	/* Exclude the termination byte */
@@ -2199,29 +2069,29 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
       {
       case DV_STRING:
       case DV_UNAME:
-        len = box_len-1;		/* Terminating zero byte '\0' is excluded. */
-        str = ((char *) it);
-        break;
+	len = box_len - 1;	/* Terminating zero byte '\0' is excluded. */
+	str = ((char *) it);
+	break;
       case DV_SHORT_CONT_STRING:
       case DV_LONG_CONT_STRING:
       case DV_BIN:
-        len = box_len;			/* Terminating zero byte '\0' is missing so nothing to exclude. */
-        str = ((char *) it);
-        break;
+	len = box_len;		/* Terminating zero byte '\0' is missing so nothing to exclude. */
+	str = ((char *) it);
+	break;
       case DV_SHORT_INT:
       case DV_LONG_INT:
 	snprintf (temp, sizeof (temp), BOXINT_FMT, (boxint) unbox (it));
 	break;
 
       case DV_IRI_ID:
-        {
-          iri_id_t iid = unbox_iri_id (it);
-          if (iid >= MIN_64BIT_BNODE_IRI_ID)
-	    snprintf (temp, sizeof (temp), "#ib" IIDBOXINT_FMT, (boxint)(iid-MIN_64BIT_BNODE_IRI_ID));
-          else
-	    snprintf (temp, sizeof (temp), "#i" IIDBOXINT_FMT, (boxint)(iid));
-          break;
-        }
+	{
+	  iri_id_t iid = unbox_iri_id (it);
+	  if (iid >= MIN_64BIT_BNODE_IRI_ID)
+	    snprintf (temp, sizeof (temp), "#ib" IIDBOXINT_FMT, (boxint) (iid - MIN_64BIT_BNODE_IRI_ID));
+	  else
+	    snprintf (temp, sizeof (temp), "#i" IIDBOXINT_FMT, (boxint) (iid));
+	  break;
+	}
 
       case DV_SINGLE_FLOAT:
 	snprintf (temp, sizeof (temp), "%.16g", unbox_float (it));
@@ -2230,7 +2100,6 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
       case DV_DOUBLE_FLOAT:
 	snprintf (temp, sizeof (temp), "%.16g", unbox_double (it));
 	break;
-
       case DV_NUMERIC:
 	numeric_to_string ((numeric_t) it, temp, sizeof (temp));
 	break;
@@ -2252,9 +2121,14 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 
 	    case SQL_TYPE_TIME:
 	    case SQL_TIME:
-              {
-                char *tail = temp+11;
-                do { tail[-11] = tail[0]; tail++; } while (tail[0]);
+	      {
+		char *tail = temp + 11;
+		do
+		  {
+		    tail[-11] = tail[0];
+		    tail++;
+		  }
+		while (tail[0]);
 /*
 	      strncpy (temp, temp + 11, 8);
 	      temp[8] = 0;
@@ -2263,11 +2137,11 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 /*	      sprintf (temp, "%02d:%02d:%02d",
 		  DT_HOUR (it), DT_MINUTE (it), DT_SECOND (it));
 */
-	      break;
-               }
+		break;
+	      }
 
 	    default:		/* Including 0=unknown, and SQL_TIMESTAMP */
-	      /*temp[19] = 0;*/
+	      /*temp[19] = 0; */
 	      break;
 	    }
 	}
@@ -2290,7 +2164,6 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	    {
 	      set_data_truncated_success_info (stmt, "CL071", nth_col);
 	      piece_len = 0;
-
 	      if (len_ret)
 		*len_ret = 0;
 	    }
@@ -2317,7 +2190,6 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 
 	  return piece_len;
 	}
-
       case DV_WIDE:
       case DV_LONG_WIDE:
 	{
@@ -2342,14 +2214,14 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 		      {
 			piece_len = max - 1;
 			cli_wide_to_narrow (stmt->stmt_connection->con_charset,
-					    0, ((wchar_t *) it) + str_from_pos, piece_len, (unsigned char *) place, piece_len, NULL, NULL);
+			    0, ((wchar_t *) it) + str_from_pos, piece_len, (unsigned char *) place, piece_len, NULL, NULL);
 			place[piece_len] = 0;
 			set_data_truncated_success_info (stmt, "CL074", nth_col);
 		      }
 		    else
 		      {
 			cli_wide_to_narrow (stmt->stmt_connection->con_charset,
-					    0, ((wchar_t *) it) + str_from_pos, len + 1, (unsigned char *) place, max - 1, NULL, NULL);
+			    0, ((wchar_t *) it) + str_from_pos, len + 1, (unsigned char *) place, max - 1, NULL, NULL);
 			piece_len = len;
 		      }
 
@@ -2375,15 +2247,12 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 			if (stmt->stmt_connection->con_wide_as_utf16)
 			  {
 			    eh_encode_wchar_buffer__UTF16LE (
-				(wchar_t *) (it + str_from_pos),
-				(wchar_t *) (it + str_from_pos) + (len + 1),
-				place,
-				place + max);
+				(wchar_t *) (it + str_from_pos), (wchar_t *) (it + str_from_pos) + (len + 1), place, place + max);
 			    if (out_chars)
 			      *out_chars = len * sizeof (short);
 			  }
 			else
-			memcpy (place, (wchar_t *) (it + str_from_pos), (len + 1) * sizeof (wchar_t));
+			  memcpy (place, (wchar_t *) (it + str_from_pos), (len + 1) * sizeof (wchar_t));
 			piece_len = len * sizeof (wchar_t);
 		      }
 
@@ -2398,20 +2267,20 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	}
       case DV_RDF:
 	{
-	  rdf_box_t * rb = (rdf_box_t *) it;
-          if (DV_STRING == DV_TYPE_OF (rb->rb_box))
-            {
+	  rdf_box_t *rb = (rdf_box_t *) it;
+	  if (DV_STRING == DV_TYPE_OF (rb->rb_box))
+	    {
 	      str = rb->rb_box;
 	      len = box_length (rb->rb_box) - 1;
-            }
-          else if (!IS_BOX_POINTER (rb->rb_box))
-            {
-	      snprintf (temp, sizeof (temp), "%ld", (long)((ptrlong)(rb->rb_box)));
-              break;
-            }
-          else
-            return dv_to_str_place (rb->rb_box, DV_TYPE_OF (rb->rb_box), max, place,
-              len_ret, str_from_pos, stmt, nth_col, box_length (rb->rb_box), c_type, sql_type, out_chars);
+	    }
+	  else if (!IS_BOX_POINTER (rb->rb_box))
+	    {
+	      snprintf (temp, sizeof (temp), "%ld", (long) ((ptrlong) (rb->rb_box)));
+	      break;
+	    }
+	  else
+	    return dv_to_str_place (rb->rb_box, DV_TYPE_OF (rb->rb_box), max, place,
+		len_ret, str_from_pos, stmt, nth_col, box_length (rb->rb_box), c_type, sql_type, out_chars);
 	  break;
 	}
 
@@ -2422,7 +2291,6 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 
   if (*temp)
     len = (SDWORD) strlen (temp);
-
   if (len_ret)
     *len_ret = len * (SQL_C_WCHAR == c_type ? sizeof (wchar_t) : sizeof (char));
 
@@ -2466,7 +2334,6 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	    {
 	      len *= 2;
 	      *len_ret = len;
-
 	      if (len >= max)
 		{
 		  piece_len = (max - 1) / 2;
@@ -2524,11 +2391,7 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 		  wlen = box_length (wide) / sizeof (wchar_t) - 1;
 		  if (stmt->stmt_connection->con_wide_as_utf16)
 		    {
-		      eh_encode_wchar_buffer__UTF16LE (
-			  (wchar_t *) wide,
-			  (wchar_t *) wide + wlen + 1,
-			  place,
-			  place + max);
+		      eh_encode_wchar_buffer__UTF16LE ((wchar_t *) wide, (wchar_t *) wide + wlen + 1, place, place + max);
 		      if (out_chars)
 			*out_chars = wlen * sizeof (short);
 		    }
@@ -2539,11 +2402,10 @@ dv_to_str_place (caddr_t it, dtp_t dtp, SQLLEN max, caddr_t place,
 	      else
 		{
 		  wides = cli_narrow_to_wide (stmt->stmt_connection->con_charset, 0,
-		  (unsigned char *) str, len, (wchar_t *) place,
-		  max / sizeof (wchar_t));
+		      (unsigned char *) str, len, (wchar_t *) place, max / sizeof (wchar_t));
 
-	      if (wides >= 0 && wides < max / sizeof (wchar_t))
-		((wchar_t *) place)[wides] = 0;
+		  if (wides >= 0 && wides < max / sizeof (wchar_t))
+		    ((wchar_t *) place)[wides] = 0;
 		}
 
 	      piece_len = len;
@@ -2600,7 +2462,7 @@ num_bind_check (cli_stmt_t * stmt, int rc)
 }
 
 
-void nt_to_numeric_struct (char * dt, SQL_NUMERIC_STRUCT * ons);
+void nt_to_numeric_struct (char *dt, SQL_NUMERIC_STRUCT * ons);
  /*
     Via:
     SQLFetch (wicli.c)      -> stmt_set_columns (cliuti.c)
@@ -2621,13 +2483,13 @@ void nt_to_numeric_struct (char * dt, SQL_NUMERIC_STRUCT * ons);
 
     If dv_value 'it' is XXX, returns YYY and stores ZZZ to *len_ret
 
-    NULL	 SQL_NULL_DATA  SQL_NULL_DATA
+    NULL         SQL_NULL_DATA  SQL_NULL_DATA
     box of length zero   SQL_NULL_DATA  0
 
     If max is 0 (c_type is
     SQL_C_BINARY or SQL_C_CHAR)
     or max is 1 and c_type
-    is SQL_C_CHAR	   returns 0   and stores zero to *len_ret
+    is SQL_C_CHAR          returns 0   and stores zero to *len_ret
     (in case c_type is SQL_C_CHAR and string is '')
     returns 0   and stores non-zero to *len_ret
     (in all other cases)
@@ -2652,28 +2514,28 @@ void nt_to_numeric_struct (char * dt, SQL_NUMERIC_STRUCT * ons);
 SQLLEN
 dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
     int c_type,			/* cb->cb_c_type,     from SQLBindCol fCType */
-    SQLSMALLINT sql_type,		/* pb->pb_sql_type from stmt_set_proc_return,
+    SQLSMALLINT sql_type,	/* pb->pb_sql_type from stmt_set_proc_return,
 				   0 elsewhere. New arg by AK 31-MAR-1997 */
     SQLLEN max,			/* cb->cb_max_length, from SQLBindCol cbValueMax */
     caddr_t place,		/* cb->cb_place,      from SQLBindCol rgbValue */
-    SQLLEN *len_ret,		/* cb->cb_length,     from SQLBindCol pcbValue */
+    SQLLEN * len_ret,		/* cb->cb_length,     from SQLBindCol pcbValue */
     SQLLEN str_from_pos,	/* Given as zero      from stmt_set_columns, and
 				   stmt_set_proc_return
 				   but as cb -> cb_read_up_to from SQLGetData */
     cli_stmt_t * stmt,		/* place error here if overflow */
     int nth_col,		/* use in possible SQLGetData of blob */
-    SQLLEN *out_chars)
+    SQLLEN * out_chars)
 {
   SQLLEN len = 0, ret_len = 0;
   dtp_t its_type;
-
   if (c_type == SQL_C_DEFAULT)
     {
       if (nth_col != -1)
 	{
 	  SQLSMALLINT sql_type;
 
-	  virtodbc__SQLDescribeCol ((SQLHSTMT) stmt, (SQLUSMALLINT) nth_col, NULL, (SQLSMALLINT) 0, NULL, &sql_type, NULL, NULL, NULL);
+	  virtodbc__SQLDescribeCol ((SQLHSTMT) stmt, (SQLUSMALLINT) nth_col, NULL, (SQLSMALLINT) 0, NULL, &sql_type, NULL, NULL,
+	      NULL);
 	  c_type = sql_type_to_sqlc_default (sql_type);
 	}
       else
@@ -2712,9 +2574,9 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	  its_type = DV_TYPE_OF (it);
 	}
 
+
       if (c_type == SQL_C_LONG && max == 2)
 	c_type = SQL_C_SHORT;
-
       switch (c_type)
 	{
 	case SQL_C_CHAR:
@@ -2723,11 +2585,11 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	  return dv_to_str_place (it, its_type, max, place, len_ret, str_from_pos, stmt, nth_col, len, c_type, sql_type, out_chars);
 
 	case SQL_C_BOX:
-	    {
-	      ret_len = sizeof (caddr_t);
-	      *((caddr_t *)place) = (caddr_t) it;
-	      break;
-	    }
+	  {
+	    ret_len = sizeof (caddr_t);
+	    *((caddr_t *) place) = (caddr_t) it;
+	    break;
+	  }
 
 	case SQL_C_SLONG:
 	case SQL_C_LONG:
@@ -2736,7 +2598,7 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    {
 	    case DV_LONG_INT:
 	    case DV_SHORT_INT:
-              {
+	      {
 		boxint n = unbox (it);
 		if (n < (int64) INT32_MIN || n > (int64) INT32_MAX)
 		  {
@@ -2748,11 +2610,9 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    case DV_SINGLE_FLOAT:
 	      *((long *) place) = (long) unbox_float (it);
 	      break;
-
 	    case DV_DOUBLE_FLOAT:
 	      *((long *) place) = (long) unbox_double (it);
 	      break;
-
 	    case DV_NUMERIC:
 	      {
 		int32 tl;
@@ -2760,7 +2620,6 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 		*((long *) place) = tl;
 		break;
 	      }
-
 	    case DV_STRING:
 	      {
 		long tl;
@@ -2779,15 +2638,12 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    case DV_SHORT_INT:
 	      *((unsigned long *) place) = (unsigned long) unbox (it);
 	      break;
-
 	    case DV_SINGLE_FLOAT:
 	      *((unsigned long *) place) = (long) unbox_float (it);
 	      break;
-
 	    case DV_DOUBLE_FLOAT:
 	      *((unsigned long *) place) = (long) unbox_double (it);
 	      break;
-
 	    case DV_NUMERIC:
 	      {
 		int32 tl;
@@ -2795,7 +2651,6 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 		*((unsigned long *) place) = tl;
 		break;
 	      }
-
 	    case DV_STRING:
 	      {
 		long tl;
@@ -2815,15 +2670,12 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    case DV_SHORT_INT:
 	      *((short *) place) = (short) unbox (it);
 	      break;
-
 	    case DV_SINGLE_FLOAT:
 	      *((short *) place) = (short) unbox_float (it);
 	      break;
-
 	    case DV_DOUBLE_FLOAT:
 	      *((short *) place) = (short) unbox_double (it);
 	      break;
-
 	    case DV_NUMERIC:
 	      {
 		int32 tl;
@@ -2850,11 +2702,9 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    case DV_SHORT_INT:
 	      *((unsigned short *) place) = (unsigned short) unbox (it);
 	      break;
-
 	    case DV_SINGLE_FLOAT:
 	      *((unsigned short *) place) = (unsigned short) unbox_float (it);
 	      break;
-
 	    case DV_DOUBLE_FLOAT:
 	      *((unsigned short *) place) = (unsigned short) unbox_double (it);
 	      break;
@@ -2886,15 +2736,12 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    case DV_SHORT_INT:
 	      *((float *) place) = (float) unbox (it);
 	      break;
-
 	    case DV_SINGLE_FLOAT:
 	      *((float *) place) = unbox_float (it);
 	      break;
-
 	    case DV_DOUBLE_FLOAT:
 	      *((float *) place) = (float) unbox_double (it);
 	      break;
-
 	    case DV_NUMERIC:
 	      {
 		double td;
@@ -2921,15 +2768,12 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	    case DV_SHORT_INT:
 	      *((double *) place) = (double) unbox (it);
 	      break;
-
 	    case DV_SINGLE_FLOAT:
 	      *((double *) place) = (double) unbox_float (it);
 	      break;
-
 	    case DV_DOUBLE_FLOAT:
 	      *((double *) place) = unbox_double (it);
 	      break;
-
 	    case DV_NUMERIC:
 	      {
 		double td;
@@ -2937,7 +2781,6 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 		*((double *) place) = td;
 		break;
 	      }
-
 	    case DV_STRING:
 	      {
 		double tl;
@@ -2960,7 +2803,6 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 		dt_to_timestamp_struct (it, out_ts);
 		ret_len = sizeof (TIMESTAMP_STRUCT);
 	      }
-
 	    break;
 	  }
 
@@ -2970,13 +2812,11 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 	case SQL_C_TIME:
 	  {
 	    TIME_STRUCT *out_ts = (TIME_STRUCT *) place;
-
 	    if (is_internal_time_type (its_type))
 	      {
 		dt_to_time_struct (it, out_ts);
 		ret_len = sizeof (TIME_STRUCT);
 	      }
-
 	    break;
 	  }
 
@@ -2992,16 +2832,13 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 		dt_to_date_struct (it, out_ts);
 		ret_len = sizeof (DATE_STRUCT);
 	      }
-
 	    break;
 	  }
 	case SQL_C_NUMERIC:
 	  {
 	    SQL_NUMERIC_STRUCT *out_ns = (SQL_NUMERIC_STRUCT *) place;
-
 	    nt_to_numeric_struct (it, out_ns);
 	    ret_len = sizeof (SQL_NUMERIC_STRUCT);
-
 	    break;
 	  }
 	}
@@ -3016,7 +2853,7 @@ dv_to_place (caddr_t it,	/* Data in DV format  from the Kubl. */
 
 /* Convert dv type to SQL_NUMERIC_STRUCT type */
 void
-nt_to_numeric_struct (char * it, SQL_NUMERIC_STRUCT * ons)
+nt_to_numeric_struct (char *it, SQL_NUMERIC_STRUCT * ons)
 {
   numeric_t nt = numeric_allocate ();
   dtp_t its_type = DV_TYPE_OF (it);
@@ -3064,7 +2901,6 @@ nt_to_numeric_struct (char * it, SQL_NUMERIC_STRUCT * ons)
     }
 }
 
-
 caddr_t
 numeric_struct_to_nt (SQL_NUMERIC_STRUCT * ns)
 {
@@ -3099,7 +2935,6 @@ stmt_reset_getdata_status (cli_stmt_t * stmt, caddr_t * row)
 	{
 	  caddr_t val = row[inx];
 	  dtp_t dtp = DV_TYPE_OF (val);
-
 /* IvAn/DvBlobXper/001212 Case for XPER added */
 	  if (IS_BLOB_HANDLE_DTP (dtp))
 	    {
@@ -3108,7 +2943,6 @@ stmt_reset_getdata_status (cli_stmt_t * stmt, caddr_t * row)
 	      bh->bh_position = 0;
 	    }
 	}
-
       cb = cb->cb_next;
       inx++;
     }
@@ -3135,13 +2969,12 @@ stmt_set_columns (cli_stmt_t * stmt, caddr_t * row, int nth_in_set)
 	  inx++;
 	  continue;
 	}
-
       it = row[inx];
       if (cb->cb_place && stmt->stmt_retrieve_data == SQL_RD_ON)
 	{
 	  int rebind_offset =
-	      stmt->stmt_imp_row_descriptor ? (stmt->stmt_imp_row_descriptor->
-	      d_bind_offset_ptr ? *(stmt->stmt_imp_row_descriptor->d_bind_offset_ptr) : 0) : 0;
+	      stmt->stmt_imp_row_descriptor ? (stmt->stmt_imp_row_descriptor->d_bind_offset_ptr ? *(stmt->stmt_imp_row_descriptor->
+		  d_bind_offset_ptr) : 0) : 0;
 	  SQLLEN pl_offset = stmt->stmt_bind_type == 0 ? cb->cb_max_length * nth_in_set : nth_in_set * stmt->stmt_bind_type;
 	  int l_offset = stmt->stmt_bind_type == 0 ? sizeof (long) * nth_in_set : nth_in_set * stmt->stmt_bind_type;
 	  SQLLEN *len = cb->cb_length;
@@ -3267,25 +3100,21 @@ strncasestr (unsigned char *string1, unsigned char *string2, size_t maxbytes)
 		{
 		  d = iso_to_lower (d);
 		}
-
 	      if (is_a_uc_letter (e))
 		{
 		  e = iso_to_lower (e);
 		}
-
 	      if (d != e)
 		{
 		  break;
 		}		/* Found first differing character. */
 	    }
-
 /* If we exited the above loop with value of e as zero, then we have
    found that the whole string2 is contained in string1: */
 	  if (!e)
 	    {
 	      return string1;
 	    }
-
 /* But if string1 was finished (although s2 still wasn't) then we return
    false, as the 'tail of string1' is now shorter than string2, so it's
    not anymore possible that string2 would fit into it:
@@ -3296,7 +3125,6 @@ strncasestr (unsigned char *string1, unsigned char *string2, size_t maxbytes)
 	    {
 	      return 0;
 	    }
-
 /* Otherwise, it didn't match this time, let's try to find the next potential
    point of string1 where it would match: */
 	}
@@ -3314,7 +3142,6 @@ skip_blankos (char *str)
     {
       str++;
     }				/* Skip blankos. */
-
   return str;
 }
 
@@ -3439,7 +3266,6 @@ stmt_convert_brace_escapes (SQLCHAR * statement_text, SQLINTEGER * newCB)
 
   /* Skip all white spaces. */
   ptr = (SQLCHAR *) skip_blankos ((char *) statement_text);
-
 #if 0
   if ('{' == *ptr)		/* Left brace as first non-blank character? */
     {
@@ -3464,9 +3290,9 @@ stmt_convert_brace_escapes (SQLCHAR * statement_text, SQLINTEGER * newCB)
  *  Compute DISPLAY_SIZE from col_desc
  */
 SQLLEN
-col_desc_get_display_size (col_desc_t *cd, int cli_binary_timestamp)
+col_desc_get_display_size (col_desc_t * cd, int cli_binary_timestamp)
 {
-   switch ((dtp_t) cd->cd_dtp)
+  switch ((dtp_t) cd->cd_dtp)
     {
     case DV_SHORT_INT:
       return 6;
@@ -3507,7 +3333,7 @@ col_desc_get_display_size (col_desc_t *cd, int cli_binary_timestamp)
 
 	if (cli_binary_timestamp)
 	  return 2 * unbox (cd->cd_precision);	/* SQL_BINARY */
- 	else if (scale)
+	else if (scale)
 	  return 20 + scale;
 	else
 	  return 19;
@@ -3517,7 +3343,7 @@ col_desc_get_display_size (col_desc_t *cd, int cli_binary_timestamp)
       {
 	int scale = unbox (cd->cd_scale);
 
- 	if (scale)
+	if (scale)
 	  return 20 + scale;
 	else
 	  return 19;
@@ -3527,14 +3353,14 @@ col_desc_get_display_size (col_desc_t *cd, int cli_binary_timestamp)
       {
 	int scale = unbox (cd->cd_scale);
 
- 	if (scale)
+	if (scale)
 	  return 9 + scale;
 	else
 	  return 8;
       }
 
     case DV_IRI_ID:
-	return 23; /* i# + 20 digits precision */
+      return 23;		/* i# + 20 digits precision */
 
     default:
       return SQL_NO_TOTAL;

@@ -36,7 +36,7 @@
 
 /* PL Debugger API */
 void *
-pldbg_connect (char * addr, char * usr, char * pwd1)
+pldbg_connect (char *addr, char *usr, char *pwd1)
 {
   char pwd[17];
   caddr_t result;
@@ -47,7 +47,7 @@ pldbg_connect (char * addr, char * usr, char * pwd1)
   if (!DKSESSTAT_ISSET (ses, SST_OK))
     {
       if (ses)
-      PrpcSessionFree (ses);
+	PrpcSessionFree (ses);
       return NULL;
     }
   else
@@ -68,9 +68,9 @@ pldbg_connect (char * addr, char * usr, char * pwd1)
 }
 
 int
-pldbg_command (void * ses1, char * cmd1)
+pldbg_command (void *ses1, char *cmd1)
 {
-  dk_session_t * ses = (dk_session_t *) ses1;
+  dk_session_t *ses = (dk_session_t *) ses1;
   caddr_t cmd = box_dv_short_string (cmd1);
   char *tok, *toks = NULL;
   dk_set_t set = NULL, set1;
@@ -79,7 +79,7 @@ pldbg_command (void * ses1, char * cmd1)
   if (NULL != cmd)
     do
       {
-	pldbg_cmd_t * tmp;
+	pldbg_cmd_t *tmp;
 
 	if (!i)
 	  tok = strtok_r (cmd, " \r\n", &toks);
@@ -161,9 +161,9 @@ pldbg_command (void * ses1, char * cmd1)
 }
 
 caddr_t
-pldbg_read_resp (void * ses1)
+pldbg_read_resp (void *ses1)
 {
-  dk_session_t * ses = (dk_session_t *) ses1;
+  dk_session_t *ses = (dk_session_t *) ses1;
   caddr_t res = (caddr_t) PrpcReadObject (ses);
   if (!DKSESSTAT_ISSET (ses, SST_OK))
     {
@@ -179,10 +179,7 @@ void
 pldbg_help (FILE * f)
 {
   pldbg_cmd_t *cmd = pld_cmds, *nfo = pld_infos;
-  fprintf (f,
-      "OpenLink Interactive PL Debugger (Virtuoso).\n"
-      "\n"
-      "Available commands:\n");
+  fprintf (f, "OpenLink Interactive PL Debugger (Virtuoso).\n" "\n" "Available commands:\n");
   for (; cmd->pld_name; cmd++)
     {
       fprintf (f, "   %s %s - %s\n", cmd->pld_name, cmd->pld_params ? cmd->pld_params : "", cmd->pld_descr);

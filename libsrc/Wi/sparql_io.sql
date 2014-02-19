@@ -2149,7 +2149,6 @@ create function DB.DBA.PARSE_SPARQL_WS_PARAMS (in lst any) returns any
           ttl_txt := concat (ttl_txt, '<', pname, '> <p> ', pval, ' .\n');
         }
       if (parse is not null)
-
         vectorbld_acc (res, ':' || pname, parse);
     }
   if (ttl_txt <> '')
@@ -2485,13 +2484,13 @@ create procedure WS.WS.SPARQL_ENDPOINT_FORMAT_OPTS (in can_cxml integer, in can_
     {
       if (not length (format)) format := 'text/html';
       opts := vector (
-	  vector ('auto'				, 'Auto'		),
-	  vector ('text/html'				, 'HTML'		),
-	  vector ('application/vnd.ms-excel'		, 'Spreadsheet'		),
-	  vector ('application/sparql-results+xml'	, 'XML'			),
-	  vector ('application/sparql-results+json'	, 'JSON'		),
-	  vector ('application/javascript'		, 'Javascript'		),
-	  vector ('text/plain'				, 'NTriples'		),
+        vector ('auto',				'Auto'),
+        vector ('text/html',			'HTML'),
+        vector ('application/vnd.ms-excel',	'Spreadsheet'),
+        vector ('application/sparql-results+xml', 'XML'),
+        vector ('application/sparql-results+json', 'JSON'),
+        vector ('application/javascript',	'Javascript'),
+        vector ('text/plain',			'NTriples'),
         vector ('application/rdf+xml',		'RDF/XML') );
     }
   foreach (any x in opts) do
@@ -3327,7 +3326,6 @@ host_found:
     qry_params := vector ();
   if (save_mode is not null and save_mode <> 'display')
     client_supports_partial_res := 0; -- because result is not sent at all in this case
-
   if (format <> '')
     {
       full_query := '\n#output-format:' || format || '\n' || full_query;

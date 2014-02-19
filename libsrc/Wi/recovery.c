@@ -64,11 +64,10 @@ static int bkp_check_and_recover_blobs = 0;
 static void
 walk_page_transit (it_cursor_t * itc, dp_addr_t dp, buffer_desc_t ** buf_ret)
 {
-  buffer_desc_t * target = NULL;
+  buffer_desc_t *target = NULL;
   for (;;)
     {
-      page_wait_access (itc, dp, *buf_ret, &target,
-			PA_WRITE , RWG_WAIT_NO_ENTRY_IF_WAIT);
+      page_wait_access (itc, dp, *buf_ret, &target, PA_WRITE, RWG_WAIT_NO_ENTRY_IF_WAIT);
       if (target)
 	break;
     }
@@ -83,11 +82,10 @@ walk_page_transit (it_cursor_t * itc, dp_addr_t dp, buffer_desc_t ** buf_ret)
  *  Calls a function on all db pages
  */
 void
-walk_dbtree ( it_cursor_t * it, buffer_desc_t ** buf_ret, int level,
-    page_func_t func, void* ctx)
+walk_dbtree (it_cursor_t * it, buffer_desc_t ** buf_ret, int level, page_func_t func, void *ctx)
 {
   dp_addr_t dp_from = (*buf_ret)->bd_page;
-  buffer_desc_t * buf_from = *buf_ret;
+  buffer_desc_t *buf_from = *buf_ret;
   dp_addr_t leaf;
   db_buf_t page;
 
@@ -104,48 +102,48 @@ walk_dbtree ( it_cursor_t * it, buffer_desc_t ** buf_ret, int level,
 
   page = (*buf_ret)->bd_buffer;
   DO_ROWS ((*buf_ret), map_pos, row, NULL)
-    {
-      if ((*buf_ret)->bd_content_map->pm_entries[map_pos] > PAGE_SZ)
-	break;
+  {
+    if ((*buf_ret)->bd_content_map->pm_entries[map_pos] > PAGE_SZ)
+      break;
 
-      leaf = leaf_pointer (row, it->itc_insert_key);
-      if (leaf)
-	{
-	  buf_from = *buf_ret;
-	  dp_from = buf_from->bd_page;
-	  save_pos = map_pos;
+    leaf = leaf_pointer (row, it->itc_insert_key);
+    if (leaf)
+      {
+	buf_from = *buf_ret;
+	dp_from = buf_from->bd_page;
+	save_pos = map_pos;
 
-	  walk_page_transit (it, leaf, buf_ret);
-	  buf_ext_check (*buf_ret);
-	  if ((uint32) (LONG_REF ((*buf_ret)->bd_buffer + DP_PARENT)) != dp_from)
-	    {
-	      log_error ("Bad parent link in %ld coming from %ld link %ld. Crash recovery recommended.",
-		  leaf, buf_from->bd_page, LONG_REF ((*buf_ret)->bd_buffer + DP_PARENT));
-	      if (!correct_parent_links)
-		GPF_T1 ("Bad parent link in backup. Crash recovery recommended.");
-	    }
-	  walk_dbtree (it, buf_ret, level + 1, func, ctx);
-	  up = dp_from;
-	  walk_page_transit (it, up, buf_ret);
+	walk_page_transit (it, leaf, buf_ret);
+	buf_ext_check (*buf_ret);
+	if ((uint32) (LONG_REF ((*buf_ret)->bd_buffer + DP_PARENT)) != dp_from)
+	  {
+	    log_error ("Bad parent link in %ld coming from %ld link %ld. Crash recovery recommended.",
+		leaf, buf_from->bd_page, LONG_REF ((*buf_ret)->bd_buffer + DP_PARENT));
+	    if (!correct_parent_links)
+	      GPF_T1 ("Bad parent link in backup. Crash recovery recommended.");
+	  }
+	walk_dbtree (it, buf_ret, level + 1, func, ctx);
+	up = dp_from;
+	walk_page_transit (it, up, buf_ret);
 
-	  if (it->itc_at_data_level)
-	    {
-	      it->itc_map_pos = save_pos;
-	      it->itc_page = (*buf_ret)->bd_page;
-	      itc_read_ahead (it, buf_ret);
-	    }
-	  page = (*buf_ret)->bd_buffer;
-	}
-      else
-	{
-	  it->itc_at_data_level = 1;
-	  if (level < MAX_LEVELS)
-	    levels[level].lv_leaves++;
+	if (it->itc_at_data_level)
+	  {
+	    it->itc_map_pos = save_pos;
+	    it->itc_page = (*buf_ret)->bd_page;
+	    itc_read_ahead (it, buf_ret);
+	  }
+	page = (*buf_ret)->bd_buffer;
+      }
+    else
+      {
+	it->itc_at_data_level = 1;
+	if (level < MAX_LEVELS)
+	  levels[level].lv_leaves++;
 
 
-	}
+      }
 
-    }
+  }
   END_DO_ROWS;
 }
 
@@ -159,43 +157,42 @@ walk_db (lock_trx_t * lt, page_func_t func)
   memset (levels, 0, sizeof (levels));
 
   {
-    DO_SET (index_tree_t * , it, &wi_inst.wi_master->dbs_trees)
-      {
-	if (it != wi_inst.wi_master->dbs_cpt_tree)
+    DO_SET (index_tree_t *, it, &wi_inst.wi_master->dbs_trees)
+    {
+      if (it != wi_inst.wi_master->dbs_cpt_tree)
+	{
+	  itc = itc_create (NULL, lt);
+	  itc_from_it (itc, it);
+	  itc->itc_isolation = ISO_UNCOMMITTED;
+	  ITC_FAIL (itc)
 	  {
-	    itc = itc_create (NULL , lt);
-	    itc_from_it (itc, it);
-	    itc->itc_isolation = ISO_UNCOMMITTED;
-	    ITC_FAIL (itc)
+	    itc->itc_random_search = RANDOM_SEARCH_ON;	/* do not use root image cache */
+	    buf = itc_reset (itc);
+	    itc->itc_random_search = RANDOM_SEARCH_OFF;
+	    itc_try_land (itc, &buf);
+	    /* the whole traversal is in landed (PA_WRITE() mode. page_transit_if_can will not allow mode change in transit */
+	    if (!buf->bd_content_map)
 	      {
-		itc->itc_random_search = RANDOM_SEARCH_ON; /* do not use root image cache */
-		buf = itc_reset (itc);
-		itc->itc_random_search = RANDOM_SEARCH_OFF;
-		itc_try_land (itc, &buf);
-		/* the whole traversal is in landed (PA_WRITE() mode. page_transit_if_can will not allow mode change in transit */
-		if (!buf->bd_content_map)
-		  {
-		    log_error ("Blog ref'referenced as index tree top node dp=%d key=%s\n", buf->bd_page, itc->itc_insert_key->key_name);
-		  }
-		else
-		  walk_dbtree (itc, &buf, 0, func, 0);
-		itc_page_leave (itc, buf);
+		log_error ("Blog ref'referenced as index tree top node dp=%d key=%s\n", buf->bd_page,
+		    itc->itc_insert_key->key_name);
 	      }
-	    ITC_FAILED
-	      {
-		itc_free (itc);
-	      }
-	    END_FAIL (itc);
+	    else
+	      walk_dbtree (itc, &buf, 0, func, 0);
+	    itc_page_leave (itc, buf);
+	  }
+	  ITC_FAILED
+	  {
 	    itc_free (itc);
 	  }
-      }
-    END_DO_SET()
-  }
+	  END_FAIL (itc);
+	  itc_free (itc);
+	}
+    }
+  END_DO_SET ()}
 }
 
 
-char *sys_tables[] =
-{
+char *sys_tables[] = {
   "SYS_CHARSETS",
   "SYS_COLS",
   "SYS_KEYS",
@@ -218,7 +215,7 @@ srv_dd_to_log (client_connection_t * cli)
   it = itc_create (NULL, cli->cli_trx);
 
   log_debug ("Dumping the schema tables");
-  log_sc_change_1(cli->cli_trx);
+  log_sc_change_1 (cli->cli_trx);
 
   /* make a log entry with SYS_COLS, SYS_KEYS, SYS_KEY_PARTS *( */
   for (ptr = sys_tables; *ptr; ptr++)
@@ -231,7 +228,7 @@ srv_dd_to_log (client_connection_t * cli)
       while (lc_next (lc))
 	{
 	  row_delta_t rd;
-	  caddr_t * row = (caddr_t *) lc_nth_col (lc, 0);
+	  caddr_t *row = (caddr_t *) lc_nth_col (lc, 0);
 	  memset (&rd, 0, sizeof (rd));
 	  rd.rd_values = &row[1];
 	  rd.rd_n_values = BOX_ELEMENTS (row) - 1;
@@ -241,7 +238,7 @@ srv_dd_to_log (client_connection_t * cli)
 	  log_rd_blobs (it, &rd);
 	}
       lc_free (lc);
-      qr_free (qr); /* PmN */
+      qr_free (qr);		/* PmN */
     }
   log_sc_change_2 (cli->cli_trx);
   log_debug ("Dumping the registry");
@@ -261,7 +258,7 @@ srv_dd_to_log (client_connection_t * cli)
       while (lc_next (lc))
 	{
 	  row_delta_t rd;
-	  caddr_t * row = (caddr_t *) lc_nth_col (lc, 0);
+	  caddr_t *row = (caddr_t *) lc_nth_col (lc, 0);
 	  memset (&rd, 0, sizeof (rd));
 	  rd.rd_values = &row[1];
 	  rd.rd_n_values = BOX_ELEMENTS (row) - 1;
@@ -271,10 +268,10 @@ srv_dd_to_log (client_connection_t * cli)
 	  log_rd_blobs (it, &rd);
 	}
       lc_free (lc);
-      qr_free (qr); /* PmN */
+      qr_free (qr);		/* PmN */
       log_text_array (cli->cli_trx, list (1, box_string ("select count (*)  from SYS_VT_INDEX where "
-	  "0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, "
-	  "deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS)")));
+		  "0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, "
+		  "deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS)")));
     }
   itc_free (it);
   log_debug ("Dumping the schema done");
@@ -284,50 +281,49 @@ srv_dd_to_log (client_connection_t * cli)
 static void
 log_rd_blobs (it_cursor_t * itc, row_delta_t * rd)
 {
-  dbe_key_t * key = rd->rd_key;
+  dbe_key_t *key = rd->rd_key;
   int ctr = 0;
   itc->itc_row_key = key;
   itc->itc_insert_key = key;
   /* printf ("### %ld >\n", key_id); */
   DO_CL (cl, key->key_row_var)
-    {
-      dtp_t dtp = cl->cl_sqt.sqt_col_dtp;
-      if (IS_BLOB_DTP (dtp))
-	{
-	  int nth = rd->rd_key->key_is_col ? ctr : cl->cl_nth;
-	  caddr_t val = rd->rd_values[nth];
-	  if (DV_DB_NULL == DV_TYPE_OF (val))
-	    continue;
-	  dtp = val[0];
-	  if (DV_COL_BLOB_SERIAL == dtp)
-	    dtp = cl->cl_sqt.sqt_col_dtp;
-	  if (IS_BLOB_DTP (dtp))
-	    {
-		  dp_addr_t start = LONG_REF_NA (val + BL_DP);
-		  dp_addr_t dir_start = LONG_REF_NA (val + BL_PAGE_DIR);
-		  int64 diskbytes = INT64_REF_NA (val + BL_BYTE_LEN);
-		  blob_log_write (itc, start, dtp, dir_start, diskbytes,
-				  cl->cl_col_id, key->key_table->tb_name);
-		}
-	    }
-      ctr++;
-    }
+  {
+    dtp_t dtp = cl->cl_sqt.sqt_col_dtp;
+    if (IS_BLOB_DTP (dtp))
+      {
+	int nth = rd->rd_key->key_is_col ? ctr : cl->cl_nth;
+	caddr_t val = rd->rd_values[nth];
+	if (DV_DB_NULL == DV_TYPE_OF (val))
+	  continue;
+	dtp = val[0];
+	if (DV_COL_BLOB_SERIAL == dtp)
+	  dtp = cl->cl_sqt.sqt_col_dtp;
+	if (IS_BLOB_DTP (dtp))
+	  {
+	    dp_addr_t start = LONG_REF_NA (val + BL_DP);
+	    dp_addr_t dir_start = LONG_REF_NA (val + BL_PAGE_DIR);
+	    int64 diskbytes = INT64_REF_NA (val + BL_BYTE_LEN);
+	    blob_log_write (itc, start, dtp, dir_start, diskbytes, cl->cl_col_id, key->key_table->tb_name);
+	  }
+      }
+    ctr++;
+  }
   END_DO_CL;
   fflush (stdout);
 }
 
 
 static int
-bkp_check_blob_col (it_cursor_t *master_itc, dtp_t *col, dbe_key_t *key, dbe_col_loc_t *cl)
+bkp_check_blob_col (it_cursor_t * master_itc, dtp_t * col, dbe_key_t * key, dbe_col_loc_t * cl)
 {
-  lock_trx_t * lt = master_itc->itc_ltrx;
+  lock_trx_t *lt = master_itc->itc_ltrx;
   index_tree_t *it = master_itc->itc_tree;
   dp_addr_t start = LONG_REF_NA (col + BL_DP);
   dp_addr_t bh_page = LONG_REF_NA (col + BL_DP);
   uint32 bh_timestamp = LONG_REF_NA (col + BL_TS);
   buffer_desc_t *buf = NULL;
   int status = 1, n_pages, pg_inx = 0;
-  blob_handle_t * bh;
+  blob_handle_t *bh;
   it_cursor_t itc_auto, *itc = &itc_auto;
   ITC_INIT (itc, NULL, lt);
   itc_from_it (itc, it);
@@ -355,7 +351,7 @@ bkp_check_blob_col (it_cursor_t *master_itc, dtp_t *col, dbe_key_t *key, dbe_col
       if (start != bh->bh_pages[pg_inx])
 	{
 	  log_warning ("blob page dir dp  %d  differs from linked list dp = %d start = %d.",
-		       bh->bh_pages[pg_inx], start, bh->bh_page);
+	      bh->bh_pages[pg_inx], start, bh->bh_page);
 	  status = 0;
 	  break;
 	}
@@ -364,16 +360,14 @@ bkp_check_blob_col (it_cursor_t *master_itc, dtp_t *col, dbe_key_t *key, dbe_col
       page_wait_access (itc, start, NULL, &buf, PA_READ, RWG_WAIT_ANY);
       if (!buf || PF_OF_DELETED == buf)
 	{
-	  log_warning ("Attempt to read deleted blob dp = %d start = %d.",
-	      start, bh_page);
+	  log_warning ("Attempt to read deleted blob dp = %d start = %d.", start, bh_page);
 	  status = 0;
 	  break;
 	}
       type = SHORT_REF (buf->bd_buffer + DP_FLAGS);
       timestamp = LONG_REF (buf->bd_buffer + DP_BLOB_TS);
 
-      if ((DPF_BLOB != type) &&
-	  (DPF_BLOB_DIR != type))
+      if ((DPF_BLOB != type) && (DPF_BLOB_DIR != type))
 	{
 	  log_warning ("wrong blob type blob dp = %d start = %d\n", start, bh_page);
 	  status = 0;
@@ -383,8 +377,7 @@ bkp_check_blob_col (it_cursor_t *master_itc, dtp_t *col, dbe_key_t *key, dbe_col
 
       if ((bh_timestamp != BH_ANY) && (bh_timestamp != timestamp))
 	{
-	  log_warning ("Dirty read of blob dp = %d start = %d.",
-	      start, bh_page);
+	  log_warning ("Dirty read of blob dp = %d start = %d.", start, bh_page);
 	  status = 0;
 	  page_leave_outside_map (buf);
 	  break;
@@ -405,43 +398,43 @@ static int
 bkp_check_and_recover_blob_cols (it_cursor_t * itc, db_buf_t row)
 {
   key_ver_t kv = IE_KEY_VERSION (row);
-  dbe_key_t * key = itc->itc_insert_key->key_versions[kv];
+  dbe_key_t *key = itc->itc_insert_key->key_versions[kv];
   int updated = 0;
 
 
   itc->itc_row_key = key;
   itc->itc_row_data = row;
   DO_CL (cl, key->key_row_var)
-    {
-      dtp_t dtp = cl->cl_sqt.sqt_dtp;
-      if (IS_BLOB_DTP (dtp))
-	{
-	  int off, len;
-	      if (ITC_NULL_CK (itc, (*cl)))
-		continue;
-	      KEY_PRESENT_VAR_COL (key, row, (*cl), off, len);
-	      dtp = itc->itc_row_data[off];
-	      if (IS_BLOB_DTP (dtp))
-		{
-		  if (!bkp_check_blob_col (itc, itc->itc_row_data + off, key, cl))
-		    {
-		      char *col_name = __get_column_name (cl->cl_col_id, key);
-		      dtp_t *col = itc->itc_row_data + off;
-		      log_error ("will have to set blob for col %s in key %s to empty",
-				 col_name, key->key_name);
+  {
+    dtp_t dtp = cl->cl_sqt.sqt_dtp;
+    if (IS_BLOB_DTP (dtp))
+      {
+	int off, len;
+	if (ITC_NULL_CK (itc, (*cl)))
+	  continue;
+	KEY_PRESENT_VAR_COL (key, row, (*cl), off, len);
+	dtp = itc->itc_row_data[off];
+	if (IS_BLOB_DTP (dtp))
+	  {
+	    if (!bkp_check_blob_col (itc, itc->itc_row_data + off, key, cl))
+	      {
+		char *col_name = __get_column_name (cl->cl_col_id, key);
+		dtp_t *col = itc->itc_row_data + off;
+		log_error ("will have to set blob for col %s in key %s to empty", col_name, key->key_name);
 
-		      INT64_SET_NA (col + BL_CHAR_LEN, 0L);
-		      INT64_SET_NA (col + BL_BYTE_LEN, 0L);
-		      updated = 1;
-		    }
-		}
-	}
-    }
+		INT64_SET_NA (col + BL_CHAR_LEN, 0L);
+		INT64_SET_NA (col + BL_BYTE_LEN, 0L);
+		updated = 1;
+	      }
+	  }
+      }
+  }
   END_DO_CL;
   return updated;
 }
 
-extern dk_mutex_t * log_write_mtx;
+
+extern dk_mutex_t *log_write_mtx;
 
 int
 lt_backup_flush (lock_trx_t * lt, int do_commit)
@@ -485,12 +478,12 @@ key_migrate_to (dbe_key_t * key)
 int
 key_is_recoverable (key_id_t key_id)
 {
-  dbe_key_t * migr, * key = sch_id_to_key (wi_inst.wi_schema, key_id);
+  dbe_key_t *migr, *key = sch_id_to_key (wi_inst.wi_schema, key_id);
   if (!key)
     return 0;
   if (!recoverable_keys)
     return 1;
-  if (gethash ((void*)(ptrlong)key_id, recoverable_keys))
+  if (gethash ((void *) (ptrlong) key_id, recoverable_keys))
     return 1;
   for (migr = key_migrate_to (key); migr; migr = key_migrate_to (migr))
     {
@@ -498,11 +491,11 @@ key_is_recoverable (key_id_t key_id)
 	return 1;
     }
   DO_SET (dbe_key_t *, super, &key->key_supers)
-    {
-      if (key_is_recoverable (super->key_id))
-	return 1;
-    }
-  END_DO_SET();
+  {
+    if (key_is_recoverable (super->key_id))
+      return 1;
+  }
+  END_DO_SET ();
   return 0;
 }
 
@@ -510,9 +503,10 @@ key_is_recoverable (key_id_t key_id)
 void
 row_log (it_cursor_t * itc, buffer_desc_t * buf, int map_pos, dbe_key_t * row_key, row_delta_t * rd)
 {
-  union {
-  void * dummy;
-  dtp_t temp[4096];
+  union
+  {
+    void *dummy;
+    dtp_t temp[4096];
   } temp_un;
   if (row_key->key_is_bitmap)
     {
@@ -527,21 +521,23 @@ row_log (it_cursor_t * itc, buffer_desc_t * buf, int map_pos, dbe_key_t * row_ke
       memset (&itc->itc_bp, 0, sizeof (itc->itc_bp));
       pl_set_at_bit ((placeholder_t *) itc, bm, bm_len, bm_start, BITNO_MIN, 0);
       itc->itc_bp.bp_at_end = 0;
-      do {
-	rd->rd_temp = &(temp_un.temp[0]);
-	rd->rd_temp_max = sizeof (temp_un.temp);
-	page_row_bm (buf, map_pos, rd, RO_ROW, itc);
-	rd->rd_n_values--; /*no bitmap string */
-	log_insert (itc->itc_ltrx, rd, LOG_KEY_ONLY | (rd->rd_key->key_id < DD_FIRST_PRIVATE_OID ? INS_REPLACING : INS_NORMAL));
-	rd->rd_n_values++;
-	pl_next_bit ((placeholder_t*)itc, bm, bm_len, bm_start, 0);
-	rd_free (rd);
-      } while (!itc->itc_bp.bp_at_end);
+      do
+	{
+	  rd->rd_temp = &(temp_un.temp[0]);
+	  rd->rd_temp_max = sizeof (temp_un.temp);
+	  page_row_bm (buf, map_pos, rd, RO_ROW, itc);
+	  rd->rd_n_values--;	/*no bitmap string */
+	  log_insert (itc->itc_ltrx, rd, LOG_KEY_ONLY | (rd->rd_key->key_id < DD_FIRST_PRIVATE_OID ? INS_REPLACING : INS_NORMAL));
+	  rd->rd_n_values++;
+	  pl_next_bit ((placeholder_t *) itc, bm, bm_len, bm_start, 0);
+	  rd_free (rd);
+	}
+      while (!itc->itc_bp.bp_at_end);
     }
   else
     {
-	rd->rd_temp = &(temp_un.temp[0]);
-	rd->rd_temp_max = sizeof (temp_un.temp);
+      rd->rd_temp = &(temp_un.temp[0]);
+      rd->rd_temp_max = sizeof (temp_un.temp);
       page_row (buf, map_pos, rd, RO_ROW);
       log_insert (itc->itc_ltrx, rd, LOG_KEY_ONLY | (rd->rd_key->key_id < DD_FIRST_PRIVATE_OID ? INS_REPLACING : INS_NORMAL));
       log_rd_blobs (itc, rd);
@@ -550,25 +546,25 @@ row_log (it_cursor_t * itc, buffer_desc_t * buf, int map_pos, dbe_key_t * row_ke
 }
 
 void
-log_recov_anyfy (caddr_t* values, mem_pool_t * mp)
+log_recov_anyfy (caddr_t * values, mem_pool_t * mp)
 {
   /* if an any column has string values these must be anified because a string in an any column in an rd will be mistaken for a dv serialization. */
   int inx;
   DO_BOX (caddr_t, val, inx, values)
-    {
-      dtp_t dtp = DV_TYPE_OF (val);
-      if (DV_STRING == dtp || DV_WIDE == dtp)
-	{
-	  caddr_t err = NULL;
-	  values[inx] = mp_box_to_any_1 (val, &err, mp, 0);
-	  if (err)
-	    {
-	      dk_free_tree (err);
-	      err = NULL;
-	      values[inx] = mp_box_to_any_1 ((caddr_t)0, &err, mp, 0);
-	    }
-	}
-    }
+  {
+    dtp_t dtp = DV_TYPE_OF (val);
+    if (DV_STRING == dtp || DV_WIDE == dtp)
+      {
+	caddr_t err = NULL;
+	values[inx] = mp_box_to_any_1 (val, &err, mp, 0);
+	if (err)
+	  {
+	    dk_free_tree (err);
+	    err = NULL;
+	    values[inx] = mp_box_to_any_1 ((caddr_t) 0, &err, mp, 0);
+	  }
+      }
+  }
   END_DO_BOX;
 }
 
@@ -576,35 +572,35 @@ log_recov_anyfy (caddr_t* values, mem_pool_t * mp)
 int
 col_row_log (it_cursor_t * itc, buffer_desc_t * buf, int map_pos, dbe_key_t * row_key, row_delta_t * rd)
 {
-  mem_pool_t * mp = mem_pool_alloc ();
+  mem_pool_t *mp = mem_pool_alloc ();
   int row, n_rows = -1, n;
   itc->itc_map_pos = map_pos;
   itc->itc_row_data = BUF_ROW (buf, map_pos);
   itc_ensure_col_refs (itc);
   DO_CL (cl, row_key->key_row_var)
-    {
-      col_data_ref_t * cr = itc->itc_col_refs[cl->cl_nth - row_key->key_n_significant];
-      if (!cr)
-	itc->itc_col_refs[cl->cl_nth - row_key->key_n_significant] = cr = itc_new_cr (itc);
-      itc_fetch_col (itc, buf, cl, 0, COL_NO_ROW);
-      cr->cr_pages[0].cp_ceic = (ce_ins_ctx_t*)cr_mp_array (cr, mp, 0, COL_NO_ROW, 0);
-      if (DV_ANY == cl->cl_sqt.sqt_col_dtp)
-	log_recov_anyfy ((caddr_t*)cr->cr_pages[0].cp_ceic, mp);
-      n = BOX_ELEMENTS (cr->cr_pages[0].cp_ceic);
-      if (-1 == n_rows)
-	n_rows = n;
-      else if (n_rows != n)
-	{
-	  FILE * fp = fopen ("recovery.txt", "a");
-	  log_error ("Columns of different length in seg key %s L=%d, r = %d", row_key->key_name, buf->bd_page, map_pos);
-	  fprintf (fp, "error at map_pos: %d\n", map_pos);
-	  fclose (fp);
-	  mp_free (mp);
-	  itc_col_leave (itc, 0);
-	  return 1;
-	  STRUCTURE_FAULT;
-	}
-    }
+  {
+    col_data_ref_t *cr = itc->itc_col_refs[cl->cl_nth - row_key->key_n_significant];
+    if (!cr)
+      itc->itc_col_refs[cl->cl_nth - row_key->key_n_significant] = cr = itc_new_cr (itc);
+    itc_fetch_col (itc, buf, cl, 0, COL_NO_ROW);
+    cr->cr_pages[0].cp_ceic = (ce_ins_ctx_t *) cr_mp_array (cr, mp, 0, COL_NO_ROW, 0);
+    if (DV_ANY == cl->cl_sqt.sqt_col_dtp)
+      log_recov_anyfy ((caddr_t *) cr->cr_pages[0].cp_ceic, mp);
+    n = BOX_ELEMENTS (cr->cr_pages[0].cp_ceic);
+    if (-1 == n_rows)
+      n_rows = n;
+    else if (n_rows != n)
+      {
+	FILE *fp = fopen ("recovery.txt", "a");
+	log_error ("Columns of different length in seg key %s L=%d, r = %d", row_key->key_name, buf->bd_page, map_pos);
+	fprintf (fp, "error at map_pos: %d\n", map_pos);
+	fclose (fp);
+	mp_free (mp);
+	itc_col_leave (itc, 0);
+	return 1;
+	STRUCTURE_FAULT;
+      }
+  }
   END_DO_CL;
   rd->rd_key = row_key;
   rd->rd_n_values = row_key->key_n_parts - row_key->key_n_significant;
@@ -612,28 +608,28 @@ col_row_log (it_cursor_t * itc, buffer_desc_t * buf, int map_pos, dbe_key_t * ro
     {
       int col = 0, rd_inx;
       DO_CL (cl, row_key->key_row_var)
-	{
-	  caddr_t val, err = NULL;
-	  col_data_ref_t * cr = itc->itc_col_refs[cl->cl_nth - row_key->key_n_significant];
-	  if (col < row_key->key_n_significant)
-	    rd_inx = row_key->key_part_in_layout_order[col];
-	  else
-	    rd_inx = col;
-	  val = ((caddr_t*)cr->cr_pages[0].cp_ceic)[row];
-	  if (IS_BLOB_DTP (cl->cl_sqt.sqt_col_dtp))
-	    {
-	      if (IS_BLOB_HANDLE_DTP (DV_TYPE_OF (val)))
-		{
-		  caddr_t ser = mp_alloc_box (mp, DV_BLOB_LEN, DV_STRING);
-		  bh_to_dv ((blob_handle_t *)val, (db_buf_t)ser, cl->cl_sqt.sqt_col_dtp);
-		  val = ser;
-		}
-	      else
-		val = mp_box_to_any_1 (val, &err, mp, 0);
-	    }
-	  rd->rd_values[rd_inx] = val;
-	  col++;
-	}
+      {
+	caddr_t val, err = NULL;
+	col_data_ref_t *cr = itc->itc_col_refs[cl->cl_nth - row_key->key_n_significant];
+	if (col < row_key->key_n_significant)
+	  rd_inx = row_key->key_part_in_layout_order[col];
+	else
+	  rd_inx = col;
+	val = ((caddr_t *) cr->cr_pages[0].cp_ceic)[row];
+	if (IS_BLOB_DTP (cl->cl_sqt.sqt_col_dtp))
+	  {
+	    if (IS_BLOB_HANDLE_DTP (DV_TYPE_OF (val)))
+	      {
+		caddr_t ser = mp_alloc_box (mp, DV_BLOB_LEN, DV_STRING);
+		bh_to_dv ((blob_handle_t *) val, (db_buf_t) ser, cl->cl_sqt.sqt_col_dtp);
+		val = ser;
+	      }
+	    else
+	      val = mp_box_to_any_1 (val, &err, mp, 0);
+	  }
+	rd->rd_values[rd_inx] = val;
+	col++;
+      }
       END_DO_CL;
       log_insert (itc->itc_ltrx, rd, LOG_KEY_ONLY | INS_SOFT);
       log_rd_blobs (itc, rd);
@@ -645,7 +641,7 @@ col_row_log (it_cursor_t * itc, buffer_desc_t * buf, int map_pos, dbe_key_t * ro
 
 
 void
-log_page (it_cursor_t * it, buffer_desc_t * buf, void* dummy)
+log_page (it_cursor_t * it, buffer_desc_t * buf, void *dummy)
 {
   db_buf_t page;
   int l;
@@ -654,7 +650,7 @@ log_page (it_cursor_t * it, buffer_desc_t * buf, void* dummy)
   slice_id_t slice = buf->bd_storage->dbs_slice;
   dp_addr_t parent_dp;
   int any = 0, n_bad_rows = 0, n_rows = 0, colerr = 0;
-  dbe_key_t * row_key, * page_key = NULL;
+  dbe_key_t *row_key, *page_key = NULL;
   LOCAL_RD (rd);
   page = buf->bd_buffer;
   k_id = LONG_REF (page + DP_KEY_ID);
@@ -675,7 +671,7 @@ log_page (it_cursor_t * it, buffer_desc_t * buf, void* dummy)
   itc_from_it (it, buf->bd_tree);
   if (!is_crash_dump)
     {
-  /* internal rows consistence check */
+      /* internal rows consistence check */
       buf_order_ck (buf);
     }
   if (it->itc_insert_key != page_key)
@@ -688,57 +684,57 @@ log_page (it_cursor_t * it, buffer_desc_t * buf, void* dummy)
       it->itc_col_row = COL_NO_ROW;
     }
   DO_ROWS (buf, map_pos, row, NULL)
-    {
-      if (row - buf->bd_buffer  > PAGE_SZ)
-	{
-	  STRUCTURE_FAULT;
-	}
-      else
-	{
-	  key_ver_t kv = IE_KEY_VERSION (row);
-	  if (KV_LEFT_DUMMY == kv)
-	    goto next;
-	  if (!pg_row_check (buf, map_pos, 0))
-	    {
-	      log_error ("Row failed row check on L=%d", buf->bd_page);
-	      n_rows++;
-	      n_bad_rows++;
-	      goto next;
-	    }
-	  if (KV_LEAF_PTR == kv)
-	    goto next;
-	  row_key = page_key->key_versions[kv];
-	  l = row_length (row, row_key);
-	  if ((row - buf->bd_buffer) + l > PAGE_SZ)
-	    {
-	      n_rows++;
-	      n_bad_rows++;
-	      goto next;
-	    }
-	  if (page_key->key_is_col)
-	    colerr += col_row_log (it, buf, map_pos, row_key, &rd);
-	  else
-	    {
-	  if (bkp_check_and_recover_blobs)
-	    {
-	      if (bkp_check_and_recover_blob_cols (it, row))
-		buf_set_dirty (buf);
-	    }
-	  row_log (it, buf, map_pos, row_key, &rd);
-	    }
-	  any++;
-	  n_bad_rows = 0;
-	  n_rows++;
-	}
-next:
-      if (n_rows > PM_MAX_ENTRIES || n_bad_rows > 10)
+  {
+    if (row - buf->bd_buffer > PAGE_SZ)
+      {
 	STRUCTURE_FAULT;
-    }
+      }
+    else
+      {
+	key_ver_t kv = IE_KEY_VERSION (row);
+	if (KV_LEFT_DUMMY == kv)
+	  goto next;
+	if (!pg_row_check (buf, map_pos, 0))
+	  {
+	    log_error ("Row failed row check on L=%d", buf->bd_page);
+	    n_rows++;
+	    n_bad_rows++;
+	    goto next;
+	  }
+	if (KV_LEAF_PTR == kv)
+	  goto next;
+	row_key = page_key->key_versions[kv];
+	l = row_length (row, row_key);
+	if ((row - buf->bd_buffer) + l > PAGE_SZ)
+	  {
+	    n_rows++;
+	    n_bad_rows++;
+	    goto next;
+	  }
+	if (page_key->key_is_col)
+	  colerr += col_row_log (it, buf, map_pos, row_key, &rd);
+	else
+	  {
+	    if (bkp_check_and_recover_blobs)
+	      {
+		if (bkp_check_and_recover_blob_cols (it, row))
+		  buf_set_dirty (buf);
+	      }
+	    row_log (it, buf, map_pos, row_key, &rd);
+	  }
+	any++;
+	n_bad_rows = 0;
+	n_rows++;
+      }
+  next:
+    if (n_rows > PM_MAX_ENTRIES || n_bad_rows > 10)
+      STRUCTURE_FAULT;
+  }
   END_DO_ROWS;
   /* we dump buf here if have skipped rows */
   if (colerr)
     {
-      FILE * fp = fopen ("recovery.txt", "a");
+      FILE *fp = fopen ("recovery.txt", "a");
       dbg_page_map_f (buf, fp);
       fclose (fp);
     }
@@ -769,16 +765,16 @@ db_recover_keys (char *keys)
 {
   if (!strcmp (keys, "schema"))
     {
-      db_recover_key (KI_COLS, 	KI_COLS);
-      db_recover_key (KI_COLS_ID, 	KI_COLS_ID);
-      db_recover_key (KI_KEYS, 		KI_KEYS);
-      db_recover_key (KI_KEYS_ID, 		KI_KEYS_ID);
-      db_recover_key (KI_KEY_PARTS, 	KI_KEY_PARTS);
-      db_recover_key (KI_COLLATIONS, 	KI_COLLATIONS);
-      db_recover_key (KI_CHARSETS, 	KI_CHARSETS);
-      db_recover_key (KI_SUB, 		KI_SUB);
-      db_recover_key (KI_FRAGS, 	KI_FRAGS);
-      db_recover_key (KI_UDT, 		KI_UDT);
+      db_recover_key (KI_COLS, KI_COLS);
+      db_recover_key (KI_COLS_ID, KI_COLS_ID);
+      db_recover_key (KI_KEYS, KI_KEYS);
+      db_recover_key (KI_KEYS_ID, KI_KEYS_ID);
+      db_recover_key (KI_KEY_PARTS, KI_KEY_PARTS);
+      db_recover_key (KI_COLLATIONS, KI_COLLATIONS);
+      db_recover_key (KI_CHARSETS, KI_CHARSETS);
+      db_recover_key (KI_SUB, KI_SUB);
+      db_recover_key (KI_FRAGS, KI_FRAGS);
+      db_recover_key (KI_UDT, KI_UDT);
     }
   else
     {
@@ -797,7 +793,7 @@ db_recover_keys (char *keys)
 }
 
 #ifdef DBG_BLOB_PAGES_ACCOUNT
-dk_hash_t * blob_pages_hash = NULL;
+dk_hash_t *blob_pages_hash = NULL;
 void db_crash_to_log (char *mode);
 
 void
@@ -885,7 +881,7 @@ db_to_log (void)
 
 
 void
-backup_prepare (query_instance_t * qi, char * file)
+backup_prepare (query_instance_t * qi, char *file)
 {
   int fd = -1;
   dk_session_t *ses;
@@ -898,27 +894,24 @@ backup_prepare (query_instance_t * qi, char * file)
       int rc;
 #if 0
       if (qi->qi_caller != CALLER_CLIENT)
-	sqlr_new_error ("42000", "SRXXX",
-	    "backup () cannot be run from procedures "
-	    "if the transaction is not read only");
+	sqlr_new_error ("42000", "SRXXX", "backup () cannot be run from procedures " "if the transaction is not read only");
 #endif
       IN_TXN;
       rc = lt_set_checkpoint (lt);
       LEAVE_TXN;
       if (!rc)
 	sqlr_new_error ("42000", "SR110",
-	    "backup () must be the first operation in its transaction "
-	    "if the transaction is not read only");
+	    "backup () must be the first operation in its transaction " "if the transaction is not read only");
     }
 
   ses = dk_session_allocate (SESCLASS_TCPIP);
   if (ses == NULL)
     sqlr_new_error ("42000", "FA038", "Cannot open backup file (could not allocate session)");
 
-  if (!srv_have_global_lock(THREAD_CURRENT_THREAD))
+  if (!srv_have_global_lock (THREAD_CURRENT_THREAD))
     IN_CPT (qi->qi_trx);
 
-  if (strchr(file, PATH_SEP) == NULL)
+  if (strchr (file, PATH_SEP) == NULL)
     {
       /*
        * no path specified: select backup directory
@@ -928,21 +921,20 @@ backup_prepare (query_instance_t * qi, char * file)
       char *errmsg;
 
       if (curr_backup_dir == NULL)
-        curr_backup_dir = old_backup_dirs;
+	curr_backup_dir = old_backup_dirs;
 
       bd = curr_backup_dir;
       do
-        {
+	{
 	  char *dir = (char *) bd->data;
-	  size_t dirlen = strlen(dir);
+	  size_t dirlen = strlen (dir);
 
 	  /* compose file name, check for overflows */
 	  fname = file;
-	  if (dirlen + 1 + strlen(file) > PATH_MAX)
+	  if (dirlen + 1 + strlen (file) > PATH_MAX)
 	    {
 	      errmsg = "filename too long";
-	      log_warning ("backup_prepare: %s%c%s: %s",
-		dirlen, PATH_SEP, file, errmsg);
+	      log_warning ("backup_prepare: %s%c%s: %s", dirlen, PATH_SEP, file, errmsg);
 	      bd = bd->next;
 	      continue;
 	    }
@@ -954,31 +946,29 @@ backup_prepare (query_instance_t * qi, char * file)
 	  strcpy_size_ck (fname + dirlen + 1, file, sizeof (buf) - dirlen - 1);
 
 	  /* try to open file */
-	  file_set_rw(fname);
-	  if ((fd = fd_open(fname, LOG_OPEN_FLAGS)) < 0)
-            {
-	      errmsg = strerror(errno);
-	      log_warning ("backup_prepare: %s: %s",
-		fname, errmsg);
+	  file_set_rw (fname);
+	  if ((fd = fd_open (fname, LOG_OPEN_FLAGS)) < 0)
+	    {
+	      errmsg = strerror (errno);
+	      log_warning ("backup_prepare: %s: %s", fname, errmsg);
 	      bd = bd->next;
 	      continue;
-            }
+	    }
 
 	  /* got it */
 	  curr_backup_dir = bd->next;
 	  break;
-        }
+	}
       while (bd != curr_backup_dir);
 
       if (fd < 0)
-        {
+	{
 	  PrpcSessionFree (ses);
-	  if (!srv_have_global_lock(THREAD_CURRENT_THREAD))
-	    LEAVE_CPT(qi->qi_trx);
+	  if (!srv_have_global_lock (THREAD_CURRENT_THREAD))
+	    LEAVE_CPT (qi->qi_trx);
 
-	  sqlr_new_error ("42000", "FA038", "Cannot open backup file %s: %s",
-	    fname, errmsg);
-        }
+	  sqlr_new_error ("42000", "FA038", "Cannot open backup file %s: %s", fname, errmsg);
+	}
     }
   else
     {
@@ -989,15 +979,14 @@ backup_prepare (query_instance_t * qi, char * file)
       file_set_rw (fname);
       if ((fd = fd_open (fname, LOG_OPEN_FLAGS)) < 0)
 	{
-	  char *errmsg = strerror(errno);
+	  char *errmsg = strerror (errno);
 
 	  PrpcSessionFree (ses);
-	  if (!srv_have_global_lock(THREAD_CURRENT_THREAD))
-	    LEAVE_CPT(qi->qi_trx);
+	  if (!srv_have_global_lock (THREAD_CURRENT_THREAD))
+	    LEAVE_CPT (qi->qi_trx);
 
-	  sqlr_new_error ("42000", "FA038", "Cannot open backup file %s: %s",
-	    fname, errmsg);
-        }
+	  sqlr_new_error ("42000", "FA038", "Cannot open backup file %s: %s", fname, errmsg);
+	}
     }
 
   FTRUNCATE (fd, 0);
@@ -1011,11 +1000,11 @@ backup_prepare (query_instance_t * qi, char * file)
 
 
 void
-backup_close (lock_trx_t *lt)
+backup_close (lock_trx_t * lt)
 {
   dk_session_t *ses = lt->lt_backup;
 #if defined (WINDOWS) | defined (WINNT)
-  char *file = NULL; /* TODO: add the real file name here */
+  char *file = NULL;		/* TODO: add the real file name here */
 #endif
   fd_close (tcpses_get_fd (ses->dks_session), file);
   PrpcSessionFree (ses);
@@ -1025,7 +1014,7 @@ backup_close (lock_trx_t *lt)
 
 
 int
-db_backup (query_instance_t *qi, char *file)
+db_backup (query_instance_t * qi, char *file)
 {
   lock_trx_t *lt = qi->qi_trx;
   long nodes;
@@ -1041,8 +1030,8 @@ db_backup (query_instance_t *qi, char *file)
   bkp_check_and_recover_blobs = 0;
   backup_close (lt);
 
-  if (!srv_have_global_lock(THREAD_CURRENT_THREAD))
-    LEAVE_CPT(qi->qi_trx);
+  if (!srv_have_global_lock (THREAD_CURRENT_THREAD))
+    LEAVE_CPT (qi->qi_trx);
 
   if (qi->qi_trx->lt_status != LT_PENDING)
     {
@@ -1055,8 +1044,7 @@ db_backup (query_instance_t *qi, char *file)
   for (n = 0; levels[n].lv_nodes && n < MAX_LEVELS; n++)
     nodes += levels[n].lv_nodes;
 
-  log_info ("Backup to %s complete, processed %ld nodes on %d levels",
-      file, nodes, n);
+  log_info ("Backup to %s complete, processed %ld nodes on %d levels", file, nodes, n);
 
   return 1;
 }
@@ -1077,7 +1065,7 @@ caddr_t
 bif_backup_row (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
 #ifndef KEYCOMP
-  dbe_key_t * key;
+  dbe_key_t *key;
   long l;
   it_cursor_t itc_auto;
   it_cursor_t *itc = &itc_auto;
@@ -1141,24 +1129,24 @@ bif_backup_close (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     sqlr_new_error ("42000", "SR116", "Transaction not in backup mode");
 
   backup_close (qi->qi_trx);
-  if (!srv_have_global_lock(THREAD_CURRENT_THREAD))
-    LEAVE_CPT(qi->qi_trx);
+  if (!srv_have_global_lock (THREAD_CURRENT_THREAD))
+    LEAVE_CPT (qi->qi_trx);
   log_info ("Backup finished.");
   return NULL;
 }
 
 
 
-#if 0 /* GK : Such a security flaw */
-static
-caddr_t bif_crash_recovery_log_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+#if 0				/* GK : Such a security flaw */
+static caddr_t
+bif_crash_recovery_log_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   if (!f_read_from_rebuilt_database)
     {
       log_error ("The usage of crash recovery log without +restore-crash-dump argument is not allowed");
       call_exit (-1);
     }
-  return 0; /* keeps compiler happy */
+  return 0;			/* keeps compiler happy */
 }
 #endif
 
@@ -1181,107 +1169,102 @@ dbs_pages_to_log (dbe_storage_t * storage, char *mode, volatile dp_addr_t start_
   is_crash_dump = 1;
 
   ITC_FAIL (it)
-    {
-      /*    ITC_IN_MAP (it); */
-      buf = bp_get_buffer(NULL, BP_BUF_REQUIRED);
-      /*      it->itc_is_in_map_sem = 1; */
+  {
+    /*    ITC_IN_MAP (it); */
+    buf = bp_get_buffer (NULL, BP_BUF_REQUIRED);
+    /*      it->itc_is_in_map_sem = 1; */
 
-      if (!start_dp) start_dp = 2;
-      if (!end_dp)
-	{
-	  end_page = storage->dbs_n_pages;
-	}
-      else
-	{
-	  if (end_dp <= storage->dbs_n_pages)
-	    {
-	      end_page = end_dp;
-	    }
-	  else
-	    {
-	      log_error("crashdump_end_dp (%ld) larger than no. of pages.", end_dp);
-	      call_exit(-1);
-	    }
-	}
+    if (!start_dp)
+      start_dp = 2;
+    if (!end_dp)
+      {
+	end_page = storage->dbs_n_pages;
+      }
+    else
+      {
+	if (end_dp <= storage->dbs_n_pages)
+	  {
+	    end_page = end_dp;
+	  }
+	else
+	  {
+	    log_error ("crashdump_end_dp (%ld) larger than no. of pages.", end_dp);
+	    call_exit (-1);
+	  }
+      }
 
-      log_error("Starting crash dump from page %ld to %ld",
-		start_dp, end_page);
+    log_error ("Starting crash dump from page %ld to %ld", start_dp, end_page);
 
-      for (page_no = start_dp; page_no < end_page; page_no++)
-	{
-	  dp_addr_t page;
-	  int inx, bit;
-	  uint32 *array;
+    for (page_no = start_dp; page_no < end_page; page_no++)
+      {
+	dp_addr_t page;
+	int inx, bit;
+	uint32 *array;
 
-	  if (0 == page_no%10000)
-	    log_error("Logging page %ld", page_no);
+	if (0 == page_no % 10000)
+	  log_error ("Logging page %ld", page_no);
 
-	  if (!no_free_set)
-	    {
-	      IN_DBS (storage);
-	      dbs_locate_free_bit (storage, page_no, &array, &page, &inx, &bit);
-	      LEAVE_DBS (storage);
-	    }
-	  if ((no_free_set
-	      || (0 != (array[inx] & (1 << bit))))
-		  && (ignore_remap ||
-		      !gethash (DP_ADDR2VOID (page_no),
-			       storage->dbs_cpt_remap)))
-	    {
-	      buf->bd_page = buf->bd_physical_page = page_no;
-	      buf->bd_storage = storage;
-	      if (WI_ERROR == buf_disk_read (buf))
-		{
-		  log_error ("Read of page %ld failed", page_no);
-		}
-	      else
-		{
-		  buf->bd_readers = 1;
-		  if (DPF_INDEX == SHORT_REF (buf->bd_buffer + DP_FLAGS))
-		    {
-		      if (0 == setjmp_splice (&structure_fault_ctx))
-			{
-			  n_logged++;
-			  log_page (it, buf, 0);
-			}
-		      else
-			{
-			  log_error ("Structure inconsistent on page, "
-				     "logical %ld, physical %ld",
-				     buf->bd_page, buf->bd_physical_page);
-			  lt_backup_flush (it->itc_ltrx, 0);
-			  buf->bd_readers = 1;
-			}
-		    }
-		  else
-		    {
-		      int fl = SHORT_REF (buf->bd_buffer + DP_FLAGS);
-		      if (fl < 13)
-			dpf_count[fl]++;
-		      else
-			n_bad_dpf++;
-		      n_non_index++;
+	if (!no_free_set)
+	  {
+	    IN_DBS (storage);
+	    dbs_locate_free_bit (storage, page_no, &array, &page, &inx, &bit);
+	    LEAVE_DBS (storage);
+	  }
+	if ((no_free_set
+		|| (0 != (array[inx] & (1 << bit)))) && (ignore_remap || !gethash (DP_ADDR2VOID (page_no), storage->dbs_cpt_remap)))
+	  {
+	    buf->bd_page = buf->bd_physical_page = page_no;
+	    buf->bd_storage = storage;
+	    if (WI_ERROR == buf_disk_read (buf))
+	      {
+		log_error ("Read of page %ld failed", page_no);
+	      }
+	    else
+	      {
+		buf->bd_readers = 1;
+		if (DPF_INDEX == SHORT_REF (buf->bd_buffer + DP_FLAGS))
+		  {
+		    if (0 == setjmp_splice (&structure_fault_ctx))
+		      {
+			n_logged++;
+			log_page (it, buf, 0);
+		      }
+		    else
+		      {
+			log_error ("Structure inconsistent on page, "
+			    "logical %ld, physical %ld", buf->bd_page, buf->bd_physical_page);
+			lt_backup_flush (it->itc_ltrx, 0);
+			buf->bd_readers = 1;
+		      }
+		  }
+		else
+		  {
+		    int fl = SHORT_REF (buf->bd_buffer + DP_FLAGS);
+		    if (fl < 13)
+		      dpf_count[fl]++;
+		    else
+		      n_bad_dpf++;
+		    n_non_index++;
 #ifdef DBG_BLOB_PAGES_ACCOUNT
-                      if (fl == DPF_BLOB)
-			db_dbg_account_check_page_in_hash (buf->bd_page);
+		    if (fl == DPF_BLOB)
+		      db_dbg_account_check_page_in_hash (buf->bd_page);
 #endif
-		    }
-		  buf->bd_is_write = 0;
-		  buf->bd_readers = 0;
-		}
-	    }
-	}
-    }
+		  }
+		buf->bd_is_write = 0;
+		buf->bd_readers = 0;
+	      }
+	  }
+      }
+  }
   ITC_FAILED
-    {
-      log_error("Out of configured dump space. Start next with config option crashdump_start_dp: %ld", page_no);
-      call_exit(-1);
-    }
+  {
+    log_error ("Out of configured dump space. Start next with config option crashdump_start_dp: %ld", page_no);
+    call_exit (-1);
+  }
   END_FAIL (it);
 
   itc_free (it);
-  dbg_printf (("%d logged %d non index pages allocated, %d bad dpf.\n",
-   n_logged, n_non_index, n_bad_dpf));
+  dbg_printf (("%d logged %d non index pages allocated, %d bad dpf.\n", n_logged, n_non_index, n_bad_dpf));
   dbg_printf (("%ld FREE_SET pages.\n", dpf_count[DPF_FREE_SET]));
   dbg_printf (("%ld DPF_EXTENSION pages.\n", dpf_count[DPF_EXTENSION]));
   dbg_printf (("%ld DPF_BLOB pages.\n", dpf_count[DPF_BLOB]));
@@ -1292,6 +1275,8 @@ dbs_pages_to_log (dbe_storage_t * storage, char *mode, volatile dp_addr_t start_
   dbg_printf (("%ld DPF_INCBACKUP_SET pages.\n", dpf_count[DPF_INCBACKUP_SET]));
   dbg_printf (("%ld DPF_LAST_DPF pages.\n", dpf_count[DPF_LAST_DPF]));
 }
+
+
 
 char *f_crash_dump_data_ini = NULL;
 
@@ -1321,7 +1306,7 @@ db_crash_to_log (char *mode)
       log_text (bootstrap_cli->cli_trx, "crash_recovery_log_check()");
 #endif
       is_crash_dump = 1;
-      if (!strchr (mode, 'a') && !crashdump_start_dp /*&& !recoverable_keys*/)
+      if (!strchr (mode, 'a') && !crashdump_start_dp /*&& !recoverable_keys */ )
 	srv_dd_to_log (bootstrap_cli);
     }
   if (strchr (mode, 'l'))
@@ -1362,8 +1347,7 @@ db_check (query_instance_t * qi)
 
   if (lt->lt_mode != TM_SNAPSHOT || qi->qi_autocommit)
     sqlr_new_error ("42000", "SR117",
-	"db_check () must be in read only, non-autocommit transaction mode."
-	" e.g. do it from isql in RO mode.");
+	"db_check () must be in read only, non-autocommit transaction mode." " e.g. do it from isql in RO mode.");
 
   log_info ("Database check started");
   walk_db (qi->qi_trx, NULL);
@@ -1379,8 +1363,7 @@ db_check (query_instance_t * qi)
   for (n = 0; levels[n].lv_nodes && n < MAX_LEVELS; n++)
     {
       log_info ("  level %d, %ld nodes, %ld bytes, %ld bytes/node", n,
-	  levels[n].lv_nodes, levels[n].lv_bytes,
-	  levels[n].lv_bytes / levels[n].lv_nodes);
+	  levels[n].lv_nodes, levels[n].lv_bytes, levels[n].lv_bytes / levels[n].lv_nodes);
     }
 
   return 1;
@@ -1390,35 +1373,35 @@ static caddr_t
 bif_log_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   query_instance_t *qi = (query_instance_t *) qst;
-  dbe_key_t * key = bif_key_arg (qst, args, 0, "log_index");
+  dbe_key_t *key = bif_key_arg (qst, args, 0, "log_index");
   buffer_desc_t *buf;
   it_cursor_t *itc;
 
   sec_check_dba (qi, "backup_index");
   memset (levels, 0, sizeof (levels));
 
-  itc = itc_create (NULL , qi->qi_trx);
+  itc = itc_create (NULL, qi->qi_trx);
   itc_from (itc, key, qi->qi_client->cli_slice);
   itc->itc_isolation = ISO_UNCOMMITTED;
   ITC_FAIL (itc)
-    {
-      itc->itc_random_search = RANDOM_SEARCH_ON; /* do not use root image cache */
-      buf = itc_reset (itc);
-      itc->itc_random_search = RANDOM_SEARCH_OFF;
-      itc_try_land (itc, &buf);
-      /* the whole traversal is in landed (PA_WRITE() mode. page_transit_if_can will not allow mode change in transit */
-      if (!buf->bd_content_map)
-	{
-	  log_error ("Blog ref'referenced as index tree top node dp=%d key=%s\n", buf->bd_page, itc->itc_insert_key->key_name);
-	}
-      else
-	walk_dbtree (itc, &buf, 0, log_page, 0);
-      itc_page_leave (itc, buf);
-    }
+  {
+    itc->itc_random_search = RANDOM_SEARCH_ON;	/* do not use root image cache */
+    buf = itc_reset (itc);
+    itc->itc_random_search = RANDOM_SEARCH_OFF;
+    itc_try_land (itc, &buf);
+    /* the whole traversal is in landed (PA_WRITE() mode. page_transit_if_can will not allow mode change in transit */
+    if (!buf->bd_content_map)
+      {
+	log_error ("Blog ref'referenced as index tree top node dp=%d key=%s\n", buf->bd_page, itc->itc_insert_key->key_name);
+      }
+    else
+      walk_dbtree (itc, &buf, 0, log_page, 0);
+    itc_page_leave (itc, buf);
+  }
   ITC_FAILED
-    {
-      itc_free (itc);
-    }
+  {
+    itc_free (itc);
+  }
   END_FAIL (itc);
   itc_free (itc);
   return NULL;
@@ -1436,4 +1419,3 @@ recovery_init (void)
   bif_define ("crash_recovery_log_check", bif_crash_recovery_log_check);
 #endif
 }
-

@@ -73,7 +73,7 @@ typedef wchar_t TCHAR;
 # define _tcscmp wcscmp
 # define _ttoi(a) wide_atoi ((caddr_t) (a))
 
-#else /*WIN32*/
+#else /*WIN32 */
 
 # define _T(A) A
 
@@ -87,8 +87,8 @@ typedef char TCHAR;
 # define _tcscmp strcmp
 # define _ttoi atoi
 
-# endif /* UNICODE */
-#endif /* WIN32*/
+# endif	/* UNICODE */
+#endif /* WIN32 */
 
 #ifdef MALLOC_DEBUG
 #define _tcscpy_size_ck(dest, src, len)  \
@@ -134,7 +134,8 @@ typedef char TCHAR;
 
 #define OPTION_TRUE(X)	((X) && (X) != 'N' && (X) != '0')
 
-static SQLRETURN SQL_API virtodbc__SQLDriverConnect (SQLHDBC hdbc, HWND hwnd, SQLTCHAR * szConnStrIn, SQLSMALLINT cbConnStrIn, SQLTCHAR * szConnStrOut, SQLSMALLINT cbConnStrOutMax, SQLSMALLINT * pcbConnStrOutMax, SQLUSMALLINT fDriverCompletion);
+static SQLRETURN SQL_API virtodbc__SQLDriverConnect (SQLHDBC hdbc, HWND hwnd, SQLTCHAR * szConnStrIn, SQLSMALLINT cbConnStrIn,
+    SQLTCHAR * szConnStrOut, SQLSMALLINT cbConnStrOutMax, SQLSMALLINT * pcbConnStrOutMax, SQLUSMALLINT fDriverCompletion);
 
 
 #define DEFAULT_DATABASE_PER_USER _T("<Server Default>")
@@ -185,32 +186,32 @@ typedef enum
  *  in the ~/driver/virtodbc.c file as well (setup)
  */
 static CfgRecord attrs[] = {
-  /* shortName                  longName                  maxLength 	defVal */
-  { _T ("DSN"),			NULL,				63,	_T ("")},
-  { NULL,			_T ("Description"),		511,	_T ("")},
-  { _T ("HOST"),		_T ("Address"),			160,	_T ("localhost:1111")},
+  /* shortName                  longName                  maxLength     defVal */
+  {_T ("DSN"), NULL, 63, _T ("")},
+  {NULL, _T ("Description"), 511, _T ("")},
+  {_T ("HOST"), _T ("Address"), 160, _T ("localhost:1111")},
 #if defined (WIN32) && !defined (UDBC)
-  { _T ("UID"),			_T ("LastUser"),		32,	_T ("dba")},
-  { _T ("PWD"),			NULL,				32,	_T ("")},
+  {_T ("UID"), _T ("LastUser"), 32, _T ("dba")},
+  {_T ("PWD"), NULL, 32, _T ("")},
 #else
-  { _T ("UID"),			_T ("UserName"),		32,	_T ("dba")},
-  { _T ("PWD"),			_T ("Password"),		32,	_T ("")},
+  {_T ("UID"), _T ("UserName"), 32, _T ("dba")},
+  {_T ("PWD"), _T ("Password"), 32, _T ("")},
 #endif
-  { _T ("DRIVER"),		NULL,				160,	_T ("")},
-  { _T ("DATABASE"),		_T ("Database"),		64,	DEFAULT_DATABASE_PER_USER},
-  { _T ("CHARSET"),		_T ("Charset"),			200,	_T ("")},
-  { _T ("DAYLIGHT"),		_T ("Daylight"),		64,	_T ("")},
+  {_T ("DRIVER"), NULL, 160, _T ("")},
+  {_T ("DATABASE"), _T ("Database"), 64, DEFAULT_DATABASE_PER_USER},
+  {_T ("CHARSET"), _T ("Charset"), 200, _T ("")},
+  {_T ("DAYLIGHT"), _T ("Daylight"), 64, _T ("")},
 #ifdef _SSL
-  { _T ("ENCRYPT"),		_T ("Encrypt"),			511,	_T ("")},
-  { _T ("PWDCLEAR"),		_T ("PWDClearText"),		32,	_T ("")},
-  { _T ("SERVERCERT"),		_T ("ServerCert"),		511,	_T ("")},
+  {_T ("ENCRYPT"), _T ("Encrypt"), 511, _T ("")},
+  {_T ("PWDCLEAR"), _T ("PWDClearText"), 32, _T ("")},
+  {_T ("SERVERCERT"), _T ("ServerCert"), 511, _T ("")},
 #endif
-  { _T ("ROUNDROBIN"),		_T ("RoundRobin"),		32,	_T ("")},
-  { _T ("FORCE_DBMS_NAME"),	_T ("ForceDBMSName"),		511,	_T ("")},
-  { _T ("IsolationLevel"),	_T ("IsolationLevel"),		32,	_T ("")},
-  { _T ("NoSystemTables"),	_T ("NoSystemTables"),		32,	_T ("")},
-  { _T ("TreatViewsAsTables"),	_T ("TreatViewsAsTables"),	32,	_T ("")},
-  { _T ("WideAsUTF16"),		_T ("WideAsUTF16"),		32,	_T ("")}
+  {_T ("ROUNDROBIN"), _T ("RoundRobin"), 32, _T ("")},
+  {_T ("FORCE_DBMS_NAME"), _T ("ForceDBMSName"), 511, _T ("")},
+  {_T ("IsolationLevel"), _T ("IsolationLevel"), 32, _T ("")},
+  {_T ("NoSystemTables"), _T ("NoSystemTables"), 32, _T ("")},
+  {_T ("TreatViewsAsTables"), _T ("TreatViewsAsTables"), 32, _T ("")},
+  {_T ("WideAsUTF16"), _T ("WideAsUTF16"), 32, _T ("")}
 };
 
 
@@ -682,7 +683,8 @@ virtodbc__SQLDriverConnect (SQLHDBC hdbc,
       free_wide_buffer (nst);
     }
 
-  FORCE_DMBS_NAMEW = cfgdata[oFORCE_DBMS_NAME].data && _tcslen (cfgdata[oFORCE_DBMS_NAME].data) ? cfgdata[oFORCE_DBMS_NAME].data : NULL;
+  FORCE_DMBS_NAMEW = cfgdata[oFORCE_DBMS_NAME].data
+      && _tcslen (cfgdata[oFORCE_DBMS_NAME].data) ? cfgdata[oFORCE_DBMS_NAME].data : NULL;
   if (FORCE_DMBS_NAMEW)
     {
       char *force_dbms_name = virt_wide_to_ansi (FORCE_DMBS_NAMEW);
@@ -709,7 +711,7 @@ virtodbc__SQLDriverConnect (SQLHDBC hdbc,
 
   if (cfgdata[oCHARSET].data && _tcslen (cfgdata[oCHARSET].data))
     {
-      char * cs = virt_wide_to_ansi (cfgdata[oCHARSET].data);
+      char *cs = virt_wide_to_ansi (cfgdata[oCHARSET].data);
       if (!strcmp (cs, "UTF-8"))
 	{
 	  free (cfgdata[oCHARSET].data);
@@ -722,7 +724,7 @@ virtodbc__SQLDriverConnect (SQLHDBC hdbc,
   CHARSETW = (cfgdata[oCHARSET].data && _tcslen (cfgdata[oCHARSET].data)) ? cfgdata[oCHARSET].data : NULL;
   CHARSET = con->con_charset_name = virt_wide_to_ansi (CHARSETW);
 
-  if (strchr (HOST, ':') == NULL && strchr(HOST,',') == NULL)
+  if (strchr (HOST, ':') == NULL && strchr (HOST, ',') == NULL)
     {
       snprintf (tempHostName, sizeof (tempHostName), "%s:1111", HOST);
       szHost = tempHostName;
@@ -890,12 +892,10 @@ SQLDriverConnect (SQLHDBC hdbc,
 #endif
     SQLTCHAR * szConnStrIn,
     SQLSMALLINT cbConnStrIn,
-    SQLTCHAR * szConnStrOut,
-    SQLSMALLINT cbConnStrOutMax,
-    SQLSMALLINT * pcbConnStrOutMax,
-    SQLUSMALLINT fDriverCompletion)
+    SQLTCHAR * szConnStrOut, SQLSMALLINT cbConnStrOutMax, SQLSMALLINT * pcbConnStrOutMax, SQLUSMALLINT fDriverCompletion)
 {
-  return virtodbc__SQLDriverConnect (hdbc, hwnd, szConnStrIn, cbConnStrIn, szConnStrOut, cbConnStrOutMax, pcbConnStrOutMax, fDriverCompletion);
+  return virtodbc__SQLDriverConnect (hdbc, hwnd, szConnStrIn, cbConnStrIn, szConnStrOut, cbConnStrOutMax, pcbConnStrOutMax,
+      fDriverCompletion);
 }
 
 

@@ -7,7 +7,7 @@
  *
  *  The iODBC driver manager.
  *
- *  Copyright (C) 1996-2014 OpenLink Software <iodbc@openlinksw.com>
+ *  Copyright (C) 1999-2014 OpenLink Software <iodbc@openlinksw.com>
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Library General Public
@@ -44,7 +44,7 @@
 /*
  *  Backward compatible types for Windows
  */
-#if !defined (UNIX_ODBC) /* already in sqltypes.h */
+#if !defined (UNIX_ODBC)	/* already in sqltypes.h */
 #if !defined (WIN32) && !defined (__SQLUNX)
 typedef const char *LPCSTR;
 typedef char *LPSTR;
@@ -56,7 +56,8 @@ typedef void *HWND;
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #ifndef EXPORT
@@ -115,7 +116,7 @@ extern "C" {
 #define ODBC_REMOVE_SYS_DSN		6
 #if (ODBCVER >= 0x0300)
 #define	 ODBC_REMOVE_DEFAULT_DSN	7
-#endif  /* ODBCVER >= 0x0300 */
+#endif				/* ODBCVER >= 0x0300 */
 
 /* install request flags */
 #define	ODBC_INSTALL_INQUIRY		1
@@ -133,7 +134,7 @@ extern "C" {
 #define ODBC_BOTH_DSN		0
 #define ODBC_USER_DSN		1
 #define ODBC_SYSTEM_DSN		2
-#endif  /* ODBCVER >= 0x0300 */
+#endif				/* ODBCVER >= 0x0300 */
 
 /* SQLInstallerError code */
 #if (ODBCVER >= 0x0300)
@@ -160,219 +161,101 @@ extern "C" {
 #define ODBC_ERROR_OUT_OF_MEM                   21
 #define ODBC_ERROR_OUTPUT_STRING_TRUNCATED      22
 #define ODBC_ERROR_DRIVER_SPECIFIC		23
-#endif /* ODBCVER >= 0x0300 */
+#endif				/* ODBCVER >= 0x0300 */
 
 /*
  *  Function Prototypes
  */
 
-BOOL INSTAPI
-SQLGetConfigMode (
-    UWORD* pwConfigMode);
+  BOOL INSTAPI SQLGetConfigMode (UWORD * pwConfigMode);
 
-BOOL INSTAPI
-SQLInstallDriverEx (
-    LPCSTR lpszDriver,
-    LPCSTR lpszPathIn,
-    LPSTR lpszPathOut,
-    WORD cbPathOutMax,
-    WORD* pcbPathOut,
-    WORD fRequest,
-    LPDWORD lpdwUsageCount);
+  BOOL INSTAPI
+      SQLInstallDriverEx (LPCSTR lpszDriver,
+      LPCSTR lpszPathIn, LPSTR lpszPathOut, WORD cbPathOutMax, WORD * pcbPathOut, WORD fRequest, LPDWORD lpdwUsageCount);
 
-RETCODE INSTAPI
-SQLInstallerError (
-    WORD iError,
-    DWORD* pfErrorCode,
-    LPSTR lpszErrorMsg,
-    WORD cbErrorMsgMax,
-    WORD* pcbErrorMsg);
+  RETCODE INSTAPI SQLInstallerError (WORD iError, DWORD * pfErrorCode, LPSTR lpszErrorMsg, WORD cbErrorMsgMax, WORD * pcbErrorMsg);
 
-RETCODE INSTAPI
-SQLPostInstallerError (
-    DWORD fErrorCode,
-    LPSTR szErrorMsg);
+  RETCODE INSTAPI SQLPostInstallerError (DWORD fErrorCode, LPSTR szErrorMsg);
 
-BOOL INSTAPI
-SQLInstallTranslatorEx (
-    LPCSTR lpszTranslator,
-    LPCSTR lpszPathIn,
-    LPSTR lpszPathOut,
-    WORD cbPathOutMax,
-    WORD* pcbPathOut,
-    WORD fRequest,
-    LPDWORD lpdwUsageCount);
+  BOOL INSTAPI
+      SQLInstallTranslatorEx (LPCSTR lpszTranslator,
+      LPCSTR lpszPathIn, LPSTR lpszPathOut, WORD cbPathOutMax, WORD * pcbPathOut, WORD fRequest, LPDWORD lpdwUsageCount);
 
-BOOL INSTAPI
-SQLReadFileDSN (
-    LPCSTR lpszFileName,
-    LPCSTR lpszAppName,
-    LPCSTR lpszKeyName,
-    LPSTR lpszString,
-    WORD cbString,
-    WORD* pcbString);
+  BOOL INSTAPI
+      SQLReadFileDSN (LPCSTR lpszFileName,
+      LPCSTR lpszAppName, LPCSTR lpszKeyName, LPSTR lpszString, WORD cbString, WORD * pcbString);
 
-BOOL INSTAPI
-SQLWriteFileDSN (
-    LPCSTR lpszFileName,
-    LPCSTR lpszAppName,
-    LPCSTR lpszKeyName,
-    LPSTR lpszString);
+  BOOL INSTAPI SQLWriteFileDSN (LPCSTR lpszFileName, LPCSTR lpszAppName, LPCSTR lpszKeyName, LPSTR lpszString);
 
-BOOL INSTAPI
-SQLSetConfigMode (
-    UWORD wConfigMode);
+  BOOL INSTAPI SQLSetConfigMode (UWORD wConfigMode);
 
-BOOL INSTAPI SQLInstallODBC (
-    HWND hwndParent,
-    LPCSTR lpszInfFile,
-    LPCSTR lpszSrcPath,
-    LPCSTR lpszDrivers);
+  BOOL INSTAPI SQLInstallODBC (HWND hwndParent, LPCSTR lpszInfFile, LPCSTR lpszSrcPath, LPCSTR lpszDrivers);
 
-BOOL INSTAPI SQLManageDataSources (HWND hwndParent);
+  BOOL INSTAPI SQLManageDataSources (HWND hwndParent);
 
-BOOL INSTAPI SQLCreateDataSource (
-    HWND hwndParent,
-    LPCSTR lpszDSN);
+  BOOL INSTAPI SQLCreateDataSource (HWND hwndParent, LPCSTR lpszDSN);
 
-BOOL INSTAPI SQLGetTranslator (
-    HWND hwnd,
-    LPSTR lpszName,
-    WORD cbNameMax,
-    WORD * pcbNameOut,
-    LPSTR lpszPath,
-    WORD cbPathMax,
-    WORD * pcbPathOut,
-    DWORD * pvOption);
+  BOOL INSTAPI SQLGetTranslator (HWND hwnd,
+      LPSTR lpszName, WORD cbNameMax, WORD * pcbNameOut, LPSTR lpszPath, WORD cbPathMax, WORD * pcbPathOut, DWORD * pvOption);
 
 /*  Low level APIs
  *  NOTE: The high-level APIs should always be used. These APIs
  *        have been left for compatibility.
  */
-BOOL INSTAPI SQLInstallDriver (
-    LPCSTR lpszInfFile,
-    LPCSTR lpszDriver,
-    LPSTR lpszPath,
-    WORD cbPathMax,
-    WORD * pcbPathOut);
+  BOOL INSTAPI SQLInstallDriver (LPCSTR lpszInfFile, LPCSTR lpszDriver, LPSTR lpszPath, WORD cbPathMax, WORD * pcbPathOut);
 
-BOOL INSTAPI SQLInstallDriverManager (
-    LPSTR lpszPath,
-    WORD cbPathMax,
-    WORD * pcbPathOut);
+  BOOL INSTAPI SQLInstallDriverManager (LPSTR lpszPath, WORD cbPathMax, WORD * pcbPathOut);
 
-BOOL INSTAPI SQLGetInstalledDrivers (
-    LPSTR lpszBuf,
-    WORD cbBufMax,
-    WORD * pcbBufOut);
+  BOOL INSTAPI SQLGetInstalledDrivers (LPSTR lpszBuf, WORD cbBufMax, WORD * pcbBufOut);
 
-BOOL INSTAPI SQLGetAvailableDrivers (
-    LPCSTR lpszInfFile,
-    LPSTR lpszBuf,
-    WORD cbBufMax,
-    WORD * pcbBufOut);
+  BOOL INSTAPI SQLGetAvailableDrivers (LPCSTR lpszInfFile, LPSTR lpszBuf, WORD cbBufMax, WORD * pcbBufOut);
 
-BOOL INSTAPI SQLConfigDataSource (
-    HWND hwndParent,
-    WORD fRequest,
-    LPCSTR lpszDriver,
-    LPCSTR lpszAttributes);
+  BOOL INSTAPI SQLConfigDataSource (HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes);
 
-BOOL INSTAPI SQLRemoveDefaultDataSource (void);
+  BOOL INSTAPI SQLRemoveDefaultDataSource (void);
 
-BOOL INSTAPI SQLWriteDSNToIni (
-    LPCSTR lpszDSN,
-    LPCSTR lpszDriver);
+  BOOL INSTAPI SQLWriteDSNToIni (LPCSTR lpszDSN, LPCSTR lpszDriver);
 
-BOOL INSTAPI SQLRemoveDSNFromIni (LPCSTR lpszDSN);
+  BOOL INSTAPI SQLRemoveDSNFromIni (LPCSTR lpszDSN);
 
-BOOL INSTAPI SQLValidDSN (LPCSTR lpszDSN);
+  BOOL INSTAPI SQLValidDSN (LPCSTR lpszDSN);
 
-BOOL INSTAPI SQLWritePrivateProfileString (
-    LPCSTR lpszSection,
-    LPCSTR lpszEntry,
-    LPCSTR lpszString,
-    LPCSTR lpszFilename);
+  BOOL INSTAPI SQLWritePrivateProfileString (LPCSTR lpszSection, LPCSTR lpszEntry, LPCSTR lpszString, LPCSTR lpszFilename);
 
-int INSTAPI SQLGetPrivateProfileString (
-    LPCSTR lpszSection,
-    LPCSTR lpszEntry,
-    LPCSTR lpszDefault,
-    LPSTR lpszRetBuffer,
-    int cbRetBuffer,
-    LPCSTR lpszFilename);
+  int INSTAPI SQLGetPrivateProfileString (LPCSTR lpszSection,
+      LPCSTR lpszEntry, LPCSTR lpszDefault, LPSTR lpszRetBuffer, int cbRetBuffer, LPCSTR lpszFilename);
 
-BOOL INSTAPI SQLRemoveDriverManager (LPDWORD lpdwUsageCount);
+  BOOL INSTAPI SQLRemoveDriverManager (LPDWORD lpdwUsageCount);
 
-BOOL INSTAPI SQLInstallTranslator (
-    LPCSTR lpszInfFile,
-    LPCSTR lpszTranslator,
-    LPCSTR lpszPathIn,
-    LPSTR lpszPathOut,
-    WORD cbPathOutMax,
-    WORD * pcbPathOut,
-    WORD fRequest,
-    LPDWORD lpdwUsageCount);
+  BOOL INSTAPI SQLInstallTranslator (LPCSTR lpszInfFile,
+      LPCSTR lpszTranslator,
+      LPCSTR lpszPathIn, LPSTR lpszPathOut, WORD cbPathOutMax, WORD * pcbPathOut, WORD fRequest, LPDWORD lpdwUsageCount);
 
-BOOL INSTAPI SQLRemoveTranslator (
-    LPCSTR lpszTranslator,
-    LPDWORD lpdwUsageCount);
+  BOOL INSTAPI SQLRemoveTranslator (LPCSTR lpszTranslator, LPDWORD lpdwUsageCount);
 
-BOOL INSTAPI SQLRemoveDriver (
-    LPCSTR lpszDriver,
-    BOOL fRemoveDSN,
-    LPDWORD lpdwUsageCount);
+  BOOL INSTAPI SQLRemoveDriver (LPCSTR lpszDriver, BOOL fRemoveDSN, LPDWORD lpdwUsageCount);
 
-BOOL INSTAPI SQLConfigDriver (
-    HWND hwndParent,
-    WORD fRequest,
-    LPCSTR lpszDriver,
-    LPCSTR lpszArgs,
-    LPSTR lpszMsg,
-    WORD cbMsgMax,
-    WORD * pcbMsgOut);
+  BOOL INSTAPI SQLConfigDriver (HWND hwndParent,
+      WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszArgs, LPSTR lpszMsg, WORD cbMsgMax, WORD * pcbMsgOut);
 
 /* Driver specific Setup APIs called by installer */
 
-typedef BOOL INSTAPI (*pConfigDSNFunc) (
-    HWND hwndParent,
-    WORD fRequest,
-    LPCSTR lpszDriver,
-    LPCSTR lpszAttributes);
+  typedef BOOL INSTAPI (*pConfigDSNFunc) (HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes);
 
-typedef BOOL INSTAPI (*pConfigDriverFunc) (
-    HWND hwndParent,
-    WORD fRequest,
-    LPCSTR lpszDriver,
-    LPCSTR lpszArgs,
-    LPSTR lpszMsg,
-    WORD cbMsgMax,
-    WORD * pcbMsgOut);
+  typedef BOOL INSTAPI (*pConfigDriverFunc) (HWND hwndParent,
+      WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszArgs, LPSTR lpszMsg, WORD cbMsgMax, WORD * pcbMsgOut);
 
-typedef BOOL INSTAPI (*pConfigTranslatorFunc) (
-    HWND hwndParent,
-    DWORD *pvOption);
+  typedef BOOL INSTAPI (*pConfigTranslatorFunc) (HWND hwndParent, DWORD * pvOption);
 
-BOOL INSTAPI ConfigDSN (
-    HWND hwndParent,
-    WORD fRequest,
-    LPCSTR lpszDriver,
-    LPCSTR lpszAttributes);
+  BOOL INSTAPI ConfigDSN (HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes);
 
-BOOL INSTAPI ConfigTranslator (HWND hwndParent,
-    DWORD * pvOption);
+  BOOL INSTAPI ConfigTranslator (HWND hwndParent, DWORD * pvOption);
 
-BOOL INSTAPI ConfigDriver (
-    HWND hwndParent,
-    WORD fRequest,
-    LPCSTR lpszDriver,
-    LPCSTR lpszArgs,
-    LPSTR lpszMsg,
-    WORD cbMsgMax,
-    WORD * pcbMsgOut);
+  BOOL INSTAPI ConfigDriver (HWND hwndParent,
+      WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszArgs, LPSTR lpszMsg, WORD cbMsgMax, WORD * pcbMsgOut);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _IODBCINST_H */
+#endif				/* _IODBCINST_H */

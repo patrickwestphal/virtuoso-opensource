@@ -389,7 +389,7 @@ itc_num_cast_search (it_cursor_t * itc, db_buf_t ce, int64 delta, int dtp_cmp, i
 	  /* there was no gt in the scanned part of the ce.  If range extends beyond, contimue search, else leave end unchanged and take next set */
 	  if (itc->itc_ranges[set].r_end <= row_of_ce + ce_rows)
 	    return CE_NEXT_SET;
-	return CE_CONTINUES;
+	  return CE_CONTINUES;
 	}
       itc->itc_ranges[set].r_end = range.r_end + itc->itc_row_of_ce;
       return CE_NEXT_SET;
@@ -1380,10 +1380,10 @@ new_val:
 	{
 #ifdef DEBUG
 	  QNCAST (query_instance_t, qi, itc->itc_out_state);
-	  if (itc->itc_insert_key) 
+	  if (itc->itc_insert_key)
 	    log_error ("error looking ce on index %s", itc->itc_insert_key->key_name ? itc->itc_insert_key->key_name : "<temp>");
 	  if (qi && qi->qi_query && qi->qi_query->qr_text)
-	    log_error ("query text: %s", qi->qi_query->qr_text);  
+	    log_error ("query text: %s", qi->qi_query->qr_text);
 #endif
 	  GPF_T1 ("not supposed to hit lt rl ce if looking for end of range");
 	}

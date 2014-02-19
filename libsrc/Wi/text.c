@@ -53,9 +53,9 @@ unsigned char vt_hit_dist_weight[0x100];
 #define DBE_KEY_IS_INT_D_ID(key) (0 != (key)->key_key_fixed[0].cl_col_id)
 #define ITC_IS_INT_D_ID(itc) DBE_KEY_IS_INT_D_ID((itc)->itc_row_key)
 
-d_id_t * sst_next (search_stream_t * sst, d_id_t * target, int is_fixed);
+d_id_t *sst_next (search_stream_t * sst, d_id_t * target, int is_fixed);
 
-static search_stream_t * wst_from_range (sst_tctx_t *tctx, ptrlong range_flags, const char * word, caddr_t lower, caddr_t higher);
+static search_stream_t *wst_from_range (sst_tctx_t * tctx, ptrlong range_flags, const char *word, caddr_t lower, caddr_t higher);
 
 
 int
@@ -95,7 +95,7 @@ box_d_id (d_id_t * d_id)
       caddr_t box;
       int len = d_id->id[1];
       if (D_ID_RESERVED_LEN (len))
-	len = 6; /* the D_AT_END, D_INITIAL etc special 4 byte values */
+	len = 6;		/* the D_AT_END, D_INITIAL etc special 4 byte values */
       box = dk_alloc_box (len + 2, DV_COMPOSITE);
       memcpy (box, &d_id->id[0], len + 2);
       return box;
@@ -158,7 +158,7 @@ d_id_set (d_id_t * to, d_id_t * from)
 #ifdef WIN32
       D_ID_NUM_SET (&to->id[0], D_ID_NUM_REF (&from->id[0]));
 #else
-      if (D_ID_64 == ((dtp_t*)from)[0])
+      if (D_ID_64 == ((dtp_t *) from)[0])
 	memcpy (to, from, sizeof (int64) + 1);
       else
 	memcpy (to, from, 4);
@@ -172,7 +172,7 @@ wst_pos_array (word_stream_t * wst, db_buf_t page, int len)
 {
   int pos = 0, afill = 0, l, hl;
   if (!wst->sst_pos_array)
-    wst->sst_pos_array = (short*) dk_alloc_box (sizeof (short) * VT_DATA_MAX_DOC_STRINGS, DV_LONG_STRING);
+    wst->sst_pos_array = (short *) dk_alloc_box (sizeof (short) * VT_DATA_MAX_DOC_STRINGS, DV_LONG_STRING);
   while (pos < len)
     {
       WP_LENGTH (page + pos, hl, l, page, len);
@@ -215,7 +215,7 @@ wst_set_buffer (word_stream_t * wst, db_buf_t page, int len)
       memcpy (wst->sst_buffer, page + wst->sst_pos, copy_len);
       wst->sst_buffer[copy_len] = '\0';	/* just to provide repeatable bugs on overflow */
       wst->sst_fill = copy_len;
-      wst->sst_pos = 0; /* always 0 since copy starts at pos */
+      wst->sst_pos = 0;		/* always 0 since copy starts at pos */
     }
 }
 
@@ -261,14 +261,14 @@ d_id_ref (d_id_t * d_id, db_buf_t p)
   else if (DV_COMPOSITE == *p)
     {
       int len = p[1];
-      if (len > (int)(sizeof (d_id_t) - 2))
+      if (len > (int) (sizeof (d_id_t) - 2))
 	len = sizeof (d_id_t) - 2;
       memcpy (d_id, p, len + 2);
       d_id->id[1] = len;
     }
   else if (DV_SHORT_INT == *p)
     {
-      int32 n = ((signed char *)p)[1];
+      int32 n = ((signed char *) p)[1];
       LONG_SET_NA (d_id->id, n);
     }
   else
@@ -298,27 +298,19 @@ itc_text_row (it_cursor_t * itc, buffer_desc_t * buf, dp_addr_t * leaf_ret)
   /* the row order is key_id, word, low_d_id, high_d_id, string, blob_string */
   key_ver_t kv;
   row_ver_t rv;
-  word_stream_t * wst = itc->itc_wst;
+  word_stream_t *wst = itc->itc_wst;
   dbe_key_t *key;
   dtp_t dtp;
-  int  rc;
+  int rc;
   db_buf_t row = itc->itc_row_data;
   dp_addr_t leaf;
   caddr_t row_key_word;
-  int d_id_is_int = ITC_IS_INT_D_ID(itc);
+  int d_id_is_int = ITC_IS_INT_D_ID (itc);
   dbe_col_loc_t *word_cl = &itc->itc_row_key->key_key_var[0];
-  dbe_col_loc_t *d_id_cl = (d_id_is_int ?
-    &itc->itc_row_key->key_key_fixed[0] :
-    &itc->itc_row_key->key_key_var[1] );
-  dbe_col_loc_t *d_id2_cl = (d_id_is_int ?
-    &itc->itc_row_key->key_row_fixed[0] :
-    &itc->itc_row_key->key_row_var[0] );
-  dbe_col_loc_t *data1_cl = (d_id_is_int ?
-    &itc->itc_row_key->key_row_var[0] :
-    &itc->itc_row_key->key_row_var[1] );
-  dbe_col_loc_t *data2_cl = (d_id_is_int ?
-    &itc->itc_row_key->key_row_var[1] :
-    &itc->itc_row_key->key_row_var[2] );
+  dbe_col_loc_t *d_id_cl = (d_id_is_int ? &itc->itc_row_key->key_key_fixed[0] : &itc->itc_row_key->key_key_var[1]);
+  dbe_col_loc_t *d_id2_cl = (d_id_is_int ? &itc->itc_row_key->key_row_fixed[0] : &itc->itc_row_key->key_row_var[0]);
+  dbe_col_loc_t *data1_cl = (d_id_is_int ? &itc->itc_row_key->key_row_var[0] : &itc->itc_row_key->key_row_var[1]);
+  dbe_col_loc_t *data2_cl = (d_id_is_int ? &itc->itc_row_key->key_row_var[1] : &itc->itc_row_key->key_row_var[2]);
   short data_off, data_len;
 #ifdef TEXT_DEBUG
 /*  dbg_page_map (buf); */
@@ -340,10 +332,10 @@ itc_text_row (it_cursor_t * itc, buffer_desc_t * buf, dp_addr_t * leaf_ret)
 /*!!!      goto next_row;*/
     }
 /* Check for nulls */
-  if (ITC_NULL_CK(itc, word_cl[0]))
-    return DVC_GREATER; /* NULL word */
+  if (ITC_NULL_CK (itc, word_cl[0]))
+    return DVC_GREATER;		/* NULL word */
   if (DV_STRING != word_cl->cl_sqt.sqt_dtp)
-    GPF_T1("invalid type of VT_WORD");
+    GPF_T1 ("invalid type of VT_WORD");
   rv = IE_ROW_VERSION (row);
   key = itc->itc_row_key;
   row_key_word = itc_box_column (itc, buf, 0, word_cl);
@@ -363,14 +355,14 @@ itc_text_row (it_cursor_t * itc, buffer_desc_t * buf, dp_addr_t * leaf_ret)
     d_id_ref (&wst->wst_last_d_id, row);
   if (!D_INITIAL (&wst->wst_seek_target))
     {
-      if ((!wst->sst_is_desc &&  IS_GT (d_id_cmp (&wst->wst_seek_target, &wst->wst_last_d_id)))
+      if ((!wst->sst_is_desc && IS_GT (d_id_cmp (&wst->wst_seek_target, &wst->wst_last_d_id)))
 	  || (wst->sst_is_desc && IS_LT (d_id_cmp (&wst->wst_seek_target, &wst->wst_first_d_id))))
 	return DVC_LESS;
     }
   wst->sst_pos = 0;
-  if (!ITC_NULL_CK(itc, data1_cl[0]))
+  if (!ITC_NULL_CK (itc, data1_cl[0]))
     {
-      KEY_PRESENT_VAR_COL(key, row, data1_cl[0], data_off, data_len);
+      KEY_PRESENT_VAR_COL (key, row, data1_cl[0], data_off, data_len);
       rc = wst_chunk_scan (wst, row + data_off, data_len);
       if (DVC_MATCH == rc)
 	{
@@ -378,16 +370,16 @@ itc_text_row (it_cursor_t * itc, buffer_desc_t * buf, dp_addr_t * leaf_ret)
 	  return rc;
 	}
     }
-  else if (!ITC_NULL_CK(itc, data2_cl[0]))
+  else if (!ITC_NULL_CK (itc, data2_cl[0]))
     {
-      KEY_PRESENT_VAR_COL(key, row, data2_cl[0], data_off, data_len);
+      KEY_PRESENT_VAR_COL (key, row, data2_cl[0], data_off, data_len);
       dtp = row[data_off];
       if (DV_LONG_STRING == dtp || DV_SHORT_STRING == dtp)
 	{
-	  rc = wst_chunk_scan (wst, row + data_off+1, data_len-1);
+	  rc = wst_chunk_scan (wst, row + data_off + 1, data_len - 1);
 	  if (DVC_MATCH == rc)
 	    {
-	      wst_set_buffer (wst, row + data_off+1, data_len-1);
+	      wst_set_buffer (wst, row + data_off + 1, data_len - 1);
 	      return rc;
 	    }
 	}
@@ -468,12 +460,11 @@ itc_text_search (it_cursor_t * it, buffer_desc_t ** buf_ret, dp_addr_t * leaf_re
 		  for (;;)
 		    {
 		      int wrc = itc_landed_lock_check (it, buf_ret);
-		      if (ISO_SERIALIZABLE == it->itc_isolation
-			  || NO_WAIT == wrc)
+		      if (ISO_SERIALIZABLE == it->itc_isolation || NO_WAIT == wrc)
 			break;
 		      /* passing this means for a RR cursor that a subsequent itc_set_lock_on_row is
 		       * GUARANTEED to be with no wait. Needed not to run itc_row_check side effect twice */
-		      wrc = wrc;  /* breakpoint here */
+		      wrc = wrc;	/* breakpoint here */
 		    }
 		  page = (*buf_ret)->bd_buffer;
 		  if (ITC_AT_END == it->itc_map_pos)
@@ -517,7 +508,7 @@ itc_text_search (it_cursor_t * it, buffer_desc_t ** buf_ret, dp_addr_t * leaf_re
 	  it->itc_at_data_level = 1;
 	  leaf = 0;
 #ifdef DEBUG
-	  if (!it->itc_row_key /*|| it->itc_row_key->key_id != key_id*/)
+	  if (!it->itc_row_key /*|| it->itc_row_key->key_id != key_id */ )
 	    {
 /*
 	    it->itc_row_key = sch_id_to_key (wi_inst.wi_schema, key_id);
@@ -537,7 +528,7 @@ itc_text_search (it_cursor_t * it, buffer_desc_t ** buf_ret, dp_addr_t * leaf_re
 	it->itc_at_data_level = 1;
       else
 	return DVC_MATCH;
-      if (! *leaf_ret && res == DVC_MATCH)
+      if (!*leaf_ret && res == DVC_MATCH)
 	{
 	  KEY_TOUCH (it->itc_insert_key);
 	  return DVC_MATCH;
@@ -589,8 +580,7 @@ if (pos1 != pos2) \
 
 /* Proximity check for hits of words that are in a phrase or NEAR */
 int
-wp_proximity (db_buf_t p1, int l1, db_buf_t p2, int l2,
-	      word_rel_t * rel)
+wp_proximity (db_buf_t p1, int l1, db_buf_t p2, int l2, word_rel_t * rel)
 {
   int prev;
   int dist = rel->wrl_dist;
@@ -692,23 +682,21 @@ wp_proximity (db_buf_t p1, int l1, db_buf_t p2, int l2,
 	}
     }
 
-  /*NOTREACHED*/
-  return rel->wrl_score;
+   /*NOTREACHED*/ return rel->wrl_score;
 }
 
 
 int
-wst_seek_d_id (word_stream_t * wst, d_id_t * target, db_buf_t * pos_ret,
-	       int * len_ret, d_id_t * next_d_id_ret)
+wst_seek_d_id (word_stream_t * wst, d_id_t * target, db_buf_t * pos_ret, int *len_ret, d_id_t * next_d_id_ret)
 {
   db_buf_t buf = (db_buf_t) wst->sst_buffer;
   int pos = wst->sst_pos, first_pos, rc;
   while (pos < wst->sst_fill && pos != -1)
     {
-      d_id_t * d_id;
+      d_id_t *d_id;
       int l, hl;
       WP_LENGTH (buf + pos, hl, l, buf, wst->sst_buffer_size);
-      d_id =  (d_id_t *) (buf + hl + pos);
+      d_id = (d_id_t *) (buf + hl + pos);
       rc = d_id_cmp (d_id, target);
       if (DVC_MATCH == rc)
 	{
@@ -719,8 +707,7 @@ wst_seek_d_id (word_stream_t * wst, d_id_t * target, db_buf_t * pos_ret,
 	  *len_ret = l - first_pos;
 	  return 1;
 	}
-      if ((DVC_LESS == rc && !wst->sst_is_desc)
-	  || (DVC_GREATER == rc && wst->sst_is_desc))
+      if ((DVC_LESS == rc && !wst->sst_is_desc) || (DVC_GREATER == rc && wst->sst_is_desc))
 	{
 	  if (!wst->sst_is_desc)
 	    pos += l + hl;
@@ -752,43 +739,42 @@ wst_check_related (word_stream_t * wst, db_buf_t buf, d_id_t * d_id, int pos)
   if (!wst->sst_related)
     return 1;
   WP_LENGTH (buf + pos, hl, l, buf, box_length (buf) - 1);
-  positions = buf + pos + hl + WP_FIRST_POS(buf + pos + hl);
+  positions = buf + pos + hl + WP_FIRST_POS (buf + pos + hl);
   pos_len = l - WP_FIRST_POS (buf + pos + hl);
-  DO_SET(word_rel_t *, rel, &wst->sst_related)
-    {
-      word_stream_t * rel_st = (word_stream_t *) rel->wrl_sst;
-      if (SRC_WORD == rel_st->sst_op)
-	{
-	  if (!D_INITIAL (&rel_st->wst_first_d_id)
-	      && IS_LTE (d_id_cmp (&rel_st->wst_first_d_id, d_id)) && IS_GTE (d_id_cmp (&rel_st->wst_last_d_id, d_id)))
-	    {
-	      d_id_t next_target;
-	      db_buf_t rel_pos;
-	      int rel_pos_len;
-	      D_SET_AT_END (&next_target);
-	      if (wst_seek_d_id (rel_st, d_id, &rel_pos, &rel_pos_len,
-				 &next_target))
-		{
-		  if (rel->wrl_dist)
-		    {
-		      wp_proximity (positions, pos_len, rel_pos, rel_pos_len, rel);
-		      if (0 == rel->wrl_score)
-			return 0;
-		    }
-		  else
-		    rel->wrl_score = 1;
-		  d_id_set (&rel->wrl_d_id, d_id);
-		}
-	      else
-		{
-		  if (! D_AT_END (&next_target))
-		    d_id_set (&wst->wst_seek_target,  &next_target);
-		  return 0;
-		}
-	    }
-	}
-    }
-  END_DO_SET();
+  DO_SET (word_rel_t *, rel, &wst->sst_related)
+  {
+    word_stream_t *rel_st = (word_stream_t *) rel->wrl_sst;
+    if (SRC_WORD == rel_st->sst_op)
+      {
+	if (!D_INITIAL (&rel_st->wst_first_d_id)
+	    && IS_LTE (d_id_cmp (&rel_st->wst_first_d_id, d_id)) && IS_GTE (d_id_cmp (&rel_st->wst_last_d_id, d_id)))
+	  {
+	    d_id_t next_target;
+	    db_buf_t rel_pos;
+	    int rel_pos_len;
+	    D_SET_AT_END (&next_target);
+	    if (wst_seek_d_id (rel_st, d_id, &rel_pos, &rel_pos_len, &next_target))
+	      {
+		if (rel->wrl_dist)
+		  {
+		    wp_proximity (positions, pos_len, rel_pos, rel_pos_len, rel);
+		    if (0 == rel->wrl_score)
+		      return 0;
+		  }
+		else
+		  rel->wrl_score = 1;
+		d_id_set (&rel->wrl_d_id, d_id);
+	      }
+	    else
+	      {
+		if (!D_AT_END (&next_target))
+		  d_id_set (&wst->wst_seek_target, &next_target);
+		return 0;
+	      }
+	  }
+      }
+  }
+  END_DO_SET ();
   return 1;
 }
 
@@ -797,11 +783,11 @@ int
 wst_chunk_scan_rev (word_stream_t * wst, db_buf_t buf, int chunk_len)
 {
   d_id_t target;
-  d_id_t * d_id;
+  d_id_t *d_id;
   int pos, pos_inx;
   int match_any;
   d_id_set (&target, &wst->wst_seek_target);
-  match_any  = D_INITIAL (&target) || D_NEXT (&target);
+  match_any = D_INITIAL (&target) || D_NEXT (&target);
   if (!match_any && IS_LT (d_id_cmp (&target, &wst->wst_first_d_id)))
     return DVC_LESS;
   if (!buf)
@@ -861,7 +847,7 @@ int
 wst_chunk_scan (word_stream_t * wst, db_buf_t buf, int chunk_len)
 {
   d_id_t target;
-  d_id_t * d_id;
+  d_id_t *d_id;
   int pos;
   int hl, l;
   int match_any;
@@ -870,7 +856,7 @@ wst_chunk_scan (word_stream_t * wst, db_buf_t buf, int chunk_len)
   if (!buf)
     buf = (db_buf_t) wst->sst_buffer;
   d_id_set (&target, &wst->wst_seek_target);
-    match_any = D_INITIAL (&target) || D_NEXT (&target);
+  match_any = D_INITIAL (&target) || D_NEXT (&target);
   if (!match_any && IS_GT (d_id_cmp (&target, &wst->wst_last_d_id)))
     return DVC_LESS;
   pos = wst->sst_pos;
@@ -913,15 +899,16 @@ wst_chunk_scan (word_stream_t * wst, db_buf_t buf, int chunk_len)
 static wst_search_specs_t wst_int_key_search_specs;
 static wst_search_specs_t wst_int64_key_search_specs;
 static wst_search_specs_t wst_any_key_search_specs;
-static dk_mutex_t * wst_get_specs_mtx;
+static dk_mutex_t *wst_get_specs_mtx;
 
 wst_search_specs_t *
-wst_get_specs (dbe_key_t *key)
+wst_get_specs (dbe_key_t * key)
 {
   search_spec_t *ss;
-  int key_is_int_d_id = DBE_KEY_IS_INT_D_ID(key);
+  int key_is_int_d_id = DBE_KEY_IS_INT_D_ID (key);
   int key_is_int64_d_id = key_is_int_d_id ? key->key_key_fixed[0].cl_sqt.sqt_dtp == DV_INT64 : 0;
-  wst_search_specs_t *res = key_is_int64_d_id ? &wst_int64_key_search_specs : (key_is_int_d_id ? &wst_int_key_search_specs : &wst_any_key_search_specs);
+  wst_search_specs_t *res =
+      key_is_int64_d_id ? &wst_int64_key_search_specs : (key_is_int_d_id ? &wst_int_key_search_specs : &wst_any_key_search_specs);
   dbe_col_loc_t *word_cl;
   dbe_col_loc_t *d_id_cl;
   if (res->wst_specs_are_initialized)
@@ -930,9 +917,7 @@ wst_get_specs (dbe_key_t *key)
   mutex_enter (wst_get_specs_mtx);
 
   word_cl = &(key->key_key_var[0]);
-  d_id_cl = (key_is_int_d_id ?
-    &(key->key_key_fixed[0]) :
-    &(key->key_key_var[1]) );
+  d_id_cl = (key_is_int_d_id ? &(key->key_key_fixed[0]) : &(key->key_key_var[1]));
 
 #define SS_ASSIGN(cl,minop,minarg,maxop,maxarg) \
   ss->sp_cl = (cl); \
@@ -941,20 +926,29 @@ wst_get_specs (dbe_key_t *key)
 
 #define SS_ADVANCE ss->sp_next = ss+1; ss++
 
-  ss = res->wst_init_spec;		SS_ASSIGN(word_cl[0]	,CMP_EQ	,+0	,0	,0	);
+  ss = res->wst_init_spec;
+  SS_ASSIGN (word_cl[0], CMP_EQ, +0, 0, 0);
 
-  ss = res->wst_seek_spec;		SS_ASSIGN(word_cl[0]	,CMP_EQ	,+0	,0	,0	);
-  SS_ADVANCE;				SS_ASSIGN(d_id_cl[0]	,0	,0	,CMP_LTE,+1	);
+  ss = res->wst_seek_spec;
+  SS_ASSIGN (word_cl[0], CMP_EQ, +0, 0, 0);
+  SS_ADVANCE;
+  SS_ASSIGN (d_id_cl[0], 0, 0, CMP_LTE, +1);
 
-  ss = res->wst_seek_asc_seq_spec;	SS_ASSIGN(word_cl[0]	,CMP_EQ ,+0	,0	,0	);
-  SS_ADVANCE;				SS_ASSIGN(d_id_cl[0]	,CMP_GTE,+1	,0	,0	);
+  ss = res->wst_seek_asc_seq_spec;
+  SS_ASSIGN (word_cl[0], CMP_EQ, +0, 0, 0);
+  SS_ADVANCE;
+  SS_ASSIGN (d_id_cl[0], CMP_GTE, +1, 0, 0);
 
-  ss = res->wst_range_spec;		SS_ASSIGN(word_cl[0]	,CMP_GT	,+0	,CMP_LT	,+1	);
+  ss = res->wst_range_spec;
+  SS_ASSIGN (word_cl[0], CMP_GT, +0, CMP_LT, +1);
 
-  ss = res->wst_next_spec;		SS_ASSIGN(word_cl[0]	,CMP_EQ	,+0	,0	,0	);
-  SS_ADVANCE;				SS_ASSIGN(d_id_cl[0]	,CMP_GT	,+1	,0	,0	);
+  ss = res->wst_next_spec;
+  SS_ASSIGN (word_cl[0], CMP_EQ, +0, 0, 0);
+  SS_ADVANCE;
+  SS_ASSIGN (d_id_cl[0], CMP_GT, +1, 0, 0);
 
-  ss = res->wst_next_d_id_spec;		SS_ASSIGN(word_cl[0]	,CMP_EQ	,+0	,0	,0	);
+  ss = res->wst_next_d_id_spec;
+  SS_ASSIGN (word_cl[0], CMP_EQ, +0, 0, 0);
 
 #define WST_KSP(name) \
   res->wst_ks_##name .ksp_spec_array = &res->wst_##name##_spec[0]; \
@@ -966,7 +960,7 @@ wst_get_specs (dbe_key_t *key)
   WST_KSP (range);
   WST_KSP (next);
   WST_KSP (next_d_id);
-  res->wst_out_map = (out_map_t *)dk_alloc_box (sizeof (out_map_t) * 4, DV_STRING);
+  res->wst_out_map = (out_map_t *) dk_alloc_box (sizeof (out_map_t) * 4, DV_STRING);
   memset (res->wst_out_map, 0, box_length ((caddr_t) res->wst_out_map));
 
   if (key_is_int_d_id)
@@ -988,7 +982,7 @@ wst_get_specs (dbe_key_t *key)
   itc->itc_isolation = qi->qi_isolation; \
   itc->itc_search_mode = SM_READ; \
   itc->itc_lock_mode = PL_SHARED; \
-  itc->itc_ltrx = qi->qi_trx; /* qi can be contd w different clis in cl */
+  itc->itc_ltrx = qi->qi_trx;	/* qi can be contd w different clis in cl */
 
 
 int
@@ -996,18 +990,18 @@ wst_random_seek (word_stream_t * wst)
 {
   d_id_t target = wst->wst_seek_target;
   int rc;
-  buffer_desc_t * buf;
-  query_instance_t * qi = wst->wst_qi;
-  it_cursor_t * volatile itc = wst->wst_itc;
+  buffer_desc_t *buf;
+  query_instance_t *qi = wst->wst_qi;
+  it_cursor_t *volatile itc = wst->wst_itc;
   wst_search_specs_t *specs;
   int spec_is_seek;
   if (!itc)
     {
-      itc = itc_create (QI_SPACE(qi), qi->qi_trx);
+      itc = itc_create (QI_SPACE (qi), qi->qi_trx);
     }
   TEXT_ITC_INIT (itc, qi);
   itc_from (itc, wst->wst_table->tb_primary_key, qi->qi_client->cli_slice);
-  specs = wst_get_specs(itc->itc_row_key);
+  specs = wst_get_specs (itc->itc_row_key);
 
   if (D_NEXT (&target))
     D_SET_INITIAL (&target);
@@ -1031,89 +1025,94 @@ wst_random_seek (word_stream_t * wst)
   ITC_SEARCH_PARAM (itc, wst->wst_seek_target_box);
 
   ITC_FAIL (itc)
-    {
-      itc->itc_wst = NULL;
-      buf = itc_reset (itc);
-      rc = itc_search (itc, &buf);
-      if (DVC_MATCH != rc)
-	{
-	  itc_page_leave (itc, buf);
-	  itc_free (itc);
-	  wst->wst_itc = NULL;
-	  D_SET_AT_END (&wst->sst_d_id);
-	  return DVC_GREATER;
-	}
-      itc->itc_desc_order = wst->sst_is_desc;
-      if (spec_is_seek && !itc->itc_desc_order)
-	itc->itc_key_spec = specs->wst_ks_seek_asc_seq;
-      itc->itc_wst = wst;
-      itc->itc_is_on_row = 0;
-      rc = itc_next (itc, &buf);
-      if (DVC_MATCH != rc)
-	{
-	  itc_page_leave (itc, buf);
-	  itc_free (itc);
-	  wst->wst_itc = NULL;
-	  D_SET_AT_END (&wst->sst_d_id);
-	  return DVC_GREATER;
-	}
-      itc_register (itc, buf);
-      itc_page_leave (itc, buf);
-      wst->wst_itc = itc;
-      return DVC_MATCH;
-    }
+  {
+    itc->itc_wst = NULL;
+    buf = itc_reset (itc);
+    rc = itc_search (itc, &buf);
+    if (DVC_MATCH != rc)
+      {
+	itc_page_leave (itc, buf);
+	itc_free (itc);
+	wst->wst_itc = NULL;
+	D_SET_AT_END (&wst->sst_d_id);
+	return DVC_GREATER;
+      }
+    itc->itc_desc_order = wst->sst_is_desc;
+    if (spec_is_seek && !itc->itc_desc_order)
+      itc->itc_key_spec = specs->wst_ks_seek_asc_seq;
+    itc->itc_wst = wst;
+    itc->itc_is_on_row = 0;
+    rc = itc_next (itc, &buf);
+    if (DVC_MATCH != rc)
+      {
+	itc_page_leave (itc, buf);
+	itc_free (itc);
+	wst->wst_itc = NULL;
+	D_SET_AT_END (&wst->sst_d_id);
+	return DVC_GREATER;
+      }
+    itc_register (itc, buf);
+    itc_page_leave (itc, buf);
+    wst->wst_itc = itc;
+    return DVC_MATCH;
+  }
   ITC_FAILED
-    {
-      wst->wst_itc = NULL;
-      itc_free (itc);
-      D_SET_AT_END (&wst->sst_d_id);
-    }
+  {
+    wst->wst_itc = NULL;
+    itc_free (itc);
+    D_SET_AT_END (&wst->sst_d_id);
+  }
   END_FAIL (itc);
   return DVC_GREATER;
 }
 
 
 
-caddr_t wst_itc_col_word (it_cursor_t * itc, buffer_desc_t * buf)
+caddr_t
+wst_itc_col_word (it_cursor_t * itc, buffer_desc_t * buf)
 {
   dbe_col_loc_t *cl = &itc->itc_row_key->key_key_var[0];
   return itc_box_column (itc, buf, 0, cl);
 }
 
-caddr_t wst_itc_col_d_id (it_cursor_t * itc, buffer_desc_t * buf)
+caddr_t
+wst_itc_col_d_id (it_cursor_t * itc, buffer_desc_t * buf)
 {
   dbe_col_loc_t *cl;
-  if (ITC_IS_INT_D_ID(itc))
+  if (ITC_IS_INT_D_ID (itc))
     cl = &itc->itc_row_key->key_key_fixed[0];
   else
     cl = &itc->itc_row_key->key_key_var[1];
   return itc_box_column (itc, buf, 0, cl);
 }
 
-caddr_t wst_itc_col_d_id2 (it_cursor_t * itc, buffer_desc_t * buf)
+caddr_t
+wst_itc_col_d_id2 (it_cursor_t * itc, buffer_desc_t * buf)
 {
   dbe_col_loc_t *cl;
-  if (ITC_IS_INT_D_ID(itc))
+  if (ITC_IS_INT_D_ID (itc))
     cl = &itc->itc_row_key->key_row_fixed[0];
   else
     cl = &itc->itc_row_key->key_row_var[0];
   return itc_box_column (itc, buf, 0, cl);
 }
 
-caddr_t wst_itc_col_data (it_cursor_t * itc, buffer_desc_t * buf)
+caddr_t
+wst_itc_col_data (it_cursor_t * itc, buffer_desc_t * buf)
 {
   dbe_col_loc_t *cl;
-  if (ITC_IS_INT_D_ID(itc))
+  if (ITC_IS_INT_D_ID (itc))
     cl = &itc->itc_row_key->key_row_var[0];
   else
     cl = &itc->itc_row_key->key_row_var[1];
   return itc_box_column (itc, buf, 0, cl);
 }
 
-caddr_t wst_itc_col_long_data (it_cursor_t * itc, buffer_desc_t * buf)
+caddr_t
+wst_itc_col_long_data (it_cursor_t * itc, buffer_desc_t * buf)
 {
   dbe_col_loc_t *cl;
-  if (ITC_IS_INT_D_ID(itc))
+  if (ITC_IS_INT_D_ID (itc))
     cl = &itc->itc_row_key->key_row_var[1];
   else
     cl = &itc->itc_row_key->key_row_var[2];
@@ -1122,55 +1121,55 @@ caddr_t wst_itc_col_long_data (it_cursor_t * itc, buffer_desc_t * buf)
 
 
 it_cursor_t *
-wst_range_itc (sst_tctx_t *tctx, const char * word, caddr_t *lower, caddr_t higher)
+wst_range_itc (sst_tctx_t * tctx, const char *word, caddr_t * lower, caddr_t higher)
 {
   /* get first word > lower and < higher and like word. Return this word as *lower.
    * return the cursor positioned at first record of that word */
-  buffer_desc_t * buf;
+  buffer_desc_t *buf;
   query_instance_t *qi = tctx->tctx_qi;
-  it_cursor_t * itc = itc_create (QI_SPACE(qi), qi->qi_trx);
+  it_cursor_t *itc = itc_create (QI_SPACE (qi), qi->qi_trx);
   wst_search_specs_t *specs;
   int lower_offs = 0;
-  caddr_t lcopy = box_copy(*lower);
+  caddr_t lcopy = box_copy (*lower);
   TEXT_ITC_INIT (itc, qi);
   itc_from (itc, tctx->tctx_table->tb_primary_key, qi->qi_client->cli_slice);
-  specs = wst_get_specs(itc->itc_row_key);
+  specs = wst_get_specs (itc->itc_row_key);
   itc->itc_key_spec = specs->wst_ks_range;
-  lower_offs = (int) itc->itc_search_par_fill; /* Ensure the offset of lower limit */
+  lower_offs = (int) itc->itc_search_par_fill;	/* Ensure the offset of lower limit */
   ITC_SEARCH_PARAM (itc, lcopy);
   ITC_SEARCH_PARAM (itc, higher);
   ITC_FAIL (itc)
-    {
-      for (;;)
-	{
-	  int rc;
-	  char * hit = NULL;
-	  itc->itc_wst = NULL;
-	  buf = itc_reset (itc);
-	  rc = itc_search (itc, &buf);
-	  dk_free_box (itc->itc_search_params[lower_offs]); /* lower limit */
-	  if (DVC_MATCH != rc)
-	    {
-	      itc_page_leave (itc, buf);
-	      itc_free (itc);
-	      return NULL;
-	    }
-	  hit = wst_itc_col_word (itc, buf);
-	  if (DVC_MATCH == cmp_like (hit, word, NULL, 0, LIKE_ARG_CHAR, LIKE_ARG_CHAR))
-	    {
-	      *lower = hit;
-	      itc_register (itc, buf);
-	      itc_page_leave (itc, buf);
-	      return itc;
-	    }
-	  itc_page_leave (itc, buf);
-	  itc->itc_search_params[lower_offs] = hit;
-	}
-    }
- ITC_FAILED
-    {
-      itc_free (itc);
-    }
+  {
+    for (;;)
+      {
+	int rc;
+	char *hit = NULL;
+	itc->itc_wst = NULL;
+	buf = itc_reset (itc);
+	rc = itc_search (itc, &buf);
+	dk_free_box (itc->itc_search_params[lower_offs]);	/* lower limit */
+	if (DVC_MATCH != rc)
+	  {
+	    itc_page_leave (itc, buf);
+	    itc_free (itc);
+	    return NULL;
+	  }
+	hit = wst_itc_col_word (itc, buf);
+	if (DVC_MATCH == cmp_like (hit, word, NULL, 0, LIKE_ARG_CHAR, LIKE_ARG_CHAR))
+	  {
+	    *lower = hit;
+	    itc_register (itc, buf);
+	    itc_page_leave (itc, buf);
+	    return itc;
+	  }
+	itc_page_leave (itc, buf);
+	itc->itc_search_params[lower_offs] = hit;
+      }
+  }
+  ITC_FAILED
+  {
+    itc_free (itc);
+  }
   END_FAIL (itc);
   return NULL;
 }
@@ -1181,35 +1180,35 @@ bif_vt_words_next_d_id (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   /* given a cursor on a copy of vt_words, get the next chunk's d_id */
   volatile int rc = 0;
-  buffer_desc_t * buf;
-  query_instance_t * qi = (query_instance_t*) qst;
+  buffer_desc_t *buf;
+  query_instance_t *qi = (query_instance_t *) qst;
   caddr_t tb_name = bif_string_arg (qst, args, 0, "vt_words_next_d_id");
-  dbe_table_t * tb = sch_name_to_table (isp_schema (qi->qi_space), tb_name);
-  char * cr_name = bif_string_arg (qst, args, 1, "vt_words_next_d_id");
+  dbe_table_t *tb = sch_name_to_table (isp_schema (qi->qi_space), tb_name);
+  char *cr_name = bif_string_arg (qst, args, 1, "vt_words_next_d_id");
   caddr_t word = bif_string_arg (qst, args, 2, "vt_words_next_d_id");
 /*
   caddr_t d_id_box = bif_arg (qst, args, 3, "vt_words_next_d_id");
 */
   volatile caddr_t res = NULL;
-  state_slot_t * cr_ssl = NULL;
-  placeholder_t * pl = NULL;
+  state_slot_t *cr_ssl = NULL;
+  placeholder_t *pl = NULL;
   it_cursor_t itc_auto;
-  it_cursor_t * itc = &itc_auto;
+  it_cursor_t *itc = &itc_auto;
   wst_search_specs_t *specs;
   if (!tb)
     sqlr_new_error ("S0002", "FT002", "bad table for vt_words_next_d_id");
   ITC_INIT (itc, qi->qi_space, qi->qi_trx);
   DO_SET (state_slot_t *, ssl, &qi->qi_query->qr_state_map)
-    {
-      if (SSL_ITC == ssl->ssl_type || SSL_PLACEHOLDER == ssl->ssl_type)
-	{
-	  if  (ssl->ssl_name && 0 == strcmp (ssl->ssl_name, cr_name))
-	    {
-	      cr_ssl = ssl;
-	      break;
-	    }
-	}
-    }
+  {
+    if (SSL_ITC == ssl->ssl_type || SSL_PLACEHOLDER == ssl->ssl_type)
+      {
+	if (ssl->ssl_name && 0 == strcmp (ssl->ssl_name, cr_name))
+	  {
+	    cr_ssl = ssl;
+	    break;
+	  }
+      }
+  }
   END_DO_SET ();
   if (!cr_ssl)
     sqlr_new_error ("09000", "FT040", "No cursor for vt_words_next_d_id");
@@ -1221,14 +1220,14 @@ bif_vt_words_next_d_id (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   itc->itc_key_spec = specs->wst_ks_next_d_id;
   ITC_SEARCH_PARAM (itc, word);
   ITC_FAIL (itc)
-    {
-      buf = itc_set_by_placeholder (itc, pl);
-      itc->itc_desc_order = 0; /* the pl is from a desc itc, this one goes fwd */
-      rc = itc_next (itc, &buf);
-    }
+  {
+    buf = itc_set_by_placeholder (itc, pl);
+    itc->itc_desc_order = 0;	/* the pl is from a desc itc, this one goes fwd */
+    rc = itc_next (itc, &buf);
+  }
   ITC_FAILED
-    {
-    }
+  {
+  }
   END_FAIL (itc);
   if (DVC_MATCH == rc)
     {
@@ -1243,49 +1242,49 @@ int
 wst_seq_seek (word_stream_t * wst)
 {
   int rc;
-  buffer_desc_t * buf;
-  it_cursor_t * itc = wst->wst_itc;
+  buffer_desc_t *buf;
+  it_cursor_t *itc = wst->wst_itc;
   if (!itc)
     {
       D_SET_AT_END (&wst->sst_d_id);
       return DVC_GREATER;
     }
-  itc->itc_ltrx = wst->wst_qi->qi_trx; /* qi can be contd w different clis in cl */
+  itc->itc_ltrx = wst->wst_qi->qi_trx;	/* qi can be contd w different clis in cl */
   ITC_FAIL (itc)
-    {
-      tft_seq_seek++;
-      if (!itc->itc_buf_registered)
-	{
-	  log_error ("full text itc not registered at continue, can be dfgcontinue coming after anytime reset");
-	  itc_free (itc);
-	  wst->wst_itc = NULL;
-	  D_SET_AT_END (&wst->sst_d_id);
-	  return DVC_GREATER;
-	}
-      buf = page_reenter_excl (wst->wst_itc);
-      rc = itc_next (itc, &buf);
-      if (DVC_MATCH != rc)
-	{
-	  itc_page_leave (itc, buf);
-	  itc_free (itc);
-	  wst->wst_itc = NULL;
-	  D_SET_AT_END (&wst->sst_d_id);
-	  return DVC_GREATER;
-	}
-      if (WRST_SKIP == wst->wst_reset_reason)
-	{
-	  itc_page_leave (itc, buf);
-	  return (wst_random_seek (wst));
-	}
-      itc_register (itc, buf);
-      itc_page_leave (itc, buf);
-    }
+  {
+    tft_seq_seek++;
+    if (!itc->itc_buf_registered)
+      {
+	log_error ("full text itc not registered at continue, can be dfgcontinue coming after anytime reset");
+	itc_free (itc);
+	wst->wst_itc = NULL;
+	D_SET_AT_END (&wst->sst_d_id);
+	return DVC_GREATER;
+      }
+    buf = page_reenter_excl (wst->wst_itc);
+    rc = itc_next (itc, &buf);
+    if (DVC_MATCH != rc)
+      {
+	itc_page_leave (itc, buf);
+	itc_free (itc);
+	wst->wst_itc = NULL;
+	D_SET_AT_END (&wst->sst_d_id);
+	return DVC_GREATER;
+      }
+    if (WRST_SKIP == wst->wst_reset_reason)
+      {
+	itc_page_leave (itc, buf);
+	return (wst_random_seek (wst));
+      }
+    itc_register (itc, buf);
+    itc_page_leave (itc, buf);
+  }
   ITC_FAILED
-    {
-      itc_free (itc);
-      wst->wst_itc = NULL;
-      D_SET_AT_END (&wst->sst_d_id);
-    }
+  {
+    itc_free (itc);
+    wst->wst_itc = NULL;
+    D_SET_AT_END (&wst->sst_d_id);
+  }
   END_FAIL (wst->wst_itc);
   return DVC_MATCH;
 }
@@ -1327,7 +1326,7 @@ composite_diff (db_buf_t dv1, db_buf_t dv2)
 	  n2 = INT_REF (dv2);
 	  diff = diff * 10000000 + abs (n1 - n2);
 	  break;
-	default: ;
+	default:;
 	}
       DB_BUF_TLEN (len, dv1[0], dv1);
       dv1 += len;
@@ -1356,14 +1355,14 @@ wst_is_target_far (word_stream_t * wst)
   dist = D_ID_NUM_REF (wst->wst_seek_target.id) - D_ID_NUM_REF (wst->wst_last_d_id.id);
   if (dist < 0)
     dist = -dist;
-  return (dist  > 30 * row_width);
+  return (dist > 30 * row_width);
 }
 
 
 d_id_t *
 wst_word_strings_next (word_stream_t * wst)
 {
-  d_id_t * d_id;
+  d_id_t *d_id;
   int n, inx;
   if (D_NEXT (&wst->wst_seek_target))
     wst->wst_nth_word_string++;
@@ -1376,9 +1375,7 @@ wst_word_strings_next (word_stream_t * wst)
       WP_LENGTH (buf, hl, l, buf, box_length (buf) - 1);
       d_id = (d_id_t *) (buf + hl);
       if ((D_INITIAL (&wst->wst_seek_target)
-	   || D_NEXT (&wst->wst_seek_target)
-	   || IS_GTE (d_id_cmp (d_id,  &wst->wst_seek_target)))
-	  && l > WP_FIRST_POS (buf + hl))
+	      || D_NEXT (&wst->wst_seek_target) || IS_GTE (d_id_cmp (d_id, &wst->wst_seek_target))) && l > WP_FIRST_POS (buf + hl))
 	{
 	  wst->wst_nth_word_string = inx;
 	  wst->sst_buffer = buf;
@@ -1400,11 +1397,11 @@ void
 wst_next (word_stream_t * wst, d_id_t * target)
 {
   int rc, match_any;
-  /* caddr_t x;*/
+  /* caddr_t x; */
   if (D_AT_END (&wst->sst_d_id))
     return;
   wst->wst_seek_target = *target;
-  /*x = box_d_id (&wst->wst_seek_target);   printf ("wst next of %s target %d\n", wst->wst_word, (int) unbox (x));  dk_free_box (x);*/
+  /*x = box_d_id (&wst->wst_seek_target);   printf ("wst next of %s target %d\n", wst->wst_word, (int) unbox (x));  dk_free_box (x); */
   if (wst->wst_word_strings)
     {
       wst_word_strings_next (wst);
@@ -1420,10 +1417,8 @@ wst_next (word_stream_t * wst, d_id_t * target)
       wst_random_seek (wst);
       return;
     }
-  match_any = D_INITIAL (&wst->wst_seek_target) ||  D_NEXT (&wst->wst_seek_target);
-  if (match_any ||
-      (!D_INITIAL (&wst->wst_last_d_id)
-       && IS_LTE (d_id_cmp (&wst->wst_seek_target, &wst->wst_last_d_id))))
+  match_any = D_INITIAL (&wst->wst_seek_target) || D_NEXT (&wst->wst_seek_target);
+  if (match_any || (!D_INITIAL (&wst->wst_last_d_id) && IS_LTE (d_id_cmp (&wst->wst_seek_target, &wst->wst_last_d_id))))
     {
       rc = wst_chunk_scan (wst, NULL, wst->sst_fill);
       if (DVC_MATCH == rc)
@@ -1431,8 +1426,7 @@ wst_next (word_stream_t * wst, d_id_t * target)
     }
   if (D_NEXT (&wst->wst_seek_target))
     D_SET_INITIAL (&wst->wst_seek_target);
-  if (wst_is_target_far (wst)
-      && !D_PRESET (&wst->sst_d_id))
+  if (wst_is_target_far (wst) && !D_PRESET (&wst->sst_d_id))
     rc = wst_random_seek (wst);
   else
     rc = wst_seq_seek (wst);
@@ -1444,7 +1438,7 @@ void
 sst_range_hit (search_stream_t * sst, int r1, int r2)
 {
   int fill = sst->sst_all_ranges_fill;
-  word_range_t * r;
+  word_range_t *r;
   if (!sst->sst_all_ranges)
     sst->sst_all_ranges = (word_range_t *) dk_alloc_box (10 * sizeof (word_range_t), DV_ARRAY_OF_LONG);
   if (((int) (box_length ((caddr_t) sst->sst_all_ranges) / sizeof (word_range_t))) <= fill)
@@ -1456,7 +1450,7 @@ sst_range_hit (search_stream_t * sst, int r1, int r2)
       r += fill;
     }
   else
-    r = sst->sst_all_ranges+fill;
+    r = sst->sst_all_ranges + fill;
   r->r_start = r1;
   r->r_end = r2;
   sst->sst_all_ranges_fill = fill + 1;
@@ -1476,10 +1470,9 @@ sst_range_hit (search_stream_t * sst, int r1, int r2)
 
 #if 1
 int
-sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
-		 word_rel_t * rel, int make_ranges)
+sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2, word_rel_t * rel, int make_ranges)
 {
-  word_range_t * src_ranges = sst1->sst_all_ranges+sst1->sst_sel_startofs;
+  word_range_t *src_ranges = sst1->sst_all_ranges + sst1->sst_sel_startofs;
   unsigned src_ranges_fill = sst1->sst_sel_count;
   int dist = rel->wrl_dist;
   int is_lefttoright = rel->wrl_is_lefttoright;
@@ -1512,17 +1505,17 @@ sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
 	}
       else
 	{
-	  int curdist = (int) (e1-s1);
+	  int curdist = (int) (e1 - s1);
 	  if (dist < curdist)
 	    dist = curdist;
 	  /* lefttoright == 0, so dist is positive here: */
-	  min_s2 = (e1 > (wpos_t)(dist)) ? (e1 - (wpos_t)(dist)) : 0;
+	  min_s2 = (e1 > (wpos_t) (dist)) ? (e1 - (wpos_t) (dist)) : 0;
 	  max_s2 = s1 + dist;
 	}
       best_hit = HUGE_WPOS_T;
       for (inx2 = 0; inx2 < sst2->sst_sel_count; inx2++)
 	{
-	  wpos_t pos2 = sst2->sst_all_ranges[sst2_sofs+inx2].r_start;
+	  wpos_t pos2 = sst2->sst_all_ranges[sst2_sofs + inx2].r_start;
 	  if (pos2 > max_s2)
 	    break;
 	  if (pos2 < min_s2)
@@ -1532,23 +1525,20 @@ sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
 	    break;
 	}
       if (HUGE_WPOS_T != best_hit)
-	SST_RANGE_HIT ( sst1,
-	  (s1<best_hit ? s1 : best_hit),
-	  (e1>best_hit ? e1 : best_hit) );
+	SST_RANGE_HIT (sst1, (s1 < best_hit ? s1 : best_hit), (e1 > best_hit ? e1 : best_hit));
     }
   goto finalize;
 hit_found:
-  sst1->sst_all_to = sst1->sst_sel_to = sst1->sst_all_ranges[sst1->sst_all_ranges_fill-1].r_start+1;
+  sst1->sst_all_to = sst1->sst_sel_to = sst1->sst_all_ranges[sst1->sst_all_ranges_fill - 1].r_start + 1;
 finalize:
   sst1->sst_sel_count = sst1->sst_all_ranges_fill - sst1->sst_sel_startofs;
   return (sst1->sst_sel_count);
 }
 #else
 int
-sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
-		 word_rel_t * rel, int make_ranges)
+sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2, word_rel_t * rel, int make_ranges)
 {
-  word_range_t * src_ranges = sst1->sst_all_ranges+sst1->sst_sel_startofs;
+  word_range_t *src_ranges = sst1->sst_all_ranges + sst1->sst_sel_startofs;
   int src_ranges_fill = sst1->sst_sel_count;
   int dist = rel->wrl_dist;
   int is_lefttoright = rel->wrl_is_lefttoright;
@@ -1565,7 +1555,7 @@ sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
       int sst2_sofs = sst2->sst_sel_startofs;
       for (inx2 = 0; inx2 < sst2->sst_sel_count; inx2++)
 	{
-	  int pos2 = sst2->sst_all_ranges[sst2_sofs+inx2].r_start;
+	  int pos2 = sst2->sst_all_ranges[sst2_sofs + inx2].r_start;
 	  if (pos2 < s1)
 	    {
 	      if (-1 == before || pos2 > before)
@@ -1586,15 +1576,13 @@ sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
 	{
 	  if (dist > 0)
 	    {
-	      if (after != -1
-		&& (is_dist_fixed ? after - s1 == dist : after - s1 < dist))
+	      if (after != -1 && (is_dist_fixed ? after - s1 == dist : after - s1 < dist))
 		SST_RANGE_HIT (sst1, s1, after);
 	      continue;
 	    }
 	  if (dist < 0)
 	    {
-	      if (before != -1
-		&& (is_dist_fixed ? e1 - before == dist : e1 - before < dist))
+	      if (before != -1 && (is_dist_fixed ? e1 - before == dist : e1 - before < dist))
 		SST_RANGE_HIT (sst1, s1, after);
 	      continue;
 	    }
@@ -1616,7 +1604,7 @@ sst_prox_ranges (search_stream_t * sst1, search_stream_t * sst2,
     }
   goto finalize;
 hit_found:
-  sst1->sst_all_to = sst1->sst_sel_to = sst1->sst_all_ranges[sst1->sst_all_ranges_fill-1].r_start+1;
+  sst1->sst_all_to = sst1->sst_sel_to = sst1->sst_all_ranges[sst1->sst_all_ranges_fill - 1].r_start + 1;
 finalize:
   sst1->sst_sel_count = sst1->sst_all_ranges_fill - sst1->sst_sel_startofs;
   return (sst1->sst_sel_count);
@@ -1629,16 +1617,16 @@ int
 sst_is_top_and_term (search_stream_t * sst, search_stream_t * term)
 {
   /* either first of proximity group or not a member of a proximity group */
-  if (dk_set_member (sst->sst_near_group_firsts, (void*) term))
+  if (dk_set_member (sst->sst_near_group_firsts, (void *) term))
     return 1;
   DO_SET (word_rel_t *, rel, &term->sst_related)
-    {
-      if (rel->wrl_is_dist_fixed)
-	return 0; /* Tails of phrases are not top and terms */
-      if ((0 != rel->wrl_dist) && (HUGE_DIST != rel->wrl_dist))
-	return 0;
-    }
-  END_DO_SET();
+  {
+    if (rel->wrl_is_dist_fixed)
+      return 0;			/* Tails of phrases are not top and terms */
+    if ((0 != rel->wrl_dist) && (HUGE_DIST != rel->wrl_dist))
+      return 0;
+  }
+  END_DO_SET ();
   return 1;
 }
 
@@ -1651,21 +1639,21 @@ sst_ranges (search_stream_t * sst, d_id_t * d_id, wpos_t from, wpos_t to, int ma
 #ifdef TEXT_DEBUG
 {
   int res;
-  fprintf(stderr,"{{ sst_ranges(%p,",sst);
-  dbg_print_d_id_aux (stderr, (unsigned char *)(d_id));
-  fprintf(stderr,",");
+  fprintf (stderr, "{{ sst_ranges(%p,", sst);
+  dbg_print_d_id_aux (stderr, (unsigned char *) (d_id));
+  fprintf (stderr, ",");
   dbg_print_wpos_aux (stderr, from);
-  fprintf(stderr,",");
+  fprintf (stderr, ",");
   dbg_print_wpos_aux (stderr, to);
-  fprintf(stderr,",%d)\n", make_ranges);
+  fprintf (stderr, ",%d)\n", make_ranges);
   res = sst_ranges_debug (sst, d_id, from, to, make_ranges);
-  fprintf(stderr,"   sst_ranges(%p,",sst);
-  dbg_print_d_id_aux (stderr, (unsigned char *)(d_id));
-  fprintf(stderr,",");
+  fprintf (stderr, "   sst_ranges(%p,", sst);
+  dbg_print_d_id_aux (stderr, (unsigned char *) (d_id));
+  fprintf (stderr, ",");
   dbg_print_wpos_aux (stderr, from);
-  fprintf(stderr,",");
+  fprintf (stderr, ",");
   dbg_print_wpos_aux (stderr, to);
-  fprintf(stderr,",%d) returns %d }}\n", make_ranges, res);
+  fprintf (stderr, ",%d) returns %d }}\n", make_ranges, res);
   return res;
 }
 
@@ -1679,12 +1667,9 @@ sst_ranges_debug (search_stream_t * sst, d_id_t * d_id, wpos_t from, wpos_t to, 
   word_range_t *ranges;
   if (to < from)
     return 0;
-  if (!D_INITIAL (&sst->sst_d_id)
-      && (IS_GT (d_id_cmp (&sst->sst_d_id, d_id))
-	  || D_AT_END (&sst->sst_d_id)))
+  if (!D_INITIAL (&sst->sst_d_id) && (IS_GT (d_id_cmp (&sst->sst_d_id, d_id)) || D_AT_END (&sst->sst_d_id)))
     return 0;
-  if (D_INITIAL (&sst->sst_d_id)
-      || IS_LT (d_id_cmp (&sst->sst_d_id, d_id)))
+  if (D_INITIAL (&sst->sst_d_id) || IS_LT (d_id_cmp (&sst->sst_d_id, d_id)))
     {
       sst_next (sst, d_id, 0);
       if (DVC_MATCH != d_id_cmp (&sst->sst_d_id, d_id))
@@ -1694,20 +1679,21 @@ sst_ranges_debug (search_stream_t * sst, d_id_t * d_id, wpos_t from, wpos_t to, 
   /* Now we know that we're at right document. We should check if we can use
      information cached in \c sst_all_xxx members of \c sst */
   if (DVC_MATCH != d_id_cmp (&sst->sst_range_d_id, d_id))
-    goto create_new_ranges; /* see below */
+    goto create_new_ranges;	/* see below */
   if ((from < sst->sst_all_from) || (to > sst->sst_all_to))
-    goto create_new_ranges; /* see below */
+    goto create_new_ranges;	/* see below */
   if ((from == sst->sst_view_from) && (to == sst->sst_view_to))
-    { /* If we have whole row cached and asked for full row, we should select all */
+    {				/* If we have whole row cached and asked for full row, we should select all */
       sst->sst_sel_from = sst->sst_sel_to = 0;
       sst->sst_sel_startofs = 0;
       sst->sst_sel_count = sst->sst_all_ranges_fill;
       return (0 != sst->sst_sel_count);
     }
   /* Now we know we have enough cached data, and we should locate them in cache
-  by binary search */
+     by binary search */
   ranges = sst->sst_all_ranges;
-  startofs = 0; right_cop = sst->sst_all_ranges_fill;
+  startofs = 0;
+  right_cop = sst->sst_all_ranges_fill;
   if (0 == right_cop)
     return 0;
   right_cop--;
@@ -1715,48 +1701,47 @@ sst_ranges_debug (search_stream_t * sst, d_id_t * d_id, wpos_t from, wpos_t to, 
     return 0;
   while (right_cop > startofs)
     {
-      robber = (startofs+right_cop)/2;
+      robber = (startofs + right_cop) / 2;
       if (ranges[robber].r_start < from)
-	startofs = robber+1;
+	startofs = robber + 1;
       else
 	{
-	  if(right_cop > robber)
+	  if (right_cop > robber)
 	    right_cop = robber;
+	  else if (ranges[startofs].r_start < from)
+	    startofs++;
 	  else
-	    if (ranges[startofs].r_start < from)
-	      startofs++;
-	    else
-	      break;
+	    break;
 	}
     }
-  endofs = startofs; right_cop = sst->sst_all_ranges_fill-1;
+  endofs = startofs;
+  right_cop = sst->sst_all_ranges_fill - 1;
   if (ranges[endofs].r_end <= from)
     return 0;
   while (right_cop > endofs)
     {
-      robber = (endofs+right_cop)/2;
+      robber = (endofs + right_cop) / 2;
       if (ranges[robber].r_end >= to)
-	right_cop = robber-1;
+	right_cop = robber - 1;
       else
 	{
 	  if (endofs < robber)
 	    endofs = robber;
+	  else if (ranges[right_cop].r_end >= to)
+	    right_cop--;
 	  else
-	    if (ranges[right_cop].r_end >= to)
-	      right_cop--;
-	    else
-	      break;
+	    break;
 	}
     }
   sst->sst_sel_from = from;
   sst->sst_sel_to = to;
   sst->sst_sel_startofs = (unsigned) startofs;
-  sst->sst_sel_count = (unsigned) (endofs+1-startofs);
+  sst->sst_sel_count = (unsigned) (endofs + 1 - startofs);
   return (0 != sst->sst_sel_count);
 
 create_new_ranges:
   if (make_ranges)
-    d_id_set (&sst->sst_range_d_id,  d_id);
+    d_id_set (&sst->sst_range_d_id, d_id);
   else
     D_SET_INITIAL (&sst->sst_range_d_id);
   sst->sst_all_ranges_fill = 0;
@@ -1765,7 +1750,7 @@ create_new_ranges:
     case SRC_WORD:
       {
 	int hl, l, pos = sst->sst_pos, current = 0, end;
-	if (WST_OFFBAND_CHAR == ((word_stream_t *)sst)->wst_word[0])
+	if (WST_OFFBAND_CHAR == ((word_stream_t *) sst)->wst_word[0])
 	  return 1;
 	if (NULL == sst->sst_buffer)
 	  return 0;
@@ -1800,52 +1785,52 @@ create_new_ranges:
 	/* The following string is Orri's bypass for bug in OR */
 	/* make_ranges = 0; */
 	DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	  {
-	    rc = sst_ranges (term, d_id, from, to, make_ranges);
-	    if (rc)
-	      {
-		if (!make_ranges)
-		  return rc;
-	      }
-	    else
-	      term->sst_sel_count = 0;
-	  }
+	{
+	  rc = sst_ranges (term, d_id, from, to, make_ranges);
+	  if (rc)
+	    {
+	      if (!make_ranges)
+		return rc;
+	    }
+	  else
+	    term->sst_sel_count = 0;
+	}
 	END_DO_BOX;
-	for(;;)
+	for (;;)
 	  {
 	    wpos_t minstart, minend;
-	    search_stream_t * minterm;
+	    search_stream_t *minterm;
 	    minstart = minend = HUGE_WPOS_T;
 	    minterm = NULL;
 	    DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	      {
-		word_range_t *wrt;
-		if(0 == term->sst_sel_count)
+	    {
+	      word_range_t *wrt;
+	      if (0 == term->sst_sel_count)
+		continue;
+	      wrt = term->sst_all_ranges + term->sst_sel_startofs;
+	      if (wrt->r_start > minstart)
+		continue;
+	      if (wrt->r_start < minstart)
+		{
+		  minstart = wrt->r_start;
+		  minend = wrt->r_end;
+		  minterm = term;
 		  continue;
-		wrt = term->sst_all_ranges+term->sst_sel_startofs;
-		if (wrt->r_start > minstart)
+		}
+	      if (wrt->r_end > minend)
+		continue;
+	      if (wrt->r_end < minend)
+		{
+		  minend = wrt->r_end;
+		  minterm = term;
 		  continue;
-		if (wrt->r_start < minstart)
-		  {
-		    minstart = wrt->r_start;
-		    minend = wrt->r_end;
-		    minterm = term;
-		    continue;
-		  }
-		if (wrt->r_end > minend)
-		  continue;
-		if (wrt->r_end < minend)
-		  {
-		    minend = wrt->r_end;
-		    minterm = term;
-		    continue;
-		  }
-		/* If we're here, we have duplicated ranges, so we may remove all
-		   of them except one. Note that the range removed may be not the
-		   leftmost, but it's safe anyway. */
-		term->sst_sel_startofs += 1;
-		term->sst_sel_count -= 1;
-	      }
+		}
+	      /* If we're here, we have duplicated ranges, so we may remove all
+	         of them except one. Note that the range removed may be not the
+	         leftmost, but it's safe anyway. */
+	      term->sst_sel_startofs += 1;
+	      term->sst_sel_count -= 1;
+	    }
 	    END_DO_BOX;
 	    if (NULL == minterm)
 	      break;
@@ -1864,32 +1849,32 @@ create_new_ranges:
     case BOP_AND:
       {
 	DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	  {
-	    rc = sst_ranges (term, d_id, from, to, 1);
-	    if (!rc)
-	      return 0;
-	  }
+	{
+	  rc = sst_ranges (term, d_id, from, to, 1);
+	  if (!rc)
+	    return 0;
+	}
 	END_DO_BOX;
 	DO_SET (search_stream_t *, neg_term, &sst->sst_not)
-	  {
-	    if (sst_ranges (neg_term, d_id, from, to, 0))
-	      return 0;
-	  }
-	END_DO_SET();
+	{
+	  if (sst_ranges (neg_term, d_id, from, to, 0))
+	    return 0;
+	}
+	END_DO_SET ();
 	DO_SET (search_stream_t *, first, &sst->sst_near_group_firsts)
+	{
+	  DO_SET (word_rel_t *, rel, &first->sst_related)
 	  {
-	    DO_SET (word_rel_t *, rel, &first->sst_related)
+	    /* If both dist and is_lefttorigth are zero, then it's a dummy relation */
+	    if (!(0 == rel->wrl_dist && 0 == rel->wrl_is_lefttoright))
 	      {
-		/* If both dist and is_lefttorigth are zero, then it's a dummy relation */
-		if (! (0 == rel->wrl_dist && 0 == rel->wrl_is_lefttoright))
-		  {
-		    if (0 == sst_prox_ranges (first, rel->wrl_sst, rel, make_ranges))
-		      return 0;
-		  }
+		if (0 == sst_prox_ranges (first, rel->wrl_sst, rel, make_ranges))
+		  return 0;
 	      }
-	    END_DO_SET();
 	  }
-	END_DO_SET();
+	  END_DO_SET ();
+	}
+	END_DO_SET ();
 	if (0 != sst->sst_all_ranges_fill)
 	  {
 	    sst->sst_sel_from = sst->sst_all_from = from;
@@ -1897,8 +1882,8 @@ create_new_ranges:
 	  }
 	else
 	  {
-	    sst->sst_sel_from = sst->sst_all_from = LAST_ATTR_WORD_POS+1;	/* dummy */
-	    sst->sst_sel_to = sst->sst_all_to = LAST_ATTR_WORD_POS+2;		/* dummy */
+	    sst->sst_sel_from = sst->sst_all_from = LAST_ATTR_WORD_POS + 1;	/* dummy */
+	    sst->sst_sel_to = sst->sst_all_to = LAST_ATTR_WORD_POS + 2;	/* dummy */
 	  }
 	sst->sst_sel_startofs = 0;
 	sst->sst_sel_count = sst->sst_all_ranges_fill;
@@ -1906,7 +1891,7 @@ create_new_ranges:
       }
     }
   GPF_T1 ("bad search op in sst_ranges");
-  return 0; /*never reached*/
+  return 0;			/*never reached */
 }
 
 
@@ -1919,7 +1904,7 @@ sst_freq_factor (search_stream_t * sst)
   if (0 == sst->sst_all_ranges || !sst->sst_all_ranges_fill)
     last = 16;
   else
-    last = (int) sst->sst_all_ranges[sst->sst_all_ranges_fill-1].r_end + 16;
+    last = (int) sst->sst_all_ranges[sst->sst_all_ranges_fill - 1].r_end + 16;
 /* '16 * 15.0' in the line below is some fake Jordan 16 * StatisticalWeight as for 1 hit per 32K docs. */
   sst->sst_score = (int) (sst->sst_raw_score * 16 * 15.0 / last);
   if (!sst->sst_score)
@@ -1935,7 +1920,7 @@ sst_scores (search_stream_t * sst, d_id_t * d_id)
   if (DVC_MATCH != d_id_cmp (d_id, &sst->sst_d_id))
     return;
   if (sst->sst_score)
-    return; /* sometimes known as side effect of search */
+    return;			/* sometimes known as side effect of search */
   switch (sst->sst_op)
     {
     case SRC_WORD:
@@ -1948,14 +1933,14 @@ sst_scores (search_stream_t * sst, d_id_t * d_id)
       score = raw_score = 0;
       mult = 16;
       DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	{
-          sst_scores (term, d_id);
-	  if (score < term->sst_score)
-	    score = term->sst_score;
-	  if (raw_score < term->sst_raw_score)
-	    raw_score = term->sst_raw_score;
-	  mult--;
-	}
+      {
+	sst_scores (term, d_id);
+	if (score < term->sst_score)
+	  score = term->sst_score;
+	if (raw_score < term->sst_raw_score)
+	  raw_score = term->sst_raw_score;
+	mult--;
+      }
       END_DO_BOX;
       if (mult < 1)
 	mult = 1;
@@ -1968,17 +1953,17 @@ sst_scores (search_stream_t * sst, d_id_t * d_id)
       score = 0x10000;
       mult = 0;
       DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	{
-	  if (sst_is_top_and_term (sst, term))
-	    {
-	      sst_scores (term, d_id);
-	      if (score > term->sst_score)
-		score = term->sst_score;
-	      if (raw_score > term->sst_raw_score)
-		raw_score = term->sst_raw_score;
-	      mult++;
-	    }
-	}
+      {
+	if (sst_is_top_and_term (sst, term))
+	  {
+	    sst_scores (term, d_id);
+	    if (score > term->sst_score)
+	      score = term->sst_score;
+	    if (raw_score > term->sst_raw_score)
+	      raw_score = term->sst_raw_score;
+	    mult++;
+	  }
+      }
       END_DO_BOX;
       sst->sst_raw_score = raw_score * mult;
       sst->sst_score = score * mult;
@@ -1987,14 +1972,14 @@ sst_scores (search_stream_t * sst, d_id_t * d_id)
       sst_ranges (sst, d_id, sst->sst_view_from, sst->sst_view_to, 1);
       raw_score = score = 0;
       DO_SET (search_stream_t *, first, &sst->sst_near_group_firsts)
-	{
-	  raw_score +=
-	  first->sst_raw_score = first->sst_all_ranges_fill * VT_ZERO_DIST_WEIGHT * (1 + dk_set_length (first->sst_related));
-	  sst_freq_factor (first);
-	  raw_score += first->sst_raw_score;
-	  score += first->sst_score;
-	}
-      END_DO_SET();
+      {
+	raw_score +=
+	    first->sst_raw_score = first->sst_all_ranges_fill * VT_ZERO_DIST_WEIGHT * (1 + dk_set_length (first->sst_related));
+	sst_freq_factor (first);
+	raw_score += first->sst_raw_score;
+	score += first->sst_score;
+      }
+      END_DO_SET ();
       sst->sst_raw_score = raw_score;
       sst->sst_score = score;
       return;
@@ -2003,32 +1988,32 @@ sst_scores (search_stream_t * sst, d_id_t * d_id)
       raw_score = 0x10000;
       score = 0x10000;
       DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	{
-	  if (sst_is_top_and_term (sst, term))
-	    {
-	      sst_scores (term, d_id);
-	      if (score > term->sst_score)
-		score = term->sst_score;
-	      if (raw_score > term->sst_raw_score)
-		raw_score = term->sst_raw_score;
-	    }
-	}
+      {
+	if (sst_is_top_and_term (sst, term))
+	  {
+	    sst_scores (term, d_id);
+	    if (score > term->sst_score)
+	      score = term->sst_score;
+	    if (raw_score > term->sst_raw_score)
+	      raw_score = term->sst_raw_score;
+	  }
+      }
       END_DO_BOX;
       DO_SET (search_stream_t *, first, &sst->sst_near_group_firsts)
-	{
-	  int rscore = 0;
-	  for (inx = 0; inx < (int) first->sst_all_ranges_fill; inx++)
-	    {
-	      int width = (int) (first->sst_all_ranges[inx].r_end - first->sst_all_ranges[inx].r_start);
-	      if (width < NEAR_DIST)
-		rscore += vt_hit_dist_weight[width + (int)0x80];
-	    }
-	  first->sst_raw_score = rscore;
-	  sst_freq_factor (first);
-	  raw_score += first->sst_raw_score;
-	  score += first->sst_score;
-	}
-      END_DO_SET();
+      {
+	int rscore = 0;
+	for (inx = 0; inx < (int) first->sst_all_ranges_fill; inx++)
+	  {
+	    int width = (int) (first->sst_all_ranges[inx].r_end - first->sst_all_ranges[inx].r_start);
+	    if (width < NEAR_DIST)
+	      rscore += vt_hit_dist_weight[width + (int) 0x80];
+	  }
+	first->sst_raw_score = rscore;
+	sst_freq_factor (first);
+	raw_score += first->sst_raw_score;
+	score += first->sst_score;
+      }
+      END_DO_SET ();
       sst->sst_raw_score = raw_score;
       sst->sst_score = score;
       return;
@@ -2039,8 +2024,8 @@ sst_scores (search_stream_t * sst, d_id_t * d_id)
 #define SST_NAME(sst) \
   (sst->sst_op == SRC_WORD ? ((word_stream_t*)sst)->wst_word : "--")
 
-#define SST_AND_HIT 0	/* all on same doc and proximity and not terms OK */
-#define SST_AND_NEXT 2  /*terms on same doc but fail on proximity or because of not term */
+#define SST_AND_HIT 0		/* all on same doc and proximity and not terms OK */
+#define SST_AND_NEXT 2		/*terms on same doc but fail on proximity or because of not term */
 
 int
 sst_check_and_hit (search_stream_t * sst, d_id_t * d_id, int is_fixed)
@@ -2048,7 +2033,7 @@ sst_check_and_hit (search_stream_t * sst, d_id_t * d_id, int is_fixed)
   /* hit if all on same d_id and proximity satisfied */
   /* int score = 0; */
 #ifdef TEXT_DEBUG
-  dbg_printf (("checking hit at 0x%lx\n", (long)(d_id->num)));
+  dbg_printf (("checking hit at 0x%lx\n", (long) (d_id->num)));
 #endif
 /*
   DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
@@ -2071,55 +2056,54 @@ sst_check_and_hit (search_stream_t * sst, d_id_t * d_id, int is_fixed)
   else
     {
       DO_SET (search_stream_t *, first, &sst->sst_near_group_firsts)
+      {
+	DO_SET (word_rel_t *, rel, &first->sst_related)
 	{
-	  DO_SET (word_rel_t *, rel, &first->sst_related)
+	  search_stream_t *rel_sst = rel->wrl_sst;
+	  if (DVC_MATCH != d_id_cmp (&rel->wrl_d_id, d_id))
 	    {
-	      search_stream_t * rel_sst = rel->wrl_sst;
-	      if (DVC_MATCH != d_id_cmp (&rel->wrl_d_id, d_id))
+	      db_buf_t pos, rel_pos;
+	      int pos_len, rel_len, hl;
+	      if (!rel->wrl_dist && !rel->wrl_is_dist_fixed)
 		{
-                  db_buf_t pos, rel_pos;
-		  int pos_len, rel_len, hl;
-                  if (!rel->wrl_dist && !rel->wrl_is_dist_fixed)
-                    {
-                      rel->wrl_score = 1;
-                      continue;
-                    }
-		  pos = (db_buf_t) (first->sst_buffer + first->sst_pos);
-		  rel_pos = (db_buf_t) (rel_sst->sst_buffer + rel_sst->sst_pos);
-		  WP_LENGTH (pos, hl, pos_len, first->sst_buffer, first->sst_fill);
-		  pos_len -= WP_FIRST_POS (pos + hl);
-		  pos += hl + WP_FIRST_POS (pos + hl);
-		  WP_LENGTH (rel_pos, hl, rel_len, rel_sst->sst_buffer, rel_sst->sst_fill);
-		  rel_len -= WP_FIRST_POS (rel_pos + hl);
-		  rel_pos += hl + WP_FIRST_POS (rel_pos + hl);
-		  wp_proximity (pos, pos_len, rel_pos, rel_len, rel);
+		  rel->wrl_score = 1;
+		  continue;
 		}
-	      if (0 == rel->wrl_score)
-		return SST_AND_NEXT;
-	      /* score += rel->wrl_score; */
+	      pos = (db_buf_t) (first->sst_buffer + first->sst_pos);
+	      rel_pos = (db_buf_t) (rel_sst->sst_buffer + rel_sst->sst_pos);
+	      WP_LENGTH (pos, hl, pos_len, first->sst_buffer, first->sst_fill);
+	      pos_len -= WP_FIRST_POS (pos + hl);
+	      pos += hl + WP_FIRST_POS (pos + hl);
+	      WP_LENGTH (rel_pos, hl, rel_len, rel_sst->sst_buffer, rel_sst->sst_fill);
+	      rel_len -= WP_FIRST_POS (rel_pos + hl);
+	      rel_pos += hl + WP_FIRST_POS (rel_pos + hl);
+	      wp_proximity (pos, pos_len, rel_pos, rel_len, rel);
 	    }
-	  END_DO_SET ();
+	  if (0 == rel->wrl_score)
+	    return SST_AND_NEXT;
+	  /* score += rel->wrl_score; */
 	}
+	END_DO_SET ();
+      }
       END_DO_SET ();
     }
   if (sst->sst_not)
     {
       DO_SET (search_stream_t *, _not, &sst->sst_not)
-	{
-	  if (!D_AT_END (&_not->sst_d_id))
-	    {
-	      if (D_INITIAL (&_not->sst_d_id)
-		  || sst_is_below (&_not->sst_d_id, d_id, sst->sst_is_desc))
-		{
-		  sst_next (_not, d_id, is_fixed);
-		}
-	      if (DVC_MATCH == d_id_cmp (&_not->sst_d_id, d_id))
-		return SST_AND_NEXT;
-	    }
-	}
+      {
+	if (!D_AT_END (&_not->sst_d_id))
+	  {
+	    if (D_INITIAL (&_not->sst_d_id) || sst_is_below (&_not->sst_d_id, d_id, sst->sst_is_desc))
+	      {
+		sst_next (_not, d_id, is_fixed);
+	      }
+	    if (DVC_MATCH == d_id_cmp (&_not->sst_d_id, d_id))
+	      return SST_AND_NEXT;
+	  }
+      }
       END_DO_SET ();
     }
-  /* sst->sst_score = score; */ /*done with sst_ranges if a score is actually wanted */
+  /* sst->sst_score = score; *//*done with sst_ranges if a score is actually wanted */
   return SST_AND_HIT;
 }
 
@@ -2136,25 +2120,26 @@ sst_and_advance (search_stream_t * sst, d_id_t * target2, int is_fixed)
     return (&sst->sst_d_id);
   for (;;)
     {
-again:
+    again:
       DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	{
-	  d_id_t * nextp = sst_next (term, &target, is_fixed);
-	  next = * nextp;
+      {
+	d_id_t *nextp = sst_next (term, &target, is_fixed);
+	next = *nextp;
 #ifdef TEXT_DEBUG
-	  dbg_printf (("AND sst %s advanced %s to %lx = %lx\n", SST_NAME(sst), SST_NAME (term), (long)(target.num), (long)(term->sst_d_id.num)));
+	dbg_printf (("AND sst %s advanced %s to %lx = %lx\n", SST_NAME (sst), SST_NAME (term), (long) (target.num),
+		(long) (term->sst_d_id.num)));
 #endif
-	  if (D_AT_END (&next))
-	    {
-	      D_SET_AT_END (&sst->sst_d_id);
-	      return (&sst->sst_d_id);
-	    }
-	  if (DVC_MATCH != d_id_cmp (&term->sst_d_id, &target))
-	    {
-	      d_id_set (&target, &term->sst_d_id);
-	      goto again;
-	    }
-	}
+	if (D_AT_END (&next))
+	  {
+	    D_SET_AT_END (&sst->sst_d_id);
+	    return (&sst->sst_d_id);
+	  }
+	if (DVC_MATCH != d_id_cmp (&term->sst_d_id, &target))
+	  {
+	    d_id_set (&target, &term->sst_d_id);
+	    goto again;
+	  }
+      }
       END_DO_BOX;
       rc = sst_check_and_hit (sst, &next, is_fixed);
       if (SST_AND_HIT == rc)
@@ -2167,7 +2152,7 @@ again:
 	  D_SET_NEXT (&target);
 	  goto again;
 	}
-      GPF_T; /* never reached */
+      GPF_T;			/* never reached */
     }
 }
 
@@ -2175,7 +2160,7 @@ again:
 d_id_t *
 sst_or_advance (search_stream_t * sst, d_id_t target, int is_fixed)
 {
-  int inx /*, n_at_target = 0 */;
+  int inx /*, n_at_target = 0 */ ;
   d_id_t d_id = sst->sst_d_id;
   d_id_t lowest;
   int has_target;
@@ -2185,62 +2170,55 @@ sst_or_advance (search_stream_t * sst, d_id_t target, int is_fixed)
   has_target = !(D_INITIAL (&target) || D_NEXT (&target));
   D_SET_INITIAL (&lowest);
 #ifdef TEXT_DEBUG
-  dbg_printf (("OR sst %s started with target %ld\n", SST_NAME(sst), target));
+  dbg_printf (("OR sst %s started with target %ld\n", SST_NAME (sst), target));
 #endif
   DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-    {
-      if (D_AT_END (&term->sst_d_id))
-	continue;
-      if (has_target)
-	{
-	  while (
-	    D_INITIAL (&term->sst_d_id) ||
-	    sst_is_below (&term->sst_d_id, &target, sst->sst_is_desc))
-	    {
-	      sst_next (term, &target, is_fixed);
-	      if (D_AT_END (&term->sst_d_id))
-		break;
-	    }
-	  if (D_AT_END (&term->sst_d_id))
-	    continue;
-	  if (DVC_MATCH == d_id_cmp (&term->sst_d_id, &target))
-	    {
-	      lowest = term->sst_d_id;
-	      /* n_at_target++; */
-	    }
-	  else
-	    {
-	      if (D_INITIAL (&lowest) ||
-		  sst_is_below (&term->sst_d_id, &lowest, sst->sst_is_desc))
-		{
-		  lowest = term->sst_d_id;
-		}
-	    }
-	}
-      else
-	{
-	  if (
-	    D_INITIAL (&term->sst_d_id) ||
-	    DVC_MATCH == d_id_cmp (&prev_d_id, &term->sst_d_id))
-	    {
-	      sst_next (term, &target, is_fixed);
-	    }
-	  if (D_AT_END (&term->sst_d_id))
-	    continue;
-	  if (
-	    D_INITIAL (&lowest) ||
-	    sst_is_below (&term->sst_d_id, &lowest, sst->sst_is_desc))
-	    {
-	      lowest = term->sst_d_id;
-	    }
-	}
-    }
+  {
+    if (D_AT_END (&term->sst_d_id))
+      continue;
+    if (has_target)
+      {
+	while (D_INITIAL (&term->sst_d_id) || sst_is_below (&term->sst_d_id, &target, sst->sst_is_desc))
+	  {
+	    sst_next (term, &target, is_fixed);
+	    if (D_AT_END (&term->sst_d_id))
+	      break;
+	  }
+	if (D_AT_END (&term->sst_d_id))
+	  continue;
+	if (DVC_MATCH == d_id_cmp (&term->sst_d_id, &target))
+	  {
+	    lowest = term->sst_d_id;
+	    /* n_at_target++; */
+	  }
+	else
+	  {
+	    if (D_INITIAL (&lowest) || sst_is_below (&term->sst_d_id, &lowest, sst->sst_is_desc))
+	      {
+		lowest = term->sst_d_id;
+	      }
+	  }
+      }
+    else
+      {
+	if (D_INITIAL (&term->sst_d_id) || DVC_MATCH == d_id_cmp (&prev_d_id, &term->sst_d_id))
+	  {
+	    sst_next (term, &target, is_fixed);
+	  }
+	if (D_AT_END (&term->sst_d_id))
+	  continue;
+	if (D_INITIAL (&lowest) || sst_is_below (&term->sst_d_id, &lowest, sst->sst_is_desc))
+	  {
+	    lowest = term->sst_d_id;
+	  }
+      }
+  }
   END_DO_BOX;
   if (D_INITIAL (&lowest))
     D_SET_AT_END (&lowest);
   sst->sst_d_id = lowest;
 #ifdef TEXT_DEBUG
-  dbg_printf (("OR sst %s finished with lowest found %ld\n", SST_NAME(sst), lowest));
+  dbg_printf (("OR sst %s finished with lowest found %ld\n", SST_NAME (sst), lowest));
 #endif
   return (&sst->sst_d_id);
 }
@@ -2254,10 +2232,9 @@ sst_next (search_stream_t * sst, d_id_t * target, int is_fixed)
     {
     case SRC_WORD:
       {
-	word_stream_t * wst = (word_stream_t *) sst;
-	wst_next ( wst, target);
-	if (!D_AT_END (&wst->wst_end_id)
-	    && !D_AT_END (&sst->sst_d_id))
+	word_stream_t *wst = (word_stream_t *) sst;
+	wst_next (wst, target);
+	if (!D_AT_END (&wst->wst_end_id) && !D_AT_END (&sst->sst_d_id))
 	  {
 	    int rc = d_id_cmp (&wst->sst_d_id, &wst->wst_end_id);
 	    if (sst->sst_is_desc ? IS_LT (rc) : IS_GT (rc))
@@ -2284,7 +2261,7 @@ sst_next (search_stream_t * sst, d_id_t * target, int is_fixed)
     default:
       GPF_T1 ("unsupported search op");
     }
-  return NULL; /*dummy*/
+  return NULL;			/*dummy */
 }
 
 
@@ -2296,9 +2273,9 @@ sst_next (search_stream_t * sst, d_id_t * target, int is_fixed)
 
 
 int
-wp_wildcard_range (const char * word, caddr_t * lower, caddr_t * higher)
+wp_wildcard_range (const char *word, caddr_t * lower, caddr_t * higher)
 {
-  char * star = strchr (word, '*');
+  char *star = strchr (word, '*');
   int leading = star ? (int) (star - word) : 0;
   if (star)
     {
@@ -2312,9 +2289,9 @@ wp_wildcard_range (const char * word, caddr_t * lower, caddr_t * higher)
 	  (*lower)[leading + 1] = 0;
 	}
       else
-	*lower = box_dv_short_nchars (word, leading); /* for cluster, the test is different, do not decrement lower bound extra */
+	*lower = box_dv_short_nchars (word, leading);	/* for cluster, the test is different, do not decrement lower bound extra */
       *higher = box_dv_short_nchars (word, leading);
-      (*higher) [box_length (*higher) - 2]++;
+      (*higher)[box_length (*higher) - 2]++;
       return RANGE;
     }
   return EXACT_WORD;
@@ -2322,23 +2299,23 @@ wp_wildcard_range (const char * word, caddr_t * lower, caddr_t * higher)
 
 
 dk_set_t
-wst_range_from_vtb (sst_tctx_t *tctx, ptrlong range_flags, const char * word)
+wst_range_from_vtb (sst_tctx_t * tctx, ptrlong range_flags, const char *word)
 {
   dk_set_t wsts = NULL;
-  lenmem_t * lm;
-  word_batch_t * wb;
+  lenmem_t *lm;
+  word_batch_t *wb;
   id_hash_iterator_t hit;
   id_hash_iterator (&hit, tctx->tctx_vtb->vtb_words);
-  while (hit_next (&hit, (caddr_t*) &lm, (caddr_t*) &wb))
+  while (hit_next (&hit, (caddr_t *) & lm, (caddr_t *) & wb))
     {
       if (DVC_MATCH == cmp_like (lm->lm_memblock, word, NULL, '\0', LIKE_ARG_CHAR, LIKE_ARG_CHAR))
 	{
 	  dbe_table_t *tbl_save = tctx->tctx_table;
 	  word_stream_t *wst;
 	  tctx->tctx_table = NULL;
-	  wst = (word_stream_t *)(wst_from_word (tctx, range_flags, lm->lm_memblock));
+	  wst = (word_stream_t *) (wst_from_word (tctx, range_flags, lm->lm_memblock));
 	  tctx->tctx_table = tbl_save;
-	  dk_set_push (&wsts, (void*) wst);
+	  dk_set_push (&wsts, (void *) wst);
 	}
     }
   return wsts;
@@ -2346,7 +2323,7 @@ wst_range_from_vtb (sst_tctx_t *tctx, ptrlong range_flags, const char * word)
 
 
 search_stream_t *
-wst_from_wsts (sst_tctx_t *tctx, ptrlong range_flags, dk_set_t wsts)
+wst_from_wsts (sst_tctx_t * tctx, ptrlong range_flags, dk_set_t wsts)
 {
   if (!wsts)
     {
@@ -2368,7 +2345,7 @@ wst_from_wsts (sst_tctx_t *tctx, ptrlong range_flags, dk_set_t wsts)
     }
   else
     {
-      search_stream_t * sst = (search_stream_t *) wsts->data;
+      search_stream_t *sst = (search_stream_t *) wsts->data;
       dk_set_free (wsts);
       return sst;
     }
@@ -2376,12 +2353,12 @@ wst_from_wsts (sst_tctx_t *tctx, ptrlong range_flags, dk_set_t wsts)
 
 
 static search_stream_t *
-wst_from_range (sst_tctx_t *tctx, ptrlong range_flags, const char * word, caddr_t lower, caddr_t higher)
+wst_from_range (sst_tctx_t * tctx, ptrlong range_flags, const char *word, caddr_t lower, caddr_t higher)
 {
 /*  vt_batch_t * vtb;*/
   dk_set_t wsts = NULL;
   int n_words = 0;
-  it_cursor_t * itc;
+  it_cursor_t *itc;
   caddr_t limit;
   limit = box_copy (lower);
 
@@ -2398,7 +2375,7 @@ wst_from_range (sst_tctx_t *tctx, ptrlong range_flags, const char * word, caddr_
 	  dk_free_box (old_limit);
 	  if (itc)
 	    {
-	      word_stream_t * wst = (word_stream_t *) wst_from_word (tctx, range_flags, limit);
+	      word_stream_t *wst = (word_stream_t *) wst_from_word (tctx, range_flags, limit);
 	      n_words++;
 	      if (!wst->sst_is_desc)
 		{
@@ -2417,7 +2394,7 @@ wst_from_range (sst_tctx_t *tctx, ptrlong range_flags, const char * word, caddr_
 		  /* desc order, the itc is at the wrong end of the words. */
 		  itc_free (itc);
 		}
-	      dk_set_push (&wsts, (void*) wst);
+	      dk_set_push (&wsts, (void *) wst);
 	    }
 	  else
 	    break;
@@ -2433,10 +2410,11 @@ wst_from_range (sst_tctx_t *tctx, ptrlong range_flags, const char * word, caddr_
     }
   return wst_from_wsts (tctx, range_flags, wsts);
 }
+
 search_stream_t *
-wst_from_word (sst_tctx_t *tctx, ptrlong range_flags, const char *word)
+wst_from_word (sst_tctx_t * tctx, ptrlong range_flags, const char *word)
 {
-  vt_batch_t * vtb;
+  vt_batch_t *vtb;
   caddr_t upper = NULL, lower = NULL;
   int rc = wp_wildcard_range (word, &lower, &upper);
   if (rc == RANGE_ERROR || rc == RANGE_NOT_SUPPORTED)
@@ -2447,14 +2425,14 @@ wst_from_word (sst_tctx_t *tctx, ptrlong range_flags, const char *word)
       sst->sst_view_from = ((range_flags & SRC_RANGE_MAIN) ? FIRST_MAIN_WORD_POS : FIRST_ATTR_WORD_POS);
       sst->sst_view_to = ((range_flags & SRC_RANGE_ATTR) ? LAST_ATTR_WORD_POS : LAST_MAIN_WORD_POS);
       sst->sst_error = srv_make_new_error ("22023", "FT370",
-	  rc == RANGE_NOT_SUPPORTED ?  "Wildcards in text expressions are temporarily disabled in cluster configurations." :
-	  			"Wildcard word needs at least 4 leading characters");
+	  rc == RANGE_NOT_SUPPORTED ? "Wildcards in text expressions are temporarily disabled in cluster configurations." :
+	  "Wildcard word needs at least 4 leading characters");
       sst->sst_op = SRC_ERROR;
       return sst;
     }
   if (rc == RANGE)
     {
-      search_stream_t * sst = wst_from_range (tctx, range_flags, word, lower, upper);
+      search_stream_t *sst = wst_from_range (tctx, range_flags, word, lower, upper);
       dk_free_box (lower);
       dk_free_box (upper);
       return (sst);
@@ -2480,10 +2458,10 @@ wst_from_word (sst_tctx_t *tctx, ptrlong range_flags, const char *word)
       if (vtb)
 	{
 	  lenmem_t lm;
-	  word_batch_t * wb;
-	  lm.lm_length = strlen(word);
-	  lm.lm_memblock = (char *)word;
-	  wb = (word_batch_t *) id_hash_get (vtb->vtb_words, (caddr_t) &lm);
+	  word_batch_t *wb;
+	  lm.lm_length = strlen (word);
+	  lm.lm_memblock = (char *) word;
+	  wb = (word_batch_t *) id_hash_get (vtb->vtb_words, (caddr_t) & lm);
 	  if (!wb)
 	    D_SET_AT_END (&wst->sst_d_id);
 	  else
@@ -2494,7 +2472,7 @@ wst_from_word (sst_tctx_t *tctx, ptrlong range_flags, const char *word)
 	}
       return ((search_stream_t *) wst);
     }
-  return NULL; /*dummy*/
+  return NULL;			/*dummy */
 }
 
 
@@ -2504,10 +2482,10 @@ sst_related (search_stream_t * sst1, search_stream_t * sst2, int dist, int dist_
   word_rel_t *rel;
   dk_set_t addon;
   DO_SET (word_rel_t *, rel, &sst1->sst_related)
-    {
-      if (rel->wrl_sst == sst2)
-	return;
-    }
+  {
+    if (rel->wrl_sst == sst2)
+      return;
+  }
   END_DO_SET ();
   rel = (word_rel_t *) dk_alloc (sizeof (word_rel_t));
   memset (rel, 0, sizeof (word_rel_t));
@@ -2521,8 +2499,8 @@ sst_related (search_stream_t * sst1, search_stream_t * sst2, int dist, int dist_
      It's wrong because phrase "A B C" become "B after[dist=1] (C after[dist=2] A)",
      but should be "C after[dist=2] (B after[dist=1] A)" */
   addon = NULL;
-  dk_set_push (&addon, (void *)rel);
-  sst1->sst_related = dk_set_conc(sst1->sst_related, addon);
+  dk_set_push (&addon, (void *) rel);
+  sst1->sst_related = dk_set_conc (sst1->sst_related, addon);
 }
 
 #define SST_IS_MERGEABLE(super, term) \
@@ -2536,12 +2514,12 @@ sst_term_is_mergable (search_stream_t * term)
 {
   int inx;
   DO_BOX (search_stream_t *, sst, inx, term->sst_terms)
-    {
-      if (sst->sst_op != SRC_WORD_CHAIN && sst->sst_op != SRC_NEAR && sst->sst_op != BOP_AND && sst->sst_op != SRC_WORD)
-	return 0;
-      if (sst->sst_op != SRC_WORD && !sst_term_is_mergable (sst))
-	return 0;
-    }
+  {
+    if (sst->sst_op != SRC_WORD_CHAIN && sst->sst_op != SRC_NEAR && sst->sst_op != BOP_AND && sst->sst_op != SRC_WORD)
+      return 0;
+    if (sst->sst_op != SRC_WORD && !sst_term_is_mergable (sst))
+      return 0;
+  }
   END_DO_BOX;
   return 1;
 }
@@ -2551,42 +2529,41 @@ sst_interrelate (search_stream_t * sst, int calc_score)
 {
   int inx1, inx2;
   DO_BOX (search_stream_t *, sst1, inx1, sst->sst_terms)
+  {
+    if ((SRC_WORD_CHAIN == sst->sst_op || SRC_NEAR == sst->sst_op) && SRC_WORD != sst1->sst_op)
+      sst->sst_need_ranges = 1;
+    DO_BOX (search_stream_t *, sst2, inx2, sst->sst_terms)
     {
-      if ((SRC_WORD_CHAIN == sst->sst_op || SRC_NEAR == sst->sst_op)
-	  && SRC_WORD != sst1->sst_op)
-	sst->sst_need_ranges = 1;
-      DO_BOX (search_stream_t *, sst2, inx2, sst->sst_terms)
+      if (sst1 != sst2)
 	{
-	  if (sst1 != sst2)
+	  if (SRC_WORD_CHAIN == sst->sst_op)
 	    {
-	      if (SRC_WORD_CHAIN == sst->sst_op)
-		{
-		  sst_related (sst1, sst2, inx2 - inx1, 1, 1);
-		  sst_related (sst2, sst1, inx1 - inx2, 1, 1);
-		}
-	      else if (SRC_NEAR == sst->sst_op)
-		{
-		  sst_related (sst1, sst2, NEAR_DIST, 0, 0);
-		  sst_related (sst2, sst1, NEAR_DIST, 0, 0);
-		}
-	      else
-		{
+	      sst_related (sst1, sst2, inx2 - inx1, 1, 1);
+	      sst_related (sst2, sst1, inx1 - inx2, 1, 1);
+	    }
+	  else if (SRC_NEAR == sst->sst_op)
+	    {
+	      sst_related (sst1, sst2, NEAR_DIST, 0, 0);
+	      sst_related (sst2, sst1, NEAR_DIST, 0, 0);
+	    }
+	  else
+	    {
 /* This does not work
 		  int should_make_near = (calc_score &&
 		    (sst1->sst_range_flags == sst2->sst_range_flags) &&
 		    (SRC_WORD == sst1->sst_op) && (SRC_WORD == sst2->sst_op) );
 		  int dist = (should_make_near ? HUGE_DIST : 0);
  */
-		  sst_related (sst1, sst2, 0 /* not 'dist' */, 0, 0);
-		  sst_related (sst2, sst1, 0 /* not 'dist' */, 0, 0);
-		}
+	      sst_related (sst1, sst2, 0 /* not 'dist' */ , 0, 0);
+	      sst_related (sst2, sst1, 0 /* not 'dist' */ , 0, 0);
 	    }
 	}
-      END_DO_BOX;
     }
+    END_DO_BOX;
+  }
   END_DO_BOX;
   if (SRC_NEAR == sst->sst_op || SRC_WORD_CHAIN == sst->sst_op)
-    dk_set_pushnew (&sst->sst_near_group_firsts, (void*) sst->sst_terms[0]);
+    dk_set_pushnew (&sst->sst_near_group_firsts, (void *) sst->sst_terms[0]);
 }
 
 
@@ -2595,45 +2572,44 @@ sst_merge_ands (search_stream_t * sst, int calc_score)
 {
   int total = 0, nots = 0;
   int inx;
-  search_stream_t ** old_terms;
+  search_stream_t **old_terms;
   DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-    {
-      if (term->sst_op == BOP_AND
-	  && term->sst_not)
-	{
-	  nots += dk_set_length (term->sst_not);
-	  total += BOX_ELEMENTS (term->sst_terms);
-	}
-      else if (SST_IS_MERGEABLE (sst, term))
+  {
+    if (term->sst_op == BOP_AND && term->sst_not)
+      {
+	nots += dk_set_length (term->sst_not);
 	total += BOX_ELEMENTS (term->sst_terms);
-      else
-	total++;
-    }
+      }
+    else if (SST_IS_MERGEABLE (sst, term))
+      total += BOX_ELEMENTS (term->sst_terms);
+    else
+      total++;
+  }
   END_DO_BOX;
   old_terms = sst->sst_terms;
-  if (nots ||  total > (int) BOX_ELEMENTS (old_terms))
+  if (nots || total > (int) BOX_ELEMENTS (old_terms))
     {
       size_t fill = 0;
-      search_stream_t ** new_terms = (search_stream_t**) dk_alloc_box (total * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+      search_stream_t **new_terms = (search_stream_t **) dk_alloc_box (total * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
       DO_BOX (search_stream_t *, term, inx, old_terms)
-	{
-	  if (SST_IS_MERGEABLE (sst, term))
-	    {
-	      memcpy (((char*) new_terms) + fill, term->sst_terms, box_length (term->sst_terms));
-	      fill += box_length (term->sst_terms);
-	      sst->sst_not = dk_set_conc (sst->sst_not, term->sst_not);
-	      term->sst_not = NULL;
-	      sst->sst_near_group_firsts = dk_set_conc (sst->sst_near_group_firsts, term->sst_near_group_firsts);
-	      term->sst_near_group_firsts = NULL;
-	      memset (term->sst_terms, 0, box_length (term->sst_terms));
-	      dk_free_box ((caddr_t) term);
-	    }
-	  else
-	    {
-	      new_terms[fill / sizeof (caddr_t)] = term;
-	      fill += sizeof (caddr_t);
-	    }
-	}
+      {
+	if (SST_IS_MERGEABLE (sst, term))
+	  {
+	    memcpy (((char *) new_terms) + fill, term->sst_terms, box_length (term->sst_terms));
+	    fill += box_length (term->sst_terms);
+	    sst->sst_not = dk_set_conc (sst->sst_not, term->sst_not);
+	    term->sst_not = NULL;
+	    sst->sst_near_group_firsts = dk_set_conc (sst->sst_near_group_firsts, term->sst_near_group_firsts);
+	    term->sst_near_group_firsts = NULL;
+	    memset (term->sst_terms, 0, box_length (term->sst_terms));
+	    dk_free_box ((caddr_t) term);
+	  }
+	else
+	  {
+	    new_terms[fill / sizeof (caddr_t)] = term;
+	    fill += sizeof (caddr_t);
+	  }
+      }
       END_DO_BOX;
       if (fill != (total * sizeof (caddr_t)))
 	GPF_T;
@@ -2643,9 +2619,9 @@ sst_merge_ands (search_stream_t * sst, int calc_score)
   sst_interrelate (sst, calc_score);
   sst->sst_range_flags = 0;
   DO_BOX (search_stream_t *, curr_term, inx, sst->sst_terms)
-    {
-      sst->sst_range_flags |= curr_term->sst_range_flags;
-    }
+  {
+    sst->sst_range_flags |= curr_term->sst_range_flags;
+  }
   END_DO_BOX;
   sst->sst_view_from = ((sst->sst_range_flags & SRC_RANGE_MAIN) ? FIRST_MAIN_WORD_POS : FIRST_ATTR_WORD_POS);
   sst->sst_view_to = ((sst->sst_range_flags & SRC_RANGE_ATTR) ? LAST_ATTR_WORD_POS : LAST_MAIN_WORD_POS);
@@ -2660,31 +2636,31 @@ BOP_AND,SRC_NEAR,BOP_OR,SRC_WORD_CHAIN,XP_AND_NOT:
 */
 
 #ifdef TEXT_DEBUG
-static search_stream_t *sst_from_tree_debug (sst_tctx_t *tctx, caddr_t * tree);
+static search_stream_t *sst_from_tree_debug (sst_tctx_t * tctx, caddr_t * tree);
 #endif
 
 
 search_stream_t *
-sst_from_tree (sst_tctx_t *tctx, caddr_t * tree)
+sst_from_tree (sst_tctx_t * tctx, caddr_t * tree)
 {
 #ifdef TEXT_DEBUG
-search_stream_t *res;
-dbg_printf(("\n{ sst_from_tree(%x, ",tctx));
-dbg_print_box ((caddr_t)(tree), stdout);
-dbg_printf((")"));
-res = sst_from_tree_debug (tctx, tree);
-dbg_printf(("\nreturn\n"));
-dbg_print_box ((caddr_t)(res), stdout);
-dbg_printf((" }\n"));
-return res;
+  search_stream_t *res;
+  dbg_printf (("\n{ sst_from_tree(%x, ", tctx));
+  dbg_print_box ((caddr_t) (tree), stdout);
+  dbg_printf ((")"));
+  res = sst_from_tree_debug (tctx, tree);
+  dbg_printf (("\nreturn\n"));
+  dbg_print_box ((caddr_t) (res), stdout);
+  dbg_printf ((" }\n"));
+  return res;
 }
 
 search_stream_t *
-sst_from_tree_debug (sst_tctx_t *tctx, caddr_t * tree)
+sst_from_tree_debug (sst_tctx_t * tctx, caddr_t * tree)
 {
 #endif
-  int op = /*unbox (tree[0])*/ (int) ((ptrlong *)tree)[0];
-  int range_flags = /*unbox (tree[1])*/ (int) ((ptrlong *)tree)[1];
+  int op = /*unbox (tree[0]) */ (int) ((ptrlong *) tree)[0];
+  int range_flags = /*unbox (tree[1]) */ (int) ((ptrlong *) tree)[1];
 #ifdef DEBUG
   if (SRC_RANGE_DUMMY & range_flags)
     GPF_T1 ("dummy ranges in sst_from_tree");
@@ -2699,19 +2675,19 @@ sst_from_tree_debug (sst_tctx_t *tctx, caddr_t * tree)
     case SRC_WORD_CHAIN:
       {
 	size_t inx, tree_elems = BOX_ELEMENTS (tree);
-	search_stream_t ** terms;
+	search_stream_t **terms;
 	NEW_SST (search_stream_t, sst);
 	sst->sst_is_desc = tctx->tctx_descending;
 	sst->sst_range_flags = range_flags;
 	sst->sst_view_from = ((range_flags & SRC_RANGE_MAIN) ? FIRST_MAIN_WORD_POS : FIRST_ATTR_WORD_POS);
 	sst->sst_view_to = ((range_flags & SRC_RANGE_ATTR) ? LAST_ATTR_WORD_POS : LAST_MAIN_WORD_POS);
-	terms = (search_stream_t **) dk_alloc_box ((tree_elems-2)*sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	terms = (search_stream_t **) dk_alloc_box ((tree_elems - 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 	D_SET_INITIAL (&sst->sst_d_id);
 	sst->sst_op = op;
 	sst->sst_terms = terms;
 	for (inx = 2; inx < tree_elems; inx++)
 	  {
-	    search_stream_t * curr_term = sst_from_tree (tctx, (caddr_t*) tree[inx]);
+	    search_stream_t *curr_term = sst_from_tree (tctx, (caddr_t *) tree[inx]);
 	    terms[inx - 2] = curr_term;
 	  }
 	if (BOP_OR != op)
@@ -2720,7 +2696,7 @@ sst_from_tree_debug (sst_tctx_t *tctx, caddr_t * tree)
       }
     case XP_AND_NOT:
       {
-	search_stream_t ** terms = (search_stream_t **) dk_alloc_box (sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	search_stream_t **terms = (search_stream_t **) dk_alloc_box (sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 	NEW_SST (search_stream_t, sst);
 	sst->sst_is_desc = tctx->tctx_descending;
 	sst->sst_range_flags = range_flags;
@@ -2729,15 +2705,15 @@ sst_from_tree_debug (sst_tctx_t *tctx, caddr_t * tree)
 	D_SET_INITIAL (&sst->sst_d_id);
 	sst->sst_op = BOP_AND;
 	sst->sst_terms = terms;
-	dk_set_push (&sst->sst_not, (void*) sst_from_tree (tctx, (caddr_t*) tree[3]));
-	terms[0] = sst_from_tree (tctx, (caddr_t*) tree[2]);
+	dk_set_push (&sst->sst_not, (void *) sst_from_tree (tctx, (caddr_t *) tree[3]));
+	terms[0] = sst_from_tree (tctx, (caddr_t *) tree[2]);
 	sst_merge_ands (sst, (int) tctx->tctx_calc_score);
 	return (sst);
       }
     default:
       GPF_T1 ("bad text-search operation in sst_from_tree");
     }
-  return NULL; /* dummy */
+  return NULL;			/* dummy */
 }
 
 
@@ -2747,37 +2723,37 @@ bif_vtb_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   d_id_t d_id_next;
   dk_set_t res = NULL, score_list = NULL, ranges_list = NULL;
   sst_tctx_t context;
-  search_stream_t * sst;
-  query_instance_t * qi = (query_instance_t *) qst;
+  search_stream_t *sst;
+  query_instance_t *qi = (query_instance_t *) qst;
   caddr_t err = NULL, name;
-  caddr_t * tree;
+  caddr_t *tree;
   lang_handler_t *lh = server_default_lh;
   encoding_handler_t *eh = &eh__ISO8859_1;
-  vt_batch_t * vtb = bif_vtb_arg (qst, args, 0, "vt_batch_match");
-  caddr_t str = bif_array_arg (qst, args, 1, "vt_batch_match"); /* use an array as argument bif_string_arg */
-  state_slot_t * scores = BOX_ELEMENTS (args) > 2 && ssl_is_settable (args[2]) ? args[2] : NULL;
-  state_slot_t * ranges = BOX_ELEMENTS (args) > 3 && ssl_is_settable (args[3]) ? args[3] : NULL;
+  vt_batch_t *vtb = bif_vtb_arg (qst, args, 0, "vt_batch_match");
+  caddr_t str = bif_array_arg (qst, args, 1, "vt_batch_match");	/* use an array as argument bif_string_arg */
+  state_slot_t *scores = BOX_ELEMENTS (args) > 2 && ssl_is_settable (args[2]) ? args[2] : NULL;
+  state_slot_t *ranges = BOX_ELEMENTS (args) > 3 && ssl_is_settable (args[3]) ? args[3] : NULL;
   dtp_t dtp = DV_TYPE_OF (str);
 
   switch (BOX_ELEMENTS (args))
     {
-      case 6:
-	name = bif_string_arg (qst, args, 5, "vt_batch_match");
-	if (strcmp (name, "*ini*"))
-	  {
-	    eh = eh_get_handler (name);
-	    if (NULL == eh)
-	      sqlr_new_error ("42000", "FT036", "Invalid encoding name '%s' is specified by an argument of vt_batch_match()", name);
-	  }
-	/* no break */
-      case 5:
-	name = bif_string_arg (qst, args, 4, "vt_batch_match");
-	if (strcmp (name, "*ini*"))
-	  {
-	    lh = lh_get_handler (name);
-	    if (NULL == lh)
-	      sqlr_new_error ("42000", "FT037", "Invalid language name '%s' is specified by an argument of vt_batch_match()", name);
-	  }
+    case 6:
+      name = bif_string_arg (qst, args, 5, "vt_batch_match");
+      if (strcmp (name, "*ini*"))
+	{
+	  eh = eh_get_handler (name);
+	  if (NULL == eh)
+	    sqlr_new_error ("42000", "FT036", "Invalid encoding name '%s' is specified by an argument of vt_batch_match()", name);
+	}
+      /* no break */
+    case 5:
+      name = bif_string_arg (qst, args, 4, "vt_batch_match");
+      if (strcmp (name, "*ini*"))
+	{
+	  lh = lh_get_handler (name);
+	  if (NULL == lh)
+	    sqlr_new_error ("42000", "FT037", "Invalid language name '%s' is specified by an argument of vt_batch_match()", name);
+	}
     }
 
   D_SET_INITIAL (&d_id_next);
@@ -2785,7 +2761,7 @@ bif_vtb_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     sqlr_new_error ("42000", "FT005", "vtb_match only allowed after vt_batch_strings");
   if (IS_STRING_DTP (dtp))
     {
-      tree = xp_text_parse (str, eh, lh, NULL /* ignore run-time options */, &err);
+      tree = xp_text_parse (str, eh, lh, NULL /* ignore run-time options */ , &err);
       if (err)
 	{
 	  dk_free_tree ((caddr_t) tree);
@@ -2795,15 +2771,15 @@ bif_vtb_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   else
     tree = (caddr_t *) str;
 
-  context.tctx_vtb = vtb; /* SET_THR_ATTR (qi->qi_thread, TA_SST_USE_VTB, (void*) vtb); */
-  context.tctx_descending = 0; /* SET_THR_ATTR (qi->qi_thread, TA_SST_DESC_ORDER, (void*) 0); */
-  context.tctx_end_id = 0; /* SET_THR_ATTR (qi->qi_thread, TA_SST_END_ID, (void*) 0); */
+  context.tctx_vtb = vtb;	/* SET_THR_ATTR (qi->qi_thread, TA_SST_USE_VTB, (void*) vtb); */
+  context.tctx_descending = 0;	/* SET_THR_ATTR (qi->qi_thread, TA_SST_DESC_ORDER, (void*) 0); */
+  context.tctx_end_id = 0;	/* SET_THR_ATTR (qi->qi_thread, TA_SST_END_ID, (void*) 0); */
   context.tctx_qi = qi;
   context.tctx_table = NULL;
   context.tctx_calc_score = ((NULL != scores) ? 1 : 0);
   context.tctx_range_flags = SRC_RANGE_MAIN;
   xpt_edit_range_flags (tree, ~SRC_RANGE_DUMMY, SRC_RANGE_MAIN);
-  sst = sst_from_tree (&context, (caddr_t*)tree);
+  sst = sst_from_tree (&context, (caddr_t *) tree);
   if (IS_STRING_DTP (dtp))
     dk_free_tree ((caddr_t) tree);
 
@@ -2811,38 +2787,37 @@ bif_vtb_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   for (;;)
     {
       QR_RESET_CTX
-	{
-	  sst_next (sst, &d_id_next, 0);
-	}
+      {
+	sst_next (sst, &d_id_next, 0);
+      }
       QR_RESET_CODE
-	{
-	  du_thread_t * self = THREAD_CURRENT_THREAD;
-	  caddr_t err = thr_get_error_code (self);
-	  POP_QR_RESET;
-	  *err_ret = err;
-	  /* cleanup */
-	  dk_free_box ((caddr_t) sst);
-	  dk_free_tree (list_to_array (dk_set_nreverse (score_list)));
-	  dk_free_tree (list_to_array (dk_set_nreverse (ranges_list)));
-	  dk_free_tree (list_to_array (dk_set_nreverse (res)));
-	  return NULL;
-	}
-      END_QR_RESET
-      if (D_AT_END (&sst->sst_d_id))
+      {
+	du_thread_t *self = THREAD_CURRENT_THREAD;
+	caddr_t err = thr_get_error_code (self);
+	POP_QR_RESET;
+	*err_ret = err;
+	/* cleanup */
+	dk_free_box ((caddr_t) sst);
+	dk_free_tree (list_to_array (dk_set_nreverse (score_list)));
+	dk_free_tree (list_to_array (dk_set_nreverse (ranges_list)));
+	dk_free_tree (list_to_array (dk_set_nreverse (res)));
+	return NULL;
+      }
+      END_QR_RESET if (D_AT_END (&sst->sst_d_id))
 	break;
       D_SET_NEXT (&d_id_next);
-      dk_set_push (&res, (void*) box_d_id (&sst->sst_d_id));
+      dk_set_push (&res, (void *) box_d_id (&sst->sst_d_id));
       if (scores)
 	{
 	  sst_scores (sst, &sst->sst_d_id);
-	  dk_set_push (&score_list, (void*) box_num (sst->sst_score));
+	  dk_set_push (&score_list, (void *) box_num (sst->sst_score));
 	}
       if (ranges)
 	{
 	  dk_set_t main_list = NULL, attr_list = NULL;
 	  sst_ranges (sst, &sst->sst_d_id, sst->sst_view_from, sst->sst_view_to, 1);
 	  sst_range_lists (sst, &main_list, &attr_list);
-	  dk_set_push (&ranges_list, (void*) list_to_array (dk_set_nreverse (main_list)));
+	  dk_set_push (&ranges_list, (void *) list_to_array (dk_set_nreverse (main_list)));
 	  /* attr_list should remain empty here,
 	     because there's no way to create attr ranges in plain text expression
 	     and there's context.tctx_range_flags = SRC_RANGE_MAIN; setting above.
@@ -2863,11 +2838,11 @@ bif_vtb_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 caddr_t
 bif_vt_parse (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  /*DELME: query_instance_t * qi = (query_instance_t *) qst;*/
+  /*DELME: query_instance_t * qi = (query_instance_t *) qst; */
   caddr_t err = NULL;
-  caddr_t * tree = NULL;
+  caddr_t *tree = NULL;
   caddr_t str = bif_string_arg (qst, args, 0, "vt_parse");
-  tree = xp_text_parse (str, &eh__ISO8859_1, server_default_lh, NULL /* ignore run-time options */, &err);
+  tree = xp_text_parse (str, &eh__ISO8859_1, server_default_lh, NULL /* ignore run-time options */ , &err);
   if (err)
     {
       dk_free_tree ((caddr_t) tree);
@@ -2883,33 +2858,33 @@ sst_destroy (search_stream_t * sst)
   dk_free_box ((caddr_t) sst->sst_all_ranges);
   dk_free_tree (sst->sst_error);
   DO_SET (word_rel_t *, rel, &sst->sst_related)
-    {
-      dk_free ((caddr_t) rel, sizeof (word_rel_t));
-    }
-  END_DO_SET();
+  {
+    dk_free ((caddr_t) rel, sizeof (word_rel_t));
+  }
+  END_DO_SET ();
   dk_set_free (sst->sst_related);
   if (SRC_WORD == sst->sst_op)
     {
       caddr_t item;
-      word_stream_t * wst = (word_stream_t *) sst;
+      word_stream_t *wst = (word_stream_t *) sst;
       if (wst->wst_itc)
 	itc_free (wst->wst_itc);
       dk_free_box (wst->wst_word);
       dk_free_box (wst->wst_seek_target_box);
       dk_free_box ((caddr_t) sst->sst_pos_array);
-      if (!wst->wst_word_strings) /* if against db, not a set of word batch strings */
+      if (!wst->wst_word_strings)	/* if against db, not a set of word batch strings */
 	dk_free_box (sst->sst_buffer);
-      while ((item = (caddr_t)basket_get (&wst->wst_cl_word_strings)))
+      while ((item = (caddr_t) basket_get (&wst->wst_cl_word_strings)))
 	dk_free_tree (item);
-      dk_free_box ((caddr_t)wst->wst_clrg);
+      dk_free_box ((caddr_t) wst->wst_clrg);
       return 0;
     }
   dk_free_box (sst->sst_buffer);
   dk_free_tree ((caddr_t) sst->sst_terms);
-    DO_SET (caddr_t, _not, &sst->sst_not)
-    {
-      dk_free_box (_not);
-    }
+  DO_SET (caddr_t, _not, &sst->sst_not)
+  {
+    dk_free_box (_not);
+  }
   END_DO_SET ();
   dk_set_free (sst->sst_not);
   dk_set_free (sst->sst_near_group_firsts);
@@ -2923,35 +2898,34 @@ txs_set_offband (text_node_t * txs, caddr_t * qst)
   int inx;
   if (txs->txs_offband)
     {
-      search_stream_t * sst = (search_stream_t *) qst_get (qst, txs->txs_sst);
+      search_stream_t *sst = (search_stream_t *) qst_get (qst, txs->txs_sst);
       DO_BOX (word_stream_t *, wst, inx, sst->sst_terms)
-	{
-	  if (SRC_WORD == wst->sst_op
-	      && 0 == strcmp (wst->wst_word, WST_OFFBAND))
-	    {
-	      size_t inx2;
-	      caddr_t * offband;
-	      db_buf_t buf = (db_buf_t) (wst->sst_buffer + wst->sst_pos);
-	      int pos_len, len;
-	      WP_LENGTH (buf, pos_len, len, wst->sst_buffer, wst->sst_buffer_size);
-	      len -= WP_FIRST_POS (buf + pos_len);
-	      buf += pos_len + WP_FIRST_POS (buf + pos_len);
-	      offband = (caddr_t *) box_deserialize_string ((caddr_t) buf , len, 0);
-	      for (inx2 = 0; inx2 < BOX_ELEMENTS (txs->txs_offband); inx2 += 2)
-		{
-		  size_t nth_offb = (size_t)((ptrlong) txs->txs_offband[inx2]);
-		  state_slot_t * ssl = txs->txs_offband[inx2 + 1];
-		  if (IS_BOX_POINTER (offband) && BOX_ELEMENTS (offband) > nth_offb)
-		    {
-		      TXS_QST_SET (txs, qst, ssl, offband[nth_offb]);
-		      offband[nth_offb] = NULL;
-		    }
-		}
-	      dk_free_tree ((caddr_t) offband);
-	      return;
-	    }
+      {
+	if (SRC_WORD == wst->sst_op && 0 == strcmp (wst->wst_word, WST_OFFBAND))
+	  {
+	    size_t inx2;
+	    caddr_t *offband;
+	    db_buf_t buf = (db_buf_t) (wst->sst_buffer + wst->sst_pos);
+	    int pos_len, len;
+	    WP_LENGTH (buf, pos_len, len, wst->sst_buffer, wst->sst_buffer_size);
+	    len -= WP_FIRST_POS (buf + pos_len);
+	    buf += pos_len + WP_FIRST_POS (buf + pos_len);
+	    offband = (caddr_t *) box_deserialize_string ((caddr_t) buf, len, 0);
+	    for (inx2 = 0; inx2 < BOX_ELEMENTS (txs->txs_offband); inx2 += 2)
+	      {
+		size_t nth_offb = (size_t) ((ptrlong) txs->txs_offband[inx2]);
+		state_slot_t *ssl = txs->txs_offband[inx2 + 1];
+		if (IS_BOX_POINTER (offband) && BOX_ELEMENTS (offband) > nth_offb)
+		  {
+		    TXS_QST_SET (txs, qst, ssl, offband[nth_offb]);
+		    offband[nth_offb] = NULL;
+		  }
+	      }
+	    dk_free_tree ((caddr_t) offband);
+	    return;
+	  }
 
-	}
+      }
       END_DO_BOX;
     }
 }
@@ -2960,11 +2934,11 @@ txs_set_offband (text_node_t * txs, caddr_t * qst)
 void
 txs_init (text_node_t * txs, query_instance_t * qi)
 {
-  caddr_t * qst = (caddr_t*) qi;
-  search_stream_t * sst;
+  caddr_t *qst = (caddr_t *) qi;
+  search_stream_t *sst;
   caddr_t err = NULL;
   caddr_t str = qst_get (qst, txs->txs_text_exp);
-  caddr_t * old_tree, * tree;
+  caddr_t *old_tree, *tree;
   caddr_t dtd_config = NULL;
   caddr_t cached_string;
   int tree_is_temporary;
@@ -2972,21 +2946,21 @@ txs_init (text_node_t * txs, query_instance_t * qi)
   if (txs->txs_xn_xq_source)
     {
       tree_is_temporary = 1;
-      tree = (caddr_t *) txs_xn_text_query (txs, (query_instance_t *)qst, str);
+      tree = (caddr_t *) txs_xn_text_query (txs, (query_instance_t *) qst, str);
 #ifdef TEXT_DEBUG
-      fprintf(stderr, "\nCompiled xcontains text criteria:\n");
-      dbg_print_box((caddr_t)tree,stderr);
-      fprintf(stderr, "\n");
-      fflush(stderr);
+      fprintf (stderr, "\nCompiled xcontains text criteria:\n");
+      dbg_print_box ((caddr_t) tree, stderr);
+      fprintf (stderr, "\n");
+      fflush (stderr);
 #endif
       if (!tree)
-	sqlr_new_error ("22023", "XP370" , "xpath expression in xcontains has no text criteria");
+	sqlr_new_error ("22023", "XP370", "xpath expression in xcontains has no text criteria");
     }
   else
     {
       wcharset_t *query_charset;
       encoding_handler_t *eh;
-      query_charset = QST_CHARSET(qi);
+      query_charset = QST_CHARSET (qi);
       if (NULL == query_charset)
 	query_charset = default_charset;
       if (NULL == query_charset)
@@ -3000,9 +2974,9 @@ txs_init (text_node_t * txs, query_instance_t * qi)
       tree_is_temporary = 0;
       err = NULL;
       cached_string = (caddr_t) qst_get (qst, txs->txs_cached_string);
-      if (NULL != cached_string)		/* cache is nonempty */
+      if (NULL != cached_string)	/* cache is nonempty */
 	{
-	  if(strcmp(cached_string, str))
+	  if (strcmp (cached_string, str))
 	    {
 	      qst_set (qst, txs->txs_cached_string, NULL);
 	      qst_set (qst, txs->txs_cached_compiled_tree, NULL);
@@ -3012,31 +2986,31 @@ txs_init (text_node_t * txs, query_instance_t * qi)
 	    }
 	  else
 	    {
-	      old_tree = tree = (caddr_t *)qst_get (qst, txs->txs_cached_compiled_tree);
+	      old_tree = tree = (caddr_t *) qst_get (qst, txs->txs_cached_compiled_tree);
 	      goto skip_parsing_of_new_tree;
 	    }
 	}
-      else					/* cache is empty */
+      else			/* cache is empty */
 	{
 	  old_tree = NULL;
 	  goto parse_new_tree;
 	}
-parse_new_tree:
+    parse_new_tree:
       tree = xp_text_parse (str, eh, server_default_lh, &dtd_config, &err);
       if (NULL != err)
 	{
-	  dk_free_tree ((caddr_t)tree);
+	  dk_free_tree ((caddr_t) tree);
 	  dk_free_tree (dtd_config);
 	  sqlr_resignal (err);
 	}
       xpt_edit_range_flags (tree, ~SRC_RANGE_DUMMY, SRC_RANGE_MAIN);
       qst_set (qst, txs->txs_cached_dtd_config, dtd_config);
-skip_parsing_of_new_tree:
-      qst_set (qst, txs->txs_cached_string, box_dv_short_string(str));
+    skip_parsing_of_new_tree:
+      qst_set (qst, txs->txs_cached_string, box_dv_short_string (str));
       if (tree != old_tree)
 	qst_set (qst, txs->txs_cached_compiled_tree, (caddr_t) tree);
     }
-  context.tctx_vtb = NULL; /* SET_THR_ATTR (qi->qi_thread, TA_SST_USE_VTB, NULL); */
+  context.tctx_vtb = NULL;	/* SET_THR_ATTR (qi->qi_thread, TA_SST_USE_VTB, NULL); */
   context.tctx_descending = (txs->txs_desc ? (int) unbox (qst_get (qst, txs->txs_desc)) : 0);
 /*
   if (txs->txs_desc)
@@ -3050,17 +3024,19 @@ skip_parsing_of_new_tree:
   SET_THR_ATTR (qi->qi_thread, TA_SST_END_ID, txs->txs_end_id ? (void*) qst_get (qst, txs->txs_end_id) : NULL);
 */
   if (txs->txs_offband)
-    tree = (caddr_t *) list (4, BOP_AND, (ptrlong)SRC_RANGE_MAIN, tree, list (3, (ptrlong)SRC_WORD, (ptrlong)SRC_RANGE_MAIN, box_dv_short_string (WST_OFFBAND)));
+    tree =
+	(caddr_t *) list (4, BOP_AND, (ptrlong) SRC_RANGE_MAIN, tree, list (3, (ptrlong) SRC_WORD, (ptrlong) SRC_RANGE_MAIN,
+	    box_dv_short_string (WST_OFFBAND)));
   context.tctx_qi = qi;
   context.tctx_table = txs->txs_table;
   context.tctx_calc_score = ((NULL != txs->txs_score) ? 1 : 0);
   context.tctx_range_flags = SRC_RANGE_DUMMY;
-  sst = sst_from_tree (&context, (caddr_t*)tree);
+  sst = sst_from_tree (&context, (caddr_t *) tree);
   if (tree_is_temporary)
-    dk_free_tree ((caddr_t)tree);
+    dk_free_tree ((caddr_t) tree);
   else if (txs->txs_offband)
     {
-      caddr_t * tree2 = tree;
+      caddr_t *tree2 = tree;
       tree = (caddr_t *) tree[2];
       tree2[2] = NULL;
       dk_free_tree ((caddr_t) tree2);
@@ -3073,12 +3049,12 @@ ptrlong *
 sst_range_array (search_stream_t * sst)
 {
   int fill;
-  ptrlong * res, * tgt;
-  word_range_t * src = sst->sst_all_ranges;
+  ptrlong *res, *tgt;
+  word_range_t *src = sst->sst_all_ranges;
   fill = sst->sst_all_ranges_fill;
-  res = (ptrlong*) dk_alloc_box (sizeof (ptrlong) * 2 * fill, DV_ARRAY_OF_LONG);
+  res = (ptrlong *) dk_alloc_box (sizeof (ptrlong) * 2 * fill, DV_ARRAY_OF_LONG);
   tgt = res;
-  while(fill--)
+  while (fill--)
     {
       (tgt++)[0] = src->r_start;
       (tgt++)[0] = src->r_end;
@@ -3098,10 +3074,10 @@ sst_range_lists (search_stream_t * sst, dk_set_t * main_ranges, dk_set_t * attr_
       switch (sst->sst_range_flags & (SRC_RANGE_MAIN | SRC_RANGE_ATTR))
 	{
 	case SRC_RANGE_MAIN:
-	  dk_set_push (main_ranges, (void*) sst_range_array (sst));
+	  dk_set_push (main_ranges, (void *) sst_range_array (sst));
 	  return;
 	case SRC_RANGE_ATTR:
-	  dk_set_push (attr_ranges, (void*) sst_range_array (sst));
+	  dk_set_push (attr_ranges, (void *) sst_range_array (sst));
 	  return;
 	}
       return;
@@ -3111,10 +3087,10 @@ sst_range_lists (search_stream_t * sst, dk_set_t * main_ranges, dk_set_t * attr_
       {
 	int inx;
 	DO_BOX (search_stream_t *, term, inx, sst->sst_terms)
-	  {
-	    if (sst_is_top_and_term (sst, term))
-	      sst_range_lists (term, main_ranges, attr_ranges);
-	  }
+	{
+	  if (sst_is_top_and_term (sst, term))
+	    sst_range_lists (term, main_ranges, attr_ranges);
+	}
 	END_DO_BOX;
       }
     }
@@ -3128,22 +3104,22 @@ txs_set_ranges (text_node_t * txs, caddr_t * qst, search_stream_t * sst)
    there's a room allocated for them.
    Thus if (txs->txs_range_out)... becomes unusable */
   dk_set_t main_list = NULL, attr_list = NULL;
-  ptrlong ** main_ranges;
-  ptrlong ** attr_ranges;
+  ptrlong **main_ranges;
+  ptrlong **attr_ranges;
   if (txs->txs_why_ranges == 0x00)
     return;
   sst_ranges (sst, &sst->sst_d_id, sst->sst_view_from, sst->sst_view_to, 1);
   sst_range_lists (sst, &main_list, &attr_list);
-  main_ranges = (ptrlong **)list_to_array (dk_set_nreverse (main_list));
-  attr_ranges = (ptrlong **)list_to_array (dk_set_nreverse (attr_list));
-  TXS_QST_SET (txs, qst, txs->txs_main_range_out, (caddr_t)(main_ranges));
-  TXS_QST_SET (txs, qst, txs->txs_attr_range_out, (caddr_t)(attr_ranges));
+  main_ranges = (ptrlong **) list_to_array (dk_set_nreverse (main_list));
+  attr_ranges = (ptrlong **) list_to_array (dk_set_nreverse (attr_list));
+  TXS_QST_SET (txs, qst, txs->txs_main_range_out, (caddr_t) (main_ranges));
+  TXS_QST_SET (txs, qst, txs->txs_attr_range_out, (caddr_t) (attr_ranges));
 #ifdef TEXT_DEBUG
-  fprintf(stderr,"\ntxs_set_ranges(...) stores ");
-  dbg_print_box((caddr_t)main_ranges,stderr);
-  fprintf(stderr," and ");
-  dbg_print_box((caddr_t)attr_ranges,stderr);
-  fprintf(stderr," for row %ld", (long)(unbox (qst_get (qst, txs->txs_d_id))));
+  fprintf (stderr, "\ntxs_set_ranges(...) stores ");
+  dbg_print_box ((caddr_t) main_ranges, stderr);
+  fprintf (stderr, " and ");
+  dbg_print_box ((caddr_t) attr_ranges, stderr);
+  fprintf (stderr, " for row %ld", (long) (unbox (qst_get (qst, txs->txs_d_id))));
 #endif
 }
 
@@ -3153,54 +3129,54 @@ txs_is_hit_between_1 (ptrlong * ranges, wpos_t from, wpos_t to)
 {
   int left_cop, robber, right_cop;
   /* Here we perform binary search on EVEN indexes (i.e. starts of ranges) */
-  left_cop = 0; right_cop = BOX_ELEMENTS(ranges);
+  left_cop = 0;
+  right_cop = BOX_ELEMENTS (ranges);
   if (0 == right_cop)
     return 0;
   right_cop -= 2;
-  if ((wpos_t)(ranges[0]) >= to)
+  if ((wpos_t) (ranges[0]) >= to)
     return 0;
   while (right_cop > left_cop)
     {
-      robber = ((left_cop+right_cop)/2) & ~1;
-      if ((wpos_t)(ranges[robber]) < from)
-	left_cop = robber+2;
+      robber = ((left_cop + right_cop) / 2) & ~1;
+      if ((wpos_t) (ranges[robber]) < from)
+	left_cop = robber + 2;
       else
 	{
-	  if(right_cop > robber)
+	  if (right_cop > robber)
 	    right_cop = robber;
+	  else if ((wpos_t) (ranges[left_cop]) < from)
+	    left_cop += 2;
 	  else
-	    if ((wpos_t)(ranges[left_cop]) < from)
-	      left_cop += 2;
-	    else
-	      break;
+	    break;
 	}
     }
-  return ((wpos_t) ranges[left_cop]) >= from && ((wpos_t) ranges[left_cop+1]) < to;
+  return ((wpos_t) ranges[left_cop]) >= from && ((wpos_t) ranges[left_cop + 1]) < to;
 }
 
 
 int
-txs_is_hit_in (text_node_t * txs, caddr_t * qst, xml_entity_t *xe)
+txs_is_hit_in (text_node_t * txs, caddr_t * qst, xml_entity_t * xe)
 {
 #ifdef TEXT_DEBUG
   long row_idx = unbox (qst_get (qst, txs->txs_d_id));
 #endif
-  ptrlong ** main_ranges = (ptrlong**)(qst_get(qst,txs->txs_main_range_out));
-  ptrlong ** attr_ranges = (ptrlong**)(qst_get(qst,txs->txs_attr_range_out));
-  long main_count = ((NULL == main_ranges) ? 0 : (long)(BOX_ELEMENTS(main_ranges)));
-  long attr_count = ((NULL == attr_ranges) ? 0 : (long)(BOX_ELEMENTS(attr_ranges)));
+  ptrlong **main_ranges = (ptrlong **) (qst_get (qst, txs->txs_main_range_out));
+  ptrlong **attr_ranges = (ptrlong **) (qst_get (qst, txs->txs_attr_range_out));
+  long main_count = ((NULL == main_ranges) ? 0 : (long) (BOX_ELEMENTS (main_ranges)));
+  long attr_count = ((NULL == attr_ranges) ? 0 : (long) (BOX_ELEMENTS (attr_ranges)));
   long idx;
 #ifdef TEXT_DEBUG
-  fprintf(stderr,"\n{ Calculating txs_is_hit_in at row %ld", row_idx);
+  fprintf (stderr, "\n{ Calculating txs_is_hit_in at row %ld", row_idx);
   if (main_count < 20)
     {
-      fprintf(stderr,"\n  main_ranges = ");
-      dbg_print_box((caddr_t)main_ranges,stderr);
+      fprintf (stderr, "\n  main_ranges = ");
+      dbg_print_box ((caddr_t) main_ranges, stderr);
     }
   if (attr_count < 20)
     {
-      fprintf(stderr,"\n  attr_ranges = ");
-      dbg_print_box((caddr_t)attr_ranges,stderr);
+      fprintf (stderr, "\n  attr_ranges = ");
+      dbg_print_box ((caddr_t) attr_ranges, stderr);
     }
 #endif
 
@@ -3209,21 +3185,21 @@ txs_is_hit_in (text_node_t * txs, caddr_t * qst, xml_entity_t *xe)
       wpos_t start_wpos, this_end_wpos, whole_end_wpos;
       xe->_->xe_attr_word_range (xe, &start_wpos, &this_end_wpos, &whole_end_wpos);
 #ifdef TEXT_DEBUG
-      fprintf(stderr,"\n  attr scope is from %u to %u", (unsigned)start_wpos, (unsigned)whole_end_wpos);
+      fprintf (stderr, "\n  attr scope is from %u to %u", (unsigned) start_wpos, (unsigned) whole_end_wpos);
 #endif
-      whole_end_wpos += 1; /* Search range captures the closing attribute name */
+      whole_end_wpos += 1;	/* Search range captures the closing attribute name */
       for (idx = 0; idx < attr_count; idx++)
 	{
 	  if (txs_is_hit_between_1 (attr_ranges[idx], start_wpos, whole_end_wpos))
 	    {
 #ifdef TEXT_DEBUG
-	      fprintf(stderr,"\n HIT in attr range %d\n", idx);
+	      fprintf (stderr, "\n HIT in attr range %d\n", idx);
 #endif
 	      goto check_main;
 	    }
 	}
 #ifdef TEXT_DEBUG
-      fprintf(stderr,"\n NOTHING FOUND IN ATTR\n");
+      fprintf (stderr, "\n NOTHING FOUND IN ATTR\n");
 #endif
       return 0;
     }
@@ -3234,27 +3210,27 @@ check_main:
       wpos_t start_wpos, end_wpos;
       xe->_->xe_word_range (xe, &start_wpos, &end_wpos);
 #ifdef TEXT_DEBUG
-      fprintf(stderr,"\n  main scope is from %u to %u", (unsigned)start_wpos, (unsigned)end_wpos);
+      fprintf (stderr, "\n  main scope is from %u to %u", (unsigned) start_wpos, (unsigned) end_wpos);
 #endif
-      end_wpos += 1; /* Search range captures the closing tag */
+      end_wpos += 1;		/* Search range captures the closing tag */
       for (idx = 0; idx < main_count; idx++)
 	{
 	  if (txs_is_hit_between_1 (main_ranges[idx], start_wpos, end_wpos))
 	    {
 #ifdef TEXT_DEBUG
-	      fprintf(stderr,"\n HIT in main range %d\n", idx);
+	      fprintf (stderr, "\n HIT in main range %d\n", idx);
 #endif
 	      goto done;
 	    }
 	}
 #ifdef TEXT_DEBUG
-      fprintf(stderr,"\n NOTHING FOUND IN MAIN\n");
+      fprintf (stderr, "\n NOTHING FOUND IN MAIN\n");
 #endif
       return 0;
     }
 done:
 #ifdef TEXT_DEBUG
-  fprintf(stderr,"\n ALL HITS ARE FOUND\n");
+  fprintf (stderr, "\n ALL HITS ARE FOUND\n");
 #endif
   return 1;
 }
@@ -3263,7 +3239,7 @@ done:
 caddr_t
 txs_next (text_node_t * txs, caddr_t * qst, int first_time)
 {
-  search_stream_t * sst = (search_stream_t *) qst_get (qst, txs->txs_sst);
+  search_stream_t *sst = (search_stream_t *) qst_get (qst, txs->txs_sst);
   d_id_t d_id;
   int score_limit = txs->txs_score_limit ? (int) unbox (qst_get (qst, txs->txs_score_limit)) : 0;
   d_id_set_box (&d_id, qst_get (qst, txs->txs_d_id));
@@ -3296,7 +3272,7 @@ txs_next (text_node_t * txs, caddr_t * qst, int first_time)
 	}
       else
 	D_SET_NEXT (&d_id);
-      d_id = * sst_next (sst, &d_id, 0);
+      d_id = *sst_next (sst, &d_id, 0);
       first_time = 0;
       if (D_AT_END (&sst->sst_d_id))
 	return ((caddr_t) SQL_NO_DATA_FOUND);
@@ -3313,7 +3289,7 @@ txs_next (text_node_t * txs, caddr_t * qst, int first_time)
       unsigned int64 n = D_ID_NUM_REF (&d_id.id[0]);
       dtp_t buf[9];
       int len;
-      if (((dtp_t*)(&d_id.id[0]))[0] == D_ID_64)
+      if (((dtp_t *) (&d_id.id[0]))[0] == D_ID_64)
 	{
 	  buf[0] = DV_RDF_ID_8;
 	  INT64_SET_NA (&buf[1], n);
@@ -3327,11 +3303,11 @@ txs_next (text_node_t * txs, caddr_t * qst, int first_time)
 	}
       if (txs->src_gen.src_sets)
 	{
-	  data_col_t * dc = QST_BOX (data_col_t *, qst, txs->txs_d_id->ssl_index);
+	  data_col_t *dc = QST_BOX (data_col_t *, qst, txs->txs_d_id->ssl_index);
 	  dc_append_bytes (dc, buf, len, NULL, 0);
 	}
       else
-      TXS_QST_SET (txs, qst, txs->txs_d_id, (caddr_t)rbb_from_id (n));
+	TXS_QST_SET (txs, qst, txs->txs_d_id, (caddr_t) rbb_from_id (n));
     }
   else
     {
@@ -3347,12 +3323,13 @@ void
 txs_qc_lookup (text_node_t * txs, caddr_t * inst)
 {
   QNCAST (QI, qi, inst);
-  dbe_key_t * key = txs->txs_table->tb_primary_key;
+  dbe_key_t *key = txs->txs_table->tb_primary_key;
   qc_result_t *qcr;
-  uint32 clslice = key->key_partition ? (uint32)key->key_partition->kpd_map->clm_id + (((uint32)qi->qi_client->cli_slice) << 16) : 0;
-  caddr_t  qckey = list (2, box_num (key->key_id), box_copy (qst_get (inst, txs->txs_text_exp)));
-  qcr= qc_lookup (clslice, qckey);
-  qst_set (inst, txs->txs_qcr, (caddr_t)qcr);
+  uint32 clslice =
+      key->key_partition ? (uint32) key->key_partition->kpd_map->clm_id + (((uint32) qi->qi_client->cli_slice) << 16) : 0;
+  caddr_t qckey = list (2, box_num (key->key_id), box_copy (qst_get (inst, txs->txs_text_exp)));
+  qcr = qc_lookup (clslice, qckey);
+  qst_set (inst, txs->txs_qcr, (caddr_t) qcr);
   if (!qcr)
     return;
 }
@@ -3360,9 +3337,9 @@ txs_qc_lookup (text_node_t * txs, caddr_t * inst)
 void
 txs_qc_accumulate (text_node_t * txs, caddr_t * inst)
 {
-  data_col_t * id = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
-  data_col_t * score = NULL, * id_cp = NULL, * score_cp = NULL;
-  qc_result_t * qcr = (qc_result_t *)QST_GET_V (inst, txs->txs_qcr);
+  data_col_t *id = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
+  data_col_t *score = NULL, *id_cp = NULL, *score_cp = NULL;
+  qc_result_t *qcr = (qc_result_t *) QST_GET_V (inst, txs->txs_qcr);
   if (!qcr)
     return;
   id_cp = mp_data_col (qcr->qcr_mp, txs->txs_d_id, id->dc_n_values);
@@ -3373,13 +3350,13 @@ txs_qc_accumulate (text_node_t * txs, caddr_t * inst)
       score_cp = mp_data_col (qcr->qcr_mp, txs->txs_score, id->dc_n_values);
       dc_copy (score_cp, score);
     }
-  mp_array_add (qcr->qcr_mp, (caddr_t **) &qcr->qcr_result, &qcr->qcr_fill, (void*) id_cp);
-  mp_array_add (qcr->qcr_mp, (caddr_t **) &qcr->qcr_result, &qcr->qcr_fill, (void*) score_cp);
+  mp_array_add (qcr->qcr_mp, (caddr_t **) & qcr->qcr_result, &qcr->qcr_fill, (void *) id_cp);
+  mp_array_add (qcr->qcr_mp, (caddr_t **) & qcr->qcr_result, &qcr->qcr_fill, (void *) score_cp);
   if (!SRC_IN_STATE (txs, inst))
     {
       mutex_enter (&qcr_ref_mtx);
       qcr->qcr_status = QCR_READY;
-      QST_BOX (void*, inst, txs->txs_qcr->ssl_index) = NULL;
+      QST_BOX (void *, inst, txs->txs_qcr->ssl_index) = NULL;
       qcr->qcr_ref_count--;
       mutex_leave (&qcr_ref_mtx);
     }
@@ -3391,9 +3368,9 @@ txs_from_qcr (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
   int nth_dc = QST_INT (inst, txs->txs_pos_in_qcr);
   int pos_in_dc = QST_INT (inst, txs->txs_pos_in_dc);
-  qc_result_t * qcr = (qc_result_t *)QST_GET_V (inst, txs->txs_qcr);
-  data_col_t * id_ret = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
-  data_col_t * score_ret = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
+  qc_result_t *qcr = (qc_result_t *) QST_GET_V (inst, txs->txs_qcr);
+  data_col_t *id_ret = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
+  data_col_t *score_ret = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
   int batch_size = QST_INT (inst, txs->src_gen.src_batch_size), dc_inx, pos;
   if (state)
     {
@@ -3401,23 +3378,23 @@ txs_from_qcr (text_node_t * txs, caddr_t * inst, caddr_t * state)
     }
   for (dc_inx = nth_dc; dc_inx < qcr->qcr_fill; dc_inx += 2)
     {
-      data_col_t * id = qcr->qcr_result[dc_inx];
-      data_col_t * score = qcr->qcr_result[dc_inx + 1];
+      data_col_t *id = qcr->qcr_result[dc_inx];
+      data_col_t *score = qcr->qcr_result[dc_inx + 1];
       for (pos = pos_in_dc; pos < id->dc_n_values; pos++)
 	{
 	  if (score)
-	    dc_append_int64 (score_ret, ((int64*)score->dc_values)[pos]);
+	    dc_append_int64 (score_ret, ((int64 *) score->dc_values)[pos]);
 
-	  dc_append_int64 (id_ret, ((int64*)id->dc_values)[pos]);
-	  qn_result ((data_source_t *)txs, inst, 0);
+	  dc_append_int64 (id_ret, ((int64 *) id->dc_values)[pos]);
+	  qn_result ((data_source_t *) txs, inst, 0);
 	  if (id_ret->dc_n_values == batch_size)
 	    {
 	      QST_INT (inst, txs->txs_pos_in_dc) = pos + 1;
 	      QST_INT (inst, txs->txs_pos_in_qcr) = dc_inx;
 	      SRC_IN_STATE (txs, inst) = inst;
-	      qn_send_output ((data_source_t*)txs, inst);
+	      qn_send_output ((data_source_t *) txs, inst);
 	      batch_size = QST_INT (inst, txs->src_gen.src_batch_size);
-	      dc_reset_array (inst, (data_source_t*)txs, txs->src_gen.src_continue_reset, -1);
+	      dc_reset_array (inst, (data_source_t *) txs, txs->src_gen.src_continue_reset, -1);
 	      QST_INT (inst, txs->src_gen.src_out_fill) = 0;
 	      state = NULL;
 	    }
@@ -3426,7 +3403,7 @@ txs_from_qcr (text_node_t * txs, caddr_t * inst, caddr_t * state)
     }
   SRC_IN_STATE (txs, inst) = NULL;
   if (QST_INT (inst, txs->src_gen.src_out_fill))
-    qn_send_output ((data_source_t*)txs, inst);
+    qn_send_output ((data_source_t *) txs, inst);
 }
 
 
@@ -3441,19 +3418,19 @@ txs_qcr_reverse (qc_result_t * qcr)
     sz += qcr->qcr_result[inx]->dc_n_values;
   SET_THR_TMP_POOL (qcr->qcr_mp);
   qcr->qcr_reverse = t_id_hash_allocate (sz, sizeof (boxint), sizeof (boxint), boxint_hash, boxint_hashcmp);
-    for (inx =  0; inx < qcr->qcr_fill; inx += 2)
-      {
-	data_col_t * id = qcr->qcr_result[inx];
-	data_col_t * score = qcr->qcr_result[inx + 1];
-	for (n = 0; n < id->dc_n_values; n++)
-	  {
-	    t_id_hash_set (qcr->qcr_reverse, (caddr_t)& ((int64*)id->dc_values)[n], (caddr_t) &((int64*)score->dc_values)[n]);
-	  }
-      }
-    SET_THR_TMP_POOL (NULL);
+  for (inx = 0; inx < qcr->qcr_fill; inx += 2)
+    {
+      data_col_t *id = qcr->qcr_result[inx];
+      data_col_t *score = qcr->qcr_result[inx + 1];
+      for (n = 0; n < id->dc_n_values; n++)
+	{
+	  t_id_hash_set (qcr->qcr_reverse, (caddr_t) & ((int64 *) id->dc_values)[n], (caddr_t) & ((int64 *) score->dc_values)[n]);
+	}
+    }
+  SET_THR_TMP_POOL (NULL);
 }
 
-dk_mutex_t * txs_qcr_rev_mtx;
+dk_mutex_t *txs_qcr_rev_mtx;
 
 void
 txs_qcr_check (text_node_t * txs, caddr_t * inst)
@@ -3461,11 +3438,11 @@ txs_qcr_check (text_node_t * txs, caddr_t * inst)
   /* d id is given, see if these are in the qcr */
   QNCAST (QI, qi, inst);
 #if 0
-  data_col_t * dc = NULL;
+  data_col_t *dc = NULL;
   int at_or_above = 0, below, guess;
   int64 n;
 #endif
-  qc_result_t * qcr = QST_BOX (qc_result_t *, inst, txs->txs_qcr->ssl_index);
+  qc_result_t *qcr = QST_BOX (qc_result_t *, inst, txs->txs_qcr->ssl_index);
   int n_sets = QST_INT (inst, txs->src_gen.src_prev->src_out_fill), set;
   QST_INT (inst, txs->src_gen.src_out_fill) = 0;
   mutex_enter (txs_qcr_rev_mtx);
@@ -3477,16 +3454,16 @@ txs_qcr_check (text_node_t * txs, caddr_t * inst)
       int64 d_id = qst_vec_get_int64 (inst, txs->txs_d_id, set);
       if (qcr->qcr_reverse)
 	{
-	  int64 * place = (int64 *) id_hash_get (qcr->qcr_reverse, (caddr_t)&d_id);
+	  int64 *place = (int64 *) id_hash_get (qcr->qcr_reverse, (caddr_t) & d_id);
 	  if (place)
 	    {
 	      qi->qi_set = set;
 	      qst_set_long (inst, txs->txs_score, *place);
-	      qn_result ((data_source_t *)txs, inst, set);
+	      qn_result ((data_source_t *) txs, inst, set);
 	    }
 	}
 #if 0
-      for (inx = 0; inx < qcr->qcr_fill; inx+= 2)
+      for (inx = 0; inx < qcr->qcr_fill; inx += 2)
 	{
 	  int64 n = DCINT1 (qcr->qcr_result[inx]);
 	  if (n == d_id)
@@ -3506,7 +3483,7 @@ txs_qcr_check (text_node_t * txs, caddr_t * inst)
 	}
       inx = qcr->qcr_fill - 2;
       dc = qcr->qcr_result[inx];
-      if (d_id > ((int64*)dc->dc_values)[dc->dc_n_values - 1])
+      if (d_id > ((int64 *) dc->dc_values)[dc->dc_n_values - 1])
 	goto next_set;
     look_in_dc:
       at_or_above = 0;
@@ -3515,7 +3492,7 @@ txs_qcr_check (text_node_t * txs, caddr_t * inst)
 	{
 	  if (below - at_or_above <= 1)
 	    {
-	      n = ((int64*)dc->dc_values)[at_or_above];
+	      n = ((int64 *) dc->dc_values)[at_or_above];
 	      if (n < d_id)
 		goto next_set;
 
@@ -3524,7 +3501,7 @@ txs_qcr_check (text_node_t * txs, caddr_t * inst)
 	      goto next_set;
 	    }
 	  guess = (at_or_above + below) / 2;
-	  n = ((int64*)dc->dc_values)[guess];
+	  n = ((int64 *) dc->dc_values)[guess];
 	  if (n == d_id)
 	    goto found;
 	  if (n > d_id)
@@ -3535,14 +3512,15 @@ txs_qcr_check (text_node_t * txs, caddr_t * inst)
     found:
       qi->qi_set = set;
       if (txs->txs_score)
-	qst_set_long (inst, txs->txs_score, ((int64*)qcr->qcr_result[inx+1]->dc_values)[at_or_above]);
-      qn_result ((data_source_t*)txs, inst, set);
-    next_set: ;
+	qst_set_long (inst, txs->txs_score, ((int64 *) qcr->qcr_result[inx + 1]->dc_values)[at_or_above]);
+      qn_result ((data_source_t *) txs, inst, set);
+    next_set:;
 #endif
 
-    }  qst_set (inst, txs->txs_qcr, NULL);
+    }
+  qst_set (inst, txs->txs_qcr, NULL);
   if (QST_INT (inst, txs->src_gen.src_out_fill))
-    qn_send_output ((data_source_t*)txs, inst);
+    qn_send_output ((data_source_t *) txs, inst);
 }
 
 
@@ -3550,7 +3528,7 @@ int enable_qn_cache = 0;
 
 
 void
-txs_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
+txs_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
   QNCAST (query_instance_t, qi, inst);
   int n_sets = txs->src_gen.src_prev ? QST_INT (inst, txs->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
@@ -3561,9 +3539,9 @@ txs_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
     {
       if (state)
 	{
-	  qc_result_t * qcr;
+	  qc_result_t *qcr;
 	  txs_qc_lookup (txs, inst);
-	  qcr = (qc_result_t*)QST_GET_V (inst, txs->txs_qcr);
+	  qcr = (qc_result_t *) QST_GET_V (inst, txs->txs_qcr);
 	  if (qcr && QCR_READY == qcr->qcr_status)
 	    {
 	      if (txs->txs_is_driving)
@@ -3575,7 +3553,7 @@ txs_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
 	}
       else
 	{
-	  qc_result_t * qcr = (qc_result_t*)QST_GET_V (inst, txs->txs_qcr);
+	  qc_result_t *qcr = (qc_result_t *) QST_GET_V (inst, txs->txs_qcr);
 	  if (qcr && QCR_READY == qcr->qcr_status)
 	    {
 	      txs_from_qcr (txs, inst, NULL);
@@ -3591,10 +3569,10 @@ txs_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
     nth_set = QST_INT (inst, txs->clb.clb_nth_set);
 
 again:
-  batch_sz = QST_INT (inst, txs->src_gen.src_batch_size); /* May vary, receiver may increase the batch size to improve the locality */
+  batch_sz = QST_INT (inst, txs->src_gen.src_batch_size);	/* May vary, receiver may increase the batch size to improve the locality */
   QST_INT (inst, qn->src_out_fill) = 0;
   dc_reset_array (inst, qn, qn->src_continue_reset, -1);
-  for (; nth_set < n_sets; nth_set ++)
+  for (; nth_set < n_sets; nth_set++)
     {
       qi->qi_set = nth_set;
       for (;;)
@@ -3608,7 +3586,7 @@ again:
 	      txs_init (txs, (query_instance_t *) state);
 	      first_time = 1;
 	    }
-	  err = txs_next (txs, state, first_time); /* Should become vectored and produce up to batch_sz - qn->src_out_fill results at a single run */
+	  err = txs_next (txs, state, first_time);	/* Should become vectored and produce up to batch_sz - qn->src_out_fill results at a single run */
 	  first_time = 0;
 	  if (err != SQL_SUCCESS)
 	    {
@@ -3670,68 +3648,72 @@ txs_ext_fti_get (query_instance_t * qi, slice_id_t slice, caddr_t ext_fti, caddr
       static caddr_t solr_url = 0;
       static caddr_t solr_url_sliced = 0;
       if (0 == solr_url && 0 == solr_url_sliced)
-        {
-          solr_url = registry_get ("solr_url");
-          solr_url_sliced = registry_get ("solr_url_sliced");
+	{
+	  solr_url = registry_get ("solr_url");
+	  solr_url_sliced = registry_get ("solr_url_sliced");
 
-          if (!solr_url && !solr_url_sliced)
-            sqlr_new_error ("22023", "SOLR9", "Neither registry values \"solr_url\" or \"solr_url_sliced\" is set.");
-        }
+	  if (!solr_url && !solr_url_sliced)
+	    sqlr_new_error ("22023", "SOLR9", "Neither registry values \"solr_url\" or \"solr_url_sliced\" is set.");
+	}
       if (QI_NO_SLICE == slice)
-        {
-          if (solr_url)
-            ext_fti_local = solr_url;
-          else
-            sqlr_new_error ("22023", "SOLR9", "Registry value \"solr_url\" is not set.");
-        }
+	{
+	  if (solr_url)
+	    ext_fti_local = solr_url;
+	  else
+	    sqlr_new_error ("22023", "SOLR9", "Registry value \"solr_url\" is not set.");
+	}
       else
-        {
-          if (solr_url_sliced)
-            ext_fti_local = box_sprintf (100, solr_url_sliced, slice);
-          else if (solr_url)
-            ext_fti_local = solr_url;
-          else
-            sqlr_new_error ("22023", "SOLR9", "Registry value \"solr_url_sliced\" is not set.");
-        }
-      buflen = box_length (ext_fti_local) + box_length (req) + sizeof(fti_params_template);
+	{
+	  if (solr_url_sliced)
+	    ext_fti_local = box_sprintf (100, solr_url_sliced, slice);
+	  else if (solr_url)
+	    ext_fti_local = solr_url;
+	  else
+	    sqlr_new_error ("22023", "SOLR9", "Registry value \"solr_url_sliced\" is not set.");
+	}
+      buflen = box_length (ext_fti_local) + box_length (req) + sizeof (fti_params_template);
       call_uri = box_sprintf (buflen, fti_params_template, ext_fti_local, req);
       if (solr_url != ext_fti_local)
-        dk_free_box (ext_fti_local);
+	dk_free_box (ext_fti_local);
     }
   else
     {
-      buflen = box_length (ext_fti) + box_length (req) + sizeof(fti_params_template);
+      buflen = box_length (ext_fti) + box_length (req) + sizeof (fti_params_template);
       call_uri = box_sprintf (buflen, fti_params_template, ext_fti, req);
     }
 
 /* First we query the remote with HTTP */
-  resp_text = bif_http_client_impl ((caddr_t *)qi, &err, NULL /* no need in args */, "HTTP call to an external free-text indexing server",
-    call_uri, NULL /*uid*/, NULL /*pwd*/, NULL /*method*/, NULL /*http_hdr*/, NULL /*body*/,
-    NULL /*cert*/, NULL /*pk_pass*/, 600000 /*time_out*/, 0 /*time_out_is_null*/, NULL /*proxy*/, NULL /*ca_certs*/, 0 /*insecure*/,
-    0 /* ret_arg_index */,
-    3);
+  resp_text =
+      bif_http_client_impl ((caddr_t *) qi, &err, NULL /* no need in args */ , "HTTP call to an external free-text indexing server",
+      call_uri, NULL /*uid */ , NULL /*pwd */ , NULL /*method */ , NULL /*http_hdr */ , NULL /*body */ ,
+      NULL /*cert */ , NULL /*pk_pass */ , 600000 /*time_out */ , 0 /*time_out_is_null */ , NULL /*proxy */ , NULL /*ca_certs */ ,
+      0 /*insecure */ ,
+      0 /* ret_arg_index */ ,
+      3);
 
 #ifdef EXT_FTI_LOG
   {
-  FILE *solr_log = fopen("solr_fti_log","a");
-  dbg_print_box(call_uri,solr_log);
-  fputs("\n",solr_log);
-  dbg_print_box(resp_text,solr_log);
-  fputs("\n",solr_log);
-  fclose(solr_log);
+    FILE *solr_log = fopen ("solr_fti_log", "a");
+    dbg_print_box (call_uri, solr_log);
+    fputs ("\n", solr_log);
+    dbg_print_box (resp_text, solr_log);
+    fputs ("\n", solr_log);
+    fclose (solr_log);
   }
 #endif
 
   if (NULL != err)
-    goto handle_err; /* see below */;
+    goto handle_err; /* see below */ ;
 /* Now we parse the returned XML */
-  tree = xml_make_mod_tree (qi, resp_text, (caddr_t *) &err, 0 /*parser_mode*/, call_uri, "UTF-8", &lh__xany, NULL/*dtd_config*/, &dtd, &id_cache, &ns_2dict);
+  tree =
+      xml_make_mod_tree (qi, resp_text, (caddr_t *) & err, 0 /*parser_mode */ , call_uri, "UTF-8", &lh__xany, NULL /*dtd_config */ ,
+      &dtd, &id_cache, &ns_2dict);
   if (NULL == tree)
-    goto handle_err; /* see below */;
+    goto handle_err; /* see below */ ;
   xte = xte_from_tree (tree, qi);
   tree = NULL;
   xte->xe_doc.xd->xd_uri = call_uri;
-  xte->xe_doc.xd->xd_dtd = dtd; /* The refcounter is incremented inside xml_make_tree */
+  xte->xe_doc.xd->xd_dtd = dtd;	/* The refcounter is incremented inside xml_make_tree */
   xte->xe_doc.xd->xd_id_dict = id_cache;
   xte->xe_doc.xd->xd_id_scan = XD_ID_SCAN_COMPLETED;
   xte->xe_doc.xd->xd_ns_2dict = ns_2dict;
@@ -3740,36 +3722,38 @@ txs_ext_fti_get (query_instance_t * qi, slice_id_t slice, caddr_t ext_fti, caddr
 /* And fetch values from it */
   if (NULL == response_test)
     {
-      response_test = xp_make_name_test_from_qname (NULL /*xpp*/, box_dv_uname_string ("response"), 1);
-      result_test = xp_make_name_test_from_qname (NULL /*xpp*/, box_dv_uname_string ("result"), 1);
-      doc_test = xp_make_name_test_from_qname (NULL /*xpp*/, box_dv_uname_string ("doc"), 1);
-      int_test = xp_make_name_test_from_qname (NULL /*xpp*/, box_dv_uname_string ("int"), 1);
-      long_test = xp_make_name_test_from_qname (NULL /*xpp*/, box_dv_uname_string ("long"), 1);
-      name_test = xp_make_name_test_from_qname (NULL /*xpp*/, box_dv_uname_string ("name"), 1);
+      response_test = xp_make_name_test_from_qname (NULL /*xpp */ , box_dv_uname_string ("response"), 1);
+      result_test = xp_make_name_test_from_qname (NULL /*xpp */ , box_dv_uname_string ("result"), 1);
+      doc_test = xp_make_name_test_from_qname (NULL /*xpp */ , box_dv_uname_string ("doc"), 1);
+      int_test = xp_make_name_test_from_qname (NULL /*xpp */ , box_dv_uname_string ("int"), 1);
+      long_test = xp_make_name_test_from_qname (NULL /*xpp */ , box_dv_uname_string ("long"), 1);
+      name_test = xp_make_name_test_from_qname (NULL /*xpp */ , box_dv_uname_string ("name"), 1);
     }
   if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, response_test))
     if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, result_test))
       {
-        res_len = 3 + BOX_ELEMENTS (xte->xte_current);
-        res = (caddr_t **) dk_alloc_list_zero (res_len);
-        res_ctr = 3;
-        if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, doc_test))
-          {
-            do {
-                 if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, int_test))
-                   {
-                     if (2 == BOX_ELEMENTS (xte->xte_current) && (DV_STRING == DV_TYPE_OF (xte->xte_current[1])))
-                       res[res_ctr++] = (caddr_t *) list (1, box_num (atoi (xte->xte_current[1])));
-                   }
-                 else if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, long_test))
-                   {
-                     if (2 == BOX_ELEMENTS (xte->xte_current) && (DV_STRING == DV_TYPE_OF (xte->xte_current[1])))
-                       res[res_ctr++] = (caddr_t *) list (1, box_num (atoi (xte->xte_current[1])));
-                   }
-                 xte->_->xe_up ((xml_entity_t *) xte, (XT *) XP_NODE, 0);
-              } while (XI_AT_END != xte->_->xe_next_sibling ((xml_entity_t *) xte, doc_test));
-          }
-        res[0] = box_num (res_ctr-1);
+	res_len = 3 + BOX_ELEMENTS (xte->xte_current);
+	res = (caddr_t **) dk_alloc_list_zero (res_len);
+	res_ctr = 3;
+	if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, doc_test))
+	  {
+	    do
+	      {
+		if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, int_test))
+		  {
+		    if (2 == BOX_ELEMENTS (xte->xte_current) && (DV_STRING == DV_TYPE_OF (xte->xte_current[1])))
+		      res[res_ctr++] = (caddr_t *) list (1, box_num (atoi (xte->xte_current[1])));
+		  }
+		else if (XI_AT_END != xte->_->xe_first_child ((xml_entity_t *) xte, long_test))
+		  {
+		    if (2 == BOX_ELEMENTS (xte->xte_current) && (DV_STRING == DV_TYPE_OF (xte->xte_current[1])))
+		      res[res_ctr++] = (caddr_t *) list (1, box_num (atoi (xte->xte_current[1])));
+		  }
+		xte->_->xe_up ((xml_entity_t *) xte, (XT *) XP_NODE, 0);
+	      }
+	    while (XI_AT_END != xte->_->xe_next_sibling ((xml_entity_t *) xte, doc_test));
+	  }
+	res[0] = box_num (res_ctr - 1);
       }
   if (NULL == res)
     res = (caddr_t **) dk_alloc_list_zero (3);
@@ -3778,10 +3762,8 @@ txs_ext_fti_get (query_instance_t * qi, slice_id_t slice, caddr_t ext_fti, caddr
   dk_free_tree (resp_text);
   return res;
 #if 1
-  return (caddr_t **)list (6, box_num (4), box_num (0), box_num (0),
-    list (1, box_num (10)),
-    list (1, box_num (11)),
-    uname__bang_exclude_result_prefixes /* as sample of garbage */ );
+  return (caddr_t **) list (6, box_num (4), box_num (0), box_num (0),
+      list (1, box_num (10)), list (1, box_num (11)), uname__bang_exclude_result_prefixes /* as sample of garbage */ );
 #endif
 handle_err:
   dk_free_tree (xte);
@@ -3794,10 +3776,10 @@ handle_err:
 void
 txs_ext_fti_init (text_node_t * txs, query_instance_t * qi)
 {
-  caddr_t * qst = (caddr_t*) qi;
+  caddr_t *qst = (caddr_t *) qi;
   caddr_t err = NULL;
   caddr_t str = qst_get (qst, txs->txs_text_exp);
-  caddr_t * old_tree, * tree;
+  caddr_t *old_tree, *tree;
   caddr_t dtd_config = NULL;
   caddr_t cached_string;
   int tree_is_temporary;
@@ -3806,7 +3788,7 @@ txs_ext_fti_init (text_node_t * txs, query_instance_t * qi)
   wcharset_t *query_charset;
   encoding_handler_t *eh;
   slice_id_t slice;
-  query_charset = QST_CHARSET(qi);
+  query_charset = QST_CHARSET (qi);
   if (NULL == query_charset)
     query_charset = default_charset;
   if (NULL == query_charset)
@@ -3815,28 +3797,28 @@ txs_ext_fti_init (text_node_t * txs, query_instance_t * qi)
     {
       eh = eh_get_handler (CHARSET_NAME (query_charset, NULL));
       if (NULL == eh)
-        eh = &eh__ISO8859_1;
+	eh = &eh__ISO8859_1;
     }
   tree_is_temporary = 0;
   err = NULL;
   cached_string = (caddr_t) qst_get (qst, txs->txs_cached_string);
-  if (NULL != cached_string)                /* cache is nonempty */
+  if (NULL != cached_string)	/* cache is nonempty */
     {
-      if(strcmp(cached_string, str))
-        {
-          qst_set (qst, txs->txs_cached_string, NULL);
-          qst_set (qst, txs->txs_cached_compiled_tree, NULL);
-          qst_set (qst, txs->txs_cached_dtd_config, NULL);
-          old_tree = NULL;
-          goto parse_new_tree;
-        }
+      if (strcmp (cached_string, str))
+	{
+	  qst_set (qst, txs->txs_cached_string, NULL);
+	  qst_set (qst, txs->txs_cached_compiled_tree, NULL);
+	  qst_set (qst, txs->txs_cached_dtd_config, NULL);
+	  old_tree = NULL;
+	  goto parse_new_tree;
+	}
       else
-        {
-          old_tree = tree = (caddr_t *)qst_get (qst, txs->txs_cached_compiled_tree);
-          goto skip_parsing_of_new_tree;
-        }
+	{
+	  old_tree = tree = (caddr_t *) qst_get (qst, txs->txs_cached_compiled_tree);
+	  goto skip_parsing_of_new_tree;
+	}
     }
-  else                                        /* cache is empty */
+  else				/* cache is empty */
     {
       old_tree = NULL;
       goto parse_new_tree;
@@ -3845,14 +3827,14 @@ parse_new_tree:
   tree = box_copy_tree (str);
   if (NULL != err)
     {
-      dk_free_tree ((caddr_t)tree);
+      dk_free_tree ((caddr_t) tree);
       dk_free_tree (dtd_config);
       sqlr_resignal (err);
     }
-  /*xpt_edit_range_flags (tree, ~SRC_RANGE_DUMMY, SRC_RANGE_MAIN);*/
+  /*xpt_edit_range_flags (tree, ~SRC_RANGE_DUMMY, SRC_RANGE_MAIN); */
   qst_set (qst, txs->txs_cached_dtd_config, dtd_config);
 skip_parsing_of_new_tree:
-  qst_set (qst, txs->txs_cached_string, box_dv_short_string(str));
+  qst_set (qst, txs->txs_cached_string, box_dv_short_string (str));
   if (tree != old_tree)
     qst_set (qst, txs->txs_cached_compiled_tree, (caddr_t) tree);
   context.tctx_vtb = NULL;
@@ -3865,29 +3847,29 @@ skip_parsing_of_new_tree:
   context.tctx_calc_score = ((NULL != txs->txs_score) ? 1 : 0);
   context.tctx_range_flags = SRC_RANGE_DUMMY;
   slice = qi->qi_client->cli_slice;
-  results = txs_ext_fti_get (qi, slice, qst_get (qst, txs->txs_ext_fti), (caddr_t)tree);
+  results = txs_ext_fti_get (qi, slice, qst_get (qst, txs->txs_ext_fti), (caddr_t) tree);
   if (tree_is_temporary)
-    dk_free_tree ((caddr_t)tree);
+    dk_free_tree ((caddr_t) tree);
   if (txs->txs_is_driving)
     qst_set_long (qst, txs->txs_d_id, 0);
-  qst_set (qst, txs->txs_sst, (caddr_t)results);
+  qst_set (qst, txs->txs_sst, (caddr_t) results);
 }
 
 boxint
-txs_ext_fti_next_result (caddr_t **results, boxint *target, int is_fixed)
+txs_ext_fti_next_result (caddr_t ** results, boxint * target, int is_fixed)
 {
-  boxint len = unbox ((caddr_t)(results[0]));
-  boxint ctr = unbox ((caddr_t)(results[1])) + 3;
+  boxint len = unbox ((caddr_t) (results[0]));
+  boxint ctr = unbox ((caddr_t) (results[1])) + 3;
   while (ctr <= len)
     {
-      boxint curr_id = unbox ((caddr_t)(results[ctr][0]));
+      boxint curr_id = unbox ((caddr_t) (results[ctr][0]));
       if (curr_id < target[0])
-        {
-          ctr++;
-          continue;
-        }
+	{
+	  ctr++;
+	  continue;
+	}
       if (is_fixed && (curr_id > target[0]))
-        goto notfound;
+	goto notfound;
       ctr++;
       dk_free_box (results[2]);
       results[2] = box_num (curr_id);
@@ -3917,7 +3899,7 @@ txs_ext_fti_next (text_node_t * txs, caddr_t * qst, int first_time)
 	return ((caddr_t) SQL_NO_DATA_FOUND);
       if (0 > txs_ext_fti_next_result (results, &d_id, 1))
 	return ((caddr_t) SQL_NO_DATA_FOUND);
-#if 0 /*!!! tbd later */
+#if 0				/*!!! tbd later */
       if (score_limit || txs->txs_score)
 	sst_scores (sst, &d_id);
       if (txs->txs_score)
@@ -3935,14 +3917,14 @@ txs_ext_fti_next (text_node_t * txs, caddr_t * qst, int first_time)
 	{
 	  if (txs->txs_init_id)
 	    d_id = unbox (qst_get (qst, txs->txs_init_id));
-  else
+	  else
 	    d_id = 0;
 	}
       d_id = txs_ext_fti_next_result (results, &d_id, 0);
       first_time = 0;
       if (d_id < 0)
 	return ((caddr_t) SQL_NO_DATA_FOUND);
-#if 0 /*!!! tbd later */
+#if 0				/*!!! tbd later */
       if (score_limit || txs->txs_score)
 	sst_scores (sst, &d_id);
       if (score_limit && sst->sst_score < score_limit)
@@ -3950,14 +3932,14 @@ txs_ext_fti_next (text_node_t * txs, caddr_t * qst, int first_time)
 #endif
       break;
     }
-#if 0 /*!!! tbd later */
+#if 0				/*!!! tbd later */
   if (txs->txs_score)
     TXS_QST_SET (txs, qst, txs->txs_score, box_num (sst->sst_score));
 #endif
   if (txs->txs_is_rdf)
     sqlr_new_error ("22023", "FT101", "RDF with EXT_FTI");
   TXS_QST_SET (txs, qst, txs->txs_d_id, box_num (d_id));
-#if 0 /*!!! tbd later */
+#if 0				/*!!! tbd later */
   txs_set_offband (txs, qst);
   txs_set_ranges (txs, qst, sst);
 #endif
@@ -3967,7 +3949,7 @@ txs_ext_fti_next (text_node_t * txs, caddr_t * qst, int first_time)
 
 /* That's an exact clone of txs_vec_input */
 void
-txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
+txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
   QNCAST (query_instance_t, qi, inst);
   int n_sets = txs->src_gen.src_prev ? QST_INT (inst, txs->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
@@ -3978,9 +3960,9 @@ txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
     {
       if (state)
 	{
-	  qc_result_t * qcr;
+	  qc_result_t *qcr;
 	  txs_qc_lookup (txs, inst);
-	  qcr = (qc_result_t*)QST_GET_V (inst, txs->txs_qcr);
+	  qcr = (qc_result_t *) QST_GET_V (inst, txs->txs_qcr);
 	  if (qcr && QCR_READY == qcr->qcr_status)
 	    {
 	      if (txs->txs_is_driving)
@@ -3992,7 +3974,7 @@ txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
 	}
       else
 	{
-	  qc_result_t * qcr = (qc_result_t*)QST_GET_V (inst, txs->txs_qcr);
+	  qc_result_t *qcr = (qc_result_t *) QST_GET_V (inst, txs->txs_qcr);
 	  if (qcr && QCR_READY == qcr->qcr_status)
 	    {
 	      txs_from_qcr (txs, inst, NULL);
@@ -4006,10 +3988,10 @@ txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
     nth_set = QST_INT (inst, txs->clb.clb_nth_set);
 
 again:
-  batch_sz = QST_INT (inst, txs->src_gen.src_batch_size); /* May vary, receiver may increase the batch size to improve the locality */
+  batch_sz = QST_INT (inst, txs->src_gen.src_batch_size);	/* May vary, receiver may increase the batch size to improve the locality */
   QST_INT (inst, qn->src_out_fill) = 0;
   dc_reset_array (inst, qn, qn->src_continue_reset, -1);
-  for (; nth_set < n_sets; nth_set ++)
+  for (; nth_set < n_sets; nth_set++)
     {
       qi->qi_set = nth_set;
       for (;;)
@@ -4022,10 +4004,10 @@ again:
 	    {
 	      txs_ext_fti_init (txs, (query_instance_t *) state);
 	      if (txs->txs_is_driving)
-	      dc_reset (QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index));
+		dc_reset (QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index));
 	      first_time = 1;
 	    }
-	  err = txs_ext_fti_next (txs, state, first_time); /* Should become vectored and produce up to batch_sz - qn->src_out_fill results at a single run */
+	  err = txs_ext_fti_next (txs, state, first_time);	/* Should become vectored and produce up to batch_sz - qn->src_out_fill results at a single run */
 	  first_time = 0;
 	  if (err != SQL_SUCCESS)
 	    {
@@ -4042,8 +4024,8 @@ again:
 	  if (QST_INT (inst, qn->src_out_fill) >= batch_sz)
 	    {
 	      QST_INT (inst, txs->clb.clb_nth_set) = nth_set;
-              if (txs->txs_is_driving && txs->txs_qcr)
-                txs_qc_accumulate (txs, inst);
+	      if (txs->txs_is_driving && txs->txs_qcr)
+		txs_qc_accumulate (txs, inst);
 	      qn_send_output (qn, inst);
 	      goto again;
 	    }
@@ -4060,7 +4042,7 @@ again:
 
 /* That's an exact clone of loop in txn_input */
 void
-txs_ext_fti_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
+txs_ext_fti_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
   int first_time = 0;
   for (;;)
@@ -4081,8 +4063,7 @@ txs_ext_fti_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
 	{
 	  if (txs->txs_is_driving)
 	    qn_record_in_state ((data_source_t *) txs, inst, state);
-	  if (!txs->src_gen.src_after_test
-	      || code_vec_run (txs->src_gen.src_after_test, inst))
+	  if (!txs->src_gen.src_after_test || code_vec_run (txs->src_gen.src_after_test, inst))
 	    {
 	      qn_send_output ((data_source_t *) txs, inst);
 	    }
@@ -4105,7 +4086,7 @@ txs_ext_fti_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
 
 
 void
-txs_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
+txs_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
   caddr_t err;
   int first_time = 0;
@@ -4117,9 +4098,9 @@ txs_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
   if (txs->txs_ext_fti)
     {
       if (txs->src_gen.src_sets)
-        txs_ext_fti_vec_input (txs, inst, state);
+	txs_ext_fti_vec_input (txs, inst, state);
       else
-        txs_ext_fti_input (txs, inst, state);
+	txs_ext_fti_input (txs, inst, state);
       return;
     }
   if (txs->src_gen.src_sets)
@@ -4145,8 +4126,7 @@ txs_input (text_node_t * txs, caddr_t * inst, caddr_t *state)
 	  if (txs->txs_is_driving)
 	    qn_record_in_state ((data_source_t *) txs, inst, state);
 
-	  if (!txs->src_gen.src_after_test
-	      || code_vec_run (txs->src_gen.src_after_test, inst))
+	  if (!txs->src_gen.src_after_test || code_vec_run (txs->src_gen.src_after_test, inst))
 	    {
 	      qn_send_output ((data_source_t *) txs, inst);
 	    }
@@ -4180,13 +4160,13 @@ bif_int_log2x16 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   ptrlong src = bif_long_arg (qst, args, 0, "int_log2x16");
   ptrlong res = 0;
   if (src <= 0)
-    return box_double (log10 (-1)); /* system-dependent NAN */
+    return box_double (log10 (-1));	/* system-dependent NAN */
   while (src >= 0x100)
     {
       src >>= 2;
       res += 32;
     }
-  return (caddr_t)(res + int_log2x16[src]); /* It's surely very small, less than 256 and positive */
+  return (caddr_t) (res + int_log2x16[src]);	/* It's surely very small, less than 256 and positive */
 }
 
 caddr_t
@@ -4195,7 +4175,7 @@ bif_vt_hit_dist_weight (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   /* given a cursor on a copy of vt_words, get the next chunk's d_id */
   ptrlong src = bif_long_arg (qst, args, 0, "vt_hit_dist_weight");
   src += 0x80;
-  return (caddr_t)(ptrlong)((src & ~0xFF) ? 1 : vt_hit_dist_weight[src]); /* It's surely very small, less than 256 and positive */
+  return (caddr_t) (ptrlong) ((src & ~0xFF) ? 1 : vt_hit_dist_weight[src]);	/* It's surely very small, less than 256 and positive */
 }
 
 void
@@ -4203,17 +4183,17 @@ text_init (void)
 {
   int x;
   for (x = 1; x < 0x100; x++)
-    int_log2x16[x] = (unsigned char)(floor (16 * log (x) / log (2)));
+    int_log2x16[x] = (unsigned char) (floor (16 * log (x) / log (2)));
   for (x = -0x80; x < 0x80; x++)
-    vt_hit_dist_weight[x + 0x80] = (unsigned char)(1 + floor ((VT_ZERO_DIST_WEIGHT-1) / (1 + (1.0 / (VT_HALF_FADE_DIST*VT_HALF_FADE_DIST)) * x * x)));
+    vt_hit_dist_weight[x + 0x80] =
+	(unsigned char) (1 + floor ((VT_ZERO_DIST_WEIGHT - 1) / (1 + (1.0 / (VT_HALF_FADE_DIST * VT_HALF_FADE_DIST)) * x * x)));
   wst_get_specs_mtx = mutex_allocate ();
-  bif_define ("vt_words_next_d_id", bif_vt_words_next_d_id );
+  bif_define ("vt_words_next_d_id", bif_vt_words_next_d_id);
   bif_define ("vt_batch_match", bif_vtb_match);
   bif_define ("vt_parse", bif_vt_parse);
   bif_define ("int_log2x16", bif_int_log2x16);
   bif_define ("vt_hit_dist_weight", bif_vt_hit_dist_weight);
-  dk_mem_hooks(DV_TEXT_SEARCH, box_non_copiable, (box_destr_f) sst_destroy, 0);
+  dk_mem_hooks (DV_TEXT_SEARCH, box_non_copiable, (box_destr_f) sst_destroy, 0);
   txs_qcr_rev_mtx = mutex_allocate ();
   qc_init ();
 }
-

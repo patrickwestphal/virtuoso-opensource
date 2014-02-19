@@ -67,36 +67,36 @@
 #endif
 
 typedef struct
-  {
-    char *key;
-    int validity;
-    char *value;
-  } dsn_tag;
+{
+  char *key;
+  int validity;
+  char *value;
+} dsn_tag;
 
 typedef struct rv_service_s
-  {
-    ServiceRecordSet coreServ;
-    struct rv_service_s *next;
-    int serviceID;
-    char *name;
-  } rv_service;
+{
+  ServiceRecordSet coreServ;
+  struct rv_service_s *next;
+  int serviceID;
+  char *name;
+} rv_service;
 
 typedef struct rv_ctx_s
-  {
-    mDNS dns;
-    mDNS_PlatformSupport platform;
-    rv_service *services;
-    int gServiceID;
+{
+  mDNS dns;
+  mDNS_PlatformSupport platform;
+  rv_service *services;
+  int gServiceID;
 
 #ifdef unix
-    /* semaphore to sync between main + aux threads */
-    semaphore_t *start_sema;
-    thread_t *thr;
-    int have_thread;
-    int stop;
-    int fd[2];
+  /* semaphore to sync between main + aux threads */
+  semaphore_t *start_sema;
+  thread_t *thr;
+  int have_thread;
+  int stop;
+  int fd[2];
 #endif
-  } rv_ctx;
+} rv_ctx;
 
 /* global list of publications */
 dk_set_t zeroconfig_entries = NULL;
@@ -114,34 +114,33 @@ static rv_ctx *_rv = NULL;
  *  the 3rd column is used for the replacement key (if any)
  *  to correct common mistakes
  */
-static dsn_tag dsn_tags[] =
-  {
-    { "Address",	DSN_INVALID, 	NULL },
-    { "Charset",	DSN_VALID, 	NULL },
-    { "Database",	DSN_VALID, 	NULL },
-    { "Daylight",	DSN_VALID, 	NULL },
-    { "DB",		DSN_VALID,	"Database" },
-    { "Description",	DSN_INVALID,	NULL },
-    { "Driver",		DSN_INVALID,	NULL },
-    { "DSN",		DSN_INVALID,	NULL },
-    { "Encrypt",	DSN_INVALID,	NULL },
-    { "Host",		DSN_INVALID,	NULL },
-    { "LastUser",	DSN_VALID,	"UID" },
-    { "NoLoginBox",	DSN_VALID,	NULL },
-    { "Password",	DSN_VALID,	"PWD" },
-    { "Persist",	DSN_VALID,	NULL },
-    { "PWD",		DSN_VALID,	NULL },
-    { "PWDClearText",	DSN_VALID,	NULL },
-    { "UID",		DSN_VALID,	NULL },
-    { "User",		DSN_VALID,	"UID" },
-    { "UserID",		DSN_VALID,	"UID" },
-    { "UserName",	DSN_VALID,	"UID" },
-    { "ZeroConf",	DSN_INVALID,	NULL },
-  };
+static dsn_tag dsn_tags[] = {
+  {"Address", DSN_INVALID},
+  {"Charset", DSN_VALID},
+  {"Database", DSN_VALID},
+  {"Daylight", DSN_VALID},
+  {"DB", DSN_VALID, "Database"},
+  {"Description", DSN_INVALID},
+  {"Driver", DSN_INVALID},
+  {"DSN", DSN_INVALID},
+  {"Encrypt", DSN_INVALID},
+  {"Host", DSN_INVALID},
+  {"LastUser", DSN_VALID, "UID"},
+  {"NoLoginBox", DSN_VALID},
+  {"Password", DSN_VALID, "PWD"},
+  {"Persist", DSN_VALID},
+  {"PWD", DSN_VALID},
+  {"PWDClearText", DSN_VALID},
+  {"UID", DSN_VALID},
+  {"User", DSN_VALID, "UID"},
+  {"UserID", DSN_VALID, "UID"},
+  {"UserName", DSN_VALID, "UID"},
+  {"ZeroConf", DSN_INVALID},
+};
 
 
 static void
-dsn_entry_validate (dsn_tag *key)
+dsn_entry_validate (dsn_tag * key)
 {
   dsn_tag *last = &dsn_tags[sizeof (dsn_tags) / sizeof (dsn_tag)];
   dsn_tag *base = dsn_tags;
@@ -164,9 +163,9 @@ dsn_entry_validate (dsn_tag *key)
 	  return;
 	}
       if (res < 0)
-        last = tag;
+	last = tag;
       else
-        base = tag + 1;
+	base = tag + 1;
     }
 
   key->validity = DSN_DONTCARE;
@@ -174,7 +173,7 @@ dsn_entry_validate (dsn_tag *key)
 
 
 void
-zeroconfig_reparse_dsn (zeroconfig_t *zc)
+zeroconfig_reparse_dsn (zeroconfig_t * zc)
 {
   dsn_tag tags[MAX_DSN_TAGS];
   char new_dsn[MAX_DSN_LENGTH + 1];
@@ -285,28 +284,20 @@ zeroconfig_reparse_dsn (zeroconfig_t *zc)
       switch (tag2->validity)
 	{
 	case DSN_TOOLONG:
-	  log (L_WARNING,
-	      " the '%s' attribute exceeds the maximum allowed length",
-	      tag2->key);
+	  log (L_WARNING, " the '%s' attribute exceeds the maximum allowed length", tag2->key);
 	  break;
 
 	case DSN_INVALID:
 	  if (tag2->key[0])
-	    log (L_WARNING,
-		" the '%s' attribute is not valid in this context",
-		tag2->key);
+	    log (L_WARNING, " the '%s' attribute is not valid in this context", tag2->key);
 	  break;
 
 	case DSN_DONTCARE:
-	  log (L_WARNING,
-	      " the '%s' attribute was not recognized (probably incorrect)",
-	      tag2->key);
+	  log (L_WARNING, " the '%s' attribute was not recognized (probably incorrect)", tag2->key);
 	  break;
 
 	case DSN_OBSOLETE:
-	  log (L_WARNING,
-	      " the '%s' attribute is obsolete",
-	      tag2->key);
+	  log (L_WARNING, " the '%s' attribute is obsolete", tag2->key);
 	  break;
 
 	default:
@@ -330,21 +321,6 @@ rendezvous_thread (void *arg)
   struct timeval timeout;
   int result;
   int wakeup;
-
-#if defined (HAVE_PTHREAD_SIGMASK)
-  sigset_t newset, oldset;
-
-  /*
-   *  This thread should not handle these signals
-   */
-  sigemptyset (&newset);
-  sigaddset (&newset, SIGINT);
-  sigaddset (&newset, SIGCHLD);
-  sigaddset (&newset, SIGQUIT);
-  sigaddset (&newset, SIGALRM);
-  sigaddset (&newset, SIGTERM);
-  pthread_sigmask (SIG_BLOCK, &newset, &oldset);
-#endif
 
 #ifdef RVDEBUG
   log (L_DEBUG, N_("ZeroConfig thread started"));
@@ -411,7 +387,7 @@ rendezvous_thread (void *arg)
 
 
 static void
-notify_rendezvous_changed (rv_ctx *ctx)
+notify_rendezvous_changed (rv_ctx * ctx)
 {
   char c = 1;
   write (ctx->fd[1], &c, 1);
@@ -423,10 +399,7 @@ notify_rendezvous_changed (rv_ctx *ctx)
 
 
 static void
-RegistrationCallback (
-    mDNS *const m,
-    ServiceRecordSet *const thisRegistration,
-    mStatus status)
+RegistrationCallback (mDNS * const m, ServiceRecordSet * const thisRegistration, mStatus status)
 {
   rv_service *thisServ;
 
@@ -451,21 +424,15 @@ RegistrationCallback (
       break;
 
     default:
-      log (L_ERR, N_("ZeroConfig registration %s failed (code %d)"),
-	  thisServ->name, status);
+      log (L_ERR, N_("ZeroConfig registration %s failed (code %d)"), thisServ->name, status);
       break;
     }
 }
 
 
 static int
-rendezvous_register (
-    void *arg,
-    const char *serviceName,
-    const char *serviceType,
-    const char *domainName,
-    const char *text,
-    unsigned short portNumber)
+rendezvous_register (void *arg,
+    const char *serviceName, const char *serviceType, const char *domainName, const char *text, unsigned short portNumber)
 {
   rv_ctx *ctx = (rv_ctx *) arg;
   mStatus status;
@@ -491,22 +458,15 @@ rendezvous_register (
   textLen = strlen (text);
   if (textLen >= maxTextLen)
     {
-      log (L_ERR,
-      	  N_("the ZeroConfig registration for %s is too long (max. %d)"),
-	  serviceName, (int) maxTextLen);
+      log (L_ERR, N_("the ZeroConfig registration for %s is too long (max. %d)"), serviceName, (int) maxTextLen);
       textLen = maxTextLen - 1;
     }
   memcpy (&dsnText[1], text, textLen);
   dsnText[0] = (unsigned char) textLen;
 
   mDNSPlatformLock (&ctx->dns);
-  status = mDNS_RegisterService (
-      &ctx->dns, &thisServ->coreServ,
-      &name, &type, &domain,
-      NULL,
-      port,
-      dsnText, (unsigned short) textLen + 1,
-      RegistrationCallback, thisServ);
+  status = mDNS_RegisterService (&ctx->dns, &thisServ->coreServ,
+      &name, &type, &domain, NULL, port, dsnText, (unsigned short) textLen + 1, RegistrationCallback, thisServ);
   mDNSPlatformUnlock (&ctx->dns);
 
   if (status != mStatus_NoError)
@@ -527,16 +487,15 @@ rendezvous_register (
 
 
 static void
-register_services (rv_ctx *ctx)
+register_services (rv_ctx * ctx)
 {
   DO_SET (zeroconfig_t *, zc, &zeroconfig_entries)
-    {
-      if (!zc->zc_checked)
-	zeroconfig_reparse_dsn (zc);
-      if (zc->zc_checked)
-	rendezvous_register (ctx,
-	    zc->zc_name, "_virtuoso._tcp.", "local.", zc->zc_dsn, zc->zc_port);
-    }
+  {
+    if (!zc->zc_checked)
+      zeroconfig_reparse_dsn (zc);
+    if (zc->zc_checked)
+      rendezvous_register (ctx, zc->zc_name, "_virtuoso._tcp.", "local.", zc->zc_dsn, zc->zc_port);
+  }
   END_DO_SET ();
 
   notify_rendezvous_changed (ctx);
@@ -589,14 +548,10 @@ start_rendezvous (void)
   ctx->platform.advertise = mDNS_Init_AdvertiseLocalAddresses;
 #endif
 
-  status = mDNS_Init (
-      &ctx->dns,
+  status = mDNS_Init (&ctx->dns,
       &ctx->platform,
       mDNS_Init_NoCache,
-      mDNS_Init_ZeroCacheSize,
-      mDNS_Init_AdvertiseLocalAddresses,
-      mDNS_Init_NoInitCallback,
-      mDNS_Init_NoInitCallbackContext);
+      mDNS_Init_ZeroCacheSize, mDNS_Init_AdvertiseLocalAddresses, mDNS_Init_NoInitCallback, mDNS_Init_NoInitCallbackContext);
 
   if (status != mStatus_NoError)
     {

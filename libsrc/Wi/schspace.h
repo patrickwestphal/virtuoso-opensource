@@ -29,11 +29,11 @@
 #define DBG_HASHEXT_NAME(name) DBG_NAME(name)
 
 id_hash_t *DBG_HASHEXT_NAME (id_casemode_hash_create) (DBG_PARAMS id_hashed_key_t buckets);
-void DBG_HASHEXT_NAME (id_casemode_hash_copy) (DBG_PARAMS id_hash_t *to, id_hash_t * from);
-void DBG_HASHEXT_NAME(id_casemode_hash_free) (DBG_PARAMS id_hash_t * hash);
-caddr_t DBG_HASHEXT_NAME(id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o, caddr_t data);
+void DBG_HASHEXT_NAME (id_casemode_hash_copy) (DBG_PARAMS id_hash_t * to, id_hash_t * from);
+void DBG_HASHEXT_NAME (id_casemode_hash_free) (DBG_PARAMS id_hash_t * hash);
+caddr_t DBG_HASHEXT_NAME (id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o, caddr_t data);
 caddr_t id_casemode_hash_get (id_hash_t * ht, caddr_t _qn, caddr_t _o);
-int DBG_HASHEXT_NAME(id_casemode_hash_remove) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o);
+int DBG_HASHEXT_NAME (id_casemode_hash_remove) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o);
 
 #ifdef MALLOC_DEBUG
 #define id_casemode_hash_create(buckets) \
@@ -50,8 +50,7 @@ int DBG_HASHEXT_NAME(id_casemode_hash_remove) (DBG_PARAMS id_hash_t * ht, caddr_
 
 void *sch_name_to_object (struct dbe_schema_s *sc, sc_object_type type, const char *name, char *q_def, char *o_default,
     int find_many);
-void * sch_name_to_object_sc (struct dbe_schema_s* sc, sc_object_type type, char *o_default,
-    char *o, char *qn, int find_many);
+void *sch_name_to_object_sc (struct dbe_schema_s *sc, sc_object_type type, char *o_default, char *o, char *qn, int find_many);
 
 typedef struct id_casemode_entry_llist_s
 {

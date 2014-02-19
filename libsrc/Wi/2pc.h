@@ -147,12 +147,10 @@ struct query_instance_s;
 struct lock_trx_s;
 struct tp_dtrx_s;
 
-typedef int (*enlist_func_t) (struct rds_connection_s * rcon,
-    struct query_instance_s * qi);
+typedef int (*enlist_func_t) (struct rds_connection_s * rcon, struct query_instance_s * qi);
 typedef int (*commit_func_1_t) (struct lock_trx_s * lt, int is_commit);
 typedef int (*commit_func_2_t) (caddr_t distr_trx, int is_commit);
-typedef int (*exclude_func_t) (struct lock_trx_s * lt,
-    struct rds_connection_s * rcon);
+typedef int (*exclude_func_t) (struct lock_trx_s * lt, struct rds_connection_s * rcon);
 typedef void (*dealloc_func_t) (struct tp_dtrx_s * dtrx);
 
     /* transaction flow management */
@@ -207,7 +205,7 @@ tp_future_t;
 typedef struct tp_message_s
 {
   int mm_type;			/* abort or commit */
-  tp_future_t * mm_resource;
+  tp_future_t *mm_resource;
   struct lock_trx_s *mm_trx;
   struct tp_data_s *mm_tp_data;
   queue_vtbl_t *vtbl;
@@ -257,8 +255,7 @@ typedef unsigned long virt_trx_id_t;
 typedef unsigned long virt_branch_id_t;
 struct virt_trx_s;
 struct virt_rcon_s;
-typedef struct virt_rcon_s *(*virt_branch_factory_t) (struct virt_trx_s *
-    vtrx);
+typedef struct virt_rcon_s *(*virt_branch_factory_t) (struct virt_trx_s * vtrx);
 typedef int tp_result_t;
 
 typedef struct virt_rcon_s
@@ -319,8 +316,7 @@ void tp_queue_free (tp_queue_t * queue);
 int tp_message_hook (void *queue);
 void tp_data_free (tp_data_t * tpd);
 void tp_main_queue_init (void);
-EXE_EXPORT (tp_message_t *, mq_create_message, (int type,
-	void *enlistment, void *client_connection));
+EXE_EXPORT (tp_message_t *, mq_create_message, (int type, void *enlistment, void *client_connection));
 tp_message_t *mq_create_xa_message (int type, void *enlistment, void *tpd);
 EXE_EXPORT (void, mq_add_message, (tp_queue_t * mq, void *message));
 EXE_EXPORT (tp_queue_t *, tp_get_main_queue, (void));
@@ -334,8 +330,7 @@ EXE_EXPORT (void, twopc_log, (int log_level, char *message));
 int lt_2pc_prepare (struct lock_trx_s *lt);
 
 tp_dtrx_t *virt_trx_allocate (void);
-caddr_t tp_add_enlisted_connection (struct dk_session_s *ses,
-    dtransact_id_t * trx);
+caddr_t tp_add_enlisted_connection (struct dk_session_s *ses, dtransact_id_t * trx);
 dtransact_id_t *dtransact_id_allocate (void);
 void virt_tp_store_connections (struct lock_trx_s *lt);
 extern tp_queue_t *tp_main_queue;
@@ -388,7 +383,7 @@ void virt_xa_remove_xid (void *xid);
 void *virt_xa_id (char *xid_str);
 caddr_t virt_xa_xid_in_log (void *xid);
 int virt_xa_replay_trx (void *xid, caddr_t trx, struct client_connection_s *cli);
-int virt_xa_add_trx (void *xid, struct lock_trx_s * lt);
+int virt_xa_add_trx (void *xid, struct lock_trx_s *lt);
 
 int xa_wait_commit (struct tp_data_s *tpd);
 /* #endif _MTX_ */
@@ -427,6 +422,5 @@ void virt_xa_tp_set_xid (tp_data_t * tpd, void *xid);
        ((qi)->qi_client->cli_tp_data && \
 	(CONNECTION_ENLISTED == (qi)->qi_client->cli_tp_data->cli_tp_enlisted)) )
 
-EXE_EXPORT (int, server_logmsg_ap, (int level, char *file, int line, int mask,
-	char *format, va_list ap));
+EXE_EXPORT (int, server_logmsg_ap, (int level, char *file, int line, int mask, char *format, va_list ap));
 #endif /* TPC_H */

@@ -28,13 +28,14 @@
 
 #include "sqlnode.h"
 
-typedef struct d_id_u {
-  dtp_t	id[32];
+typedef struct d_id_u
+{
+  dtp_t id[32];
 } d_id_t;
 
 
-#define D_ID_64 0xfd /*marks that the next 8 bytes are a 8 byte numeric d_id */
-#define D_ID32_MAX 0xfcffffff /* if unsigned int32 gt this, it is 64 */
+#define D_ID_64 0xfd		/*marks that the next 8 bytes are a 8 byte numeric d_id */
+#define D_ID32_MAX 0xfcffffff	/* if unsigned int32 gt this, it is 64 */
 
 #define D_ID_NUM_REF(place) \
   (  (((dtp_t*)(place))[0] == D_ID_64) \
@@ -54,14 +55,14 @@ typedef struct d_id_u {
 
 
 #ifndef FREETEXT_PORTABILITY_TEST
-typedef uint32 wpos_t; /* was uint32, then ptrlong then back to uint32 */
+typedef uint32 wpos_t;		/* was uint32, then ptrlong then back to uint32 */
 #define HUGE_WPOS_T 0xFFFFFFf0U
-#define NEAR_DIST 100			/* Must be <= 0x7F */
+#define NEAR_DIST 100		/* Must be <= 0x7F */
 #define HUGE_DIST 0x00FFFFFFU
 #else
 typedef unsigned short wpos_t;
 #define HUGE_WPOS_T 0xFFf0U
-#define NEAR_DIST 100			/* Must be <= 0x7F */
+#define NEAR_DIST 100		/* Must be <= 0x7F */
 #define HUGE_DIST 0x00FFU
 #endif
 
@@ -70,49 +71,49 @@ typedef unsigned short wpos_t;
 
 
 typedef struct wp_hit_s
-  {
-    wpos_t		h_1;
-    wpos_t		h_2;
-  } wp_hit_t;
+{
+  wpos_t h_1;
+  wpos_t h_2;
+} wp_hit_t;
 
 
 #define REL_PROXIMITY 1
 
 
 typedef struct word_rel_s
-  {
-    int				wrl_op;
-    struct search_stream_s *	wrl_sst;
-    int				wrl_pos;
-    d_id_t			wrl_d_id;
-    int				wrl_is_and;  /* if that and the related are AND'ed single word streams */
-    int				wrl_dist;
-    int				wrl_is_dist_fixed;
-    int				wrl_is_lefttoright;
-    wp_hit_t *			wrl_hits;
-    int				wrl_max_hits;
-    int				wrl_hit_fill;
-    int				wrl_score;
-  } word_rel_t;
+{
+  int wrl_op;
+  struct search_stream_s *wrl_sst;
+  int wrl_pos;
+  d_id_t wrl_d_id;
+  int wrl_is_and;		/* if that and the related are AND'ed single word streams */
+  int wrl_dist;
+  int wrl_is_dist_fixed;
+  int wrl_is_lefttoright;
+  wp_hit_t *wrl_hits;
+  int wrl_max_hits;
+  int wrl_hit_fill;
+  int wrl_score;
+} word_rel_t;
 
 
 typedef struct word_range_s
-  {
-    wpos_t	r_start;
-    wpos_t	r_end;
-  } word_range_t;
+{
+  wpos_t r_start;
+  wpos_t r_end;
+} word_range_t;
 
 
 /* Translation context for sst_from_tree and similar */
 struct sst_tctx_s
 {
-  query_instance_t	*tctx_qi;
-  dbe_table_t		*tctx_table;
-  struct vt_batch_s	*tctx_vtb;		/* batch used to find all words in the interval */
-  ptrlong		tctx_calc_score;	/* Compile tree to enable accurate calculation of scores */
-  ptrlong		tctx_range_flags;	/* Flags related to shift_4_xxx, WR-optimization, attribute indexing etc. */
-  caddr_t		tctx_end_id;		/* do not seek beyond this in created word streams */
-  int			tctx_descending;	/* created search streams should return results in descending order */
+  query_instance_t *tctx_qi;
+  dbe_table_t *tctx_table;
+  struct vt_batch_s *tctx_vtb;	/* batch used to find all words in the interval */
+  ptrlong tctx_calc_score;	/* Compile tree to enable accurate calculation of scores */
+  ptrlong tctx_range_flags;	/* Flags related to shift_4_xxx, WR-optimization, attribute indexing etc. */
+  caddr_t tctx_end_id;		/* do not seek beyond this in created word streams */
+  int tctx_descending;		/* created search streams should return results in descending order */
 };
 
 typedef struct sst_tctx_s sst_tctx_t;
@@ -146,28 +147,27 @@ typedef struct sst_tctx_s sst_tctx_t;
     caddr_t		sst_error;
 
 
-#define VT_DATA_MAX_DOC_STRINGS (2048 / 6) /* 300 max d_id's in a VT_DATA chunk, 2KB / 6 */
+#define VT_DATA_MAX_DOC_STRINGS (2048 / 6)	/* 300 max d_id's in a VT_DATA chunk, 2KB / 6 */
 
 struct word_stream_s
-  {
-    SST_COMMON
-    query_instance_t *	wst_qi;
-    dbe_table_t *	wst_table;
-    it_cursor_t *	wst_itc;
-    caddr_t		wst_word;
-    d_id_t		wst_first_d_id;
-    d_id_t		wst_last_d_id;
-    d_id_t		wst_seek_target;
-    caddr_t		wst_seek_target_box;
-    int			wst_reset_reason;
-    caddr_t *		wst_word_strings;
-    int			wst_nth_word_string;
-    d_id_t		wst_end_id; /* do not seek beyond this */
-    cl_req_group_t *	wst_clrg;
-    cl_host_t *		wst_host;
-    basket_t		wst_cl_word_strings; /* prefetched consecutive word strings from cluster */
-    char		wst_all_fetched; /* all stuff is in word strings */
-    char		wst_fixed_d_id; /* only the id sought  for and no other will do */
+{
+  SST_COMMON query_instance_t * wst_qi;
+  dbe_table_t *wst_table;
+  it_cursor_t *wst_itc;
+  caddr_t wst_word;
+  d_id_t wst_first_d_id;
+  d_id_t wst_last_d_id;
+  d_id_t wst_seek_target;
+  caddr_t wst_seek_target_box;
+  int wst_reset_reason;
+  caddr_t *wst_word_strings;
+  int wst_nth_word_string;
+  d_id_t wst_end_id;		/* do not seek beyond this */
+  cl_req_group_t *wst_clrg;
+  cl_host_t *wst_host;
+  basket_t wst_cl_word_strings;	/* prefetched consecutive word strings from cluster */
+  char wst_all_fetched;		/* all stuff is in word strings */
+  char wst_fixed_d_id;		/* only the id sought  for and no other will do */
 };
 
 typedef struct word_stream_s word_stream_t;
@@ -191,11 +191,10 @@ typedef struct word_stream_s word_stream_t;
 #define SRC_ERROR -1
 
 struct search_stream_s
-  {
-    SST_COMMON
-    struct search_stream_s **	sst_terms;
-    dk_set_t			sst_not;
-    dk_set_t			sst_near_group_firsts;
+{
+  SST_COMMON struct search_stream_s **sst_terms;
+  dk_set_t sst_not;
+  dk_set_t sst_near_group_firsts;
 };
 
 typedef struct search_stream_s search_stream_t;
@@ -277,13 +276,13 @@ struct wst_search_specs_s
   search_spec_t wst_next_spec[2];
   search_spec_t wst_next_d_id_spec[2];
 
-  key_spec_t	wst_ks_init;
-  key_spec_t	wst_ks_seek;
-  key_spec_t	wst_ks_seek_asc_seq;
-  key_spec_t	wst_ks_range;
-  key_spec_t	wst_ks_next;
-  key_spec_t	wst_ks_next_d_id;
-  out_map_t *	wst_out_map; /* cols returned from cluster read of a words table */
+  key_spec_t wst_ks_init;
+  key_spec_t wst_ks_seek;
+  key_spec_t wst_ks_seek_asc_seq;
+  key_spec_t wst_ks_range;
+  key_spec_t wst_ks_next;
+  key_spec_t wst_ks_next_d_id;
+  out_map_t *wst_out_map;	/* cols returned from cluster read of a words table */
 };
 
 typedef struct wst_search_specs_s wst_search_specs_t;
@@ -295,7 +294,7 @@ dk_set_t vt_string_words  ( char *string, char * extra);
 
 #define WST_WILDCARD_MAX 100000
 
-search_stream_t * sst_from_tree (sst_tctx_t *tctx, caddr_t * tree);
+search_stream_t *sst_from_tree (sst_tctx_t * tctx, caddr_t * tree);
 
 /* #define TA_SST_USE_VTB 1011
 #define TA_SST_DESC_ORDER 1012
@@ -316,7 +315,7 @@ int sst_ranges (search_stream_t * sst, d_id_t * d_id, wpos_t from, wpos_t to, in
 void sst_range_lists (search_stream_t * sst, dk_set_t * main_ranges, dk_set_t * attr_ranges);
 
 #if 0
-int string_word_count (char * string);
+int string_word_count (char *string);
 #endif
 
 void d_id_set_box (d_id_t * d_id, caddr_t box);
@@ -324,22 +323,22 @@ void d_id_set (d_id_t * to, d_id_t * from);
 caddr_t box_d_id (d_id_t * d_id);
 int d_id_cmp (d_id_t * d1, d_id_t * d2);
 
-extern int dbg_print_wpos_aux (FILE *out, wpos_t elt);
-extern void dbg_print_d_id_aux (FILE *out, d_id_t *d_id_buf_ptr);
+extern int dbg_print_wpos_aux (FILE * out, wpos_t elt);
+extern void dbg_print_d_id_aux (FILE * out, d_id_t * d_id_buf_ptr);
 
 
-extern long  tft_random_seek;
-extern long  tft_seq_seek;
+extern long tft_random_seek;
+extern long tft_seq_seek;
 
-wst_search_specs_t * wst_get_specs (dbe_key_t *key);
+wst_search_specs_t *wst_get_specs (dbe_key_t * key);
 int wst_chunk_scan (word_stream_t * wst, db_buf_t chunk, int chunk_len);
 
 void wst_cl_start (word_stream_t * wst);
 void wst_cl_locate (word_stream_t * wst);
 void wst_cl_next (word_stream_t * wst);
-search_stream_t * wst_from_word (sst_tctx_t *tctx, ptrlong range_flags, const char *word);
-search_stream_t * wst_cl_from_range (sst_tctx_t *tctx, ptrlong range_flags, const char * word, caddr_t lower, caddr_t higher);
-search_stream_t * wst_from_wsts (sst_tctx_t *tctx, ptrlong range_flags, dk_set_t wsts);
+search_stream_t *wst_from_word (sst_tctx_t * tctx, ptrlong range_flags, const char *word);
+search_stream_t *wst_cl_from_range (sst_tctx_t * tctx, ptrlong range_flags, const char *word, caddr_t lower, caddr_t higher);
+search_stream_t *wst_from_wsts (sst_tctx_t * tctx, ptrlong range_flags, dk_set_t wsts);
 
 #define NEW_SST(dt, v) \
   dt * v = (dt *) dk_alloc_box_zero (sizeof (dt), DV_TEXT_SEARCH);

@@ -46,7 +46,7 @@ typedef uint32 dp_addr_t;	/* must be exactly 32 bits wide */
  */
 #define DP_ADDR2VOID(x)	((void *) (unsigned ptrlong) (x))
 
-typedef unsigned char * db_buf_t;
+typedef unsigned char *db_buf_t;
 
 #define PAGE_SZ			8192
 #define KILOS_PER_PAGE (PAGE_SZ/1024)
@@ -59,10 +59,10 @@ typedef unsigned char * db_buf_t;
 #define LONGS_ON_PAGE		(PAGE_DATA_SZ / sizeof (dp_addr_t))
 #define REMAPS_ON_PAGE		(LONGS_ON_PAGE / 2)
 
-#define MAX_RULING_PART_BYTES	1900 /* the length of the leaf pointer not including the leaf pointer headers */
-#define MAX_ROW_BYTES		(((PAGE_DATA_SZ / 2) / 4) * 4) /* Must be < half of PAGE_DATA_SZ */
+#define MAX_RULING_PART_BYTES	1900	/* the length of the leaf pointer not including the leaf pointer headers */
+#define MAX_ROW_BYTES		(((PAGE_DATA_SZ / 2) / 4) * 4)	/* Must be < half of PAGE_DATA_SZ */
 #define ROW_MAX_DATA  (MAX_ROW_BYTES - IE_FIRST_KEY)
-#define ROW_MAX_COL_BYTES 	(ROW_MAX_DATA - 10) /*GK: 10 is arbitrary, should be reconsidered */
+#define ROW_MAX_COL_BYTES 	(ROW_MAX_DATA - 10)	/*GK: 10 is arbitrary, should be reconsidered */
 #define MAX_HASH_TEMP_ROW_BYTES (PAGE_DATA_SZ - 20)
 
 /*
@@ -78,11 +78,11 @@ typedef unsigned char * db_buf_t;
 #define DP_PARENT		(2 * sizeof (dp_addr_t))
 #define DP_RIGHT_INSERTS	(3 * sizeof (dp_addr_t))
 #define DP_LAST_INSERT		(3 * sizeof (dp_addr_t) + 2)
-#define DP_COL_LOWEST_INS DP_RIGHT_INSERTS /* for col page, lowest row no inserted w/o compression */
-#define DP_COL_N_NON_COMP_INS  DP_LAST_INSERT /* for col page, count of uncomporessed inserted col values  */
-#define DP_KEY_ID		(4 * sizeof (dp_addr_t))  /* overlaps with the blob len since only occurs in DPF_INDEX pages.  4 bytes */
+#define DP_COL_LOWEST_INS DP_RIGHT_INSERTS	/* for col page, lowest row no inserted w/o compression */
+#define DP_COL_N_NON_COMP_INS  DP_LAST_INSERT	/* for col page, count of uncomporessed inserted col values  */
+#define DP_KEY_ID		(4 * sizeof (dp_addr_t))	/* overlaps with the blob len since only occurs in DPF_INDEX pages.  4 bytes */
 
-#define DP_BLOB_DIR (1 * sizeof (dp_addr_t)) /* overlap with index page comp overflow since blobs compressed stream wise if at all */
+#define DP_BLOB_DIR (1 * sizeof (dp_addr_t))	/* overlap with index page comp overflow since blobs compressed stream wise if at all */
 #define DP_BLOB_TS		(2 * sizeof (dp_addr_t))
 #define DP_BLOB_LEN		(3 * sizeof (dp_addr_t))
 #define DP_OVERFLOW		(4 * sizeof (dp_addr_t))
@@ -124,16 +124,16 @@ typedef unsigned char * db_buf_t;
 
 
 
-#define DPF_GZIP 32 /* if gzipped, this is ored to DP_FLAGS */
-#define DPF_COMP_OVERFLOWED 64 /* if set, no compression was made and the rest of the page is on the comp overflow.  The 2 bytes lost are in the comp len on this page. */
+#define DPF_GZIP 32		/* if gzipped, this is ored to DP_FLAGS */
+#define DPF_COMP_OVERFLOWED 64	/* if set, no compression was made and the rest of the page is on the comp overflow.  The 2 bytes lost are in the comp len on this page. */
 
-#define DP_COMP_HEAD_LEN 4 /* 2 bytes for DP_FLAGS and 2 for DP_COMP_LEN */
+#define DP_COMP_HEAD_LEN 4	/* 2 bytes for DP_FLAGS and 2 for DP_COMP_LEN */
 
 /*
  * Reference to disk page data
  */
 
-#define HASH_HEAD_LEN 6 /* 4 for next in bucket dp and 2 for next in bucket pos */
+#define HASH_HEAD_LEN 6		/* 4 for next in bucket dp and 2 for next in bucket pos */
 #define HH_NEXT_DP 0
 #define HH_NEXT_POS 4
 
@@ -234,6 +234,7 @@ typedef unsigned char * db_buf_t;
   *((int32*) (p)) = (l)
 
 
+
 #define LONG_REF(p) \
   (* ((int32*) (p)))
 
@@ -286,7 +287,7 @@ typedef unsigned char * db_buf_t;
 
 #define IE_KEY_VERSION_OFF		0
 #define IE_ROW_VERSION_OFF		1
-#define LD_LEAF 2 /* position of leaf pointer in KV_LEFT_DUMMY */
+#define LD_LEAF 2		/* position of leaf pointer in KV_LEFT_DUMMY */
 #define IE_FIRST_KEY		2
 
 #define IE_FLAGS(ie)		(((dtp_t *) (ie))[IE_KEY_VERSION_OFF])
@@ -323,78 +324,78 @@ typedef unsigned char * db_buf_t;
    (ses).dks_in_fill = len )
 
 
-typedef struct wi_database_s	wi_database_t;
-typedef struct disk_stripe_s	disk_stripe_t;
-typedef struct disk_segment_s	disk_segment_t;
-typedef struct log_segment_s	log_segment_t;
+typedef struct wi_database_s wi_database_t;
+typedef struct disk_stripe_s disk_stripe_t;
+typedef struct disk_segment_s disk_segment_t;
+typedef struct log_segment_s log_segment_t;
 typedef struct io_queue_s io_queue_t;
 
 #define BACKUP_PREFIX_SZ	32
 #define DBS_NAME_MAX_LEN 32
 
 struct wi_database_s
-  {
-    dp_addr_t		db_extent_set;
-    dp_addr_t		db_checkpoint_root;
-    dp_addr_t		db_free_set;
-    dp_addr_t		db_incbackup_set;
-    dp_addr_t		db_registry;
-    dp_addr_t		db_checkpoint_map;
-    dp_addr_t		db_last_id;
-    char		db_ver[12];
-    char		db_generic[12];
-    /* backup info */
-    char		db_bp_prfx[BACKUP_PREFIX_SZ];
-    dp_addr_t		db_bp_ts;
-    dp_addr_t		db_bp_num;
-    dp_addr_t		db_bp_pages;
-    dp_addr_t		db_bp_date;
-    /* byte order */
-    char		db_byte_order;
-    /* backup info again */
-    dp_addr_t		db_bp_index;
-    dp_addr_t		db_bp_wr_bytes;
-    /* cluster */
-    int32	db_host_id;	/* this db file set belongs to host nn */
-    int32	db_stripe_unit;
-    int32	db_extent_size;
-    int32	db_initial_gen;
-    char	db_cpt_dt[10]; /* DT_LENGTH bytes for datetime of checkpoint */
-    int32	db_slice;
-    int32	db_nth_replica;
-    int32	db_slice_status;
-    char	db_dbs_name[DBS_NAME_MAX_LEN];
-    char 	db_id[16];
-  };
+{
+  dp_addr_t db_extent_set;
+  dp_addr_t db_checkpoint_root;
+  dp_addr_t db_free_set;
+  dp_addr_t db_incbackup_set;
+  dp_addr_t db_registry;
+  dp_addr_t db_checkpoint_map;
+  dp_addr_t db_last_id;
+  char db_ver[12];
+  char db_generic[12];
+  /* backup info */
+  char db_bp_prfx[BACKUP_PREFIX_SZ];
+  dp_addr_t db_bp_ts;
+  dp_addr_t db_bp_num;
+  dp_addr_t db_bp_pages;
+  dp_addr_t db_bp_date;
+  /* byte order */
+  char db_byte_order;
+  /* backup info again */
+  dp_addr_t db_bp_index;
+  dp_addr_t db_bp_wr_bytes;
+  /* cluster */
+  int32 db_host_id;		/* this db file set belongs to host nn */
+  int32 db_stripe_unit;
+  int32 db_extent_size;
+  int32 db_initial_gen;
+  char db_cpt_dt[10];		/* DT_LENGTH bytes for datetime of checkpoint */
+  int32 db_slice;
+  int32 db_nth_replica;
+  int32 db_slice_status;
+  char db_dbs_name[DBS_NAME_MAX_LEN];
+  char db_id[16];
+};
 
-#define DBS_INCOMPLETE 1 /*being copied or being created by split, can't open */
+#define DBS_INCOMPLETE 1	/*being copied or being created by split, can't open */
 
 
 struct disk_stripe_s
-  {
-    disk_stripe_t *	dst_next; /* list of all stripes */
-    dk_mutex_t *	dst_mtx;
-    semaphore_t *	dst_sem;
-    char *		dst_file;
-    int *		dst_fds;
-    int			dst_fd_fill;
-    io_queue_t *	dst_iq;
-    caddr_t		dst_iq_id;
-  };
+{
+  disk_stripe_t *dst_next;	/* list of all stripes */
+  dk_mutex_t *dst_mtx;
+  semaphore_t *dst_sem;
+  char *dst_file;
+  int *dst_fds;
+  int dst_fd_fill;
+  io_queue_t *dst_iq;
+  caddr_t dst_iq_id;
+};
 
 struct disk_segment_s
-  {
-    disk_stripe_t **	ds_stripes;
-    int			ds_n_stripes;
-    long		ds_size;
-  };
+{
+  disk_stripe_t **ds_stripes;
+  int ds_n_stripes;
+  long ds_size;
+};
 
 struct log_segment_s
-  {
-    caddr_t		ls_file;
-    unsigned long	ls_bytes;
-    log_segment_t *	ls_next;
-  };
+{
+  caddr_t ls_file;
+  unsigned long ls_bytes;
+  log_segment_t *ls_next;
+};
 
 
 extern int c_use_o_direct;

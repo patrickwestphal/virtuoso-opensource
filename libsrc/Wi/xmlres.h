@@ -47,7 +47,7 @@ struct xv_dtd_builder_s
   dk_hash_t *xd_dict_lookup;	/*!< \brief For each id in xd_dict, it contains its xv_dtd_id_t * */
   long xd_output_len;		/*!< \brief Limit of resulting DTD length, for alloc of buffer */
   int xd_countof_names;		/*!< \brief Limit of number of names, for allocs of masks' arrays */
- };
+};
 
 typedef struct xv_dtd_builder_s xv_dtd_builder_t;
 
@@ -80,27 +80,27 @@ typedef struct xv_schema_xsdtype_s xv_schema_xsdtype_t;
 
 typedef struct xre_col_s
 {
-  long		xrc_no;
-  caddr_t	xrc_name;
-  long		xrc_format;
-  xv_schema_xsdtype_t *xrc_xsdtype; /*! \brief Type information, stored in box of type DV_STRING */
+  long xrc_no;
+  caddr_t xrc_name;
+  long xrc_format;
+  xv_schema_xsdtype_t *xrc_xsdtype;	/*! \brief Type information, stored in box of type DV_STRING */
 } xre_col_t;
 
 
 typedef struct xr_element_s
 {
-  long		xre_tag_no;
-  caddr_t	xre_element;
-  xre_col_t **	xre_cols;
+  long xre_tag_no;
+  caddr_t xre_element;
+  xre_col_t **xre_cols;
 } xr_element_t;
 
 
 typedef struct xres_state_t
 {
-  int		xr_mode;
-  xr_element_t **	xr_elements;
-  dk_set_t	xr_open; /* innermost first */
-  caddr_t *	xr_row;
+  int xr_mode;
+  xr_element_t **xr_elements;
+  dk_set_t xr_open;		/* innermost first */
+  caddr_t *xr_row;
 } xr_state_t;
 
 #endif /* _XMLRES_H */

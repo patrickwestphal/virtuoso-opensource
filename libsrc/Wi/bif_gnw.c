@@ -30,8 +30,7 @@
 #include "sqlbif.h"
 
 
-static char *bif_aux_base64chars =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
+static char *bif_aux_base64chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
 
 
 char *crypt (const char *pw, const char *salt);
@@ -51,14 +50,14 @@ bif_aux_encode_n_sextets_to_base64 (unsigned long int x, int n_sextets, char *de
 #ifdef OTHER_WAY_WOULD_BE_LIKE_THIS	/* That we do not use now. */
   while (i < n_sextets)
     {
-      dest_space[i++] = bif_aux_base64chars[(x & 077)];		/* Index between 0 and 63 */
+      dest_space[i++] = bif_aux_base64chars[(x & 077)];	/* Index between 0 and 63 */
       x >>= 6;			/* Shift off six lowermost bits. */
     }
 #else
   i = n_sextets;
   while (i)
     {
-      dest_space[--i] = bif_aux_base64chars[(x & 077)];		/* Index between 0 and 63 */
+      dest_space[--i] = bif_aux_base64chars[(x & 077)];	/* Index between 0 and 63 */
       x >>= 6;			/* Shift off six lowermost bits. */
     }
 #endif
@@ -105,13 +104,12 @@ bif_crypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       long salt_n = unbox (salt);
       salt_str = bif_aux_encode_n_sextets_to_base64 (salt_n, 2, salt_space);
     }
-  else /* if (NOT is_some_sort_of_a_string (salt_type)) */
+  else				/* if (NOT is_some_sort_of_a_string (salt_type)) */
     {
       sqlr_new_error ("21S01", "SR096",
 	  "Function crypt needs a string or integer as its second argument."
-	  " Not an arg of type %s (%d)",
-	  dv_type_title (salt_type), salt_type);
-      salt_str = ""; /* make cc happy */
+	  " Not an arg of type %s (%d)", dv_type_title (salt_type), salt_type);
+      salt_str = "";		/* make cc happy */
     }
 
   /* We borrow here time_mtx for other purposes, because crypt returns
@@ -203,9 +201,7 @@ bif_decode_to_intvec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   if ((out_width_in_bits < 1) || (out_width_in_bits > 32))
     {
-      sqlr_new_error ("21S01", "GN002",
-	  "Function decode_to_intvec needs as its third argument "
-	  "an integer between 1 - 32");
+      sqlr_new_error ("21S01", "GN002", "Function decode_to_intvec needs as its third argument " "an integer between 1 - 32");
     }
 
   if (NULL == in_string)
@@ -269,10 +265,10 @@ bif_decode_to_intvec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 void
 bif_gnw_init (void)
 {
-  bif_define_typed ("datestringGMT", bif_datestringGMT, & bt_varchar);
-  bif_define_typed ("decode_to_intvec", bif_decode_to_intvec, & bt_any);
+  bif_define_typed ("datestringGMT", bif_datestringGMT, &bt_varchar);
+  bif_define_typed ("decode_to_intvec", bif_decode_to_intvec, &bt_any);
 
 #ifdef UNIX
-  bif_define_typed ("unix_crypt", bif_crypt, & bt_varchar);
+  bif_define_typed ("unix_crypt", bif_crypt, &bt_varchar);
 #endif
 }

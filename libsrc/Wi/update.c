@@ -73,8 +73,7 @@ upd_mark_change (dbe_table_t * tb, oid_t col, dk_set_t * keys)
 #define COL_MISC -2
 
 int
-upd_col_to_update (update_node_t * upd, dbe_column_t * col, caddr_t * state,
-		   dbe_table_t * row_tb, int is_rec)
+upd_col_to_update (update_node_t * upd, dbe_column_t * col, caddr_t * state, dbe_table_t * row_tb, int is_rec)
 {
   if (!upd->upd_cols_param)
     {
@@ -98,7 +97,7 @@ upd_col_to_update (update_node_t * upd, dbe_column_t * col, caddr_t * state,
 
 
 int
-upd_n_cols  (update_node_t * upd, caddr_t * state)
+upd_n_cols (update_node_t * upd, caddr_t * state)
 {
   if (!upd->upd_values_param)
     return (BOX_ELEMENTS (upd->upd_col_ids));
@@ -108,7 +107,7 @@ upd_n_cols  (update_node_t * upd, caddr_t * state)
 
 
 oid_t
-upd_nth_col  (update_node_t * upd, caddr_t * state, int inx)
+upd_nth_col (update_node_t * upd, caddr_t * state, int inx)
 {
   if (!upd->upd_values_param)
     return (upd->upd_col_ids[inx]);
@@ -128,8 +127,8 @@ upd_nth_value (update_node_t * upd, caddr_t * state, int nth)
 
 #ifndef KEYCOMP
 void
-upd_col_copy (dbe_key_t * key, dbe_col_loc_t * new_cl, db_buf_t new_image, int * v_fill, int max,
-	      dbe_col_loc_t * old_cl, db_buf_t  old_image, int old_off, int old_len)
+upd_col_copy (dbe_key_t * key, dbe_col_loc_t * new_cl, db_buf_t new_image, int *v_fill, int max,
+    dbe_col_loc_t * old_cl, db_buf_t old_image, int old_off, int old_len)
 {
   if (old_cl->cl_null_mask && (old_image[old_cl->cl_null_flag] & old_cl->cl_null_mask))
     {
@@ -176,69 +175,67 @@ key_next_list (dbe_key_t * key, dbe_col_loc_t * list)
 
 
 dk_set_t
-upd_recompose_row (caddr_t * state, update_node_t * upd,
-		   row_delta_t * rd, row_delta_t * new_rd,
-		   caddr_t * err_ret, int * any_blobs)
+upd_recompose_row (caddr_t * state, update_node_t * upd, row_delta_t * rd, row_delta_t * new_rd, caddr_t * err_ret, int *any_blobs)
 {
-  dbe_table_t * tb = rd->rd_key->key_table;
-  dtp_t dummy_blob[] ={DV_DB_NULL};
-  dbe_table_t * new_tb = new_rd->rd_key->key_table;
+  dbe_table_t *tb = rd->rd_key->key_table;
+  dtp_t dummy_blob[] = { DV_DB_NULL };
+  dbe_table_t *new_tb = new_rd->rd_key->key_table;
   int nth = 0;
 
   dk_set_t changed_keys = NULL;
   int nth_val;
-  dbe_column_t * col;
+  dbe_column_t *col;
 
   new_rd->rd_non_comp_len = new_tb->tb_primary_key->key_row_var_start[0];
   DO_ALL_CL (cl, new_tb->tb_primary_key)
-    {
-      int old_found = 0;
-      caddr_t old_val = rd_col (rd, cl->cl_col_id, &old_found);
-      col = sch_id_to_column (wi_inst.wi_schema, cl->cl_col_id);
-      nth_val = upd_col_to_update (upd, col, state, new_tb, 0);
-      if (COL_NO_CHANGE == nth_val)
-	{
-	  new_rd->rd_values[nth] = old_found ? old_val : col->col_default;
-	  if  (dtp_is_var (cl->cl_sqt.sqt_dtp))
-	    new_rd->rd_non_comp_len += box_col_len (new_rd->rd_values[nth]);
-	}
-      else
-	{
-	  caddr_t new_val_of_col = upd_nth_value (upd, state, nth_val);
-	  db_buf_t old_blob = (IS_BLOB_DTP (cl->cl_sqt.sqt_dtp)  && old_found && DV_DB_NULL != DV_TYPE_OF (old_val) && IS_BLOB_DTP (((db_buf_t)old_val)[0]))
-	    ? (db_buf_t)old_val : dummy_blob;
-	  row_insert_cast (new_rd, cl, new_val_of_col, err_ret, old_blob);
-	  if (*err_ret)
-	    goto col_error;
-	  new_val_of_col = new_rd->rd_itc->itc_search_params[new_rd->rd_itc->itc_search_par_fill - 1];
-	  if (old_found)
-	    {
-	      if (box_equal (new_val_of_col, old_val))
-		new_rd->rd_values[nth] = old_val;
-	      else
-		{
-		  upd_mark_change (tb, col->col_id, &changed_keys);
-		  new_rd->rd_values[nth] = new_val_of_col;
-		}
-	    }
-	  else
-	    {
-	      new_rd->rd_values[nth] = new_val_of_col;
-	    }
-	}
-      nth++;
-      if (nth <= new_tb->tb_primary_key->key_n_significant &&
-	  (new_rd->rd_non_comp_len - new_tb->tb_primary_key->key_row_var_start[0] + new_tb->tb_primary_key->key_key_var_start[0]) >
-	  MAX_RULING_PART_BYTES)
-	{
-	  *err_ret = srv_make_new_error ("42000", "SR437", "Ruling part too long in update");
-	  if (changed_keys != ALL_KEYS && changed_keys != BLOB_ERROR)
-	    dk_set_free (changed_keys);
-	  return NULL;
-	}
-    }
+  {
+    int old_found = 0;
+    caddr_t old_val = rd_col (rd, cl->cl_col_id, &old_found);
+    col = sch_id_to_column (wi_inst.wi_schema, cl->cl_col_id);
+    nth_val = upd_col_to_update (upd, col, state, new_tb, 0);
+    if (COL_NO_CHANGE == nth_val)
+      {
+	new_rd->rd_values[nth] = old_found ? old_val : col->col_default;
+	if (dtp_is_var (cl->cl_sqt.sqt_dtp))
+	  new_rd->rd_non_comp_len += box_col_len (new_rd->rd_values[nth]);
+      }
+    else
+      {
+	caddr_t new_val_of_col = upd_nth_value (upd, state, nth_val);
+	db_buf_t old_blob = (IS_BLOB_DTP (cl->cl_sqt.sqt_dtp) && old_found && DV_DB_NULL != DV_TYPE_OF (old_val)
+	    && IS_BLOB_DTP (((db_buf_t) old_val)[0])) ? (db_buf_t) old_val : dummy_blob;
+	row_insert_cast (new_rd, cl, new_val_of_col, err_ret, old_blob);
+	if (*err_ret)
+	  goto col_error;
+	new_val_of_col = new_rd->rd_itc->itc_search_params[new_rd->rd_itc->itc_search_par_fill - 1];
+	if (old_found)
+	  {
+	    if (box_equal (new_val_of_col, old_val))
+	      new_rd->rd_values[nth] = old_val;
+	    else
+	      {
+		upd_mark_change (tb, col->col_id, &changed_keys);
+		new_rd->rd_values[nth] = new_val_of_col;
+	      }
+	  }
+	else
+	  {
+	    new_rd->rd_values[nth] = new_val_of_col;
+	  }
+      }
+    nth++;
+    if (nth <= new_tb->tb_primary_key->key_n_significant &&
+	(new_rd->rd_non_comp_len - new_tb->tb_primary_key->key_row_var_start[0] + new_tb->tb_primary_key->key_key_var_start[0]) >
+	MAX_RULING_PART_BYTES)
+      {
+	*err_ret = srv_make_new_error ("42000", "SR437", "Ruling part too long in update");
+	if (changed_keys != ALL_KEYS && changed_keys != BLOB_ERROR)
+	  dk_set_free (changed_keys);
+	return NULL;
+      }
+  }
   END_DO_ALL_CL;
- col_error:
+col_error:
   new_rd->rd_n_values = nth;
   if (*err_ret)
     {
@@ -246,7 +243,7 @@ upd_recompose_row (caddr_t * state, update_node_t * upd,
 	dk_set_free (changed_keys);
       return NULL;
     }
-  if (new_rd->rd_non_comp_len  > ROW_MAX_DATA * 2)
+  if (new_rd->rd_non_comp_len > ROW_MAX_DATA * 2)
     {
       *err_ret = srv_make_new_error ("42000", "SR248", "Row too long in update");
       if (changed_keys != ALL_KEYS && changed_keys != BLOB_ERROR)
@@ -255,7 +252,7 @@ upd_recompose_row (caddr_t * state, update_node_t * upd,
     }
   if (new_tb->tb_any_blobs)
     {
-      upd_blob_opt ((query_instance_t*) state, new_rd, err_ret);
+      upd_blob_opt ((query_instance_t *) state, new_rd, err_ret);
       if (NULL != err_ret[0])
 	{
 	  if (changed_keys != ALL_KEYS && changed_keys != BLOB_ERROR)
@@ -279,55 +276,57 @@ box_col_len (caddr_t box)
 {
   switch (DV_TYPE_OF (box))
     {
-    case DV_DB_NULL: return 0;
-    case DV_STRING: return box_length (box) - 1;
-    default: return box_length (box);
+    case DV_DB_NULL:
+      return 0;
+    case DV_STRING:
+      return box_length (box) - 1;
+    default:
+      return box_length (box);
     }
 }
 
 
 void
-upd_insert_2nd_key (dbe_key_t * key, it_cursor_t * ins_itc,
-		    row_delta_t * main_rd)
+upd_insert_2nd_key (dbe_key_t * key, it_cursor_t * ins_itc, row_delta_t * main_rd)
 {
   caddr_t err = NULL;
   int nth = 0, inx;
   LOCAL_RD (rd);
-    rd.rd_key = key;
+  rd.rd_key = key;
   DO_CL (cl, key->key_key_fixed)
-    {
-      rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
-    }
+  {
+    rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
+  }
   END_DO_CL;
   rd.rd_non_comp_len = key->key_row_var_start[0];
   DO_CL (cl, key->key_key_var)
-    {
-      rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
-      rd.rd_non_comp_len += box_col_len (rd.rd_values[nth - 1]);
-    }
+  {
+    rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
+    rd.rd_non_comp_len += box_col_len (rd.rd_values[nth - 1]);
+  }
   END_DO_CL;
 
   if (err || rd.rd_non_comp_len > MAX_RULING_PART_BYTES)
     {
       if (CLI_IS_ROLL_FORWARD (ins_itc->itc_ltrx->lt_client))
 	return;
-      TRX_POISON (ins_itc -> itc_ltrx);
+      TRX_POISON (ins_itc->itc_ltrx);
       sqlr_new_error ("42000", "SR249", "Ruling part too long on %s.", key->key_name);
     }
 
   DO_CL (cl, key->key_row_fixed)
-    {
-      rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
-    }
+  {
+    rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
+  }
   END_DO_CL;
 
   DO_CL (cl, key->key_row_var)
-    {
-      if (CI_BITMAP == cl->cl_col_id)
-	continue;
-      rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
-      rd.rd_non_comp_len += box_col_len (rd.rd_values[nth - 1]);
-    }
+  {
+    if (CI_BITMAP == cl->cl_col_id)
+      continue;
+    rd.rd_values[nth++] = rd_col (main_rd, cl->cl_col_id, NULL);
+    rd.rd_non_comp_len += box_col_len (rd.rd_values[nth - 1]);
+  }
   END_DO_CL;
   rd.rd_n_values = nth;
 
@@ -352,8 +351,7 @@ upd_insert_2nd_key (dbe_key_t * key, it_cursor_t * ins_itc,
 
 
 void
-upd_refit_row (it_cursor_t * itc, buffer_desc_t ** buf,
-	       row_delta_t * rd, int mode)
+upd_refit_row (it_cursor_t * itc, buffer_desc_t ** buf, row_delta_t * rd, int mode)
 {
   rd->rd_map_pos = itc->itc_map_pos;
   rd->rd_itc = itc;
@@ -375,34 +373,33 @@ long upd_quick_ctr = 0;
 
 
 void
-upd_quick_var (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf,
-	      row_delta_t * rd, caddr_t * err_ret)
+upd_quick_var (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf, row_delta_t * rd, caddr_t * err_ret)
 {
   /* put the new state in the rd and call refit with local update flags */
   int inx;
-  dbe_col_loc_t * change[UPD_MAX_QUICK_COLS];
+  dbe_col_loc_t *change[UPD_MAX_QUICK_COLS];
   int first_var = BOX_ELEMENTS (upd->upd_fixed_cl);
-  it_cursor_t * itc = rd->rd_itc;
+  it_cursor_t *itc = rd->rd_itc;
   page_row (cr_buf, itc->itc_map_pos, rd, RO_ROW);
   memset (change, 0, rd->rd_n_values * sizeof (caddr_t));
   DO_BOX (dbe_col_loc_t *, cl, inx, upd->upd_var_cl)
-    {
-      caddr_t data = QST_GET (qst, upd->upd_quick_values[inx + first_var]);
-      db_buf_t old_blob = NULL;
-      if (IS_BLOB_DTP (cl->cl_sqt.sqt_dtp))
-	GPF_T1 ("var quick update not meant for blobs");
-      row_insert_cast (rd, cl, data, err_ret, old_blob);
-      if (*err_ret)
-	{
-	  itc_page_leave (itc, cr_buf);
-	  rd_free (rd);
-	  itc_free (itc);
-	  return;
-	}
-      rd_free_box (rd, rd->rd_values[cl->cl_nth]);
-      rd->rd_values[cl->cl_nth] = box_copy (itc->itc_search_params[itc->itc_search_par_fill - 1]);
-      change[cl->cl_nth] = cl;
-    }
+  {
+    caddr_t data = QST_GET (qst, upd->upd_quick_values[inx + first_var]);
+    db_buf_t old_blob = NULL;
+    if (IS_BLOB_DTP (cl->cl_sqt.sqt_dtp))
+      GPF_T1 ("var quick update not meant for blobs");
+    row_insert_cast (rd, cl, data, err_ret, old_blob);
+    if (*err_ret)
+      {
+	itc_page_leave (itc, cr_buf);
+	rd_free (rd);
+	itc_free (itc);
+	return;
+      }
+    rd_free_box (rd, rd->rd_values[cl->cl_nth]);
+    rd->rd_values[cl->cl_nth] = box_copy (itc->itc_search_params[itc->itc_search_par_fill - 1]);
+    change[cl->cl_nth] = cl;
+  }
   END_DO_BOX;
   rd->rd_upd_change = change;
   rd->rd_op = RD_UPDATE_LOCAL;
@@ -414,10 +411,9 @@ upd_quick_var (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf,
 
 
 void
-update_quick (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf,
-	      row_delta_t * rd, caddr_t * err_ret)
+update_quick (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf, row_delta_t * rd, caddr_t * err_ret)
 {
-  it_cursor_t * cr_itc = rd->rd_itc;
+  it_cursor_t *cr_itc = rd->rd_itc;
   int inx;
   row_fill_t rf;
   memset (&rf, 0, sizeof (rf));
@@ -426,30 +422,30 @@ update_quick (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf,
   if (BUF_NEEDS_DELTA (cr_buf))
     {
       ITC_FAIL (cr_itc)
-	{
-	  ITC_IN_KNOWN_MAP (cr_itc, cr_buf->bd_page);
-	  itc_delta_this_buffer (cr_itc, cr_buf, DELTA_MAY_LEAVE);
-	  ITC_LEAVE_MAP_NC (cr_itc);
-	}
+      {
+	ITC_IN_KNOWN_MAP (cr_itc, cr_buf->bd_page);
+	itc_delta_this_buffer (cr_itc, cr_buf, DELTA_MAY_LEAVE);
+	ITC_LEAVE_MAP_NC (cr_itc);
+      }
       ITC_FAILED
-	{
-	  itc_free (cr_itc);
-	}
+      {
+	itc_free (cr_itc);
+      }
       END_FAIL (cr_itc);
     }
   lt_rb_update (cr_itc->itc_lock_lt, cr_buf, rf.rf_row);
   DO_BOX (dbe_col_loc_t *, cl, inx, upd->upd_fixed_cl)
-    {
-      caddr_t data = QST_GET (qst, upd->upd_quick_values[inx]);
-      row_insert_cast (rd, cl, data, err_ret, NULL);
-      if (*err_ret)
-	{
-	  /* XXX: test case !!!! */
-	  itc_page_leave (cr_itc, cr_buf);
-	  return;
-	}
-      row_set_col (&rf, cl, cr_itc->itc_search_params[cr_itc->itc_search_par_fill - 1]);
-    }
+  {
+    caddr_t data = QST_GET (qst, upd->upd_quick_values[inx]);
+    row_insert_cast (rd, cl, data, err_ret, NULL);
+    if (*err_ret)
+      {
+	/* XXX: test case !!!! */
+	itc_page_leave (cr_itc, cr_buf);
+	return;
+      }
+    row_set_col (&rf, cl, cr_itc->itc_search_params[cr_itc->itc_search_par_fill - 1]);
+  }
   END_DO_BOX;
   if (upd->upd_var_cl && BOX_ELEMENTS (upd->upd_var_cl))
     {
@@ -467,8 +463,7 @@ update_quick (update_node_t * upd, caddr_t * qst, buffer_desc_t * cr_buf,
 
 
 void
-update_node_run_1 (update_node_t * upd, caddr_t * inst,
-		 caddr_t * state)
+update_node_run_1 (update_node_t * upd, caddr_t * inst, caddr_t * state)
 {
   int any_blob = 0, is_cluster = 0;
   caddr_t row_err = NULL;
@@ -477,89 +472,87 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
   int res;
   placeholder_t *pl = (placeholder_t *) qst_place_get (state, upd->upd_place);
   query_instance_t *qi = (query_instance_t *) QST_INSTANCE (state);
-  union {
-  void * dummy;
-  dtp_t temp [2000];
+  union
+  {
+    void *dummy;
+    dtp_t temp[2000];
   } temp_un;
   LOCAL_RD (rd);
   rd.rd_temp = &(temp_un.temp[0]);
   rd.rd_temp_max = sizeof (temp_un.temp);
   if (!pl)
-    sqlr_new_error ("24000", "SR250", "Cursor not positioned on update. %s",
-		    upd->upd_place->ssl_name);
+    sqlr_new_error ("24000", "SR250", "Cursor not positioned on update. %s", upd->upd_place->ssl_name);
   {
-    buffer_desc_t * volatile cr_buf = NULL;
+    buffer_desc_t *volatile cr_buf = NULL;
     buffer_desc_t *main_buf, *del_buf;
     it_cursor_t cr_itc_auto;
     it_cursor_t main_itc_auto;
     it_cursor_t del_itc_auto;
     it_cursor_t *cr_itc = &cr_itc_auto;
-    it_cursor_t * volatile main_itc = NULL;
-    it_cursor_t * volatile del_itc = NULL;
+    it_cursor_t *volatile main_itc = NULL;
+    it_cursor_t *volatile del_itc = NULL;
 
-    dbe_key_t * volatile cr_key = NULL;
-    dbe_table_t * volatile tb = NULL, *new_tb;
+    dbe_key_t *volatile cr_key = NULL;
+    dbe_table_t *volatile tb = NULL, *new_tb;
     LOCAL_RD (new_rd);
     ITC_INIT (cr_itc, qi->qi_space, qi->qi_trx);
 
     ITC_FAIL (cr_itc)
+    {
+      cr_buf = itc_set_by_placeholder (cr_itc, pl);
+      cr_itc->itc_lock_mode = PL_EXCLUSIVE;
+      if (!cr_itc->itc_is_on_row)
+	{
+	  rdbg_printf (("Row to update deld before update T=%d L=%d pos=%d\n",
+		  TRX_NO (cr_itc->itc_ltrx), cr_itc->itc_page, cr_itc->itc_map_pos));
+
+	  itc_page_leave (cr_itc, cr_buf);
+	  itc_free (cr_itc);
+	  sqlr_new_error ("24000", "SR251", "Cursor not on row in positioned UPDATE");
+	}
+      /* always true */
       {
-	cr_buf = itc_set_by_placeholder (cr_itc, pl);
-	cr_itc->itc_lock_mode = PL_EXCLUSIVE;
+	cr_itc->itc_insert_key = pl->itc_tree->it_key;	/* for debug info */
+	itc_set_lock_on_row (cr_itc, (buffer_desc_t **) & cr_buf);
 	if (!cr_itc->itc_is_on_row)
 	  {
-	    rdbg_printf (("Row to update deld before update T=%d L=%d pos=%d\n",
-			  TRX_NO (cr_itc->itc_ltrx), cr_itc->itc_page, cr_itc->itc_map_pos));
-
+	    rdbg_printf (("Row to update deld during update lock  T=%d L=%d pos=%d\n",
+		    TRX_NO (cr_itc->itc_ltrx), cr_itc->itc_page, cr_itc->itc_map_pos));
 	    itc_page_leave (cr_itc, cr_buf);
-	    itc_free (cr_itc);
-	    sqlr_new_error ("24000", "SR251", "Cursor not on row in positioned UPDATE");
+	    sqlr_new_error ("01001", "SR252", "Row deleted while waiting to update");
 	  }
-	/* always true */
+      }
+      if (SSL_IS_VEC_OR_REF (upd->upd_place))
+	itc_unregister_inner ((it_cursor_t *) pl, cr_buf, 0);
+      cr_key = itc_get_row_key (cr_itc, cr_buf);
+      if (cr_key->key_id == upd->upd_exact_key && (upd->upd_fixed_cl || upd->upd_var_cl) && !qi->qi_trx->lt_is_excl)
 	{
-	  cr_itc->itc_insert_key = pl->itc_tree->it_key; /* for debug info */
-	  itc_set_lock_on_row (cr_itc, (buffer_desc_t **)&cr_buf);
-	  if (!cr_itc->itc_is_on_row)
-	    {
-	      rdbg_printf (("Row to update deld during update lock  T=%d L=%d pos=%d\n",
-			    TRX_NO (cr_itc->itc_ltrx), cr_itc->itc_page, cr_itc->itc_map_pos));
-	      itc_page_leave (cr_itc, cr_buf);
-	      sqlr_new_error ("01001", "SR252", "Row deleted while waiting to update");
-	    }
+	  cr_itc->itc_insert_key = cr_key;
+	  cr_itc->itc_row_key = cr_key;
+	  new_rd.rd_itc = cr_itc;
+	  new_rd.rd_non_comp_max = MAX_ROW_BYTES;
+	  new_rd.rd_key = cr_itc->itc_insert_key;
+	  upd_hi_pre (upd, qi);
+	  new_rd.rd_temp = &(temp_un.temp[0]);
+	  new_rd.rd_temp_max = sizeof (temp_un.temp);
+	  update_quick (upd, state, cr_buf, &new_rd, &row_err);
+	  if (row_err)
+	    sqlr_resignal (row_err);
+	  QI_ROW_AFFECTED (inst);
+	  rd_free (&rd);
+	  return;
 	}
-	if (SSL_IS_VEC_OR_REF (upd->upd_place))
-	  itc_unregister_inner ((it_cursor_t*)pl, cr_buf, 0);
-	cr_key = itc_get_row_key (cr_itc, cr_buf);
-	if (cr_key->key_id == upd->upd_exact_key
-	    && (upd->upd_fixed_cl || upd->upd_var_cl)
-	    && !qi->qi_trx->lt_is_excl)
-	  {
-	    cr_itc->itc_insert_key = cr_key;
-	    cr_itc->itc_row_key = cr_key;
-	    new_rd.rd_itc = cr_itc;
-	    new_rd.rd_non_comp_max = MAX_ROW_BYTES;
-	    new_rd.rd_key = cr_itc->itc_insert_key;
-	    upd_hi_pre (upd, qi);
-	    new_rd.rd_temp = &(temp_un.temp[0]);
-	    new_rd.rd_temp_max = sizeof (temp_un.temp);
-	    update_quick (upd, state, cr_buf, &new_rd, &row_err);
-	    if (row_err)
-	      sqlr_resignal (row_err);
-	    QI_ROW_AFFECTED (inst);
-	    rd_free (&rd);
-	    return;
-	  }
-	tb = cr_key->key_table;
-	cr_itc->itc_row_key = cr_key;
-	page_row_bm (cr_buf, cr_itc->itc_map_pos, &rd, RO_ROW, cr_itc);
-	if (!cr_key->key_is_primary)
-	  itc_page_leave (cr_itc, cr_buf);	/* do this inside the ITC_FAIL */
+      tb = cr_key->key_table;
+      cr_itc->itc_row_key = cr_key;
+      page_row_bm (cr_buf, cr_itc->itc_map_pos, &rd, RO_ROW, cr_itc);
+      if (!cr_key->key_is_primary)
+	itc_page_leave (cr_itc, cr_buf);	/* do this inside the ITC_FAIL */
 
-      }
+    }
     ITC_FAILED
-      {
-	itc_free (cr_itc);
-      }
+    {
+      itc_free (cr_itc);
+    }
     END_FAIL (cr_itc);
 
     if (!cr_key->key_is_primary)
@@ -570,26 +563,26 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
 
 	ITC_LEAVE_MAPS (cr_itc);
 	ITC_FAIL (main_itc)
-	  {
-	    res = itc_get_alt_key (main_itc, &main_buf, tb->tb_primary_key, &rd);
-	    if (res == DVC_MATCH)
-	      {
-		rd_free (&rd);
-		page_row (main_buf, main_itc->itc_map_pos, &rd, RO_ROW);
-	      }
-	    else
-	      {
-		itc_page_leave (main_itc, main_buf);
-		rd_free (&rd);
-		sqlr_new_error ("42S12", "SR253", "Could not find primary key on update.");
-	      }
-	  }
+	{
+	  res = itc_get_alt_key (main_itc, &main_buf, tb->tb_primary_key, &rd);
+	  if (res == DVC_MATCH)
+	    {
+	      rd_free (&rd);
+	      page_row (main_buf, main_itc->itc_map_pos, &rd, RO_ROW);
+	    }
+	  else
+	    {
+	      itc_page_leave (main_itc, main_buf);
+	      rd_free (&rd);
+	      sqlr_new_error ("42S12", "SR253", "Could not find primary key on update.");
+	    }
+	}
 	ITC_FAILED
-	  {
-	    rd_free (&rd);
-	    itc_free (main_itc);
-	    itc_free (cr_itc);
-	  }
+	{
+	  rd_free (&rd);
+	  itc_free (main_itc);
+	  itc_free (cr_itc);
+	}
 	END_FAIL (main_itc);
 	itc_free (cr_itc);
       }
@@ -615,7 +608,7 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
     /* The following ITC_LEAVE_MAP (main_itc) is added to avoid deadlock on
        update MYTABLE set LONG_XML_COL = LONG_VARCHAR_XML_COL;
        because conversion may read blob by blob_to_string() and its itc will enter map.
-    */
+     */
     ITC_LEAVE_MAPS (main_itc);
 #ifdef PAGE_DEBUG
     if (main_buf->bd_writer != THREAD_CURRENT_THREAD)
@@ -625,15 +618,12 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
     /* blob ops in recompose row will use the itc to enter blobs and lose the pl.  Safe to save like this since the main_buf is never left in the process */
     mtx_assert (main_itc->itc_pl == main_buf->bd_pl);
     new_rd.rd_itc = main_itc;
-    new_rd.rd_non_comp_max = new_tb->tb_any_blobs ? MAX_ROW_BYTES  * 2 : MAX_ROW_BYTES;
+    new_rd.rd_non_comp_max = new_tb->tb_any_blobs ? MAX_ROW_BYTES * 2 : MAX_ROW_BYTES;
     new_rd.rd_key = new_tb->tb_primary_key;
     if (new_tb->tb_primary_key->key_partition)
-      is_cluster = (!cl_run_local_only && upd->cms.cms_clrg)
-	|| qi->qi_client->cli_is_log
-	|| upd->cms.cms_is_cl_frag;
-    keys = upd_recompose_row (state, upd, &rd, &new_rd,
-			      &row_err, &any_blob);
-    main_itc->itc_pl =main_buf->bd_pl;
+      is_cluster = (!cl_run_local_only && upd->cms.cms_clrg) || qi->qi_client->cli_is_log || upd->cms.cms_is_cl_frag;
+    keys = upd_recompose_row (state, upd, &rd, &new_rd, &row_err, &any_blob);
+    main_itc->itc_pl = main_buf->bd_pl;
     if (row_err)
       {
 	itc_page_leave (main_itc, main_buf);
@@ -647,61 +637,62 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
 	sqlr_resignal (row_err);
       }
     ITC_FAIL (main_itc)
-      {
-	if (keys == BLOB_ERROR)
-	  {
-	    rd_free (&rd);
-	    itc_bust_this_trx (main_itc, &main_buf, ITC_BUST_THROW);	/* jumps into main_itc's fail ctr below */
-	  }
+    {
+      if (keys == BLOB_ERROR)
+	{
+	  rd_free (&rd);
+	  itc_bust_this_trx (main_itc, &main_buf, ITC_BUST_THROW);	/* jumps into main_itc's fail ctr below */
+	}
 
-	if (is_cluster && ALL_KEYS == keys)
-	  log_delete (main_itc->itc_ltrx, &rd, LOG_KEY_ONLY);
-	else
-	  log_update (main_itc->itc_ltrx, &rd, upd, state);
-	if (keys == ALL_KEYS)
-	  {
-	    int inx;
-	    itc_delete_this (main_itc, &main_buf, DVC_MATCH, NO_BLOBS);	/* blobs handled separately */
-	    main_itc->itc_insert_key = new_tb->tb_primary_key;
-	    keys = tb->tb_keys;
-	    new_rd.rd_make_ins_rbe = 1;
-	    if (!is_cluster)
-	      {
+
+      if (is_cluster && ALL_KEYS == keys)
+	log_delete (main_itc->itc_ltrx, &rd, LOG_KEY_ONLY);
+      else
+	log_update (main_itc->itc_ltrx, &rd, upd, state);
+      if (keys == ALL_KEYS)
+	{
+	  int inx;
+	  itc_delete_this (main_itc, &main_buf, DVC_MATCH, NO_BLOBS);	/* blobs handled separately */
+	  main_itc->itc_insert_key = new_tb->tb_primary_key;
+	  keys = tb->tb_keys;
+	  new_rd.rd_make_ins_rbe = 1;
+	  if (!is_cluster)
+	    {
 	      itc_free_owned_params (main_itc);
-		ITC_START_SEARCH_PARS (main_itc);
-		for (inx = 0; inx < main_itc->itc_insert_key->key_n_significant; inx++)
-		  ITC_SEARCH_PARAM (main_itc, new_rd.rd_values[main_itc->itc_insert_key->key_part_in_layout_order[inx]]);
-		main_itc->itc_key_spec = main_itc->itc_insert_key->key_insert_spec;
-		itc_insert_unq_ck (main_itc, &new_rd, NULL);
-	      }
-	  }
-	else
-	  {
-	    new_rd.rd_map_pos = rd.rd_map_pos;
-	    if (!main_itc->itc_ltrx->lt_is_excl)
-	      lt_rb_update (main_itc->itc_lock_lt, main_buf, BUF_ROW (main_buf, main_itc->itc_map_pos));
-	    upd_refit_row (main_itc, &main_buf, &new_rd, RD_UPDATE);
-	  }
-	if (upd->src_gen.src_sets)
-	  {
-	    if (ALL_KEYS != keys)
-	      dk_set_free (keys);
-	    rd_free (&rd);
+	      ITC_START_SEARCH_PARS (main_itc);
+	      for (inx = 0; inx < main_itc->itc_insert_key->key_n_significant; inx++)
+		ITC_SEARCH_PARAM (main_itc, new_rd.rd_values[main_itc->itc_insert_key->key_part_in_layout_order[inx]]);
+	      main_itc->itc_key_spec = main_itc->itc_insert_key->key_insert_spec;
+	      itc_insert_unq_ck (main_itc, &new_rd, NULL);
+	    }
+	}
+      else
+	{
+	  new_rd.rd_map_pos = rd.rd_map_pos;
+	  if (!main_itc->itc_ltrx->lt_is_excl)
+	    lt_rb_update (main_itc->itc_lock_lt, main_buf, BUF_ROW (main_buf, main_itc->itc_map_pos));
+	  upd_refit_row (main_itc, &main_buf, &new_rd, RD_UPDATE);
+	}
+      if (upd->src_gen.src_sets)
+	{
+	  if (ALL_KEYS != keys)
+	    dk_set_free (keys);
+	  rd_free (&rd);
 	  itc_free (main_itc);
-	    return;
-	  }
-      }
+	  return;
+	}
+    }
     ITC_FAILED
-      {
-	rd_free (&rd);
-	itc_free (main_itc);
-      }
+    {
+      rd_free (&rd);
+      itc_free (main_itc);
+    }
     END_FAIL (main_itc);
     if (upd->upd_row_only)
       {
 	if (keys != tb->tb_keys)
 	  dk_set_free (keys);
-      	itc_free (main_itc);
+	itc_free (main_itc);
 	rd_free (&rd);
 	return;
       }
@@ -712,34 +703,33 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
 	del_itc->itc_lock_mode = PL_EXCLUSIVE;
 
 	ITC_FAIL (del_itc)
+	{
+	  DO_SET (dbe_key_t *, key, &keys)
 	  {
-	    DO_SET (dbe_key_t *, key, &keys)
+	    if (key == tb->tb_primary_key)
+	      goto next_key;
+	    if (!key->key_distinct)
 	      {
-		if (key == tb->tb_primary_key)
-		  goto next_key;
-		if (!key->key_distinct)
-		  {
-		    res = itc_get_alt_key (del_itc, &del_buf, key, &rd);
-		    itc_delete_this (del_itc, &del_buf, res, NO_BLOBS);
-		  }
-		upd_insert_2nd_key (key, del_itc,
-				    &new_rd);
-	      next_key:;
+		res = itc_get_alt_key (del_itc, &del_buf, key, &rd);
+		itc_delete_this (del_itc, &del_buf, res, NO_BLOBS);
 	      }
-	    END_DO_SET ();
+	    upd_insert_2nd_key (key, del_itc, &new_rd);
+	  next_key:;
 	  }
+	  END_DO_SET ();
+	}
 	ITC_FAILED
-	  {
-	    rd_free (&rd);
-	    itc_free (main_itc);
-	    itc_free (del_itc);
-	    if (keys != tb->tb_keys)
-	      dk_set_free (keys);
-	  }
+	{
+	  rd_free (&rd);
+	  itc_free (main_itc);
+	  itc_free (del_itc);
+	  if (keys != tb->tb_keys)
+	    dk_set_free (keys);
+	}
 	END_FAIL (del_itc);
 	if (keys != tb->tb_keys)
 	  dk_set_free (keys);
-        itc_free (del_itc);
+	itc_free (del_itc);
       }
     rd_free (&rd);
     itc_free (main_itc);
@@ -750,17 +740,17 @@ update_node_run_1 (update_node_t * upd, caddr_t * inst,
 static void
 update_keyset_state_set (update_node_t * upd, caddr_t * state)
 {
-  id_hash_t * sht, * vht;
-  caddr_t * upd_state;
+  id_hash_t *sht, *vht;
+  caddr_t *upd_state;
   long pos, last;
   caddr_t v, n_box;
   int inx, cnt;
-  state_slot_t ** sa[2], **slots;
+  state_slot_t **sa[2], **slots;
 
   /* save update node state */
-  /*fprintf (stderr, "update_keyset_state_set\n");*/
+  /*fprintf (stderr, "update_keyset_state_set\n"); */
 
-  upd_state = (caddr_t *)qst_get (state, upd->upd_keyset_state);
+  upd_state = (caddr_t *) qst_get (state, upd->upd_keyset_state);
   if (!upd_state)
     {
       upd_state = (caddr_t *) dk_alloc_box_zero (3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
@@ -778,8 +768,8 @@ update_keyset_state_set (update_node_t * upd, caddr_t * state)
   vht = (id_hash_t *) box_dv_dict_hashtable (31);
 
   v = qst_get (state, upd->upd_place);
-  n_box = box_num ((ptrlong)upd->upd_place->ssl_index);
-  id_hash_set (vht, (caddr_t)&n_box, (caddr_t)&v);
+  n_box = box_num ((ptrlong) upd->upd_place->ssl_index);
+  id_hash_set (vht, (caddr_t) & n_box, (caddr_t) & v);
   QST_GET_V (state, upd->upd_place) = NULL;
 
   sa[0] = upd->upd_values;
@@ -789,28 +779,28 @@ update_keyset_state_set (update_node_t * upd, caddr_t * state)
     {
       slots = sa[cnt];
       DO_BOX (state_slot_t *, sl, inx, slots)
-	{
-	  /*fprintf (stderr, "%02d idx=%d type=%d name=[%s]\n", cnt, sl->ssl_index, sl->ssl_type, sl->ssl_name);*/
-	  n_box = box_num ((ptrlong) sl->ssl_index);
-	  if (id_hash_get (vht, (caddr_t)&n_box) || sl->ssl_type >= SSL_CONSTANT)
-	    {
-	      dk_free_box (n_box);
-	      continue;
-	    }
-	  if (SSL_VARIABLE == sl->ssl_type || SSL_PARAMETER == sl->ssl_type)
-	    v = box_copy_tree (qst_get (state, sl));
-	  else
-	    {
-	      v = qst_get (state, sl);
-	      QST_GET_V (state, sl) = NULL;
-	    }
-	  id_hash_set (vht, (caddr_t)&n_box, (caddr_t)&v);
-	}
+      {
+	/*fprintf (stderr, "%02d idx=%d type=%d name=[%s]\n", cnt, sl->ssl_index, sl->ssl_type, sl->ssl_name); */
+	n_box = box_num ((ptrlong) sl->ssl_index);
+	if (id_hash_get (vht, (caddr_t) & n_box) || sl->ssl_type >= SSL_CONSTANT)
+	  {
+	    dk_free_box (n_box);
+	    continue;
+	  }
+	if (SSL_VARIABLE == sl->ssl_type || SSL_PARAMETER == sl->ssl_type)
+	  v = box_copy_tree (qst_get (state, sl));
+	else
+	  {
+	    v = qst_get (state, sl);
+	    QST_GET_V (state, sl) = NULL;
+	  }
+	id_hash_set (vht, (caddr_t) & n_box, (caddr_t) & v);
+      }
       END_DO_BOX;
     }
   last = ++pos;
   n_box = box_num ((ptrlong) pos);
-  id_hash_set (sht, (caddr_t)&n_box, (caddr_t)&vht);
+  id_hash_set (sht, (caddr_t) & n_box, (caddr_t) & vht);
   dk_free_box (upd_state[0]);
   dk_free_box (upd_state[1]);
   upd_state[0] = box_num (pos);
@@ -819,7 +809,7 @@ update_keyset_state_set (update_node_t * upd, caddr_t * state)
 
 
 static int
-update_keyset_state_restore (update_node_t * upd, caddr_t * state, int * start)
+update_keyset_state_restore (update_node_t * upd, caddr_t * state, int *start)
 {
 #define UPD_SET_FROM_HT(sl) \
     do { \
@@ -835,19 +825,19 @@ update_keyset_state_restore (update_node_t * upd, caddr_t * state, int * start)
       dk_free_box (n_box); \
     } while (0)
 
-  id_hash_t * sht, *vht;
+  id_hash_t *sht, *vht;
   caddr_t v, *place, k;
   int inx, cnt;
-  state_slot_t ** sa[2], **slots;
-  caddr_t * upd_state, n_box;
+  state_slot_t **sa[2], **slots;
+  caddr_t *upd_state, n_box;
   long pos, last;
 
-  upd_state = (caddr_t *)qst_get (state, upd->upd_keyset_state);
+  upd_state = (caddr_t *) qst_get (state, upd->upd_keyset_state);
   if (!upd_state)
     GPF_T;
   pos = unbox (upd_state[0]);
   last = unbox (upd_state[1]);
-  if (*start) /* first call of restore */
+  if (*start)			/* first call of restore */
     {
       *start = 0;
       pos = 0;
@@ -869,13 +859,13 @@ update_keyset_state_restore (update_node_t * upd, caddr_t * state, int * start)
     }
 
   n_box = box_num ((ptrlong) pos);
-  place = (caddr_t *) id_hash_get (sht, (caddr_t)&n_box);
+  place = (caddr_t *) id_hash_get (sht, (caddr_t) & n_box);
   if (!place)
     GPF_T;
 
-  vht = (id_hash_t *)(*place);
+  vht = (id_hash_t *) (*place);
   k = place[-1];
-  id_hash_remove (sht, (caddr_t)&n_box);
+  id_hash_remove (sht, (caddr_t) & n_box);
   dk_free_box (k);
   dk_free_box (n_box);
 
@@ -889,11 +879,11 @@ update_keyset_state_restore (update_node_t * upd, caddr_t * state, int * start)
     {
       slots = sa[cnt];
       DO_BOX (state_slot_t *, sl, inx, slots)
-	{
-	  if (sl->ssl_type >= SSL_CONSTANT)
-	    continue;
-	  UPD_SET_FROM_HT (sl);
-	}
+      {
+	if (sl->ssl_type >= SSL_CONSTANT)
+	  continue;
+	UPD_SET_FROM_HT (sl);
+      }
       END_DO_BOX;
     }
   dk_free_box (vht);
@@ -933,7 +923,8 @@ update_node_run (update_node_t * upd, caddr_t * inst, caddr_t * state)
 	    ROW_AUTOCOMMIT (inst);
 	}
       else
-	trig_wrapper (inst, upd->upd_trigger_args, upd->upd_table, TRIG_UPDATE, (data_source_t *) upd, (qn_input_fn) update_node_vec_run);
+	trig_wrapper (inst, upd->upd_trigger_args, upd->upd_table, TRIG_UPDATE, (data_source_t *) upd,
+	    (qn_input_fn) update_node_vec_run);
       return;
     }
   if (upd->upd_keyset)
@@ -941,14 +932,14 @@ update_node_run (update_node_t * upd, caddr_t * inst, caddr_t * state)
       if (state)
 	{
 	  update_keyset_state_set (upd, state);
-	  SRC_IN_STATE ((data_source_t *)upd, inst) = inst;
+	  SRC_IN_STATE ((data_source_t *) upd, inst) = inst;
 	  return;
-        }
+	}
       else
 	{
 	  int start = 1;
 	  state = inst;
-	  SRC_IN_STATE ((data_source_t *)upd, inst) = NULL;
+	  SRC_IN_STATE ((data_source_t *) upd, inst) = NULL;
 	  while (update_keyset_state_restore (upd, state, &start))
 	    {
 	      /* call update_node_run_1 for each state */
@@ -956,7 +947,7 @@ update_node_run (update_node_t * upd, caddr_t * inst, caddr_t * state)
 		{
 		  update_node_run_1 (upd, inst, state);
 		  if (!upd->cms.cms_clrg && ROW_AUTOCOMMIT_DUE (qi, upd->upd_table, 10000))
-		  ROW_AUTOCOMMIT (inst);
+		    ROW_AUTOCOMMIT (inst);
 		}
 	      else
 		trig_wrapper (inst, upd->upd_trigger_args, upd->upd_table,
@@ -973,7 +964,7 @@ update_node_run (update_node_t * upd, caddr_t * inst, caddr_t * state)
 void
 update_node_input (update_node_t * upd, caddr_t * inst, caddr_t * state)
 {
-  query_instance_t * qi = (query_instance_t *) inst;
+  query_instance_t *qi = (query_instance_t *) inst;
   LT_CHECK_RW (((query_instance_t *) inst)->qi_trx);
   QI_CHECK_STACK (qi, &qi, UPD_STACK_MARGIN);
   if (upd->upd_keyset)
@@ -982,24 +973,25 @@ update_node_input (update_node_t * upd, caddr_t * inst, caddr_t * state)
       return;
     }
   if (upd->upd_policy_qr)
-    trig_call (upd->upd_policy_qr, inst, upd->upd_trigger_args, upd->upd_table, (data_source_t*)upd);
+    trig_call (upd->upd_policy_qr, inst, upd->upd_trigger_args, upd->upd_table, (data_source_t *) upd);
 
   if (!upd->upd_trigger_args)
     {
       if (upd->src_gen.src_sets)
 	{
-	  client_connection_t * cli = qi->qi_client;
+	  client_connection_t *cli = qi->qi_client;
 	  update_node_vec_run (upd, inst, state);
-	  if (!upd->cms.cms_clrg &&  cli->cli_row_autocommit && cli->cli_n_to_autocommit > dc_batch_sz)
+	  if (!upd->cms.cms_clrg && cli->cli_row_autocommit && cli->cli_n_to_autocommit > dc_batch_sz)
 	    ROW_AUTOCOMMIT (qi);
 	}
       else
-      update_node_run_1 (upd, inst, state);
+	update_node_run_1 (upd, inst, state);
     }
   else
     {
       trig_wrapper (inst, upd->upd_trigger_args, upd->upd_table,
-		    TRIG_UPDATE, (data_source_t *) upd, upd->src_gen.src_sets ? (qn_input_fn) update_node_vec_run : (qn_input_fn) update_node_run_1);
+	  TRIG_UPDATE, (data_source_t *) upd,
+	  upd->src_gen.src_sets ? (qn_input_fn) update_node_vec_run : (qn_input_fn) update_node_run_1);
     }
   qn_send_output ((data_source_t *) upd, state);
 }
@@ -1052,8 +1044,7 @@ qst_place_get (caddr_t * state, state_slot_t * ssl)
 
 
 void
-current_of_node_input (current_of_node_t * co, caddr_t * inst,
-		       caddr_t * state)
+current_of_node_input (current_of_node_t * co, caddr_t * inst, caddr_t * state)
 {
   int inx;
   query_instance_t *qi = (query_instance_t *) inst;
@@ -1067,7 +1058,7 @@ current_of_node_input (current_of_node_t * co, caddr_t * inst,
   char *cr_name = qst_get (state, co->co_cursor_name);
   client_connection_t *cli = qi->qi_client;
 
-  if (current_of_node_scrollable (co,qi, cr_name))
+  if (current_of_node_scrollable (co, qi, cr_name))
     return;
   mutex_enter (cli->cli_mtx);
   place = id_hash_get (cli->cli_cursors, (char *) &cr_name);
@@ -1085,19 +1076,15 @@ current_of_node_input (current_of_node_t * co, caddr_t * inst,
 
   cr_out_box = (caddr_t *) cr_inst[cr_query->qr_select_node->sel_out_box];
   if (cr_current_of < 0 || cr_current_of >= cr_out_fill)
-    sqlr_new_error ("24000", "SR259", "Cursor %s before first or after end. No current row.",
-		cr_name);
+    sqlr_new_error ("24000", "SR259", "Cursor %s before first or after end. No current row.", cr_name);
   cr_state = (caddr_t *) cr_out_box[cr_current_of];
 
 
   DO_BOX (state_slot_t *, sl, inx, cr_query->qr_select_node->sel_out_slots)
   {
-    if (sl->ssl_type == SSL_PLACEHOLDER
-	|| sl->ssl_type == SSL_ITC)
+    if (sl->ssl_type == SSL_PLACEHOLDER || sl->ssl_type == SSL_ITC)
       {
-	if (!co->co_cursor_place_name
-	    || (sl->ssl_name
-		&& 0 == strcmp (co->co_cursor_place_name, sl->ssl_name)))
+	if (!co->co_cursor_place_name || (sl->ssl_name && 0 == strcmp (co->co_cursor_place_name, sl->ssl_name)))
 	  {
 	    cr_place = (placeholder_t *) (sel_out_get (cr_state, inx, sl));
 	    break;
@@ -1106,8 +1093,7 @@ current_of_node_input (current_of_node_t * co, caddr_t * inst,
   }
   END_DO_BOX;
   if (!cr_place)
-    sqlr_new_error ("HY109", "SR260", "Cursor %s does not have place %s.",
-		cr_name, co->co_cursor_place_name);
+    sqlr_new_error ("HY109", "SR260", "Cursor %s does not have place %s.", cr_name, co->co_cursor_place_name);
   place_copy = plh_copy (cr_place);
   qst_set (state, co->co_place, (caddr_t) place_copy);
 
@@ -1116,8 +1102,7 @@ current_of_node_input (current_of_node_t * co, caddr_t * inst,
 
 
 int
-itc_row_insert (it_cursor_t * itc, row_delta_t * rd, buffer_desc_t ** unq_buf,
-		    int blobs_in_place, int pk_only)
+itc_row_insert (it_cursor_t * itc, row_delta_t * rd, buffer_desc_t ** unq_buf, int blobs_in_place, int pk_only)
 {
   int rc, inx;
   itc_from_keep_params (itc, rd->rd_key, QI_NO_SLICE);
@@ -1134,24 +1119,23 @@ itc_row_insert (it_cursor_t * itc, row_delta_t * rd, buffer_desc_t ** unq_buf,
   if (DVC_MATCH == rc)
     return rc;
   DO_SET (dbe_key_t *, key, &rd->rd_key->key_table->tb_keys)
-    {
-      if (!key->key_is_primary)
-	upd_insert_2nd_key (key, itc, rd);
-    }
-  END_DO_SET();
+  {
+    if (!key->key_is_primary)
+      upd_insert_2nd_key (key, itc, rd);
+  }
+  END_DO_SET ();
   return DVC_LESS;
 }
 
 
 void
-row_insert_node_input (row_insert_node_t * ins, caddr_t * inst,
-		       caddr_t * state)
+row_insert_node_input (row_insert_node_t * ins, caddr_t * inst, caddr_t * state)
 {
   query_instance_t *qi = (query_instance_t *) QST_INSTANCE (state);
-  caddr_t * row = (caddr_t *) qst_get (state, ins->rins_row);
+  caddr_t *row = (caddr_t *) qst_get (state, ins->rins_row);
   buffer_desc_t *buf = NULL;
   it_cursor_t *it;
-  dbe_key_t * key;
+  dbe_key_t *key;
   LOCAL_RD (rd);
   rd.rd_allocated = RD_AUTO;
   LT_CHECK_RW (qi->qi_trx);
@@ -1198,9 +1182,9 @@ row_insert_node_input (row_insert_node_t * ins, caddr_t * inst,
 }
 
 
+
 void
-key_insert_node_input (key_insert_node_t * ins, caddr_t * inst,
-		       caddr_t * state)
+key_insert_node_input (key_insert_node_t * ins, caddr_t * inst, caddr_t * state)
 {
 #ifndef KEYCOMP
   query_instance_t *qi = (query_instance_t *) QST_INSTANCE (state);
@@ -1225,13 +1209,14 @@ key_insert_node_input (key_insert_node_t * ins, caddr_t * inst,
 
 
 
+
+
 /* called when itc_insert_unq_ck finds existing row.
    The main_itc is inside the page on PA_READ and the lock is not set.
  */
 
 int
-itc_replace_row (it_cursor_t * main_itc, buffer_desc_t * main_buf, row_delta_t * rd,
-		 caddr_t * state, int this_key_only)
+itc_replace_row (it_cursor_t * main_itc, buffer_desc_t * main_buf, row_delta_t * rd, caddr_t * state, int this_key_only)
 {
   int res;
   dbe_key_t *old_key = itc_get_row_key (main_itc, main_buf);
@@ -1255,23 +1240,22 @@ itc_replace_row (it_cursor_t * main_itc, buffer_desc_t * main_buf, row_delta_t *
 	del_itc = itc_create (NULL, main_itc->itc_ltrx);
 	del_itc->itc_lock_mode = PL_EXCLUSIVE;
 	ITC_FAIL (del_itc)
+	{
+	  DO_SET (dbe_key_t *, key, &tb->tb_keys)
 	  {
-	    DO_SET (dbe_key_t *, key, &tb->tb_keys)
-	      {
-		if (key->key_is_primary)
-		  goto next_key;
-		res = itc_get_alt_key (del_itc, &del_buf,
-				       key, &old_rd);
-		itc_delete_this (del_itc, &del_buf, res, NO_BLOBS);
-	      next_key:;
-	      }
-	    END_DO_SET ();
+	    if (key->key_is_primary)
+	      goto next_key;
+	    res = itc_get_alt_key (del_itc, &del_buf, key, &old_rd);
+	    itc_delete_this (del_itc, &del_buf, res, NO_BLOBS);
+	  next_key:;
 	  }
+	  END_DO_SET ();
+	}
 	ITC_FAILED
-	  {
-	    itc_free (main_itc);
-	    itc_free (del_itc);
-	  }
+	{
+	  itc_free (main_itc);
+	  itc_free (del_itc);
+	}
 	END_FAIL (del_itc);
 	itc_free (del_itc);
       }
@@ -1287,13 +1271,12 @@ pl_source_run (pl_source_t * pls, caddr_t * inst, caddr_t * state)
 {
   volatile int inx = 0;
   int res;
-  placeholder_t * volatile pl = (placeholder_t *) qst_place_get (state, pls->pls_place);
+  placeholder_t *volatile pl = (placeholder_t *) qst_place_get (state, pls->pls_place);
   query_instance_t *qi = (query_instance_t *) QST_INSTANCE (state);
   LOCAL_RD (rd);
 start:
   if (!pl)
-    sqlr_new_error ("24000", "SR262", "Cursor not positioned on positioned reference. %s",
-	pls->pls_place->ssl_name);
+    sqlr_new_error ("24000", "SR262", "Cursor not positioned on positioned reference. %s", pls->pls_place->ssl_name);
   {
     buffer_desc_t *volatile cr_buf = NULL;
     buffer_desc_t *main_buf;
@@ -1315,10 +1298,9 @@ start:
 	  itc_free (cr_itc);
 	  sqlr_new_error ("24000", "SR263", "Cursor not on row in positioned UPDATE");
 	}
-      if (pl->itc_owns_page != cr_itc->itc_page ||
-	  pl->itc_lock_mode != PL_EXCLUSIVE)
+      if (pl->itc_owns_page != cr_itc->itc_page || pl->itc_lock_mode != PL_EXCLUSIVE)
 	{
-	  itc_set_lock_on_row (cr_itc, (buffer_desc_t **)&cr_buf);
+	  itc_set_lock_on_row (cr_itc, (buffer_desc_t **) & cr_buf);
 	  if (!cr_itc->itc_is_on_row)
 	    {
 	      itc_free (cr_itc);
@@ -1333,7 +1315,7 @@ start:
       if (cr_key)
 	page_row (cr_buf, cr_itc->itc_map_pos, &rd, RO_ROW);
       if (!cr_key->key_is_primary)
-	itc_page_leave (cr_itc, cr_buf); /* do this inside the ITC_FAIL */
+	itc_page_leave (cr_itc, cr_buf);	/* do this inside the ITC_FAIL */
     }
     ITC_FAILED
     {
@@ -1350,8 +1332,7 @@ start:
 	ITC_LEAVE_MAPS (cr_itc);
 	ITC_FAIL (main_itc)
 	{
-	  res = itc_get_alt_key (main_itc, &main_buf,
-				 tb->tb_primary_key, &rd);
+	  res = itc_get_alt_key (main_itc, &main_buf, tb->tb_primary_key, &rd);
 	  if (res == DVC_MATCH)
 	    {
 	    }
@@ -1383,8 +1364,7 @@ start:
 
     DO_SET (dbe_column_t *, col, &pls->pls_table->tb_primary_key->key_parts)
     {
-      qst_set (inst, pls->pls_values[inx],
-	  itc_box_column (main_itc, main_buf, col->col_id, NULL));
+      qst_set (inst, pls->pls_values[inx], itc_box_column (main_itc, main_buf, col->col_id, NULL));
       inx++;
     }
     END_DO_SET ();
@@ -1400,5 +1380,3 @@ pl_source_input (pl_source_t * pls, caddr_t * inst, caddr_t * state)
   pl_source_run (pls, inst, state);
   qn_send_output ((data_source_t *) pls, state);
 }
-
-

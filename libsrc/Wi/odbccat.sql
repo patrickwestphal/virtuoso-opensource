@@ -20,6 +20,7 @@
 --  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 --
 --
+
 create procedure
 sql_normalize_qon (in dsn varchar, inout infos any, inout qual varchar, inout owner varchar, inout name varchar)
 {

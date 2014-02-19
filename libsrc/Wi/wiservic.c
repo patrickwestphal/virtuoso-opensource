@@ -69,8 +69,7 @@ is_started_as_service (void)
 
 
 int
-wisvc_Handle_W_option (int argc, char **argv,
-		       char *s, int *i_ptr, int called_as_service)
+wisvc_Handle_W_option (int argc, char **argv, char *s, int *i_ptr, int called_as_service)
 {
   char *work_dir = (s + 2);
 
@@ -78,9 +77,7 @@ wisvc_Handle_W_option (int argc, char **argv,
     {
       if ((++(*i_ptr) >= argc) || !(work_dir = argv[(*i_ptr)]))
 	{
-	  err_printf ((
-			"%s: Directory name missing after command line option \"%s\", exiting.\n",
-			argv[0], s));
+	  err_printf (("%s: Directory name missing after command line option \"%s\", exiting.\n", argv[0], s));
 	  kubl_main_exit (1);
 	}
     }
@@ -88,8 +85,7 @@ wisvc_Handle_W_option (int argc, char **argv,
   if (chdir (work_dir))		/* Is not zero, i.e. -1, an error. */
     {
 /*   setWindowsError(); */
-      err_printf (("%s: Cannot chdir to \"%s\" because: %s",
-		   argv[0], work_dir, strerror (errno)));
+      err_printf (("%s: Cannot chdir to \"%s\" because: %s", argv[0], work_dir, strerror (errno)));
       kubl_main_exit (1);
     }
 
@@ -126,8 +122,7 @@ wisvc_err_printf (const char *str, ...)
 #define MAX_BINARY_PATH (2*_MAX_PATH)
 
 int
-wisvc_Handle_I_and_J_options (int argc, char **argv,
-			      char *s, int i, int autostart)
+wisvc_Handle_I_and_J_options (int argc, char **argv, char *s, int i, int autostart)
 {
   int called_as_service = 0;
   size_t path_len;
@@ -173,8 +168,7 @@ wisvc_Handle_I_and_J_options (int argc, char **argv,
     {
       if (NULL == getcwd (BinaryPathName, _MAX_PATH))
 	{
-	  err_printf (("%s: Cannot getcwd because: %s",
-		       progname, strerror (errno)));
+	  err_printf (("%s: Cannot getcwd because: %s", progname, strerror (errno)));
 	  exit (1);
 	}
       path_len = strlen (BinaryPathName);
@@ -198,14 +192,12 @@ wisvc_Handle_I_and_J_options (int argc, char **argv,
      because of wi.cfg check soon performed. */
   if ((NULL != (cutpnt = strrchr (BinaryPathName, '\\'))))
     {				/* Search the last backslash. */
-      unsigned char
-        save_the_following_char = *(((unsigned char *) cutpnt) + 1);
+      unsigned char save_the_following_char = *(((unsigned char *) cutpnt) + 1);
       *(cutpnt + 1) = '\0';
 
       if (chdir (BinaryPathName))	/* Is not zero, i.e. -1, an error. */
 	{			/* However, we do not exit yet. */
-	  err_printf (("%s: Cannot chdir to \"%s\" because: %s",
-		       argv[0], BinaryPathName, strerror (errno)));
+	  err_printf (("%s: Cannot chdir to \"%s\" because: %s", argv[0], BinaryPathName, strerror (errno)));
 	  exit (1);
 	}
 
@@ -251,8 +243,7 @@ wisvc_Handle_I_and_J_options (int argc, char **argv,
 	      }
 	    case 'W':
 	      {
-		int stat
-		= wisvc_Handle_W_option (argc, argv, s, &i, called_as_service);
+		int stat = wisvc_Handle_W_option (argc, argv, s, &i, called_as_service);
 		if (stat)
 		  {
 		    kubl_main_exit (stat);
@@ -263,9 +254,7 @@ wisvc_Handle_I_and_J_options (int argc, char **argv,
 	    case 'U':		/* case 'R': */
 	    case 'd':
 	      {
-		err_printf ((
-			      "%s: Sorry, the option %s can be used only from command line, not in service!\n",
-			      argv[0], s));
+		err_printf (("%s: Sorry, the option %s can be used only from command line, not in service!\n", argv[0], s));
 		exit (1);
 	      }
 	    }
@@ -281,16 +270,13 @@ wisvc_Handle_I_and_J_options (int argc, char **argv,
     int fd = open (CFG_FILE, O_RDWR);
     if (fd < 0)
       {
-	err_printf ((
-		      "There must be a %s file in the server's working directory. Exiting.\n",
-		      CFG_FILE));
+	err_printf (("There must be a %s file in the server's working directory. Exiting.\n", CFG_FILE));
 	exit (-1);
       }
     fd_close (fd, NULL);	/* Defined in widisk.h */
   }
 
-  wisvc_CreateKublService (argc, argv, service_name, BinaryPathName,
-			   autostart, start_now);
+  wisvc_CreateKublService (argc, argv, service_name, BinaryPathName, autostart, start_now);
 
   return (0);
 }
@@ -312,8 +298,7 @@ SERVICE_STATUS_HANDLE wisvc_KublServiceStatusHandle;
    when the service was installed. For SERVICE_WIN32_OWN_PROCESS services,
    the service name in the table entry is ignored. (Fortunately!)
  */
-SERVICE_TABLE_ENTRY wisvc_ServiceDispatchTable[] =
-{
+SERVICE_TABLE_ENTRY wisvc_ServiceDispatchTable[] = {
   {TEXT ("Kubl"), ((LPSERVICE_MAIN_FUNCTION) wisvc_KublServiceStart)},
   {NULL, NULL}
 };
@@ -324,8 +309,7 @@ wisvc_start_kubl_service_dispatcher (int argc, char **argv)
 {
   if (0 == StartServiceCtrlDispatcher (wisvc_ServiceDispatchTable))
     {
-      wisvc_err_printf ("%s: StartServiceCtrlDispatcher error =  %d\n",
-			argv[0], GetLastError ());
+      wisvc_err_printf ("%s: StartServiceCtrlDispatcher error =  %d\n", argv[0], GetLastError ());
       exit (1);
     }
 }
@@ -357,8 +341,7 @@ wisvc_KublServiceStart (DWORD argc, LPTSTR * argv)
    in turn) will be appended to wi.err file in more appropriate
    place than \WINNT\SYSTEM32 directory.
  */
-  if (wisvc_Main_G_argv && wisvc_Main_G_argv[0] &&
-      (NULL != (cutpnt = strrchr (wisvc_Main_G_argv[0], '\\'))))
+  if (wisvc_Main_G_argv && wisvc_Main_G_argv[0] && (NULL != (cutpnt = strrchr (wisvc_Main_G_argv[0], '\\'))))
     {				/* Search the last backslash. */
       ptrlong len;
       char *work_dir;
@@ -378,8 +361,7 @@ wisvc_KublServiceStart (DWORD argc, LPTSTR * argv)
 	{			/* However, we do not exit yet. */
 /*        DWORD erhe = GetLastError(); */
 
-	  wisvc_err_printf ("%s: Cannot chdir to \"%s\" because: %s",
-			    argv[0], work_dir, strerror (errno));
+	  wisvc_err_printf ("%s: Cannot chdir to \"%s\" because: %s", argv[0], work_dir, strerror (errno));
 	}
       free (work_dir);
     }
@@ -394,13 +376,11 @@ wisvc_KublServiceStart (DWORD argc, LPTSTR * argv)
   wisvc_KublServiceStatus.dwWaitHint = 2;
 
   wisvc_KublServiceStatusHandle =
-    RegisterServiceCtrlHandler (TEXT (service_name),
-		       ((LPHANDLER_FUNCTION) wisvc_KublServiceCtrlHandler));
+      RegisterServiceCtrlHandler (TEXT (service_name), ((LPHANDLER_FUNCTION) wisvc_KublServiceCtrlHandler));
 
   if (wisvc_KublServiceStatusHandle == (SERVICE_STATUS_HANDLE) 0)
     {
-      wisvc_err_printf ("%s: (%s) RegisterServiceCtrlHandler failed %ld\n",
-			wisvc_Main_G_argv[0], service_name, GetLastError ());
+      wisvc_err_printf ("%s: (%s) RegisterServiceCtrlHandler failed %ld\n", wisvc_Main_G_argv[0], service_name, GetLastError ());
       return;
     }
 
@@ -424,14 +404,15 @@ wisvc_KublServiceStart (DWORD argc, LPTSTR * argv)
 
   /* This is where the service either does few checkpoints now and then
      or does nothing: */
-    main_the_rest ();		/* In chil.c */
+  main_the_rest ();		/* In chil.c */
 
   return;
 }
 
 
 
-VOID wisvc_KublServiceCtrlHandler (IN DWORD Opcode)
+VOID
+wisvc_KublServiceCtrlHandler (IN DWORD Opcode)
 {
   DWORD status;
   int my_pid = getpid ();	/* To ease the debugging. */
@@ -449,17 +430,13 @@ VOID wisvc_KublServiceCtrlHandler (IN DWORD Opcode)
 	wisvc_KublServiceStatus.dwCheckPoint = 0;
 	wisvc_KublServiceStatus.dwWaitHint = 0;
 
-	if (!SetServiceStatus (wisvc_KublServiceStatusHandle,
-			       &wisvc_KublServiceStatus))
+	if (!SetServiceStatus (wisvc_KublServiceStatusHandle, &wisvc_KublServiceStatus))
 	  {
 	    status = GetLastError ();
-	    wisvc_err_printf (
-			" [KUBL_SERVICE (%d)] SetServiceStatus error %ld\n",
-			       my_pid, status);
+	    wisvc_err_printf (" [KUBL_SERVICE (%d)] SetServiceStatus error %ld\n", my_pid, status);
 	  }
 
-	wisvc_err_printf (" [KUBL_SERVICE (%d)] Stopped\n",
-			  my_pid);
+	wisvc_err_printf (" [KUBL_SERVICE (%d)] Stopped\n", my_pid);
 	return;
       }
 
@@ -483,9 +460,7 @@ VOID wisvc_KublServiceCtrlHandler (IN DWORD Opcode)
 
     default:
       {
-	wisvc_err_printf (
-	       " [KUBL_SERVICE (%d)] Unimplemented/recognized opcode %ld\n",
-			   my_pid, Opcode);
+	wisvc_err_printf (" [KUBL_SERVICE (%d)] Unimplemented/recognized opcode %ld\n", my_pid, Opcode);
       }
     }				/* switch */
 
@@ -493,9 +468,7 @@ VOID wisvc_KublServiceCtrlHandler (IN DWORD Opcode)
   if (!SetServiceStatus (wisvc_KublServiceStatusHandle, &wisvc_KublServiceStatus))
     {
       status = GetLastError ();
-      wisvc_err_printf (
-			 " [KUBL_SERVICE (%d)] SetServiceStatus error %ld\n",
-			 my_pid, status);
+      wisvc_err_printf (" [KUBL_SERVICE (%d)] SetServiceStatus error %ld\n", my_pid, status);
     }
   return;
 }
@@ -543,45 +516,39 @@ VOID wisvc_KublServiceCtrlHandler (IN DWORD Opcode)
 
 
 void
-wisvc_CreateKublService (int argc, char **argv,
-			 char *service_name, char *BinaryPathName,
-			 int autostart, int start_now)
+wisvc_CreateKublService (int argc, char **argv, char *service_name, char *BinaryPathName, int autostart, int start_now)
 {
   int called_as_service = 0;	/* Needed by macro err_printf */
   SC_HANDLE schSCManager, schService;
   int stat;
 
-  schSCManager = OpenSCManager (
-				 NULL,	/* LPCTSTR  lpMachineName, address of machine name string */
-				 NULL,	/* LPCTSTR  lpDatabaseName, address of database name string */
-				 SC_MANAGER_ALL_ACCESS	/* DWORD dwDesiredAccess, type of access */
-    );
+  schSCManager = OpenSCManager (NULL,	/* LPCTSTR  lpMachineName, address of machine name string */
+      NULL,			/* LPCTSTR  lpDatabaseName, address of database name string */
+      SC_MANAGER_ALL_ACCESS	/* DWORD dwDesiredAccess, type of access */
+      );
 
   if (NULL == schSCManager)
     {
       DWORD erhe = GetLastError ();
 
-      err_printf ((
-       "%s: Installing \"%s\" (path: \"%s\") as Windows NT service failed. "
-	"Could not open Services Database with OpenSCManager, errno=%ld.\n",
-		    argv[0], service_name, BinaryPathName, erhe));
+      err_printf (("%s: Installing \"%s\" (path: \"%s\") as Windows NT service failed. "
+	      "Could not open Services Database with OpenSCManager, errno=%ld.\n", argv[0], service_name, BinaryPathName, erhe));
       exit (1);
     }
 
-  schService = CreateService (
-			       schSCManager,	/* SCManager database      */
-			       TEXT (service_name),	/* name of service         */
-			       service_name,	/* service name to display */
-			       SERVICE_ALL_ACCESS,	/* desired access          */
-			       SERVICE_WIN32_OWN_PROCESS,	/* service type            */
-		    (autostart ? SERVICE_AUTO_START : SERVICE_DEMAND_START),	/* start type */
-			       SERVICE_ERROR_NORMAL,	/* error control type      */
-			       ((LPCSTR) BinaryPathName),	/* service's binary        */
-			       NULL,	/* no load ordering group  */
-			       NULL,	/* no tag identifier       */
-			       NULL,	/* no dependencies         */
-			       NULL,	/* LocalSystem account     */
-			       NULL);	/* no password             */
+  schService = CreateService (schSCManager,	/* SCManager database      */
+      TEXT (service_name),	/* name of service         */
+      service_name,		/* service name to display */
+      SERVICE_ALL_ACCESS,	/* desired access          */
+      SERVICE_WIN32_OWN_PROCESS,	/* service type            */
+      (autostart ? SERVICE_AUTO_START : SERVICE_DEMAND_START),	/* start type */
+      SERVICE_ERROR_NORMAL,	/* error control type      */
+      ((LPCSTR) BinaryPathName),	/* service's binary        */
+      NULL,			/* no load ordering group  */
+      NULL,			/* no tag identifier       */
+      NULL,			/* no dependencies         */
+      NULL,			/* LocalSystem account     */
+      NULL);			/* no password             */
 
   if (NULL == schService)
     {
@@ -589,37 +556,29 @@ wisvc_CreateKublService (int argc, char **argv,
 
       if (ERROR_SERVICE_EXISTS == erhe)
 	{
-	  err_printf ((
-			"%s: Cannot install service \"%s\" because a service with the same "
-			"name already exists! (errno=%ld, path=\"%s\").\n",
-			argv[0], service_name, erhe, BinaryPathName));
+	  err_printf (("%s: Cannot install service \"%s\" because a service with the same "
+		  "name already exists! (errno=%ld, path=\"%s\").\n", argv[0], service_name, erhe, BinaryPathName));
 	}
       else if (ERROR_SERVICE_MARKED_FOR_DELETE == erhe)
 	{
-	  err_printf ((
-			"%s: Cannot install service \"%s\" because a service with the same "
-			"name still exists, although it has been marked for delete. Use ISQL to "
-			"stop the old service with shutdown or raw_exit() before continuing "
-			" (errno=%ld, path=\"%s\").\n",
-			argv[0], service_name, erhe, BinaryPathName));
+	  err_printf (("%s: Cannot install service \"%s\" because a service with the same "
+		  "name still exists, although it has been marked for delete. Use ISQL to "
+		  "stop the old service with shutdown or raw_exit() before continuing "
+		  " (errno=%ld, path=\"%s\").\n", argv[0], service_name, erhe, BinaryPathName));
 	}
       else
 	{
-	  err_printf ((
-			"%s: Installing \"%s\" (path: \"%s\") as Windows NT service failed. "
-			"CreateService returned NULL, errno=%ld.\n",
-			argv[0], service_name, BinaryPathName, erhe));
+	  err_printf (("%s: Installing \"%s\" (path: \"%s\") as Windows NT service failed. "
+		  "CreateService returned NULL, errno=%ld.\n", argv[0], service_name, BinaryPathName, erhe));
 	}
       exit (1);
     }
 
-  err_printf (("%s: Service \"%s\" installed successfully.\n",
-	       argv[0], service_name));
+  err_printf (("%s: Service \"%s\" installed successfully.\n", argv[0], service_name));
 
   if (start_now)
     {
-      stat = wisvc_StartKublService (argc, argv, schService,
-				     service_name, BinaryPathName, 1);
+      stat = wisvc_StartKublService (argc, argv, schService, service_name, BinaryPathName, 1);
 
     }
 
@@ -655,9 +614,7 @@ wisvc_CreateKublService (int argc, char **argv,
  */
 
 int
-wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService,
-			char *service_name, char *BinaryPathName,
-			int discard_argv)
+wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService, char *service_name, char *BinaryPathName, int discard_argv)
 {				/* The last two arguments not really needed except for error messages */
   int called_as_service = 0;	/* Needed by macro err_printf */
   int checkpoint_has_stayed_stagnant_n_iterations = 0;
@@ -670,37 +627,31 @@ wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService,
  */
 
   if (!StartService (schService,	/* handle of service    */
-		     (discard_argv ? 0 : (argc - 1)),	/* number of arguments  */
-		     (discard_argv ? NULL : (argv + 1))))	/* Arg vector from main */
+	  (discard_argv ? 0 : (argc - 1)),	/* number of arguments  */
+	  (discard_argv ? NULL : (argv + 1))))	/* Arg vector from main */
     {				/* without argv[0] */
       DWORD erhe = GetLastError ();
 
-      err_printf ((
-		    "%s: Starting service \"%s\" (path: \"%s\") failed. "
-		    "StartService returned zero, errno=%ld%s\n",
-		    argv[0], service_name, BinaryPathName, erhe,
-		    ((ERROR_SERVICE_ALREADY_RUNNING == erhe) ?
-		     " because service has been already started!" : ".")
-		  ));
+      err_printf (("%s: Starting service \"%s\" (path: \"%s\") failed. "
+	      "StartService returned zero, errno=%ld%s\n",
+	      argv[0], service_name, BinaryPathName, erhe,
+	      ((ERROR_SERVICE_ALREADY_RUNNING == erhe) ? " because service has been already started!" : ".")));
       return (0);
     }
   else
     {
-      err_printf (("Service %s start in progress, BinaryPathName=%s\n",
-		   service_name, BinaryPathName));
+      err_printf (("Service %s start in progress, BinaryPathName=%s\n", service_name, BinaryPathName));
     }
 
   /* Check the status until the service is running. */
 
   if (!QueryServiceStatus (schService,	/* handle of service       */
-			   &ssStatus))	/* address of status info  */
+	  &ssStatus))		/* address of status info  */
     {
       DWORD erhe = GetLastError ();
 
-      err_printf ((
-	     "%s: Querying status of service \"%s\" (path: \"%s\") failed. "
-		    "QueryServiceStatus returned zero, errno=%ld.\n",
-		    argv[0], service_name, BinaryPathName, erhe));
+      err_printf (("%s: Querying status of service \"%s\" (path: \"%s\") failed. "
+	      "QueryServiceStatus returned zero, errno=%ld.\n", argv[0], service_name, BinaryPathName, erhe));
       return (0);
     }
 
@@ -734,8 +685,7 @@ wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService,
  */
 
 /* Break if the checkpoint has not been incremented for three times. */
-      if ((dwOldCheckPoint >= ssStatus.dwCheckPoint)
-	  && (dwOlderCheckPoint >= ssStatus.dwCheckPoint))
+      if ((dwOldCheckPoint >= ssStatus.dwCheckPoint) && (dwOlderCheckPoint >= ssStatus.dwCheckPoint))
 	{
 	  if (++checkpoint_has_stayed_stagnant_n_iterations > 3)
 	    {
@@ -749,30 +699,22 @@ wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService,
   if (ssStatus.dwCurrentState == SERVICE_RUNNING)
     {
       {
-	err_printf ((
-		 "%s: Service \"%s\" started successfully (path: \"%s\").\n",
-		      argv[0], service_name, BinaryPathName));
+	err_printf (("%s: Service \"%s\" started successfully (path: \"%s\").\n", argv[0], service_name, BinaryPathName));
       }
       return (1);
     }
   else
     {
-      err_printf ((
-		"%s: Service \"%s\" (path: \"%s\") %s started correctly.\n",
-		    argv[0], service_name, BinaryPathName,
-	     ((SERVICE_START_PENDING != ssStatus.dwCurrentState) ? "has not"
-	      : "may or may not have")));
-      err_printf (("  Current State: %d\n",
-		   ssStatus.dwCurrentState));
+      err_printf (("%s: Service \"%s\" (path: \"%s\") %s started correctly.\n",
+	      argv[0], service_name, BinaryPathName,
+	      ((SERVICE_START_PENDING != ssStatus.dwCurrentState) ? "has not" : "may or may not have")));
+      err_printf (("  Current State: %d\n", ssStatus.dwCurrentState));
       err_printf (("  Exit Code: %d\n", ssStatus.dwWin32ExitCode));
-      err_printf (("  Service Specific Exit Code: %d\n",
-		   ssStatus.dwServiceSpecificExitCode));
+      err_printf (("  Service Specific Exit Code: %d\n", ssStatus.dwServiceSpecificExitCode));
       err_printf (("  Check Point: %d\n", ssStatus.dwCheckPoint));
       err_printf (("  Wait Hint: %d\n", ssStatus.dwWaitHint));
-      err_printf ((
-		    "Please use services icon in Control Panel to see whether service \"%s\" was really started."
-	 " Check also the file wi.err in the server's working directory.\n",
-		    service_name));
+      err_printf (("Please use services icon in Control Panel to see whether service \"%s\" was really started."
+	      " Check also the file wi.err in the server's working directory.\n", service_name));
       return (0);
     }
 }
@@ -787,59 +729,49 @@ wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService,
  */
 
 SC_HANDLE
-wisvc_OpenKublService (char **argv, char *service_name,
-		       char *what_for, DWORD access_code)
+wisvc_OpenKublService (char **argv, char *service_name, char *what_for, DWORD access_code)
 {
   int called_as_service = 0;	/* Needed by macro err_printf */
   SC_HANDLE schSCManager, schService;
 
-  schSCManager = OpenSCManager (
-				 NULL,	/* LPCTSTR  lpMachineName, address of machine name string */
-				 NULL,	/* LPCTSTR  lpDatabaseName, address of database name string */
-				 SC_MANAGER_ALL_ACCESS	/* DWORD dwDesiredAccess, type of access */
-    );
+  schSCManager = OpenSCManager (NULL,	/* LPCTSTR  lpMachineName, address of machine name string */
+      NULL,			/* LPCTSTR  lpDatabaseName, address of database name string */
+      SC_MANAGER_ALL_ACCESS	/* DWORD dwDesiredAccess, type of access */
+      );
 
   if (NULL == schSCManager)
     {
       DWORD erhe = GetLastError ();
 
-      err_printf ((
-		    "%s: %sing service \"%s\" failed. "
-	"Could not open Services Database with OpenSCManager, errno=%ld.\n",
-		    argv[0], what_for, service_name, erhe));
+      err_printf (("%s: %sing service \"%s\" failed. "
+	      "Could not open Services Database with OpenSCManager, errno=%ld.\n", argv[0], what_for, service_name, erhe));
       exit (1);
     }
 
 
-  schService = OpenService (
-			     schSCManager,	/* SCManager database         */
-			     TEXT (service_name),	/* name of service            */
-			     access_code);	/* only need access specified */
+  schService = OpenService (schSCManager,	/* SCManager database         */
+      TEXT (service_name),	/* name of service            */
+      access_code);		/* only need access specified */
 
   if (schService == NULL)
     {
       DWORD erhe = GetLastError ();
       if (ERROR_SERVICE_DOES_NOT_EXIST == erhe)
 	{
-	  err_printf ((
-			"%s: Cannot %s non-existent service \"%s\" OpenService failed, errno=%ld.\n",
-			argv[0], what_for, service_name, erhe));
+	  err_printf (("%s: Cannot %s non-existent service \"%s\" OpenService failed, errno=%ld.\n",
+		  argv[0], what_for, service_name, erhe));
 	}
       else if (ERROR_SERVICE_MARKED_FOR_DELETE == erhe)
 	{
-	  err_printf ((
-		 "%s: Cannot %s service \"%s\" because a service with that "
-			"name still exists, although it has been marked for delete. Use ISQL to "
-			"stop the old service with shutdown or raw_exit() before continuing "
-			" (errno=%ld).\n",
-			argv[0], what_for, service_name, erhe));
+	  err_printf (("%s: Cannot %s service \"%s\" because a service with that "
+		  "name still exists, although it has been marked for delete. Use ISQL to "
+		  "stop the old service with shutdown or raw_exit() before continuing "
+		  " (errno=%ld).\n", argv[0], what_for, service_name, erhe));
 	}
       else
 	{
-	  err_printf ((
-			"%s: %sing service \"%s\" failed. "
-		    "Could not Open Service with OpenService, errno=%ld.\n",
-			argv[0], what_for, service_name, erhe));
+	  err_printf (("%s: %sing service \"%s\" failed. "
+		  "Could not Open Service with OpenService, errno=%ld.\n", argv[0], what_for, service_name, erhe));
 	}
       exit (1);
     }
@@ -854,7 +786,7 @@ wisvc_UninstallKublService (char **argv, char *service_name)
 {
   int called_as_service = 0;	/* Needed by macro err_printf */
   SC_HANDLE schService = wisvc_OpenKublService (argv, service_name,
-						"uninstall", DELETE);
+      "uninstall", DELETE);
 
   if (!DeleteService (schService))
     {
@@ -862,26 +794,21 @@ wisvc_UninstallKublService (char **argv, char *service_name)
 
       if (ERROR_SERVICE_MARKED_FOR_DELETE == erhe)
 	{
-	  err_printf ((
-		 "%s: Cannot %s service \"%s\" because a service with that "
-			"name still exists, although it has been marked for delete. Use ISQL to "
-			"stop the old service with shutdown or raw_exit() before continuing "
-			" (errno=%ld).\n",
-			argv[0], "uninstall", service_name, erhe));
+	  err_printf (("%s: Cannot %s service \"%s\" because a service with that "
+		  "name still exists, although it has been marked for delete. Use ISQL to "
+		  "stop the old service with shutdown or raw_exit() before continuing "
+		  " (errno=%ld).\n", argv[0], "uninstall", service_name, erhe));
 	}
       else
 	{
-	  err_printf ((
-			"%s: Uninstalling service \"%s\" failed. "
-			"DeleteService returned zero, errno=%ld.\n",
-			argv[0], service_name, erhe));
+	  err_printf (("%s: Uninstalling service \"%s\" failed. "
+		  "DeleteService returned zero, errno=%ld.\n", argv[0], service_name, erhe));
 	}
       exit (1);
     }
   else
     {
-      err_printf (("%s: Service \"%s\" uninstalled successfully.\n",
-		   argv[0], service_name));
+      err_printf (("%s: Service \"%s\" uninstalled successfully.\n", argv[0], service_name));
     }
 
   CloseServiceHandle (schService);
@@ -906,11 +833,10 @@ wisvc_UninstallKublService (char **argv, char *service_name)
  */
 
 unsigned long
-wisvc_send_wait_hint (unsigned long every_n_msec,
-		      unsigned long wait_n_secs)
+wisvc_send_wait_hint (unsigned long every_n_msec, unsigned long wait_n_secs)
 {
 
-    static unsigned long last_time_sent = 0;
+  static unsigned long last_time_sent = 0;
   unsigned long now;
 
   if (!wisvc_Main_G_argv)
@@ -919,14 +845,14 @@ wisvc_send_wait_hint (unsigned long every_n_msec,
     }				/* Not a service? */
 
 
-    if (SERVICE_RUNNING == wisvc_KublServiceStatus.dwCurrentState)
+  if (SERVICE_RUNNING == wisvc_KublServiceStatus.dwCurrentState)
 
     {
       return (last_time_sent);
     }
 
 
-    now = GetTickCount ();	/* May wrap over to zero if Windows
+  now = GetTickCount ();	/* May wrap over to zero if Windows
 				   runs continuously (hah!) over approximately 49.7 days. */
 
 /*
@@ -946,20 +872,16 @@ wisvc_send_wait_hint (unsigned long every_n_msec,
    wisvc_KublServiceStatus.dwCheckPoint);
  */
 
-      if (0 == SetServiceStatus (wisvc_KublServiceStatusHandle,
-				 &wisvc_KublServiceStatus))
+      if (0 == SetServiceStatus (wisvc_KublServiceStatusHandle, &wisvc_KublServiceStatus))
 	{
 	  DWORD status = GetLastError ();
 
-	  wisvc_err_printf (
-	  "%s: SetServiceStatus failed (error=%ld) in wisvc_send_wait_hint "
-			     " wisvc_KublServiceStatus.dwCheckPoint=%ld\n",
-			     wisvc_Main_G_argv[0], status,
-			     wisvc_KublServiceStatus.dwCheckPoint);
+	  wisvc_err_printf ("%s: SetServiceStatus failed (error=%ld) in wisvc_send_wait_hint "
+	      " wisvc_KublServiceStatus.dwCheckPoint=%ld\n", wisvc_Main_G_argv[0], status, wisvc_KublServiceStatus.dwCheckPoint);
 
 	}
 
-	last_time_sent = now;
+      last_time_sent = now;
       return (now);
     }
   else
@@ -979,28 +901,24 @@ void
 wisvc_send_service_running_status (void)
 {
 
-    if (wisvc_Main_G_argv &&
-	(SERVICE_RUNNING != wisvc_KublServiceStatus.dwCurrentState))
+  if (wisvc_Main_G_argv && (SERVICE_RUNNING != wisvc_KublServiceStatus.dwCurrentState))
 
     {				/* Initialization complete - report running status */
 
-	wisvc_KublServiceStatus.dwCurrentState = SERVICE_RUNNING;
+      wisvc_KublServiceStatus.dwCurrentState = SERVICE_RUNNING;
 
-	wisvc_KublServiceStatus.dwCheckPoint = 0;
+      wisvc_KublServiceStatus.dwCheckPoint = 0;
 
-	wisvc_KublServiceStatus.dwWaitHint = 0;
+      wisvc_KublServiceStatus.dwWaitHint = 0;
 
 
-	if (0 == SetServiceStatus (wisvc_KublServiceStatusHandle,
-				   &wisvc_KublServiceStatus))
+      if (0 == SetServiceStatus (wisvc_KublServiceStatusHandle, &wisvc_KublServiceStatus))
 
 	{
 
-	    DWORD status = GetLastError ();
+	  DWORD status = GetLastError ();
 
-	    wisvc_err_printf (
-			      "%s: (wisvc_send_service_running_status) SetServiceStatus failed %ld\n",
-			      wisvc_Main_G_argv[0], status);
+	  wisvc_err_printf ("%s: (wisvc_send_service_running_status) SetServiceStatus failed %ld\n", wisvc_Main_G_argv[0], status);
 
 	}
 

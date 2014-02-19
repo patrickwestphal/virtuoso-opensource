@@ -134,7 +134,7 @@ create procedure RDF_VOID_ALL_GEN (in target_graph varchar, in details int := 0)
          {
 	   -- add subset for graph to group here
 	   ns_ctr := ns_ctr + 1;
-	   RDF_VOID_GEN_1 (id_to_iri (RVGM_MEMBER_IID), null, sprintf ('ns%d', ns_ctr),
+	   RDF_VOID_GEN_1 ( id_to_iri (RVGM_MEMBER_IID), null, sprintf ('ns%d', ns_ctr),
 	       target_graph || rtrim (id_to_iri (RVGM_MEMBER_IID), '/#') || '/',
 	       ses, grp_cnt, 1);
 	   http (sprintf ('ns%d:Dataset void:subset ns%d:Dataset . \n', gr_pref_ctr, ns_ctr), ses);
@@ -190,7 +190,7 @@ create function RDF_VOID_CHECK_GRAPH (in graph varchar) returns float
 create procedure RDF_VOID_GEN_IMPL_SMALL_GRAPH (in graph varchar,
                                                 out cnt int, out cnt_subj int, out cnt_obj int,
                                                 out n_classes int, out n_entities int, out n_properties int)
-	{
+{
   --pl_debug+
   declare exit handler for sqlstate '*' { goto end1; };
   cnt := 0;
@@ -229,7 +229,7 @@ create procedure RDF_VOID_GEN_IMPL_SMALL_GRAPH (in graph varchar,
                    from DB.DBA.RDF_QUAD table option (index RDF_QUAD_GS)
                    where G = __i2id (graph));
 end1:;
-    }
+}
 ;
 
 create procedure RDF_VOID_GEN_IMPL_LARGE_GRAPH (in graph varchar,
@@ -279,7 +279,7 @@ end1:;
 ;
 
 create procedure RDF_VOID_GEN_1 (in graph varchar, in gr_name varchar := null,
-				in ns_pref varchar := 'this', in this_ns varchar := '',
+        in ns_pref varchar := 'this', in this_ns varchar := '',
         inout ses any, inout total int, in ep int := 1)
 {
   --pl_debug+
@@ -324,7 +324,7 @@ create procedure RDF_VOID_GEN_1 (in graph varchar, in gr_name varchar := null,
 
   preds := vector ('owl:sameAs', 'rdfs:seeAlso');
   foreach (any rel in preds) do
-  {
+    {
       RDF_VOID_SPLIT_IRI (rel, pref, name);
       pred := __xml_get_ns_uri (pref, 2) || name;
 
@@ -334,10 +334,10 @@ create procedure RDF_VOID_GEN_1 (in graph varchar, in gr_name varchar := null,
                where { graph `iri (?:graph)`
                        { ?s `iri (?:pred)` ?o .
                          filter (?o != iri (?:graph))
-  }
+                        }
                       });
       if (_cnt > 0)
-  {
+      {
         http (sprintf ('%s:%sLinks a void:Linkset ;\n', ns_pref, name), ses);
         http (sprintf (' void:inDataset %s:Dataset ; \n', ns_pref), ses);
         http (sprintf (' void:triples %ld ; \n', _cnt), ses);
@@ -347,24 +347,24 @@ create procedure RDF_VOID_GEN_1 (in graph varchar, in gr_name varchar := null,
     }
 
   return ses;
-  }
+}
 ;
 
 
 
 create procedure void_ins (inout gs any, inout iris any, in fill int)
-  {
+{
   if (fill < 10000)
-      {
+    {
     iris := subseq (iris, 0, fill);
     gs := subseq (gs, 0, fill);
-      }
+    }
   set non_txn_insert = 1;
   for vectored (in g iri_id_8 := gs, in iri varchar := iris)
-      {
+		 {
 		   insert into DB.DBA.RDF_VOID_GRAPH ( RVG_IID, RVG_IRI ) values (g, iri);
-      }
-  }
+		 }
+}
 ;
 
 create procedure void_distinct_graphs ()
@@ -380,7 +380,7 @@ create procedure void_distinct_graphs ()
   whenever not found goto nf;
   open cr;
   while (1)
-      {
+   {
       fetch cr into g_iid, iri;
       if (g_iid <> prev_g)
 	{
@@ -393,8 +393,8 @@ create procedure void_distinct_graphs ()
 	      void_ins (gs, iris, fill);
 	    fill := 0;
 	    }
-      }
-  }
+	}
+   }
 nf:
   close cr;
   void_ins (gs, iris, fill);
@@ -427,7 +427,7 @@ create procedure RDF_DCAT_GEN (in graph varchar,
   http (sprintf (' rdfs:seeAlso <%s> ; \n', graph), ses);
   if (gr_name is not null)
     http (sprintf (' rdfs:label "%s" ; \n', gr_name), ses);
--- XXX: no endpoint  
+-- XXX: no endpoint
 --  if (ep)
 --    http (sprintf (' void:sparqlEndpoint <http://%s/sparql> ; \n', host), ses);
 
@@ -456,12 +456,12 @@ create procedure RDF_DCAT_GEN (in graph varchar,
                       });
       if (_cnt > 0)
       {
-	  http (sprintf ('%s:%sLinks a void:Linkset ; \n', ns_pref, name), ses);
+        http (sprintf ('%s:%sLinks a void:Linkset ;\n', ns_pref, name), ses);
         http (sprintf (' void:inDataset %s:Dataset ; \n', ns_pref), ses);
         http (sprintf (' void:triples %ld ; \n', _cnt), ses);
-	  http (sprintf (' void:linkPredicate %s .\n', rel), ses);
-	  http (sprintf ('\n'), ses);
-    }
+        http (sprintf (' void:linkPredicate %s . \n', rel), ses);
+        http (sprintf ('\n'), ses);
+      }
     }
 
   return ses;

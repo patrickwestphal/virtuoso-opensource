@@ -29,6 +29,7 @@
 %option case-insensitive
 %option never-interactive
 %{
+
 #include <ctype.h>
 #include "Dk.h"
 #include "sqlnode.h"

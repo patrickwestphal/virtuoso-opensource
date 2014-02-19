@@ -41,7 +41,8 @@
 #include "bif_text.h"		/* IvAn/TextXperIndex/000814 */
 #include "security.h"
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "langfunc.h"
 #include "xmlparser.h"
@@ -57,70 +58,70 @@ extern "C" {
 #undef DV_SHORT_STRING		/* for safety */
 
 typedef struct xper_ns_s
-  {
-    int xpns_depth;		/*!< Depth where it's located */
-    caddr_t xpns_name;		/*!< Name of namespace */
-    caddr_t xpns_uri;		/*!< URI provided as a 'value' of namespace */
-    size_t xpns_pos;		/*!< Offset in a blob */
-    size_t xpns_old_pos;	/*!< Offset in a source blob, for use in bif_xper_copy() */
-  }
+{
+  int xpns_depth;		/*!< Depth where it's located */
+  caddr_t xpns_name;		/*!< Name of namespace */
+  caddr_t xpns_uri;		/*!< URI provided as a 'value' of namespace */
+  size_t xpns_pos;		/*!< Offset in a blob */
+  size_t xpns_old_pos;		/*!< Offset in a source blob, for use in bif_xper_copy() */
+}
 xper_ns_t;
 
 /*! Property list for textual data */
 typedef struct xper_textplist_s
-  {
-    int xptp_depth;		/*!< Depth where it's located */
-    caddr_t xptp_lang_name;	/*!< Name of language as specified in xml:lang attribute */
-    lang_handler_t *xptp_lang_handler;	/*!< Handler for language named in xptp_lang_name */
-  }
+{
+  int xptp_depth;		/*!< Depth where it's located */
+  caddr_t xptp_lang_name;	/*!< Name of language as specified in xml:lang attribute */
+  lang_handler_t *xptp_lang_handler;	/*!< Handler for language named in xptp_lang_name */
+}
 xper_textplist_t;
 
 /* IvAn/TextXperIndex/000815 Word counter added */
 /* data structure for parser's callback functions */
 typedef struct xper_ctx_s
-  {
-    buffer_desc_t *xpc_buf;
-    it_cursor_t *xpc_itc;
-    dk_set_t xpc_poss;		/*!< Stack of element positions */
-    dk_set_t xpc_nss;		/*!< Stack of namespace attributes */
-    dk_set_t xpc_textplists;	/*!< Stack of plists of texts */
-    int xpc_depth;		/* current element depth */
-    long xpc_et_pos;
-    int xpc_tn_length1;		/* length of last open tag name */
-    int xpc_tn_length2;		/* length of last close tag name */
-    caddr_t xpc_pdir;
-    xper_doc_t *xpc_doc;
-    /*! \brief Parameter to manage word counting
+{
+  buffer_desc_t *xpc_buf;
+  it_cursor_t *xpc_itc;
+  dk_set_t xpc_poss;		/*!< Stack of element positions */
+  dk_set_t xpc_nss;		/*!< Stack of namespace attributes */
+  dk_set_t xpc_textplists;	/*!< Stack of plists of texts */
+  int xpc_depth;		/* current element depth */
+  long xpc_et_pos;
+  int xpc_tn_length1;		/* length of last open tag name */
+  int xpc_tn_length2;		/* length of last close tag name */
+  caddr_t xpc_pdir;
+  xper_doc_t *xpc_doc;
+  /*! \brief Parameter to manage word counting
 
-       In some cases, two or more adjacent tags should share one word number.
-       xpc_word_hider keeps the type of previous indexed item:
-       XML_MKUP_STAG for opening tag,
-       XML_MKUP_ETAG for closing tag,
-       XML_MKUP_STRING for plain text with words.
-       0 at the beginning of text.
-     */
-    char xpc_word_hider;
-    wpos_t xpc_main_word_ctr;	/*!< counter of words scanned in main text */
-    wpos_t xpc_attr_word_ctr;	/*!< counter of words scanned in attributes */
-    /*! \brief Buffer for storing words which are not yet counted or indexed
+     In some cases, two or more adjacent tags should share one word number.
+     xpc_word_hider keeps the type of previous indexed item:
+     XML_MKUP_STAG for opening tag,
+     XML_MKUP_ETAG for closing tag,
+     XML_MKUP_STRING for plain text with words.
+     0 at the beginning of text.
+   */
+  char xpc_word_hider;
+  wpos_t xpc_main_word_ctr;	/*!< counter of words scanned in main text */
+  wpos_t xpc_attr_word_ctr;	/*!< counter of words scanned in attributes */
+  /*! \brief Buffer for storing words which are not yet counted or indexed
 
-       It is possible that one string value will be loaded into persistent XML by a
-       sequence of calls of cb_character callback, so some words may be split
-       between two or more calls. To process such words, an accumulating buffer has
-       added, where a word can be concatenated from its parts. */
-    utf8char *xpc_text_buf;
-    /*! \brief Number of chars used in xpc_text_buf */
-    int xpc_text_buf_use;
-    /*! \brief Size of xpc_text_buf */
-    int xpc_text_buf_size;
-    caddr_t vt_batch;		/*!< batch of word indexing information, or NULL */
-    int xpc_index_attrs;	/*!< Flags if attributes should be indexed */
-    id_hash_t *xpc_id_dict;
-    FILE *xpc_src_file;
-    vxml_parser_t *xpc_parser;
-    dk_set_t xpc_cut_chain;	/* Chain of boxes, which will be written into the copy */
-    dk_set_t xpc_cut_namespaces;	/* All namespaces, listed in the cut */
-  }
+     It is possible that one string value will be loaded into persistent XML by a
+     sequence of calls of cb_character callback, so some words may be split
+     between two or more calls. To process such words, an accumulating buffer has
+     added, where a word can be concatenated from its parts. */
+  utf8char *xpc_text_buf;
+  /*! \brief Number of chars used in xpc_text_buf */
+  int xpc_text_buf_use;
+  /*! \brief Size of xpc_text_buf */
+  int xpc_text_buf_size;
+  caddr_t vt_batch;		/*!< batch of word indexing information, or NULL */
+  int xpc_index_attrs;		/*!< Flags if attributes should be indexed */
+  id_hash_t *xpc_id_dict;
+  FILE *xpc_src_file;
+  vxml_parser_t *xpc_parser;
+  dk_set_t xpc_cut_chain;	/* Chain of boxes, which will be written into the copy */
+  dk_set_t xpc_cut_namespaces;	/* All namespaces, listed in the cut */
+}
 xper_ctx_t;
 
 /* xpc_poss is used in such way:
@@ -139,24 +140,24 @@ xper_ctx_t;
 
 /* data structure for a start tag */
 struct xper_stag_s
-  {
-    char type;
-    const char *name;
-    const char **xmlns_atts;
-    int xmlns_atts_count;
-    vxml_parser_attrdata_t *attrdata;
-    int main_atts_count;
-    long parent;
-    long left;
-    long position;		/* of the tag in a blob */
-    int depth;
-    dk_set_t *nss_ptr;
-    dk_set_t *textplists_ptr;
-    int recalc_wrs;
-    int store_wrs;
-    xe_word_ranges_t wrs;
-    lang_handler_t *lh;
-  };
+{
+  char type;
+  const char *name;
+  const char **xmlns_atts;
+  int xmlns_atts_count;
+  vxml_parser_attrdata_t *attrdata;
+  int main_atts_count;
+  long parent;
+  long left;
+  long position;		/* of the tag in a blob */
+  int depth;
+  dk_set_t *nss_ptr;
+  dk_set_t *textplists_ptr;
+  int recalc_wrs;
+  int store_wrs;
+  xe_word_ranges_t wrs;
+  lang_handler_t *lh;
+};
 
 typedef struct xper_stag_s xper_stag_t;
 
@@ -216,10 +217,10 @@ static void set_long_in_blob (xper_ctx_t * ctx, long pos, long value);
 static void xper_destroy_ctx (xper_ctx_t * ctx);
 static void xper_blob_append_box (xper_ctx_t * ctx, caddr_t box);
 
-static caddr_t xper_get_attribute (xper_entity_t * xpe, const char * name, int name_len);
+static caddr_t xper_get_attribute (xper_entity_t * xpe, const char *name, int name_len);
 static xml_entity_t *xp_reference (query_instance_t * qi, caddr_t base, caddr_t ref, xml_doc_t * from_doc, caddr_t * err_ret);
 dtd_t *xp_get_addon_dtd (xml_entity_t * xe);
-static caddr_t xp_build_expanded_name (xper_entity_t *xpe);
+static caddr_t xp_build_expanded_name (xper_entity_t * xpe);
 
 #ifdef XPER_DEBUG
 #define xper_dbg_print(fmt) fprintf (stderr, fmt)
@@ -317,9 +318,7 @@ find_ns (const char *ns, size_t len, dk_set_t * nss_ptr)
   if (!nss_ptr)
     return 0;
 
-  DO_SET (xper_ns_t *, ns_i, nss_ptr)
-      if (strlen (ns_i->xpns_name) == len &&
-      (0 == len || 0 == memcmp (ns, ns_i->xpns_name, len)))
+  DO_SET (xper_ns_t *, ns_i, nss_ptr) if (strlen (ns_i->xpns_name) == len && (0 == len || 0 == memcmp (ns, ns_i->xpns_name, len)))
     return ns_i->xpns_pos;
   END_DO_SET ();
 
@@ -351,7 +350,9 @@ start_tag_record (xper_stag_t * d)
 
   for (nsd = nsd_start; nsd < nsd_end; nsd++)
     {
-      caddr_t attrname = ((uname___empty == nsd->nsd_prefix) ? uname_xmlns : box_sprintf(10 + box_length (nsd->nsd_prefix), "xmlns:%s", nsd->nsd_prefix));
+      caddr_t attrname =
+	  ((uname___empty == nsd->nsd_prefix) ? uname_xmlns : box_sprintf (10 + box_length (nsd->nsd_prefix), "xmlns:%s",
+	      nsd->nsd_prefix));
       ccaddr_t uri = nsd->nsd_uri;
       ptrlong attrval_offs;
       xper_ns_t *ns_data;
@@ -367,70 +368,70 @@ start_tag_record (xper_stag_t * d)
       dk_free_box (attrname);
     }
   for (attr = attr_start; attr < attr_end; attr++)
-        {
-	  const char *attrname = attr->ta_raw_name.lm_memblock;
-	  const char *attrvalue = attr->ta_value;
-	  ptrlong attrval_offs;
-	  size += dv_string_size (attrname);
-	  attrval_offs = size;
-	  size += dv_string_size (attrvalue);
-	  colon = strrchr (attrname, ':');
-	  if (('x' != attrname[0]) || ('m' != attrname[1]) || ('l' != attrname[2]))
-	    {			/* Looks like plain attribute */
-	      if (NULL != colon)
-		size += 10;	/* attribute name with namespace */
-	      continue;
+    {
+      const char *attrname = attr->ta_raw_name.lm_memblock;
+      const char *attrvalue = attr->ta_value;
+      ptrlong attrval_offs;
+      size += dv_string_size (attrname);
+      attrval_offs = size;
+      size += dv_string_size (attrvalue);
+      colon = strrchr (attrname, ':');
+      if (('x' != attrname[0]) || ('m' != attrname[1]) || ('l' != attrname[2]))
+	{			/* Looks like plain attribute */
+	  if (NULL != colon)
+	    size += 10;		/* attribute name with namespace */
+	  continue;
+	}
+      if (0 == strcmp (attrname, "xml:lang"))
+	{
+	  xper_textplist_t *textplist_data;
+	  if (NULL != d->textplists_ptr[0])
+	    {			/* If we're already inside element with specified xml:lang */
+	      xper_textplist_t *prev_plist = (xper_textplist_t *) d->textplists_ptr[0]->data;
+	      if (0 == strcmp (attrvalue, prev_plist->xptp_lang_name))
+		continue;	/* redundant xml:lang may be ignored */
+	      lh = lh_get_handler (attrvalue);
+	      if (lh == prev_plist->xptp_lang_handler)
+		continue;	/* handler is common for both local and outer languages */
 	    }
-	  if (0 == strcmp (attrname, "xml:lang"))
+	  else
 	    {
-	      xper_textplist_t *textplist_data;
-	      if (NULL != d->textplists_ptr[0])
-		{		/* If we're already inside element with specified xml:lang */
-		  xper_textplist_t *prev_plist = (xper_textplist_t *) d->textplists_ptr[0]->data;
-		  if (0 == strcmp (attrvalue, prev_plist->xptp_lang_name))
-		    continue;	/* redundant xml:lang may be ignored */
-		  lh = lh_get_handler (attrvalue);
-		  if (lh == prev_plist->xptp_lang_handler)
-		    continue;	/* handler is common for both local and outer languages */
-		}
-	      else
-		{
-		  lh = lh_get_handler (attrvalue);
-		}
-	      textplist_data = (xper_textplist_t *) dk_alloc (sizeof (xper_textplist_t));
-	      textplist_data->xptp_lang_name = box_string (attrvalue);
-	      textplist_data->xptp_lang_handler = lh;
-	      textplist_data->xptp_depth = d->depth;
-	      dk_set_push (d->textplists_ptr, textplist_data);
-	      continue;
+	      lh = lh_get_handler (attrvalue);
 	    }
-        }
+	  textplist_data = (xper_textplist_t *) dk_alloc (sizeof (xper_textplist_t));
+	  textplist_data->xptp_lang_name = box_string (attrvalue);
+	  textplist_data->xptp_lang_handler = lh;
+	  textplist_data->xptp_depth = d->depth;
+	  dk_set_push (d->textplists_ptr, textplist_data);
+	  continue;
+	}
+    }
 
   if (d->recalc_wrs)
+    {
+      for (attr = attr_start; attr < attr_end; attr++)
 	{
-	  for (attr = attr_start; attr < attr_end; attr++)
-	    {
-	      const char *attrvalue = attr->ta_value;
-	      wpos_t word_count;
-	      if (&lh__xany == lh)	/* Optimization for most common case */
-		word_count = elh__xany__UTF8.elh_count_words (attrvalue, strlen (attrvalue), lh__xany.lh_is_vtb_word);
-	      else
-		word_count = lh_count_words (&eh__UTF8, lh, attrvalue, strlen (attrvalue), lh->lh_is_vtb_word);
-	      total_attrs_word_count += 2 + word_count;
-	    }
-#ifndef SKIP_XMLNS_WORD_POS
-	 for (nsd = nsd_start; nsd < nsd_end; nsd++)
-	    {
-	      ccaddr_t attrvalue = nsd->nsd_uri;
-	      wpos_t word_count;
-	      if (&lh__xany == lh)	/* Optimization for most common case */
-		word_count = elh__xany__UTF8.elh_count_words (attrvalue, strlen (attrvalue), lh__xany.lh_is_vtb_word);
-	      else
-		word_count = lh_count_words (&eh__UTF8, lh, attrvalue, strlen (attrvalue), lh->lh_is_vtb_word);
-	      total_attrs_word_count += 2 + word_count;
-	    }
-#endif
+	  const char *attrvalue = attr->ta_value;
+	  wpos_t word_count;
+	  if (&lh__xany == lh)	/* Optimization for most common case */
+	    word_count = elh__xany__UTF8.elh_count_words (attrvalue, strlen (attrvalue), lh__xany.lh_is_vtb_word);
+	  else
+	    word_count = lh_count_words (&eh__UTF8, lh, attrvalue, strlen (attrvalue), lh->lh_is_vtb_word);
+	  total_attrs_word_count += 2 + word_count;
 	}
+#ifndef SKIP_XMLNS_WORD_POS
+      for (nsd = nsd_start; nsd < nsd_end; nsd++)
+	{
+	  ccaddr_t attrvalue = nsd->nsd_uri;
+	  wpos_t word_count;
+	  if (&lh__xany == lh)	/* Optimization for most common case */
+	    word_count = elh__xany__UTF8.elh_count_words (attrvalue, strlen (attrvalue), lh__xany.lh_is_vtb_word);
+	  else
+	    word_count = lh_count_words (&eh__UTF8, lh, attrvalue, strlen (attrvalue), lh->lh_is_vtb_word);
+	  total_attrs_word_count += 2 + word_count;
+	}
+#endif
+    }
   if (d->recalc_wrs)
     d->wrs.xewr_attr_this_end = d->wrs.xewr_attr_beg + total_attrs_word_count;
 
@@ -480,7 +481,9 @@ start_tag_record (xper_stag_t * d)
   /* attributes */
   for (nsd = nsd_start; nsd < nsd_end; nsd++)
     {
-      caddr_t attrname = ((uname___empty == nsd->nsd_prefix) ? uname_xmlns : box_sprintf(10 + box_length (nsd->nsd_prefix), "xmlns:%s", nsd->nsd_prefix));
+      caddr_t attrname =
+	  ((uname___empty == nsd->nsd_prefix) ? uname_xmlns : box_sprintf (10 + box_length (nsd->nsd_prefix), "xmlns:%s",
+	      nsd->nsd_prefix));
       ccaddr_t uri = nsd->nsd_uri;
       rec = (unsigned char *) serialize_string ((char *) rec, attrname);
       rec = (unsigned char *) serialize_string ((char *) rec, uri);
@@ -531,11 +534,12 @@ end_tag_record (const char *name)
   return res;
 }
 
-void xper_blob_log_page_to_dir (blob_handle_t *ctx_bh, size_t page_idx, dp_addr_t page_addr)
+void
+xper_blob_log_page_to_dir (blob_handle_t * ctx_bh, size_t page_idx, dp_addr_t page_addr)
 {
   if (NULL == ctx_bh->bh_pages)
     {
-      ctx_bh->bh_pages = (dp_addr_t *) dk_alloc_box_zero ((BL_DPS_ON_ROW-1) * sizeof (dp_addr_t), DV_BIN);
+      ctx_bh->bh_pages = (dp_addr_t *) dk_alloc_box_zero ((BL_DPS_ON_ROW - 1) * sizeof (dp_addr_t), DV_BIN);
       ctx_bh->bh_page_dir_complete = 1;
     }
   else
@@ -546,7 +550,7 @@ void xper_blob_log_page_to_dir (blob_handle_t *ctx_bh, size_t page_idx, dp_addr_
 	{
 	  int new_n_pages = ((1 + old_n_pages / AOP_STEP) * AOP_STEP);
 	  size_t new_dir_sz = new_n_pages * sizeof (dp_addr_t);
-	  dp_addr_t *tmp = (dp_addr_t *) dk_alloc_box_zero (new_dir_sz, DV_BIN); /* not DV_ARRAY_OF_LONG */
+	  dp_addr_t *tmp = (dp_addr_t *) dk_alloc_box_zero (new_dir_sz, DV_BIN);	/* not DV_ARRAY_OF_LONG */
 	  memcpy (tmp, ctx_bh->bh_pages, old_pages_bufsize);
 	  dk_free_box ((box_t) ctx_bh->bh_pages);
 	  ctx_bh->bh_pages = tmp;
@@ -559,7 +563,8 @@ void xper_blob_log_page_to_dir (blob_handle_t *ctx_bh, size_t page_idx, dp_addr_
 #define PAGES_COUNT_FOR_DISKBYTES(diskbytes) (((unsigned)(diskbytes) + PAGE_DATA_SZ-1) / PAGE_DATA_SZ)
 #endif
 
-void xper_blob_truncate_dir_buf (blob_handle_t *bh)
+void
+xper_blob_truncate_dir_buf (blob_handle_t * bh)
 {
   if (NULL != bh->bh_pages)
     {
@@ -568,7 +573,7 @@ void xper_blob_truncate_dir_buf (blob_handle_t *bh)
       if (old_n_pages > new_n_pages)
 	{
 	  size_t new_dir_sz = new_n_pages * sizeof (dp_addr_t);
-	  dp_addr_t *tmp = (dp_addr_t *) dk_alloc_box_zero (new_dir_sz, DV_BIN); /* not DV_ARRAY_OF_LONG */
+	  dp_addr_t *tmp = (dp_addr_t *) dk_alloc_box_zero (new_dir_sz, DV_BIN);	/* not DV_ARRAY_OF_LONG */
 	  memcpy (tmp, bh->bh_pages, new_dir_sz);
 	  dk_free_box ((box_t) bh->bh_pages);
 	  bh->bh_pages = tmp;
@@ -587,14 +592,13 @@ xper_blob_append_data (xper_ctx_t * ctx, const char *data, size_t len)
   ASSERT_OUTSIDE_MAP (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page);
   ITC_FAIL (ctx->xpc_itc)
   {
-    filled = LONG_REF/*_NA*/ (ctx->xpc_buf->bd_buffer + DP_BLOB_LEN);
+    filled = LONG_REF /*_NA*/ (ctx->xpc_buf->bd_buffer + DP_BLOB_LEN);
     while (len)
       {
 	if (filled >= PAGE_DATA_SZ)
 	  {
-	    size_t old_n_pages = BL_N_PAGES(ctx_bh->bh_length); /* number of new pages is old_n_pages + 1 */
-	    buf = it_new_page (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page,
-		DPF_BLOB, 0, 0);
+	    size_t old_n_pages = BL_N_PAGES (ctx_bh->bh_length);	/* number of new pages is old_n_pages + 1 */
+	    buf = it_new_page (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page, DPF_BLOB, 0, 0);
 #ifdef DEBUG
 	    if (0 == buf->bd_page)
 	      GPF_T;
@@ -608,8 +612,8 @@ xper_blob_append_data (xper_ctx_t * ctx, const char *data, size_t len)
 		sqlr_new_error ("XE000", "XP9A7", "Out of disk space for database while parsing XML");
 		return;
 	      }
-	    LONG_SET/*_NA*/ (ctx->xpc_buf->bd_buffer + DP_BLOB_LEN, PAGE_DATA_SZ);
-	    LONG_SET/*_NA*/ (ctx->xpc_buf->bd_buffer + DP_OVERFLOW, buf->bd_page);
+	    LONG_SET /*_NA*/ (ctx->xpc_buf->bd_buffer + DP_BLOB_LEN, PAGE_DATA_SZ);
+	    LONG_SET /*_NA*/ (ctx->xpc_buf->bd_buffer + DP_OVERFLOW, buf->bd_page);
 	    buf_set_dirty (ctx->xpc_buf);
 	    page_leave_outside_map (ctx->xpc_buf);
 	    ctx->xpc_buf = NULL;
@@ -633,8 +637,8 @@ xper_blob_append_data (xper_ctx_t * ctx, const char *data, size_t len)
     sqlr_new_error ("XE000", "XP102", "ITC error while parsing XML");
   }
   END_FAIL (ctx->xpc_itc);
-  LONG_SET/*_NA*/ (ctx->xpc_buf->bd_buffer + DP_OVERFLOW, 0);
-  LONG_SET/*_NA*/ (ctx->xpc_buf->bd_buffer + DP_BLOB_LEN, (int32) filled);
+  LONG_SET /*_NA*/ (ctx->xpc_buf->bd_buffer + DP_OVERFLOW, 0);
+  LONG_SET /*_NA*/ (ctx->xpc_buf->bd_buffer + DP_BLOB_LEN, (int32) filled);
 }
 
 void
@@ -708,13 +712,12 @@ set_long_in_blob (xper_ctx_t * ctx, long pos, long value)
   int begin_page_no = pos / PAGE_DATA_SZ;
   if (begin_page_no == last_page_no)
     {				/* all data are located on the current page */
-      LONG_SET_NA (ctx->xpc_buf->bd_buffer + DP_DATA + pos % PAGE_DATA_SZ,
-	  value);
+      LONG_SET_NA (ctx->xpc_buf->bd_buffer + DP_DATA + pos % PAGE_DATA_SZ, value);
     }
   else
     {
       buffer_desc_t *buf = NULL;
-      buf = get_blob_page_for_write (ctx->xpc_itc, ctx->xpc_doc, begin_page_no); /* the beginning is not on the current page */
+      buf = get_blob_page_for_write (ctx->xpc_itc, ctx->xpc_doc, begin_page_no);	/* the beginning is not on the current page */
       if (pos % PAGE_DATA_SZ + 4 <= PAGE_DATA_SZ)
 	{
 	  LONG_SET_NA (buf->bd_buffer + DP_DATA + pos % PAGE_DATA_SZ, value);
@@ -725,7 +728,7 @@ set_long_in_blob (xper_ctx_t * ctx, long pos, long value)
 	{			/* the worst case - number is split between pages */
 	  char cbuf[4];
 	  int split = PAGE_DATA_SZ - pos % PAGE_DATA_SZ;	/* 0 < split < 4 */
-	  int next_page_no = begin_page_no+1;
+	  int next_page_no = begin_page_no + 1;
 	  LONG_SET_NA (cbuf, value);
 	  memcpy (buf->bd_buffer + DP_DATA + pos % PAGE_DATA_SZ, cbuf, split);
 	  buf_set_dirty (buf);
@@ -737,7 +740,7 @@ set_long_in_blob (xper_ctx_t * ctx, long pos, long value)
 	  else
 	    {
 	      buf = NULL;
-	      buf = get_blob_page_for_write (ctx->xpc_itc, ctx->xpc_doc, next_page_no); /* the end is not on the current page */
+	      buf = get_blob_page_for_write (ctx->xpc_itc, ctx->xpc_doc, next_page_no);	/* the end is not on the current page */
 	      memcpy (buf->bd_buffer + DP_DATA, cbuf + split, 4 - split);
 	      buf_set_dirty (buf);
 	      page_leave_outside_map (buf);
@@ -781,20 +784,15 @@ cb_trace_start_tag (xper_ctx_t * ctx, xper_stag_t * data)
 	if (pos > 0)
 	  {
 	    /* first child */
-	    set_long_in_blob (ctx, pos + ctx->xpc_tn_length1 +
-		STR_NAME_OFF + STR_FIRST_CHILD_OFF,
-		(long) ctx_bh->bh_length);
+	    set_long_in_blob (ctx, pos + ctx->xpc_tn_length1 + STR_NAME_OFF + STR_FIRST_CHILD_OFF, (long) ctx_bh->bh_length);
 	    data->parent = pos;
 	  }
 	else
 	  {
 	    /* right sibling */
-	    set_long_in_blob (ctx, -pos + ctx->xpc_tn_length2 +
-		STR_NAME_OFF + STR_RIGHT_SIBLING_OFF,
-		(long) ctx_bh->bh_length);
+	    set_long_in_blob (ctx, -pos + ctx->xpc_tn_length2 + STR_NAME_OFF + STR_RIGHT_SIBLING_OFF, (long) ctx_bh->bh_length);
 	    data->left = -pos;
-	    data->parent =
-		((ctx->xpc_poss->next) ? (long) (ptrlong) ctx->xpc_poss->next->data : 0);
+	    data->parent = ((ctx->xpc_poss->next) ? (long) (ptrlong) ctx->xpc_poss->next->data : 0);
 	  }
 	ITC_LEAVE_MAPS (ctx->xpc_itc);
       }
@@ -809,13 +807,13 @@ cb_trace_start_tag (xper_ctx_t * ctx, xper_stag_t * data)
   ctx->xpc_tn_length1 = (int) dv_string_size (data->name);
 
   if (pos < 0)
-    ctx->xpc_poss->data = (void *)((ptrlong)(ctx_bh->bh_length));
+    ctx->xpc_poss->data = (void *) ((ptrlong) (ctx_bh->bh_length));
   else
-    dk_set_push (&ctx->xpc_poss, (void *)((ptrlong)(ctx_bh->bh_length)));
+    dk_set_push (&ctx->xpc_poss, (void *) ((ptrlong) (ctx_bh->bh_length)));
 }
 
 void
-cb_element_start (void *userdata, const char * name, vxml_parser_attrdata_t *attrdata)
+cb_element_start (void *userdata, const char *name, vxml_parser_attrdata_t * attrdata)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   blob_handle_t *ctx_bh = ctx->xpc_doc->xpd_bh;
@@ -823,7 +821,7 @@ cb_element_start (void *userdata, const char * name, vxml_parser_attrdata_t *att
   caddr_t tmp_box;
 
 /* IvAn/TextXperIndex/000815 Word counter added */
-  ASSERT_OUTSIDE_MAP (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page); /* To ensure we had no chance to get deadlock inside the XML parser */
+  ASSERT_OUTSIDE_MAP (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page);	/* To ensure we had no chance to get deadlock inside the XML parser */
   count_buffered_words (ctx);
   ctx->xpc_word_hider = XML_MKUP_STAG;
 
@@ -850,7 +848,7 @@ cb_element_start (void *userdata, const char * name, vxml_parser_attrdata_t *att
 }
 
 static void
-cb_trace_end_tag (xper_ctx_t * ctx, long curr_pos, const char * name)
+cb_trace_end_tag (xper_ctx_t * ctx, long curr_pos, const char *name)
 {
   long pos = (long) (ptrlong) ctx->xpc_poss->data;
 
@@ -860,24 +858,19 @@ cb_trace_end_tag (xper_ctx_t * ctx, long curr_pos, const char * name)
       pos = (long) (ptrlong) ctx->xpc_poss->data;
     }
 
-  ctx->xpc_poss->data = (void *) (ptrlong) -pos;
+  ctx->xpc_poss->data = (void *) (ptrlong) - pos;
 
   ctx->xpc_tn_length2 = (int) dv_string_size (name);
   /* end tag */
   ITC_FAIL (ctx->xpc_itc)
   {
-    set_long_in_blob (ctx, pos + ctx->xpc_tn_length2 +
-	STR_NAME_OFF + STR_END_TAG_OFF,
-	curr_pos);
+    set_long_in_blob (ctx, pos + ctx->xpc_tn_length2 + STR_NAME_OFF + STR_END_TAG_OFF, curr_pos);
 /* IvAn/TextXperIndex/000815 Word counter added */
-    set_long_in_blob (ctx, pos + ctx->xpc_tn_length2 +
-	STR_NAME_OFF + STR_END_WORD_OFF,
-	(long) ctx->xpc_main_word_ctr);
+    set_long_in_blob (ctx, pos + ctx->xpc_tn_length2 + STR_NAME_OFF + STR_END_WORD_OFF, (long) ctx->xpc_main_word_ctr);
     if (ctx->xpc_index_attrs)
       {
 	set_long_in_blob (ctx, pos + ctx->xpc_tn_length2 +
-	    STR_NAME_OFF + STR_ADDON_OR_ATTR_OFF + (2 * 4),
-	    (long) ctx->xpc_attr_word_ctr);
+	    STR_NAME_OFF + STR_ADDON_OR_ATTR_OFF + (2 * 4), (long) ctx->xpc_attr_word_ctr);
       }
     ITC_LEAVE_MAPS (ctx->xpc_itc);
   }
@@ -891,7 +884,7 @@ cb_trace_end_tag (xper_ctx_t * ctx, long curr_pos, const char * name)
 
 
 void
-cb_element_end (void *userdata, const char * name)
+cb_element_end (void *userdata, const char *name)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   blob_handle_t *ctx_bh = ctx->xpc_doc->xpd_bh;
@@ -900,7 +893,7 @@ cb_element_end (void *userdata, const char * name)
   xper_textplist_t *textplist_i;
 
 /* IvAn/TextXperIndex/000815 Word counter added */
-  ASSERT_OUTSIDE_MAP (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page); /* To ensure we had no chance to get deadlock inside the XML parser */
+  ASSERT_OUTSIDE_MAP (ctx->xpc_itc->itc_tree, ctx->xpc_itc->itc_page);	/* To ensure we had no chance to get deadlock inside the XML parser */
   count_buffered_words (ctx);
   if (XML_MKUP_ETAG != ctx->xpc_word_hider)
     {
@@ -938,7 +931,7 @@ cb_element_end (void *userdata, const char * name)
 
 
 void
-cb_id (void *userdata, char * name)
+cb_id (void *userdata, char *name)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   caddr_t boxed_name = box_dv_short_string (name);
@@ -955,7 +948,7 @@ cb_id (void *userdata, char * name)
       return;
     }
 /* Calculate a path to current element. */
-  lpath = (ptrlong *)  dk_alloc_box (sizeof (ptrlong), DV_ARRAY_OF_LONG);
+  lpath = (ptrlong *) dk_alloc_box (sizeof (ptrlong), DV_ARRAY_OF_LONG);
   lpath[0] = ((ctx->xpc_poss) ? (ptrlong) ctx->xpc_poss->data : 0);
 /* Save the result. */
   id_hash_set (dict, (caddr_t) (&boxed_name), (caddr_t) (&lpath));
@@ -964,7 +957,7 @@ cb_id (void *userdata, char * name)
 
 /* IvAn/TextXperIndex/000815 Word counter added */
 void
-cb_character (void *userdata, const char * s, size_t len)
+cb_character (void *userdata, const char *s, size_t len)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   const char *s_frag_begin, *s_tail, *s_end;
@@ -1045,7 +1038,7 @@ next_frag:
 
 /* IvAn/ParseDTD/000721 Structure of entity has changed */
 void
-cb_entity (void *userdata, const char * refname, size_t reflen, int isparam, const xml_def_4_entity_t * edef)
+cb_entity (void *userdata, const char *refname, size_t reflen, int isparam, const xml_def_4_entity_t * edef)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   blob_handle_t *ctx_bh = ctx->xpc_doc->xpd_bh;
@@ -1097,7 +1090,7 @@ cb_entity (void *userdata, const char * refname, size_t reflen, int isparam, con
 }
 
 void
-cb_pi (void *userdata, const char * target, const char * pi_data)
+cb_pi (void *userdata, const char *target, const char *pi_data)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   blob_handle_t *ctx_bh = ctx->xpc_doc->xpd_bh;
@@ -1148,7 +1141,7 @@ cb_pi (void *userdata, const char * target, const char * pi_data)
 
 
 void
-cb_comment (void *userdata, const char * text)
+cb_comment (void *userdata, const char *text)
 {
   xper_ctx_t *ctx = (xper_ctx_t *) userdata;
   size_t len = strlen (text);
@@ -1204,26 +1197,23 @@ dtd_get_buffer_length (dtd_t * dtd)
       if (el->ee_has_id_attr)
 	{
 	  ecm_attr_idx_t key_idx = el->ee_id_attr_idx;
-	  len +=
-	      1 /* type byte */  +
-	      (int) dv_string_size ((char *) (el->ee_name)) +
-	      (int) dv_string_size ((char *) (el->ee_attrs[key_idx].da_name));
+	  len += 1 /* type byte */  +
+	      (int) dv_string_size ((char *) (el->ee_name)) + (int) dv_string_size ((char *) (el->ee_attrs[key_idx].da_name));
 	}
     }
   /* GE's processing */
   dict = dtd->ed_generics;
   if (NULL != dict)
     {
-      for (id_hash_iterator (&dict_hit, dict);
-	  hit_next (&dict_hit, (char **) (&dict_key), (char **) (&dict_entity));
-      /*no step */ )
+      for (id_hash_iterator (&dict_hit, dict); hit_next (&dict_hit, (char **) (&dict_key), (char **) (&dict_entity));
+	  /*no step */ )
 	{
 	  char type_byte;
 	  if (NULL == dict_entity[0]->xd4e_systemId)
 	    continue;
 	  type_byte = ((NULL != dict_entity[0]->xd4e_publicId) ? 'G' : 'g');
 	  len += 1 /* type_byte */  + (int) dv_string_size (dict_key[0]) +
-		  (int) dv_string_size (dict_entity[0]->xd4e_systemId);
+	      (int) dv_string_size (dict_entity[0]->xd4e_systemId);
 	  if ('G' == type_byte)
 	    len += (int) dv_string_size (dict_entity[0]->xd4e_publicId);
 	}
@@ -1234,7 +1224,8 @@ dtd_get_buffer_length (dtd_t * dtd)
   return len;
 }
 
-void dtd_save_str_to_buffer (unsigned char **tail_ptr, char *str)
+void
+dtd_save_str_to_buffer (unsigned char **tail_ptr, char *str)
 {
   unsigned char *tail = tail_ptr[0];
   size_t len = strlen (str);
@@ -1242,7 +1233,7 @@ void dtd_save_str_to_buffer (unsigned char **tail_ptr, char *str)
   (tail++)[0] = tag;
   if (DV_SHORT_STRING_SERIAL == tag)
     {
-      (tail++)[0] = ((unsigned char)len);
+      (tail++)[0] = ((unsigned char) len);
     }
   else
     {
@@ -1253,7 +1244,8 @@ void dtd_save_str_to_buffer (unsigned char **tail_ptr, char *str)
   tail_ptr[0] = tail + len;
 }
 
-void dtd_save_to_buffer (dtd_t *dtd, unsigned char *buf, size_t buf_len)
+void
+dtd_save_to_buffer (dtd_t * dtd, unsigned char *buf, size_t buf_len)
 {
   unsigned char *tail = buf;
   ecm_el_idx_t el_idx, el_no;
@@ -1290,9 +1282,8 @@ void dtd_save_to_buffer (dtd_t *dtd, unsigned char *buf, size_t buf_len)
   dict = dtd->ed_generics;
   if (NULL != dict)
     {
-      for (id_hash_iterator (&dict_hit, dict);
-	  hit_next (&dict_hit, (char **) (&dict_key), (char **) (&dict_entity));
-      /*no step */ )
+      for (id_hash_iterator (&dict_hit, dict); hit_next (&dict_hit, (char **) (&dict_key), (char **) (&dict_entity));
+	  /*no step */ )
 	{
 	  unsigned char type_byte;
 	  if (NULL == dict_entity[0]->xd4e_systemId)
@@ -1305,7 +1296,7 @@ void dtd_save_to_buffer (dtd_t *dtd, unsigned char *buf, size_t buf_len)
 	    dtd_save_str_to_buffer (&tail, dict_entity[0]->xd4e_publicId);
 	}
     }
-  if (tail != buf+buf_len)
+  if (tail != buf + buf_len)
     GPF_T;
 }
 
@@ -1337,7 +1328,7 @@ blob_append_dtd (xper_ctx_t * ctx, dtd_t * dtd)
     }
   buf = (unsigned char *) dk_alloc (len);
   dtd_save_to_buffer (dtd, buf, len);
-  xper_blob_append_data (ctx, (char *)buf, len);
+  xper_blob_append_data (ctx, (char *) buf, len);
   dk_free (buf, len);
   return 1;
 }
@@ -1357,7 +1348,7 @@ xper_destroy_ctx (xper_ctx_t * ctx)
   if ((NULL != ctx->xpc_itc) && (NULL != ctx->xpc_buf))
     {
       buf_set_dirty (ctx->xpc_buf);
-      page_leave_outside_map (ctx->xpc_buf); /* This should be done before blob_chain_delete() below */
+      page_leave_outside_map (ctx->xpc_buf);	/* This should be done before blob_chain_delete() below */
     }
   if (NULL != ctx->xpc_doc)
     {
@@ -1396,12 +1387,11 @@ xper_destroy_ctx (xper_ctx_t * ctx)
     }
 }
 
-static caddr_t
- DBG_NAME (get_tag_data) (DBG_PARAMS xper_entity_t * xpe, volatile long pos)
+static caddr_t DBG_NAME (get_tag_data) (DBG_PARAMS xper_entity_t * xpe, volatile long pos)
 {
   volatile int pn;
   it_cursor_t *tmp_itc;
-  index_tree_t * it;
+  index_tree_t *it;
   buffer_desc_t *buf = NULL;
   size_t len;
   caddr_t volatile box = NULL;
@@ -1410,8 +1400,7 @@ static caddr_t
   char cbuf[4];
   int split = -1;
 
-  tmp_itc =
-    itc_create (NULL, xpe->xe_doc.xd->xd_qi->qi_trx);
+  tmp_itc = itc_create (NULL, xpe->xe_doc.xd->xd_qi->qi_trx);
   it = xpe->xe_doc.xpd->xpd_bh->bh_it;
   if (NULL != it)
     {
@@ -1419,7 +1408,7 @@ static caddr_t
     }
   else
     {
-      dbe_key_t* xper_key = sch_id_to_key (wi_inst.wi_schema, KI_COLS);
+      dbe_key_t *xper_key = sch_id_to_key (wi_inst.wi_schema, KI_COLS);
       itc_from (tmp_itc, xper_key, sqlc_client ()->cli_slice);
     }
   ITC_FAIL (tmp_itc)
@@ -1475,15 +1464,13 @@ static caddr_t
 	    len = LONG_REF_NA (cbuf);
 	  }
 	pos += 4;
-        if (0 == len)
+	if (0 == len)
 	  GPF_T;
       }
     box = DBG_NAME (dk_alloc_box) (DBG_ARGS len, dtp);
     for (i = 0; i < len;)
       {
-	size_t cpsz = ((PAGE_DATA_SZ - pos % PAGE_DATA_SZ < len - i) ?
-	    PAGE_DATA_SZ - pos % PAGE_DATA_SZ :
-	    len - i);
+	size_t cpsz = ((PAGE_DATA_SZ - pos % PAGE_DATA_SZ < len - i) ? PAGE_DATA_SZ - pos % PAGE_DATA_SZ : len - i);
 
 	if (0 == pos % PAGE_DATA_SZ)
 	  {
@@ -1522,15 +1509,14 @@ static caddr_t
 #endif
 
 
-caddr_t
-DBG_NAME(xper_get_namespace) (DBG_PARAMS xper_entity_t * xpe, long pos)
+caddr_t DBG_NAME (xper_get_namespace) (DBG_PARAMS xper_entity_t * xpe, long pos)
 {
   caddr_t tmp, res;
   if (!pos)
     return NULL;
 
   /* TBD - namespace caching by pos */
-  tmp = DBG_NAME(get_tag_data) (DBG_ARGS xpe, pos);
+  tmp = DBG_NAME (get_tag_data) (DBG_ARGS xpe, pos);
   res = box_dv_uname_nchars (tmp, box_length (tmp));
   dk_free_box (tmp);
   return res;
@@ -1626,7 +1612,7 @@ fill_xper_entity (xper_entity_t * xpe, long pos)
 	  namelen = ptr[1];
 	  ptr += 2;
 	}
-      xpe->xper_name = box_dv_uname_nchars ((char *)ptr, namelen);
+      xpe->xper_name = box_dv_uname_nchars ((char *) ptr, namelen);
       ptr += namelen;
       xpe->xper_parent = LONG_REF_NA (ptr + STR_PARENT_OFF);
       xpe->xper_left = LONG_REF_NA (ptr + STR_LEFT_SIBLING_OFF);
@@ -1650,7 +1636,7 @@ fill_xper_entity (xper_entity_t * xpe, long pos)
 	  namelen = ptr[1];
 	  ptr += 2;
 	}
-      xpe->xper_name = box_dv_uname_nchars ((char *)ptr, namelen);
+      xpe->xper_name = box_dv_uname_nchars ((char *) ptr, namelen);
       xpe->xper_next_item = pos + 5 + len;
       break;
     case XML_MKUP_COMMENT:
@@ -1664,7 +1650,7 @@ fill_xper_entity (xper_entity_t * xpe, long pos)
 	  namelen = ptr[1];
 	  ptr += 2;
 	}
-      xpe->xper_name = box_dv_short_nchars ((char *)ptr, namelen);
+      xpe->xper_name = box_dv_short_nchars ((char *) ptr, namelen);
       pos += 5 + len;
       xpe->xper_next_item = pos;
       dk_free_box (tmp_box);
@@ -1684,15 +1670,14 @@ fill_xper_entity (xper_entity_t * xpe, long pos)
 
 
 xml_entity_t *
-xp_reference (query_instance_t * qi, caddr_t base, caddr_t ref,
-    xml_doc_t * from_doc, caddr_t * err_ret)
+xp_reference (query_instance_t * qi, caddr_t base, caddr_t ref, xml_doc_t * from_doc, caddr_t * err_ret)
 {
   xper_entity_t *xpe;
   dtd_t **xpe_dtd_ptr;
   caddr_t str;
   caddr_t err = NULL;
   caddr_t path = xml_uri_resolve (qi, &err, base, ref, "UTF-8");
-  xml_doc_t * top_doc = from_doc->xd_top_doc;
+  xml_doc_t *top_doc = from_doc->xd_top_doc;
   if (err)
     {
       dk_free_box (path);
@@ -1704,8 +1689,7 @@ xp_reference (query_instance_t * qi, caddr_t base, caddr_t ref,
 
   DO_SET (xml_entity_t *, ref_ent, &top_doc->xd_referenced_entities)
   {
-    if (NULL != ref_ent->xe_doc.xd->xd_uri
-	&& 0 == strcmp (ref_ent->xe_doc.xpd->xd_uri, path))
+    if (NULL != ref_ent->xe_doc.xd->xd_uri && 0 == strcmp (ref_ent->xe_doc.xpd->xd_uri, path))
       {
 	dk_free_box (path);
 	return ref_ent;
@@ -1715,8 +1699,8 @@ xp_reference (query_instance_t * qi, caddr_t base, caddr_t ref,
   str = xml_uri_get (qi, &err, NULL, base, ref, XML_URI_ANY);
   if (DV_XML_ENTITY == DV_TYPE_OF (str))
     {
-      xpe = (xper_entity_t *)str; /* This is actually not quite correct, it can be XmlTree but no XPER-specific things are used */
-      goto xpe_is_ready; /* see below */
+      xpe = (xper_entity_t *) str;	/* This is actually not quite correct, it can be XmlTree but no XPER-specific things are used */
+      goto xpe_is_ready;	/* see below */
     }
   if (err)
     {
@@ -1741,7 +1725,7 @@ xp_reference (query_instance_t * qi, caddr_t base, caddr_t ref,
     }
 
 xpe_is_ready:
-  XD_DOM_LOCK(xpe->xe_doc.xd);
+  XD_DOM_LOCK (xpe->xe_doc.xd);
   dk_set_push (&top_doc->xd_referenced_entities, (void *) xpe);
   xpe->xe_doc.xpd->xd_top_doc = top_doc;
   top_doc->xd_weight += xpe->xe_doc.xd->xd_weight;
@@ -1793,16 +1777,16 @@ xp_element_name_test (xml_entity_t * xe, XT * node)
       nspos = LONG_REF_NA (tail);
       dk_free_box (tmp_box);
       if (0 == nspos)
-        {
+	{
 	  ns = NULL;
 	  nslen = 0;
-        }
+	}
       else
 	{
 	  ns = xper_get_namespace (xpe, nspos);
 	  nslen = box_length_inline (ns) - 1;
-          if (0 == nslen)
-            ns = NULL;
+	  if (0 == nslen)
+	    ns = NULL;
 	}
     }
   else
@@ -1815,8 +1799,7 @@ xp_element_name_test (xml_entity_t * xe, XT * node)
       /* test is ns.* */
       if (!ns)
 	goto ret0;
-      if ((nslen == box_length (node->_.name_test.nsuri) - 1) &&
-	  (0 == memcmp (ns, node->_.name_test.nsuri, nslen)) )
+      if ((nslen == box_length (node->_.name_test.nsuri) - 1) && (0 == memcmp (ns, node->_.name_test.nsuri, nslen)))
 	goto ret1;
       else
 	goto ret0;
@@ -1842,8 +1825,7 @@ xp_element_name_test (xml_entity_t * xe, XT * node)
   if (NULL == node->_.name_test.nsuri)
     {
       /* test is name w/o ns */
-      if (((size_t) (len) == box_length_inline (node->_.name_test.local) - 1) &&
-	  (0 == memcmp (node->_.name_test.local, name, len)) )
+      if (((size_t) (len) == box_length_inline (node->_.name_test.local) - 1) && (0 == memcmp (node->_.name_test.local, name, len)))
 	goto ret1;
       else
 	goto ret0;
@@ -1851,13 +1833,11 @@ xp_element_name_test (xml_entity_t * xe, XT * node)
   /* test with namespace */
   if (!ns)
     goto ret0;
-  if (((size_t) (len) != box_length_inline (node->_.name_test.local) - 1) ||
-    (0 != memcmp (node->_.name_test.local, name, len)) )
+  if (((size_t) (len) != box_length_inline (node->_.name_test.local) - 1) || (0 != memcmp (node->_.name_test.local, name, len)))
     goto ret0;
   if (XP_NAME_LOCAL == node->type)
     goto ret1;
-  if ((nslen == box_length (node->_.name_test.nsuri) - 1) &&
-    (0 == memcmp (ns, node->_.name_test.nsuri, nslen)) )
+  if ((nslen == box_length (node->_.name_test.nsuri) - 1) && (0 == memcmp (ns, node->_.name_test.nsuri, nslen)))
     goto ret1;
   goto ret0;
 ret1:
@@ -1912,7 +1892,7 @@ xper_node_test (xper_entity_t * xpe, long pos, XT * node)
       dk_free_box (tmp_box);
       return 0;
     case XML_MKUP_COMMENT:
-      res = ((XP_COMMENT == (ptrlong)node) || (XP_NODE == (ptrlong)node));
+      res = ((XP_COMMENT == (ptrlong) node) || (XP_NODE == (ptrlong) node));
       dk_free_box (tmp_box);
       return res;
     default:
@@ -1992,11 +1972,12 @@ dsfi_reset (dk_session_fwd_iter_t * iter, dk_session_t * ses)
     iter->dsfi_file_len = 0;
   iter->dsfi_file_offset = 0;
 #ifdef XMLPARSER_FEED_DEBUG
-  feed_log = fopen("feed_log", "wb");
+  feed_log = fopen ("feed_log", "wb");
 #endif
 }
 
-extern long read_wides_from_utf8_file (dk_session_t *ses, long nchars, unsigned char *dest, int copy_as_utf8, unsigned char **dest_ptr_out);
+extern long read_wides_from_utf8_file (dk_session_t * ses, long nchars, unsigned char *dest, int copy_as_utf8,
+    unsigned char **dest_ptr_out);
 
 
 size_t
@@ -2037,15 +2018,15 @@ dsfi_read (void *read_cd, char *buf, size_t bsize)
 	  goto done;
 	}
       if (strses_is_utf8 (ses))
-        {
-          readed = read_wides_from_utf8_file (ses, bsize/sizeof (wchar_t), (utf8char *)buf, 0, NULL);
-          if (readed < 0) /* log_error is called inside read_wides_from_utf8_file() */
-            goto done;
-          iter->dsfi_file_offset = strf_lseek (ses->dks_session->ses_file, 0L, SEEK_CUR);
-          readed *= sizeof (wchar_t);
-        }
+	{
+	  readed = read_wides_from_utf8_file (ses, bsize / sizeof (wchar_t), (utf8char *) buf, 0, NULL);
+	  if (readed < 0)	/* log_error is called inside read_wides_from_utf8_file() */
+	    goto done;
+	  iter->dsfi_file_offset = strf_lseek (ses->dks_session->ses_file, 0L, SEEK_CUR);
+	  readed *= sizeof (wchar_t);
+	}
       else
-        {
+	{
 	  readed = strf_read (ses->dks_session->ses_file, buf, MIN (bsize, iter->dsfi_file_len - iter->dsfi_file_offset));
 	  if (readed == -1)
 	    {
@@ -2053,8 +2034,8 @@ dsfi_read (void *read_cd, char *buf, size_t bsize)
 	      log_error ("Can't read from file %s", ses->dks_session->ses_file->ses_temp_file_name);
 	      goto done;
 	    }
-          iter->dsfi_file_offset += readed;
-        }
+	  iter->dsfi_file_offset += readed;
+	}
       buf += readed;
       res += readed;
       bsize -= readed;
@@ -2084,7 +2065,7 @@ done:
 
 
 void
-bcfi_reset (bh_from_client_fwd_iter_t * iter, blob_handle_t *bh, client_connection_t *cli)
+bcfi_reset (bh_from_client_fwd_iter_t * iter, blob_handle_t * bh, client_connection_t * cli)
 {
   iter->bcfi_bh = bh;
   iter->bcfi_cli = cli;
@@ -2094,23 +2075,25 @@ bcfi_reset (bh_from_client_fwd_iter_t * iter, blob_handle_t *bh, client_connecti
 size_t
 bcfi_read (void *read_cd, char *buf, size_t bsize)
 {
-  bh_from_client_fwd_iter_t *iter = (bh_from_client_fwd_iter_t *)read_cd;
-  if ((BLOB_ALL_RECEIVED == iter->bcfi_bh->bh_all_received) ||
-    (BLOB_NULL_RECEIVED == iter->bcfi_bh->bh_all_received) )
+  bh_from_client_fwd_iter_t *iter = (bh_from_client_fwd_iter_t *) read_cd;
+  if ((BLOB_ALL_RECEIVED == iter->bcfi_bh->bh_all_received) || (BLOB_NULL_RECEIVED == iter->bcfi_bh->bh_all_received))
     return 0;
-  return bh_get_data_from_user (iter->bcfi_bh, iter->bcfi_cli, (db_buf_t)buf, bsize);
+  return bh_get_data_from_user (iter->bcfi_bh, iter->bcfi_cli, (db_buf_t) buf, bsize);
 }
 
 
-extern void bcfi_abend (void *read_cd)
+extern void
+bcfi_abend (void *read_cd)
 {
   caddr_t tmp_buf = dk_alloc (16 * 8192);
-  while (0 != bcfi_read (read_cd, tmp_buf, 16 * 8192)) {}
+  while (0 != bcfi_read (read_cd, tmp_buf, 16 * 8192))
+    {
+    }
 }
 
 
 void
-bdfi_reset (bh_from_disk_fwd_iter_t * iter, blob_handle_t *bh, query_instance_t *qi)
+bdfi_reset (bh_from_disk_fwd_iter_t * iter, blob_handle_t * bh, query_instance_t * qi)
 {
   iter->bdfi_bh = bh;
   iter->bdfi_qi = qi;
@@ -2123,9 +2106,9 @@ bdfi_reset (bh_from_disk_fwd_iter_t * iter, blob_handle_t *bh, query_instance_t 
 size_t
 bdfi_read (void *read_cd, char *tgtbuf, size_t bsize)
 {
-  bh_from_disk_fwd_iter_t *iter = (bh_from_disk_fwd_iter_t *)read_cd;
+  bh_from_disk_fwd_iter_t *iter = (bh_from_disk_fwd_iter_t *) read_cd;
   it_cursor_t *tmp_itc;
-  index_tree_t * it;
+  index_tree_t *it;
   buffer_desc_t *buf = NULL;
   size_t res = 0;
   if (iter->bdfi_total_pos >= iter->bdfi_bh->bh_diskbytes)
@@ -2138,7 +2121,7 @@ bdfi_read (void *read_cd, char *tgtbuf, size_t bsize)
     }
   else
     {
-      dbe_key_t* xper_key = sch_id_to_key (wi_inst.wi_schema, KI_COLS);
+      dbe_key_t *xper_key = sch_id_to_key (wi_inst.wi_schema, KI_COLS);
       itc_from (tmp_itc, xper_key, sqlc_client ()->cli_slice);
     }
   ITC_FAIL (tmp_itc)
@@ -2147,37 +2130,39 @@ bdfi_read (void *read_cd, char *tgtbuf, size_t bsize)
     if (!iter->bdfi_bh->bh_page_dir_complete)
       blob_read_dir (tmp_itc, &iter->bdfi_bh->bh_pages, &iter->bdfi_bh->bh_page_dir_complete, iter->bdfi_bh->bh_dir_page, NULL);
 
-get_more:
+  get_more:
     nth_page = iter->bdfi_bh->bh_pages[iter->bdfi_page_idx];
     if (!page_wait_blob_access (tmp_itc, nth_page, &buf, PA_READ, iter->bdfi_bh, 1))
       {
-        iter->bdfi_total_pos = iter->bdfi_bh->bh_diskbytes;
+	iter->bdfi_total_pos = iter->bdfi_bh->bh_diskbytes;
       }
     else
       {
-        long len = LONG_REF (buf->bd_buffer + DP_BLOB_LEN);
-        const char * oldstart = (char *)(buf->bd_buffer + DP_DATA + iter->bdfi_page_data_pos);
-        if (DV_BLOB_WIDE_HANDLE == DV_TYPE_OF (iter->bdfi_bh))
-          {
-            const char * start = oldstart;
-            int dec = eh_decode_buffer__UTF8 ((unichar *)tgtbuf, bsize / sizeof(unichar), &start, (const char *)(buf->bd_buffer + DP_DATA + len));
-            if (dec < 0)
-              {
-	        log_info ("UTF-8 encoding error (%d) in wide-char blob dp = %d start = %d.", dec, nth_page, iter->bdfi_bh->bh_page);
-	        iter->bdfi_total_pos = iter->bdfi_bh->bh_diskbytes;
+	long len = LONG_REF (buf->bd_buffer + DP_BLOB_LEN);
+	const char *oldstart = (char *) (buf->bd_buffer + DP_DATA + iter->bdfi_page_data_pos);
+	if (DV_BLOB_WIDE_HANDLE == DV_TYPE_OF (iter->bdfi_bh))
+	  {
+	    const char *start = oldstart;
+	    int dec =
+		eh_decode_buffer__UTF8 ((unichar *) tgtbuf, bsize / sizeof (unichar), &start,
+		(const char *) (buf->bd_buffer + DP_DATA + len));
+	    if (dec < 0)
+	      {
+		log_info ("UTF-8 encoding error (%d) in wide-char blob dp = %d start = %d.", dec, nth_page, iter->bdfi_bh->bh_page);
+		iter->bdfi_total_pos = iter->bdfi_bh->bh_diskbytes;
 	      }
-            else
-              {
-	        iter->bdfi_page_data_pos += (start-oldstart);
-		iter->bdfi_total_pos += (start-oldstart);
-	        dec *= sizeof (unichar);
-	        res += dec;
-	        tgtbuf += dec;
-	        bsize -= dec;
+	    else
+	      {
+		iter->bdfi_page_data_pos += (start - oldstart);
+		iter->bdfi_total_pos += (start - oldstart);
+		dec *= sizeof (unichar);
+		res += dec;
+		tgtbuf += dec;
+		bsize -= dec;
 	      }
-          }
-        else
-          {
+	  }
+	else
+	  {
 	    size_t got = len - iter->bdfi_page_data_pos;
 	    if (got > bsize)
 	      got = bsize;
@@ -2187,17 +2172,17 @@ get_more:
 	    res += got;
 	    tgtbuf += got;
 	    bsize -= got;
-          }
-        if (iter->bdfi_page_data_pos == len)
-          {
-            iter->bdfi_page_idx++;
-            iter->bdfi_page_data_pos = 0;
+	  }
+	if (iter->bdfi_page_data_pos == len)
+	  {
+	    iter->bdfi_page_idx++;
+	    iter->bdfi_page_data_pos = 0;
 	  }
 #ifdef DEBUG
-        if (iter->bdfi_page_data_pos > len)
-          GPF_T;
+	if (iter->bdfi_page_data_pos > len)
+	  GPF_T;
 	if (iter->bdfi_total_pos > iter->bdfi_bh->bh_diskbytes)
-          GPF_T;
+	  GPF_T;
 #endif
       }
     if (NULL != buf)
@@ -2205,7 +2190,7 @@ get_more:
     buf = NULL;
     ITC_LEAVE_MAPS (tmp_itc);
     if (bsize && (iter->bdfi_total_pos < iter->bdfi_bh->bh_diskbytes))
-      goto get_more; /* see above */
+      goto get_more;		/* see above */
   }
   ITC_FAILED
   {
@@ -2229,18 +2214,17 @@ str_looks_like_serialized_xml (caddr_t source)
   if (0 == strncmp (source, XPACK_PREFIX, XPER_ROOT_POS))
     return XE_XPACK_SERIALIZATION;
   if ((slen >= XPER_ROOT_POS + MIN_START_ROOT_RECORD_SZ + END_ROOT_RECORD_SZ) &&
-      (0 == strncmp (source, XPER_PREFIX, XPER_ROOT_POS)) &&
-      (slen <= PAGE_DATA_SZ) )
+      (0 == strncmp (source, XPER_PREFIX, XPER_ROOT_POS)) && (slen <= PAGE_DATA_SZ))
     return XE_XPER_SERIALIZATION;
-  if ((slen > 3) && (DV_ARRAY_OF_POINTER == ((dtp_t *)source)[0]) &&
-    ((DV_LONG_INT == ((dtp_t *)source)[1]) || (DV_SHORT_INT == ((dtp_t *)source)[1])) )
+  if ((slen > 3) && (DV_ARRAY_OF_POINTER == ((dtp_t *) source)[0]) &&
+      ((DV_LONG_INT == ((dtp_t *) source)[1]) || (DV_SHORT_INT == ((dtp_t *) source)[1])))
     return XE_PLAIN_TEXT_OR_SERIALIZED_VECTOR;
   return XE_PLAIN_TEXT;
 }
 
 
 int
-strses_looks_like_serialized_xml (dk_session_t *source)
+strses_looks_like_serialized_xml (dk_session_t * source)
 {
   int slen = strses_length (source);
   char buf[XPER_ROOT_POS];
@@ -2250,11 +2234,10 @@ strses_looks_like_serialized_xml (dk_session_t *source)
   if ((slen >= XPER_ROOT_POS) && (0 == memcmp (buf, XPACK_PREFIX, XPER_ROOT_POS)))
     return XE_XPACK_SERIALIZATION;
   if ((slen >= XPER_ROOT_POS + MIN_START_ROOT_RECORD_SZ + END_ROOT_RECORD_SZ) &&
-      (0 == memcmp (buf, XPER_PREFIX, XPER_ROOT_POS)) &&
-      (slen <= PAGE_DATA_SZ) )
+      (0 == memcmp (buf, XPER_PREFIX, XPER_ROOT_POS)) && (slen <= PAGE_DATA_SZ))
     return XE_XPER_SERIALIZATION;
-  if ((slen > 3) && (DV_ARRAY_OF_POINTER == ((dtp_t *)source)[0]) &&
-    ((DV_LONG_INT == ((dtp_t *)source)[1]) || (DV_SHORT_INT == ((dtp_t *)source)[1])) )
+  if ((slen > 3) && (DV_ARRAY_OF_POINTER == ((dtp_t *) source)[0]) &&
+      ((DV_LONG_INT == ((dtp_t *) source)[1]) || (DV_SHORT_INT == ((dtp_t *) source)[1])))
     return XE_PLAIN_TEXT_OR_SERIALIZED_VECTOR;
   return XE_PLAIN_TEXT;
 }
@@ -2279,7 +2262,6 @@ blob_looks_like_serialized_xml (query_instance_t * qi, blob_handle_t * bh)
 
   if (bh->bh_length < XPER_ROOT_POS)
     return XE_PLAIN_TEXT;
-
   itc = itc_create (NULL, qi->qi_trx);
   itc_from_it (itc, bh->bh_it);
 
@@ -2291,13 +2273,12 @@ blob_looks_like_serialized_xml (query_instance_t * qi, blob_handle_t * bh)
       }
     ptr = buf->bd_buffer + DP_DATA;
     if ((bh->bh_length >= XPER_ROOT_POS + MIN_START_ROOT_RECORD_SZ + END_ROOT_RECORD_SZ) &&
-        (0 == strncmp ((const char *) ptr, XPER_PREFIX, XPER_ROOT_POS) &&
-        DV_XML_MARKUP == ptr[XPER_ROOT_POS]) )
+	(0 == strncmp ((const char *) ptr, XPER_PREFIX, XPER_ROOT_POS) && DV_XML_MARKUP == ptr[XPER_ROOT_POS]))
       res = XE_XPER_SERIALIZATION;
     else if (0 == strncmp ((const char *) ptr, XPACK_PREFIX, XPER_ROOT_POS))
       res = XE_XPACK_SERIALIZATION;
-    else if ((bh->bh_length > 3) && (DV_ARRAY_OF_POINTER == ((dtp_t *)ptr)[0]) &&
-      ((DV_LONG_INT == ((dtp_t *)ptr)[1]) || (DV_SHORT_INT == ((dtp_t *)ptr)[1])) )
+    else if ((bh->bh_length > 3) && (DV_ARRAY_OF_POINTER == ((dtp_t *) ptr)[0]) &&
+	((DV_LONG_INT == ((dtp_t *) ptr)[1]) || (DV_SHORT_INT == ((dtp_t *) ptr)[1])))
       res = XE_PLAIN_TEXT_OR_SERIALIZED_VECTOR;
     else
       res = XE_PLAIN_TEXT;
@@ -2329,22 +2310,22 @@ looks_like_serialized_xml (query_instance_t * qi, caddr_t source)
   if (DV_STRINGP (source))
     return str_looks_like_serialized_xml (source);
   if (DV_STRING_SESSION == dtp_of_source)
-    return strses_looks_like_serialized_xml ((dk_session_t *)source);
+    return strses_looks_like_serialized_xml ((dk_session_t *) source);
   if (IS_BLOB_HANDLE_DTP (dtp_of_source))
     return blob_looks_like_serialized_xml (qi, (blob_handle_t *) source);
   return XE_PLAIN_TEXT;
 }
 
 
-static void xper_get_blob_page_dir (xper_doc_t *xpd)
+static void
+xper_get_blob_page_dir (xper_doc_t * xpd)
 {
   it_cursor_t *tmp_itc;
-  index_tree_t * it;
-  blob_handle_t * bh = xpd->xpd_bh;
+  index_tree_t *it;
+  blob_handle_t *bh = xpd->xpd_bh;
   if (bh->bh_page_dir_complete)
     return;
-  tmp_itc =
-    itc_create (NULL, xpd->xd_qi->qi_trx);
+  tmp_itc = itc_create (NULL, xpd->xd_qi->qi_trx);
   it = xpd->xpd_bh->bh_it;
   if (NULL != it)
     {
@@ -2352,7 +2333,7 @@ static void xper_get_blob_page_dir (xper_doc_t *xpd)
     }
   else
     {
-      dbe_key_t* xper_key = sch_id_to_key (wi_inst.wi_schema, KI_COLS);
+      dbe_key_t *xper_key = sch_id_to_key (wi_inst.wi_schema, KI_COLS);
       itc_from (tmp_itc, xper_key, sqlc_client ()->cli_slice);
     }
   blob_read_dir (tmp_itc, &bh->bh_pages, &bh->bh_page_dir_complete, bh->bh_dir_page, NULL);
@@ -2361,12 +2342,11 @@ static void xper_get_blob_page_dir (xper_doc_t *xpd)
 
 /* IvAn/TextXmlIndex/000814 Like bif_xml_tree, xper_entity should accept
    BLOBs with source XML like texts. */
-xper_entity_t *
- DBG_NAME (xper_entity) (DBG_PARAMS query_instance_t * qi, caddr_t source_arg, caddr_t vt_batch,
+xper_entity_t *DBG_NAME (xper_entity) (DBG_PARAMS query_instance_t * qi, caddr_t source_arg, caddr_t vt_batch,
     int is_html, caddr_t uri, caddr_t enc_name, lang_handler_t * lh, caddr_t dtd_config, int index_attrs)
 {
   dtp_t dtp_of_source_arg = DV_TYPE_OF (source_arg);
-  int source_sort = -1; /* An invalid value, just to kill the warning */
+  int source_sort = -1;		/* An invalid value, just to kill the warning */
   bh_from_client_fwd_iter_t bcfi;
   bh_from_disk_fwd_iter_t bdfi;
   dk_session_fwd_iter_t dsfi;
@@ -2406,15 +2386,12 @@ xper_entity_t *
 	{
 	  dk_free (xpd, sizeof (xper_doc_t));
 	  dk_free_box (uri);
-	  sqlr_new_error ("42000", "XE001",
-	      "xml_persistent cannot convert XML tree entity (as argument 1) to XPER entity");
+	  sqlr_new_error ("42000", "XE001", "xml_persistent cannot convert XML tree entity (as argument 1) to XPER entity");
 	}
       xper_dbg_print ("XPER here!\n");
       original_uri = ((xml_entity_t *) source_arg)->xe_doc.xd->xd_uri;
       original_lh = ((xml_entity_t *) source_arg)->xe_doc.xd->xd_default_lh;
-      if (
-	  (lh != original_lh) ||
-	  strcmp (((NULL == uri) ? "" : uri), ((NULL == original_uri) ? "" : original_uri)))
+      if ((lh != original_lh) || strcmp (((NULL == uri) ? "" : uri), ((NULL == original_uri) ? "" : original_uri)))
 	{			/* If base URI's differ, we should create new document to carry new path */
 	  xpd->xpd_bh = (blob_handle_t *) box_copy_tree ((box_t) ((xml_entity_t *) source_arg)->xe_doc.xpd->xpd_bh);
 	  xpd->xpd_state = XPD_PERSISTENT;
@@ -2451,7 +2428,7 @@ xper_entity_t *
 #endif
   if (dtp_of_source_arg == DV_BLOB_HANDLE)
     {
-      blob_handle_t *bh = (blob_handle_t *)source_arg;
+      blob_handle_t *bh = (blob_handle_t *) source_arg;
       source_sort = blob_looks_like_serialized_xml (qi, bh);
       if (XE_XPER_SERIALIZATION == source_sort)
 	{
@@ -2463,21 +2440,20 @@ xper_entity_t *
 	  goto create_and_return_xpe;
 	}
       if (XE_XPACK_SERIALIZATION == source_sort)
-        {
-       	  dk_free_box (uri);
-	  sqlr_new_error ("42000", "XE024",
-	    "Unable to convert packed XML serialized data into an persistent XML entity" );
+	{
+	  dk_free_box (uri);
+	  sqlr_new_error ("42000", "XE024", "Unable to convert packed XML serialized data into an persistent XML entity");
 	}
       if (bh->bh_ask_from_client)
-        {
-          bcfi_reset (&bcfi, bh, qi->qi_client);
+	{
+	  bcfi_reset (&bcfi, bh, qi->qi_client);
 	  source_type = 'C';
 	  iter = bcfi_read;
 	  iter_abend = bcfi_abend;
 	  iter_data = &bcfi;
 	  source_is_wide = ((dtp_of_source_arg == DV_BLOB_WIDE_HANDLE) ? 1 : 0);
 	  goto parse_source;
-        }
+	}
       source_type = 'B';
       bdfi_reset (&bdfi, bh, qi);
       iter = bdfi_read;
@@ -2486,70 +2462,67 @@ xper_entity_t *
     }
   if (dtp_of_source_arg == DV_BLOB_WIDE_HANDLE)
     {
-      blob_handle_t *bh = (blob_handle_t *)source_arg;
+      blob_handle_t *bh = (blob_handle_t *) source_arg;
       source_is_wide = 1;
       if (bh->bh_ask_from_client)
-        {
-          bcfi_reset (&bcfi, bh, qi->qi_client);
+	{
+	  bcfi_reset (&bcfi, bh, qi->qi_client);
 	  source_type = 'C';
 	  iter = bcfi_read;
 	  iter_abend = bcfi_abend;
 	  iter_data = &bcfi;
 	  source_is_wide = ((dtp_of_source_arg == DV_BLOB_WIDE_HANDLE) ? 1 : 0);
 	  goto parse_source;
-        }
+	}
       bdfi_reset (&bdfi, bh, qi);
       source_type = 'B';
       iter = bdfi_read;
       iter_data = &bdfi;
       goto parse_source;
     }
-  if ((dtp_of_source_arg == DV_SHORT_STRING_SERIAL) ||
-      (dtp_of_source_arg == DV_STRING) ||
-      (dtp_of_source_arg == DV_C_STRING))
-        {
+  if ((dtp_of_source_arg == DV_SHORT_STRING_SERIAL) || (dtp_of_source_arg == DV_STRING) || (dtp_of_source_arg == DV_C_STRING))
+    {
       if (!strncasecmp (source_arg, "file://", 7 /* strlen(("file://") */ ))
-        {
+	{
 #ifdef WIN32
-	    char fname[_MAX_PATH], *fname_ptr;
-	    /*fname = dk_alloc(strlen(source+7/ * strlen("file://"* /)+1); */
-	    strncpy (fname, source_arg + 7 /* strlen("file://" */ , _MAX_PATH);
-	    fname[_MAX_PATH - 1] = '\0';
-	    for (fname_ptr = fname; fname_ptr[0]; fname_ptr++)
-	      {
-		switch (fname_ptr[0])
-		  {
-		  case '|':
-		    fname_ptr[0] = ':';
-		    break;
-		  case '/':
-		    fname_ptr[0] = '\\';
-		    break;
-		  }
-	      }
+	  char fname[_MAX_PATH], *fname_ptr;
+	  /*fname = dk_alloc(strlen(source+7/ * strlen("file://"* /)+1); */
+	  strncpy (fname, source_arg + 7 /* strlen("file://" */ , _MAX_PATH);
+	  fname[_MAX_PATH - 1] = '\0';
+	  for (fname_ptr = fname; fname_ptr[0]; fname_ptr++)
+	    {
+	      switch (fname_ptr[0])
+		{
+		case '|':
+		  fname_ptr[0] = ':';
+		  break;
+		case '/':
+		  fname_ptr[0] = '\\';
+		  break;
+		}
+	    }
 #else
-	    char *fname = ((char *) source_arg) + 7 /* strlen("file://") */ ;
+	  char *fname = ((char *) source_arg) + 7 /* strlen("file://") */ ;
 #endif
-          sec_check_dba (qi, "<read XML from URL of type file://...>");
-	    xper_dbg_print_1 ("File '%s'\n", fname);
-	    context.xpc_src_file = fopen (fname, "rb");
-          if (NULL == context.xpc_src_file)
-            {
-              xper_destroy_ctx (&context);
-              dk_free_box (uri);
-		sqlr_new_error ("42000", "XP100", "Error opening file '%s'", fname);
-            }
-        source_type = 'F';
-	iter = file_read;
-	iter_data = context.xpc_src_file;
-        goto parse_source;
-      }
+	  sec_check_dba (qi, "<read XML from URL of type file://...>");
+	  xper_dbg_print_1 ("File '%s'\n", fname);
+	  context.xpc_src_file = fopen (fname, "rb");
+	  if (NULL == context.xpc_src_file)
+	    {
+	      xper_destroy_ctx (&context);
+	      dk_free_box (uri);
+	      sqlr_new_error ("42000", "XP100", "Error opening file '%s'", fname);
+	    }
+	  source_type = 'F';
+	  iter = file_read;
+	  iter_data = context.xpc_src_file;
+	  goto parse_source;
+	}
       source_type = 'S';
       source_length = box_length (source_arg) - 1;
       goto parse_source;
     }
-  if ((dtp_of_source_arg == DV_WIDE) ||
-      (dtp_of_source_arg == DV_LONG_WIDE))
+  if ((dtp_of_source_arg == DV_WIDE) || (dtp_of_source_arg == DV_LONG_WIDE))
     {
       source_length = box_length (source_arg) - sizeof (wchar_t);
       source_type = 'S';
@@ -2561,16 +2534,15 @@ xper_entity_t *
       dk_session_t *ses = (dk_session_t *) (source_arg);
       source_sort = strses_looks_like_serialized_xml (ses);
       if (XE_XPER_SERIALIZATION == source_sort)
-        {
-       	  dk_free_box (uri);
-	  sqlr_new_error ("42000", "XE025",
-	    "Unable to make a persistent XML entity from a string session that contains XPER data" );
+	{
+	  dk_free_box (uri);
+	  sqlr_new_error ("42000", "XE025", "Unable to make a persistent XML entity from a string session that contains XPER data");
 	}
       if (XE_XPACK_SERIALIZATION == source_sort)
-        {
-       	  dk_free_box (uri);
+	{
+	  dk_free_box (uri);
 	  sqlr_new_error ("42000", "XE026",
-	    "Unable to make a persistent XML entity from a string session that contains packed XML serialized data" );
+	      "Unable to make a persistent XML entity from a string session that contains packed XML serialized data");
 	}
       dsfi_reset (&dsfi, ses);
       source_type = 'D';
@@ -2587,7 +2559,7 @@ parse_source:
 
   QR_RESET_CTX
   {
-    dbe_key_t* xper_key;
+    dbe_key_t *xper_key;
     xpd->xpd_state = XPD_NEW;
     context.xpc_doc = xpd;
     xpd->xpd_bh = bh_alloc (DV_BLOB_XPER_HANDLE);
@@ -2610,8 +2582,7 @@ parse_source:
 
     ITC_FAIL (context.xpc_itc)
     {
-      buf = it_new_page (context.xpc_itc->itc_tree, context.xpc_itc->itc_page,
-	  DPF_BLOB, 0, 0);
+      buf = it_new_page (context.xpc_itc->itc_tree, context.xpc_itc->itc_page, DPF_BLOB, 0, 0);
       ITC_LEAVE_MAPS (context.xpc_itc);
       if (!buf)
 	{
@@ -2639,8 +2610,8 @@ parse_source:
 	/* length of source is less then 2048 - so it always fit one page */
 	memcpy (buf->bd_buffer + DP_DATA, source_arg, source_length);
 	xpd->xpd_bh->bh_diskbytes = xpd->xpd_bh->bh_length = source_length;
-	LONG_SET/*_NA*/ (buf->bd_buffer + DP_BLOB_LEN, (int32) source_length);
-	LONG_SET/*_NA*/ (buf->bd_buffer + DP_OVERFLOW, 0);
+	LONG_SET /*_NA*/ (buf->bd_buffer + DP_BLOB_LEN, (int32) source_length);
+	LONG_SET /*_NA*/ (buf->bd_buffer + DP_OVERFLOW, 0);
 	rc = 1;
       }
     else if (('S' == source_type) && (XE_XPACK_SERIALIZATION == source_sort))
@@ -2652,24 +2623,24 @@ parse_source:
       {				/* string is an XML document to parse */
 	memcpy (buf->bd_buffer + DP_DATA, XPER_PREFIX, XPER_ROOT_POS);
 	xpd->xpd_bh->bh_length = xpd->xpd_bh->bh_diskbytes = XPER_ROOT_POS;
-	LONG_SET/*_NA*/ (buf->bd_buffer + DP_BLOB_LEN, XPER_ROOT_POS);
-	LONG_SET/*_NA*/ (buf->bd_buffer + DP_OVERFLOW, 0);
+	LONG_SET /*_NA*/ (buf->bd_buffer + DP_BLOB_LEN, XPER_ROOT_POS);
+	LONG_SET /*_NA*/ (buf->bd_buffer + DP_OVERFLOW, 0);
 	memset (&config, 0, sizeof (config));
 	config.input_is_wide = source_is_wide;
 	config.input_is_ge = is_html & GE_XML;
 	config.input_is_html = is_html & ~(FINE_XSLT | GE_XML | WEBIMPORT_HTML | FINE_XML_SRCPOS);
 	config.input_is_xslt = is_html & FINE_XSLT;
 	config.user_encoding_handler = intl_find_user_charset;
-	config.uri_resolver = (VXmlUriResolver)xml_uri_resolve_like_get;
-	config.uri_reader = (VXmlUriReader)xml_uri_get;
+	config.uri_resolver = (VXmlUriResolver) xml_uri_resolve_like_get;
+	config.uri_reader = (VXmlUriReader) xml_uri_get;
 	config.uri_appdata = qi;	/* Both xml_uri_resolve_like_get and xml_uri_get uses qi as first argument */
-        config.error_reporter = (VXmlErrorReporter)(sqlr_error);
+	config.error_reporter = (VXmlErrorReporter) (sqlr_error);
 	config.initial_src_enc_name = enc_name;
 	config.dtd_config = dtd_config;
 	config.uri = ((NULL == uri) ? uname___empty : uri);
 	config.root_lang_handler = lh;
-        if (file_read == iter)
-          config.feed_buf_size = 0x10000;
+	if (file_read == iter)
+	  config.feed_buf_size = 0x10000;
 	context.xpc_parser = VXmlParserCreate (&config);
 	VXmlSetUserData (context.xpc_parser, &context);
 	VXmlSetElementHandler (context.xpc_parser, cb_element_start, cb_element_end);
@@ -2678,11 +2649,11 @@ parse_source:
 	VXmlSetEntityRefHandler (context.xpc_parser, cb_entity);
 	VXmlSetProcessingInstructionHandler (context.xpc_parser, cb_pi);
 	VXmlSetCommentHandler (context.xpc_parser, cb_comment);
- /*
-   VXmlSetDtdHandler (context.xpc_parser, (VXmlDtdHandler) cb_dtd);
- */
+	/*
+	   VXmlSetDtdHandler (context.xpc_parser, (VXmlDtdHandler) cb_dtd);
+	 */
 	/* start root tag */
-	dk_set_push (&context.xpc_poss, (void *)((ptrlong)(xpd->xpd_bh->bh_length)));
+	dk_set_push (&context.xpc_poss, (void *) ((ptrlong) (xpd->xpd_bh->bh_length)));
 	tmp_box = start_tag_record (&root_data);
 	xper_blob_append_box (&context, tmp_box);
 	dk_free_box (tmp_box);
@@ -2695,8 +2666,8 @@ parse_source:
 	  {
 	    if (NULL != iter_abend)
 	      {
-	        iter_abend (iter_data);
-	        iter_abend = NULL;
+		iter_abend (iter_data);
+		iter_abend = NULL;
 	      }
 	    rc_msg = VXmlFullErrorMessage (context.xpc_parser);
 	  }
@@ -2706,7 +2677,7 @@ parse_source:
 	    dk_set_pop (&context.xpc_poss);
 	    pos = (long) (ptrlong) context.xpc_poss->data;
 	  }
-	context.xpc_poss->data = (void *) (ptrlong) -pos;
+	context.xpc_poss->data = (void *) (ptrlong) - pos;
 	/* end root tag */
 	if (XML_MKUP_ETAG != context.xpc_word_hider)
 	  context.xpc_main_word_ctr += 1;
@@ -2714,16 +2685,13 @@ parse_source:
 	{
 /* IvAn/TextXperIndex/000815 Word counter added, "root" replaced with " root" */
 	  set_long_in_blob (&context, XPER_ROOT_POS + 7 /*DV_SHORT_STR " root" */  +
-	      STR_NAME_OFF + STR_END_TAG_OFF,
-	      (long) xpd->xpd_bh->bh_length);
+	      STR_NAME_OFF + STR_END_TAG_OFF, (long) xpd->xpd_bh->bh_length);
 	  set_long_in_blob (&context, XPER_ROOT_POS + 7 /*DV_SHORT_STR " root" */  +
-	      STR_NAME_OFF + STR_END_WORD_OFF,
-	      (long) context.xpc_main_word_ctr);
+	      STR_NAME_OFF + STR_END_WORD_OFF, (long) context.xpc_main_word_ctr);
 	  if (context.xpc_index_attrs)
 	    {
 	      set_long_in_blob (&context, XPER_ROOT_POS + 7 /*DV_SHORT_STR " root" */  +
-		  STR_NAME_OFF + STR_ADDON_OR_ATTR_OFF + (2 * 4),
-		  (long) context.xpc_attr_word_ctr);
+		  STR_NAME_OFF + STR_ADDON_OR_ATTR_OFF + (2 * 4), (long) context.xpc_attr_word_ctr);
 	    }
 	  ITC_LEAVE_MAPS (context.xpc_itc);
 	}
@@ -2739,7 +2707,7 @@ parse_source:
 	dk_free_box (tmp_box);
 	xpd->xd_weight = XML_XPER_DOC_WEIGHT;
 	xpd->xd_cost = context.xpc_parser->input_cost;
-	if (bcfi_read == iter) /* This input is not reproducible so the cost is infinite */
+	if (bcfi_read == iter)	/* This input is not reproducible so the cost is infinite */
 	  xpd->xd_cost = XML_MAX_DOC_COST;
 /* Now it's time to get the dtd in our ownership */
 	dtd_addref (context.xpc_parser->validator.dv_dtd, 0);
@@ -2756,8 +2724,7 @@ parse_source:
 	    ITC_FAIL (context.xpc_itc)
 	    {
 	      set_long_in_blob (&context, XPER_ROOT_POS + 7 /*DV_SHORT_STR " root" */  +
-		  STR_NAME_OFF + STR_NS_OFF,
-		  (long) xpd->xpd_bh->bh_length);
+		  STR_NAME_OFF + STR_NS_OFF, (long) xpd->xpd_bh->bh_length);
 	      ITC_LEAVE_MAPS (context.xpc_itc);
 	    }
 	    ITC_FAILED
@@ -2775,7 +2742,7 @@ parse_source:
     context.xpc_buf = NULL;
     if (!rc)
       {
-        dk_free_box (uri);
+	dk_free_box (uri);
 	sqlr_new_error ("42000", "XP101", "%.1500s", ((NULL == rc_msg) ? "Error parsing XML" : rc_msg));
       }
   }
@@ -2787,8 +2754,8 @@ parse_source:
       dk_free_box (rc_msg);
     if (NULL != iter_abend)
       {
-        iter_abend (iter_data);
-        iter_abend = NULL;
+	iter_abend (iter_data);
+	iter_abend = NULL;
       }
     POP_QR_RESET;
     xper_destroy_ctx (&context);
@@ -2814,8 +2781,7 @@ create_and_return_xpe:
 }
 
 
-xml_entity_t *
- DBG_NAME (xp_copy) (DBG_PARAMS xml_entity_t * xe)
+xml_entity_t *DBG_NAME (xp_copy) (DBG_PARAMS xml_entity_t * xe)
 {
   xper_entity_t *xpe;
 
@@ -2928,8 +2894,7 @@ xp_up (xml_entity_t * xe, XT * node, int up_flags)
       goto go_sideway;
     }
 /* Top of the (sub)document */
-  if ((0 == xpe->xper_parent) ||
-      ((XPER_ROOT_POS == xpe->xper_parent) && (NULL != xpe->xe_referer)))
+  if ((0 == xpe->xper_parent) || ((XPER_ROOT_POS == xpe->xper_parent) && (NULL != xpe->xe_referer)))
     {
       xml_entity_t *up = xpe->xe_referer;
       if ((NULL == up) || !(up_flags & XE_UP_MAY_TRANSIT))
@@ -2942,7 +2907,7 @@ xp_up (xml_entity_t * xe, XT * node, int up_flags)
 #endif
       memcpy (xpe, up, sizeof (xml_entity_un_t));
       box_tag_modify (up, DV_ARRAY_OF_LONG);	/* do not call destructor, content still referenced due to copy *
-						   * set tag to array, not string cause strings aligned differently */
+						 * set tag to array, not string cause strings aligned differently */
       dk_free_box ((box_t) up);
       if (up_flags & XE_UP_SIDEWAY)
 	goto go_sideway;
@@ -3083,7 +3048,7 @@ xp_down_rev (xml_entity_t * xe, XT * node)
 #endif
 	memcpy (xpe, last_good, sizeof (xml_entity_un_t));
 	box_tag_modify (last_good, DV_ARRAY_OF_LONG);	/* do not call destructor, content still referenced due to copy *
-							   * set tag to array, not string cause strings aligned differently */
+							 * set tag to array, not string cause strings aligned differently */
 	dk_free_box ((box_t) last_good);
       }
     else
@@ -3096,7 +3061,7 @@ xp_down_rev (xml_entity_t * xe, XT * node)
   }
   QR_RESET_CODE
   {
-    du_thread_t * self = THREAD_CURRENT_THREAD;
+    du_thread_t *self = THREAD_CURRENT_THREAD;
     caddr_t err = thr_get_error_code (self);
     POP_QR_RESET;
     dk_free_box ((caddr_t) last_good);
@@ -3356,10 +3321,10 @@ xp_go_left (xper_entity_t * xpe)
 		break;
 	      fill_xper_entity (xpe, xpe->xper_end);
 	      if (xpe->xper_next_item >= save)
-	      {
-		fill_xper_entity (xpe, left);
-		break;
-	      }
+		{
+		  fill_xper_entity (xpe, left);
+		  break;
+		}
 	      fill_xper_entity (xpe, xpe->xper_next_item);
 	      if (xpe->xper_pos >= save)
 		{
@@ -3408,8 +3373,7 @@ xp_prev_sibling (xml_entity_t * xe, XT * node_test)
 }
 
 
-int
-DBG_NAME(xp_attribute) (DBG_PARAMS xml_entity_t * xe, int start, XT * node, caddr_t * ret, caddr_t * name_ret)
+int DBG_NAME (xp_attribute) (DBG_PARAMS xml_entity_t * xe, int start, XT * node, caddr_t * ret, caddr_t * name_ret)
 {
   xper_entity_t *xpe = (xper_entity_t *) xe;
   unsigned char *ptr, *tptr;
@@ -3438,7 +3402,7 @@ DBG_NAME(xp_attribute) (DBG_PARAMS xml_entity_t * xe, int start, XT * node, cadd
   if (-1 == start)
     start = 0;
 
-  for (inx = 0; (int)(inx) < start * 2 && inx < atts_fill; inx++)
+  for (inx = 0; (int) (inx) < start * 2 && inx < atts_fill; inx++)
     ptr += full_dv_string_length (ptr);
 
   for (; inx + 1 < atts_fill; inx += 2)
@@ -3454,30 +3418,30 @@ DBG_NAME(xp_attribute) (DBG_PARAMS xml_entity_t * xe, int start, XT * node, cadd
 	  have_ns = 1;
 	  tptr += 5;
 	  ns = xper_get_namespace (xpe, LONG_REF_NA (tptr + full_dv_string_length (tptr) + 1));
-          if (uname___empty == ns)
-            {
-              ns = NULL;
+	  if (uname___empty == ns)
+	    {
+	      ns = NULL;
 	      have_ns = 0;
-            }
+	    }
 	}
       else
 	have_ns = 0;
 
       len = skip_string_length (&tptr);
       if (have_ns)
-        {
-          for (local = tptr + len; (local > tptr) && (':' != local[-1]); local--) /* empty body*/ ;
-          local_len = tptr + len - local;
-        }
+	{
+	  for (local = tptr + len; (local > tptr) && (':' != local[-1]); local--) /* empty body */ ;
+	  local_len = tptr + len - local;
+	}
       else
-        {
-          local = tptr;
-          local_len = len;
-        }
+	{
+	  local = tptr;
+	  local_len = len;
+	}
       if (!have_ns && !ST_P (node, XP_NAME_EXACT) && (local_len >= 5) && !memcmp (local, "xmlns", 5))
 	nt_res = 0;
       else
-        nt_res = xt_node_test_match_parts (node, (char *) local, local_len, ns);
+	nt_res = xt_node_test_match_parts (node, (char *) local, local_len, ns);
       if (nt_res)
 	{
 	  if (name_ret)
@@ -3485,7 +3449,7 @@ DBG_NAME(xp_attribute) (DBG_PARAMS xml_entity_t * xe, int start, XT * node, cadd
 	      if (ns)
 		{
 		  caddr_t qname;
-		  BOX_DV_UNAME_COLONCONCAT4 (qname, ns, (char *)local, local_len);
+		  BOX_DV_UNAME_COLONCONCAT4 (qname, ns, (char *) local, local_len);
 		  XP_SET (name_ret, qname);
 		  dk_free_box (ns);
 		}
@@ -3498,7 +3462,7 @@ DBG_NAME(xp_attribute) (DBG_PARAMS xml_entity_t * xe, int start, XT * node, cadd
 	    {
 	      ptr += full_dv_string_length (ptr);
 	      len = skip_string_length (&ptr);
-	      XP_SET (ret, box_dv_short_nchars ((const char *)ptr, len));
+	      XP_SET (ret, box_dv_short_nchars ((const char *) ptr, len));
 	    }
 	  dk_free_box (buf);
 	  return (int) (inx / 2 + 1);
@@ -3519,7 +3483,7 @@ caddr_t
 xp_attrvalue (xml_entity_t * xe, caddr_t qname)
 {
   caddr_t val = NULL;
-  XT *test = xp_make_name_test_from_qname (NULL /* no xpp needed if qname is expanded */, qname, 1);
+  XT *test = xp_make_name_test_from_qname (NULL /* no xpp needed if qname is expanded */ , qname, 1);
   xe->_->xe_attribute (xe, -1, test, &val, NULL);
   dk_free_tree ((caddr_t) test);
   return val;
@@ -3583,7 +3547,7 @@ xp_data_attribute_count (xml_entity_t * xe)
 
 
 static caddr_t
-xper_get_attribute (xper_entity_t * xpe, const char * name, int name_len)
+xper_get_attribute (xper_entity_t * xpe, const char *name, int name_len)
 {
   unsigned char *ptr, *tptr;
   caddr_t buf;
@@ -3641,7 +3605,8 @@ xper_get_attribute (xper_entity_t * xpe, const char * name, int name_len)
 }
 
 
-caddr_t *xp_copy_to_xte_head (xml_entity_t *xe)
+caddr_t *
+xp_copy_to_xte_head (xml_entity_t * xe)
 {
   xper_entity_t *xpe = (xper_entity_t *) xe;
   unsigned char *ptr, *tptr;
@@ -3673,15 +3638,16 @@ caddr_t *xp_copy_to_xte_head (xml_entity_t *xe)
 	  }
 	dk_free_box (box);
 	if (strses_length (ses) > 10000000)
-	  sqlr_new_error ("42000", "XE005", "String value is longer than 10000000 bytes: source fragment of persistent XML is too large and can not be placed into XMLTree.");
-	res = (caddr_t *)strses_string (ses);
+	  sqlr_new_error ("42000", "XE005",
+	      "String value is longer than 10000000 bytes: source fragment of persistent XML is too large and can not be placed into XMLTree.");
+	res = (caddr_t *) strses_string (ses);
 	strses_free (ses);
 	return res;
       }
     case XML_MKUP_COMMENT:
       if (box_length (xpe->xper_name) > 1)
-        return (caddr_t *)list (2, list (1, uname__comment), box_copy (xpe->xper_name));
-      return (caddr_t *)list (1, list (1, uname__comment));
+	return (caddr_t *) list (2, list (1, uname__comment), box_copy (xpe->xper_name));
+      return (caddr_t *) list (1, list (1, uname__comment));
     case XML_MKUP_PI:
     case XML_MKUP_REF:
       res_fill = 3;
@@ -3696,26 +3662,26 @@ caddr_t *xp_copy_to_xte_head (xml_entity_t *xe)
   ptr += 4;
   atts_fill = num_word & 0xFFFF;
   res_len = res_fill + atts_fill;
-  res = (caddr_t *)dk_alloc_box (res_len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+  res = (caddr_t *) dk_alloc_box (res_len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   if ((0 == xpe->xper_ns_pos) || (' ' == xpe->xper_name[0]))
     qname = box_copy (xpe->xper_name);
   else
     qname = xp_build_expanded_name (xpe);
   switch (xpe->xper_type)
     {
-      case XML_MKUP_PI:
-	res[0] = uname__pi;
-	res[1] = uname__bang_name;
-        res[2] = qname;
-        break;
-      case XML_MKUP_REF:
-	res[0] = uname__ref;
-	res[1] = uname__bang_name;
-        res[2] = qname;
-        break;
-      default:
-        res[0] = qname;
-        break;
+    case XML_MKUP_PI:
+      res[0] = uname__pi;
+      res[1] = uname__bang_name;
+      res[2] = qname;
+      break;
+    case XML_MKUP_REF:
+      res[0] = uname__ref;
+      res[1] = uname__bang_name;
+      res[2] = qname;
+      break;
+    default:
+      res[0] = qname;
+      break;
     }
   addons = ((unsigned long) (num_word)) >> 16;
   ptr += addons;
@@ -3727,33 +3693,34 @@ caddr_t *xp_copy_to_xte_head (xml_entity_t *xe)
 	{
 	  tptr += 5;
 	  ns = xper_get_namespace (xpe, LONG_REF_NA (tptr + full_dv_string_length (tptr) + 1));
-          if (uname___empty == ns)
-            ns = NULL;
+	  if (uname___empty == ns)
+	    ns = NULL;
 	}
       len = (long) skip_string_length (&tptr);
       if ((5 > len) || memcmp (tptr, "xmlns", 5))
 	{
 	  if (NULL == ns)
-	    res[res_fill++] = box_dv_uname_nchars ((char *)tptr, len);
+	    res[res_fill++] = box_dv_uname_nchars ((char *) tptr, len);
 	  else
 	    {
-              unsigned char *localname = tptr+len;
+	      unsigned char *localname = tptr + len;
 	      int locallen;
 	      char *qname;
-              while ((localname > tptr) && (':' != localname[-1])) localname--;
-	      locallen = (int) ((tptr+len) - localname);
-	      BOX_DV_UNAME_COLONCONCAT4 (qname, ns, (char *)localname, locallen);
+	      while ((localname > tptr) && (':' != localname[-1]))
+		localname--;
+	      locallen = (int) ((tptr + len) - localname);
+	      BOX_DV_UNAME_COLONCONCAT4 (qname, ns, (char *) localname, locallen);
 	      res[res_fill++] = qname;
 	      dk_free_box (ns);
 	    }
 	  ptr += full_dv_string_length (ptr);
 	  len = (long) skip_string_length (&ptr);
-	  res[res_fill++] = box_dv_short_nchars ((char *)ptr, len);
+	  res[res_fill++] = box_dv_short_nchars ((char *) ptr, len);
 	  ptr += len;
 	}
       else
 	{
-          ptr += full_dv_string_length (ptr);
+	  ptr += full_dv_string_length (ptr);
 	  ptr += full_dv_string_length (ptr);
 	}
     }
@@ -3762,8 +3729,8 @@ caddr_t *xp_copy_to_xte_head (xml_entity_t *xe)
     return res;
   else
     {
-      int newresboxlen = res_fill * sizeof(caddr_t);
-      caddr_t *newres = (caddr_t *)dk_alloc_box (newresboxlen, DV_ARRAY_OF_POINTER);
+      int newresboxlen = res_fill * sizeof (caddr_t);
+      caddr_t *newres = (caddr_t *) dk_alloc_box (newresboxlen, DV_ARRAY_OF_POINTER);
       memcpy (newres, res, newresboxlen);
       dk_free_box ((box_t) res);
       return newres;
@@ -3771,7 +3738,8 @@ caddr_t *xp_copy_to_xte_head (xml_entity_t *xe)
 }
 
 
-caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
+caddr_t *
+xp_copy_to_xte_subtree (xml_entity_t * xe)
 {
   xper_entity_t *xpe = (xper_entity_t *) xe;
   unsigned char *ptr, *tptr;
@@ -3789,8 +3757,8 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
       sqlr_new_error ("37000", "XI028", "corrupted persistent XML entity detected.");
     case XML_MKUP_COMMENT:
       if (box_length (xpe->xper_name) > 1)
-        return (caddr_t *)list (2, list (1, uname__comment), box_copy (xpe->xper_name));
-      return (caddr_t *)list (1, list (1, uname__comment));
+	return (caddr_t *) list (2, list (1, uname__comment), box_copy (xpe->xper_name));
+      return (caddr_t *) list (1, list (1, uname__comment));
     case XML_MKUP_TEXT:
       {
 	caddr_t box = get_tag_data (xpe, xpe->xper_pos);
@@ -3808,8 +3776,9 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
 	  }
 	dk_free_box (box);
 	if (strses_length (ses) > 10000000)
-	  sqlr_new_error ("42000", "XE005", "String value is longer than 10000000 bytes: source fragment of persistent XML is too large and can not be placed into XMLTree.");
-	res = (caddr_t *)strses_string (ses);
+	  sqlr_new_error ("42000", "XE005",
+	      "String value is longer than 10000000 bytes: source fragment of persistent XML is too large and can not be placed into XMLTree.");
+	res = (caddr_t *) strses_string (ses);
 	strses_free (ses);
 	return res;
       }
@@ -3827,26 +3796,26 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
   ptr += 4;
   atts_fill = num_word & 0xFFFF;
   res_len = res_fill + atts_fill;
-  res = (caddr_t *)dk_alloc_box (res_len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+  res = (caddr_t *) dk_alloc_box (res_len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   if ((0 == xpe->xper_ns_pos) || (' ' == xpe->xper_name[0]))
     qname = box_copy (xpe->xper_name);
   else
     qname = xp_build_expanded_name (xpe);
   switch (xpe->xper_type)
     {
-      case XML_MKUP_PI:
-	res[0] = uname__pi;
-	res[1] = uname__bang_name;
-        res[2] = qname;
-        break;
-      case XML_MKUP_REF:
-	res[0] = uname__ref;
-	res[1] = uname__bang_name;
-        res[2] = qname;
-        break;
-      default:
-        res[0] = qname;
-        break;
+    case XML_MKUP_PI:
+      res[0] = uname__pi;
+      res[1] = uname__bang_name;
+      res[2] = qname;
+      break;
+    case XML_MKUP_REF:
+      res[0] = uname__ref;
+      res[1] = uname__bang_name;
+      res[2] = qname;
+      break;
+    default:
+      res[0] = qname;
+      break;
     }
   addons = ((unsigned long) (num_word)) >> 16;
   ptr += addons;
@@ -3858,33 +3827,34 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
 	{
 	  tptr += 5;
 	  ns = xper_get_namespace (xpe, LONG_REF_NA (tptr + full_dv_string_length (tptr) + 1));
-          if (uname___empty == ns)
-            ns = NULL;
+	  if (uname___empty == ns)
+	    ns = NULL;
 	}
       len = (long) skip_string_length (&tptr);
       if ((5 > len) || memcmp (tptr, "xmlns", 5))
 	{
 	  if (NULL == ns)
-	    res[res_fill++] = box_dv_uname_nchars ((char *)tptr, len);
+	    res[res_fill++] = box_dv_uname_nchars ((char *) tptr, len);
 	  else
 	    {
-              unsigned char *localname = tptr+len;
+	      unsigned char *localname = tptr + len;
 	      int locallen;
 	      char *qname;
-              while ((localname > tptr) && (':' != localname[-1])) localname--;
-	      locallen = (int) ((tptr+len) - localname);
-	      BOX_DV_UNAME_COLONCONCAT4 (qname, ns, (char *)localname, locallen);
+	      while ((localname > tptr) && (':' != localname[-1]))
+		localname--;
+	      locallen = (int) ((tptr + len) - localname);
+	      BOX_DV_UNAME_COLONCONCAT4 (qname, ns, (char *) localname, locallen);
 	      res[res_fill++] = qname;
 	      dk_free_box (ns);
 	    }
 	  ptr += full_dv_string_length (ptr);
 	  len = (long) skip_string_length (&ptr);
-	  res[res_fill++] = box_dv_short_nchars ((char *)ptr, len);
+	  res[res_fill++] = box_dv_short_nchars ((char *) ptr, len);
 	  ptr += len;
 	}
       else
 	{
-          ptr += full_dv_string_length (ptr);
+	  ptr += full_dv_string_length (ptr);
 	  ptr += full_dv_string_length (ptr);
 	}
     }
@@ -3892,7 +3862,7 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
   if (XML_MKUP_PI == xpe->xper_type)
     {
       if ((res_fill > 2) && (!strcmp (res[res_fill - 2], "data")))
-        {
+	{
 	  dk_set_push (&children, res[res_fill - 1]);
 	  dk_free_box (res[res_len - 2]);
 	  res_fill -= 2;
@@ -3906,7 +3876,7 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
 	  fill_xper_entity (xpe, xpe->xper_next_item);
 	  if (XML_MKUP_ETAG == xpe->xper_type)
 	    break;
-	  dk_set_push (&children, xp_copy_to_xte_subtree ((xml_entity_t *)xpe));
+	  dk_set_push (&children, xp_copy_to_xte_subtree ((xml_entity_t *) xpe));
 	  if (XML_MKUP_STAG == xpe->xper_type)
 	    fill_xper_entity (xpe, xpe->xper_end);
 	}
@@ -3914,42 +3884,47 @@ caddr_t *xp_copy_to_xte_subtree (xml_entity_t *xe)
     }
   if (res_len != res_fill)
     {
-      int newresboxlen = res_fill * sizeof(caddr_t);
-      caddr_t *newres = (caddr_t *)dk_alloc_box (newresboxlen, DV_ARRAY_OF_POINTER);
+      int newresboxlen = res_fill * sizeof (caddr_t);
+      caddr_t *newres = (caddr_t *) dk_alloc_box (newresboxlen, DV_ARRAY_OF_POINTER);
       memcpy (newres, res, newresboxlen);
       dk_free_box ((box_t) res);
       res = newres;
     }
   children = dk_set_nreverse (children);
-  dk_set_push (&children, (void *)res);
-  return (caddr_t *)list_to_array (children);
+  dk_set_push (&children, (void *) res);
+  return (caddr_t *) list_to_array (children);
 }
 
 
-caddr_t ** xp_copy_to_xte_forest (xml_entity_t *xe)
+caddr_t **
+xp_copy_to_xte_forest (xml_entity_t * xe)
 {
   GPF_T;
   return NULL;
 }
 
 
-void xp_emulate_input (xml_entity_t *xe, struct vxml_parser_s *parser)
+void
+xp_emulate_input (xml_entity_t * xe, struct vxml_parser_s *parser)
 {
   sqlr_error ("42000", "Unable to pass persistent XML data to the XML validator.");
 }
 
 
-caddr_t xp_find_expanded_name_by_qname (xml_entity_t *xe, const char *qname, int use_default)
+caddr_t
+xp_find_expanded_name_by_qname (xml_entity_t * xe, const char *qname, int use_default)
 {
 #if 0
-  sqlr_error ("42000", "Unable to convert a qname to expanded name using persistent XML data as context; functions like expand-qname() are for XML Tree documents only");
+  sqlr_error ("42000",
+      "Unable to convert a qname to expanded name using persistent XML data as context; functions like expand-qname() are for XML Tree documents only");
 #else
   return NULL;
 #endif
 }
 
 
-dk_set_t xp_namespace_scope (xml_entity_t *xe, int use_default)
+dk_set_t
+xp_namespace_scope (xml_entity_t * xe, int use_default)
 {
 #if 0
   sqlr_error ("42000", "Unable to collect namespace data from persistent XML.");
@@ -3995,7 +3970,8 @@ xp_is_same_as (const xml_entity_t * this_xe, const xml_entity_t * that_xe)
 }
 
 
-static caddr_t xp_build_expanded_name (xper_entity_t *xpe)
+static caddr_t
+xp_build_expanded_name (xper_entity_t * xpe)
 {
   char *name;
   caddr_t ns;
@@ -4006,12 +3982,13 @@ static caddr_t xp_build_expanded_name (xper_entity_t *xpe)
   char *colon;
   name = xpe->xper_name;
   ns = xper_get_namespace (xpe, xpe->xper_ns_pos);
-  len = box_length (name)-1;
+  len = box_length (name) - 1;
   if (uname___empty == ns)
     return box_copy (name);
   nslen = box_length (ns);
   colon = name + len;
-  while ((colon > name) && (colon[-1] != ':')) colon--;
+  while ((colon > name) && (colon[-1] != ':'))
+    colon--;
   local_len = (name + len) - colon;
   BOX_DV_UNAME_COLONCONCAT4 (exp_name, ns, colon, local_len);
   dk_free_box (ns);
@@ -4071,10 +4048,10 @@ xp_ent_name (xml_entity_t * xe)
 
 
 void
-write_escaped (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t *charset)
+write_escaped (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t * charset)
 {
-  unsigned char *end = ptr+len;
-  for (/* no init*/; ptr < end; ptr++)
+  unsigned char *end = ptr + len;
+  for ( /* no init */ ; ptr < end; ptr++)
     {
       switch (*ptr)
 	{
@@ -4102,20 +4079,20 @@ write_escaped (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t *char
 	default:
 	  if (((charset != CHARSET_UTF8) && (0x7F <= *ptr)) || (0x20 > *ptr))
 	    {
-	      unichar uni = eh_decode_char__UTF8 ((__constcharptr *)&ptr, (char *)end);
+	      unichar uni = eh_decode_char__UTF8 ((__constcharptr *) & ptr, (char *) end);
 	      unsigned char encoded_uni =
-		((NULL != charset) ?
-		  (unsigned char)((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
-		  (unsigned char)((uni & ~0xFF) ? 0 : uni) );
-	      ptr--; /* to compensate the 'ptr++' in for */
+		  ((NULL != charset) ?
+		  (unsigned char) ((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
+		  (unsigned char) ((uni & ~0xFF) ? 0 : uni));
+	      ptr--;		/* to compensate the 'ptr++' in for */
 	      if (0x20 > encoded_uni)
 		{
 		  char tmp[32];
-		  snprintf (tmp, sizeof (tmp), "&#%d;", (int)(uni));
+		  snprintf (tmp, sizeof (tmp), "&#%d;", (int) (uni));
 		  SES_PRINT (ses, tmp);
 		}
 	      else
-		  session_buffered_write_char ((char)(encoded_uni), ses);
+		session_buffered_write_char ((char) (encoded_uni), ses);
 	    }
 	  else
 	    session_buffered_write_char (*ptr, ses);
@@ -4124,10 +4101,10 @@ write_escaped (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t *char
 }
 
 void
-write_escaped_attvalue (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t *charset)
+write_escaped_attvalue (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t * charset)
 {
-  unsigned char *end = ptr+len;
-  for (/* no init*/; ptr < end; ptr++)
+  unsigned char *end = ptr + len;
+  for ( /* no init */ ; ptr < end; ptr++)
     {
       switch (*ptr)
 	{
@@ -4151,20 +4128,20 @@ write_escaped_attvalue (dk_session_t * ses, unsigned char *ptr, int len, wcharse
 	default:
 	  if ((charset != CHARSET_UTF8) && ((0x7F <= *ptr) || (0x20 > *ptr)))
 	    {
-	      unichar uni = eh_decode_char__UTF8 ((__constcharptr *)&ptr, (char *)end);
+	      unichar uni = eh_decode_char__UTF8 ((__constcharptr *) & ptr, (char *) end);
 	      unsigned char encoded_uni =
-		((NULL != charset) ?
-		  (unsigned char)((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
-		  (unsigned char)((uni & ~0xFF) ? 0 : uni) );
-	      ptr--; /* to compensate the 'ptr++' in for */
+		  ((NULL != charset) ?
+		  (unsigned char) ((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
+		  (unsigned char) ((uni & ~0xFF) ? 0 : uni));
+	      ptr--;		/* to compensate the 'ptr++' in for */
 	      if (0x20 > encoded_uni)
 		{
 		  char tmp[32];
-		  snprintf (tmp, sizeof (tmp), "&#%d;", (int)(uni));
+		  snprintf (tmp, sizeof (tmp), "&#%d;", (int) (uni));
 		  SES_PRINT (ses, tmp);
 		}
 	      else
-		  session_buffered_write_char ((char)(encoded_uni), ses);
+		session_buffered_write_char ((char) (encoded_uni), ses);
 	    }
 	  else
 	    session_buffered_write_char (*ptr, ses);
@@ -4173,11 +4150,11 @@ write_escaped_attvalue (dk_session_t * ses, unsigned char *ptr, int len, wcharse
 }
 
 void
-write_escaped_comment (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t *charset)
+write_escaped_comment (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t * charset)
 {
   unsigned char *begin = ptr;
-  unsigned char *end = ptr+len;
-  for (/* no init*/; ptr < end; ptr++)
+  unsigned char *end = ptr + len;
+  for ( /* no init */ ; ptr < end; ptr++)
     {
       if (('>' == *ptr) && (ptr > begin + 1) && ('-' == ptr[-1]) && ('-' == ptr[-2]))
 	SES_PRINT (ses, "&gt;");
@@ -4185,20 +4162,20 @@ write_escaped_comment (dk_session_t * ses, unsigned char *ptr, int len, wcharset
 	{
 	  if ((charset != CHARSET_UTF8) && ((0x7F <= *ptr) || (0x20 > *ptr)))
 	    {
-	      unichar uni = eh_decode_char__UTF8 ((__constcharptr *)&ptr, (char *)end);
+	      unichar uni = eh_decode_char__UTF8 ((__constcharptr *) & ptr, (char *) end);
 	      unsigned char encoded_uni =
-		((NULL != charset) ?
-		  (unsigned char)((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
-		  (unsigned char)((uni & ~0xFF) ? 0 : uni) );
-	      ptr--; /* to compensate the 'ptr++' in for */
+		  ((NULL != charset) ?
+		  (unsigned char) ((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
+		  (unsigned char) ((uni & ~0xFF) ? 0 : uni));
+	      ptr--;		/* to compensate the 'ptr++' in for */
 	      if (0 == encoded_uni)
 		{
 		  char tmp[32];
-		  snprintf (tmp, sizeof (tmp), "&#%d;", (int)(uni));
+		  snprintf (tmp, sizeof (tmp), "&#%d;", (int) (uni));
 		  SES_PRINT (ses, tmp);
 		}
 	      else
-		  session_buffered_write_char ((char)(encoded_uni), ses);
+		session_buffered_write_char ((char) (encoded_uni), ses);
 	    }
 	  else
 	    session_buffered_write_char (*ptr, ses);
@@ -4207,38 +4184,37 @@ write_escaped_comment (dk_session_t * ses, unsigned char *ptr, int len, wcharset
 }
 
 void
-write_escaped_pitext (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t *charset)
+write_escaped_pitext (dk_session_t * ses, unsigned char *ptr, int len, wcharset_t * charset)
 {
 #ifdef XPER_DEBUG
   unsigned char *begin = ptr;
 #endif
-  unsigned char *end = ptr+len;
-  for (/* no init*/; ptr < end; ptr++)
+  unsigned char *end = ptr + len;
+  for ( /* no init */ ; ptr < end; ptr++)
     {
       if ((charset != CHARSET_UTF8) && ((0x7F <= *ptr) || (0x20 > *ptr)))
 	{
-	  unichar uni = eh_decode_char__UTF8 ((__constcharptr *)&ptr, (char *)end);
+	  unichar uni = eh_decode_char__UTF8 ((__constcharptr *) & ptr, (char *) end);
 	  unsigned char encoded_uni =
-	    ((NULL != charset) ?
-	      (unsigned char)((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
-	      (unsigned char)((uni & ~0xFF) ? 0 : uni) );
-	  ptr--; /* to compensate the 'ptr++' in for */
+	      ((NULL != charset) ?
+	      (unsigned char) ((ptrlong) gethash ((void *) (ptrlong) uni, charset->chrs_ht)) :
+	      (unsigned char) ((uni & ~0xFF) ? 0 : uni));
+	  ptr--;		/* to compensate the 'ptr++' in for */
 	  if (0 == encoded_uni)
 	    {
 	      char tmp[32];
-	      snprintf (tmp, sizeof (tmp), "&#%d;", (int)(uni));
+	      snprintf (tmp, sizeof (tmp), "&#%d;", (int) (uni));
 	      SES_PRINT (ses, tmp);
 	    }
 	  else
-	    session_buffered_write_char ((char)(encoded_uni), ses);
+	    session_buffered_write_char ((char) (encoded_uni), ses);
 	}
       else
 	session_buffered_write_char (*ptr, ses);
     }
 }
 
-void
-DBG_NAME(xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dtp)
+void DBG_NAME (xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dtp)
 {
 #ifdef XPER_DEBUG
   wcharset_t *charset = QST_CHARSET (xe->xe_doc.xd->xd_qi);
@@ -4287,7 +4263,7 @@ DBG_NAME(xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dt
   if (DV_XML_MARKUP == box_tag (box))
     {
       epos = xpe->xper_end;
-      for (pos = xpe->xper_pos + box_length (box) + 5; pos < epos; /* no step */)
+      for (pos = xpe->xper_pos + box_length (box) + 5; pos < epos; /* no step */ )
 	{
 #if 0
 	  long box_pos = pos;
@@ -4324,15 +4300,15 @@ DBG_NAME(xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dt
 /* TBD: references should be extended and converted to string, but probably with disabled signaling of errors. */
 		case XML_MKUP_REF:
 		  {
-		    xper_entity_t *ref_xpe = (xper_entity_t *)xe->_->xe_copy (xe);
+		    xper_entity_t *ref_xpe = (xper_entity_t *) xe->_->xe_copy (xe);
 		    fill_xper_entity (ref_xpe, box_pos);
 		    if (XI_RESULT == xp_down ((xml_entity_t *) ref_xpe, (XT *) XP_NODE))
 		      {
-		        caddr_t ref_val = NULL;
+			caddr_t ref_val = NULL;
 /* There's no transit allowed in the following line, thus it climbs up to the root of the referenced doc */
 			ref_xpe->_->xe_up ((xml_entity_t *) ref_xpe, (XT *) XP_NODE, 0);
-		        ref_xpe->_->xe_string_value ((xml_entity_t *) ref_xpe, &ref_val, DV_STRING);
-		        session_buffered_write (ses, ref_val, box_length (ref_val) - 1);
+			ref_xpe->_->xe_string_value ((xml_entity_t *) ref_xpe, &ref_val, DV_STRING);
+			session_buffered_write (ses, ref_val, box_length (ref_val) - 1);
 		      }
 		    dk_free_box (ref_xpe);
 		    break;
@@ -4341,7 +4317,7 @@ DBG_NAME(xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dt
 		case XML_MKUP_COMMENT:
 		  session_buffered_write (ses, (const char *) ptr, namelen);
 		  break;
-	      }
+		}
 	    }
 	}
       goto done;
@@ -4362,7 +4338,7 @@ DBG_NAME(xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dt
 /* TBD: support for strings that starts in one subdocument and continues in a nested reference */
 	  if (box[0] == XML_MKUP_REF)
 	    {
-	      xper_entity_t *ref_xpe = (xper_entity_t *)xe->_->xe_copy (xe);
+	      xper_entity_t *ref_xpe = (xper_entity_t *) xe->_->xe_copy (xe);
 	      fill_xper_entity (ref_xpe, box_pos);
 	      if (XI_RESULT == xp_down ((xml_entity_t *) ref_xpe, (XT *) XP_NODE))
 		{
@@ -4381,8 +4357,9 @@ DBG_NAME(xp_string_value) (DBG_PARAMS xml_entity_t * xe, caddr_t * ret, dtp_t dt
 done:
   dk_free_box (box);
   if (strses_length (ses) > 10000000)
-    sqlr_new_error ("42000", "XE005", "String value is longer than 10000000 bytes: source fragment of persistent XML is too large.");
-  box = DBG_NAME(strses_string) (DBG_ARGS ses);
+    sqlr_new_error ("42000", "XE005",
+	"String value is longer than 10000000 bytes: source fragment of persistent XML is too large.");
+  box = DBG_NAME (strses_string) (DBG_ARGS ses);
   strses_free (ses);
   if (DV_NUMERIC == dtp)
     {
@@ -4443,7 +4420,7 @@ xp_string_value_is_nonempty (xml_entity_t * xe)
   if (DV_XML_MARKUP == box_tag (box))
     {
       epos = xpe->xper_end;
-      for (pos = xpe->xper_pos + box_length (box) + 5; pos < epos; /* no step */)
+      for (pos = xpe->xper_pos + box_length (box) + 5; pos < epos; /* no step */ )
 	{
 #if 0
 	  long box_pos = pos;
@@ -4454,7 +4431,7 @@ xp_string_value_is_nonempty (xml_entity_t * xe)
 	  if ((DV_STRING == box_tag (box)) || (DV_SHORT_STRING_SERIAL == box_tag (box)))
 	    {
 	      if (box_length (box))
-	        return 1;
+		return 1;
 	    }
 	  else
 	    {
@@ -4484,15 +4461,15 @@ xp_string_value_is_nonempty (xml_entity_t * xe)
 /* TBD: references should be extended and converted to string, but probably with disabled signaling of errors. */
 		case XML_MKUP_REF:
 		  {
-		    xper_entity_t *ref_xpe = (xper_entity_t *)xe->_->xe_copy (xe);
+		    xper_entity_t *ref_xpe = (xper_entity_t *) xe->_->xe_copy (xe);
 		    fill_xper_entity (ref_xpe, box_pos);
 		    if (XI_RESULT == xp_down ((xml_entity_t *) ref_xpe, (XT *) XP_NODE))
 		      {
-		        caddr_t ref_val = NULL;
+			caddr_t ref_val = NULL;
 /* There's no transit allowed in the following line, thus it climbs up to the root of the referenced doc */
 			ref_xpe->_->xe_up ((xml_entity_t *) ref_xpe, (XT *) XP_NODE, 0);
-		        ref_xpe->_->xe_string_value ((xml_entity_t *) ref_xpe, &ref_val, DV_STRING);
-		        session_buffered_write (ses, ref_val, box_length (ref_val) - 1);
+			ref_xpe->_->xe_string_value ((xml_entity_t *) ref_xpe, &ref_val, DV_STRING);
+			session_buffered_write (ses, ref_val, box_length (ref_val) - 1);
 		      }
 		    dk_free_box (ref_xpe);
 		    break;
@@ -4502,7 +4479,7 @@ xp_string_value_is_nonempty (xml_entity_t * xe)
 		  if (namelen)
 		    return 1;
 		  break;
-	      }
+		}
 	    }
 	}
       return 0;
@@ -4524,7 +4501,7 @@ xp_string_value_is_nonempty (xml_entity_t * xe)
 /* TBD: support for strings that starts in one subdocument and continues in a nested reference */
 	  if (box[0] == XML_MKUP_REF)
 	    {
-	      xper_entity_t *ref_xpe = (xper_entity_t *)xe->_->xe_copy (xe);
+	      xper_entity_t *ref_xpe = (xper_entity_t *) xe->_->xe_copy (xe);
 	      fill_xper_entity (ref_xpe, box_pos);
 	      if (XI_RESULT == xp_down ((xml_entity_t *) ref_xpe, (XT *) XP_NODE))
 		{
@@ -4617,14 +4594,12 @@ before_element:
 		if (!strcmp (def->nsd_prefix, (const char *) ptr))
 		  goto after_tag_new_def;	/* see below */
 	      }
-	      END_DO_SET ()
-		  DO_SET (ns_def_t *, def, &inner_items)
+	      END_DO_SET ()DO_SET (ns_def_t *, def, &inner_items)
 	      {
 		if (!strcmp (def->nsd_prefix, (const char *) ptr))
 		  goto after_tag_new_def;	/* see below */
 	      }
-	      END_DO_SET ()
-		  new_def = (ns_def_t *) dk_alloc_box (sizeof (ns_def_t), DV_ARRAY_OF_LONG);
+	      END_DO_SET ()new_def = (ns_def_t *) dk_alloc_box (sizeof (ns_def_t), DV_ARRAY_OF_LONG);
 	      NSD_FILL (new_def, box_string ((char *) ptr), NULL, ns_pos, -1);
 	      dk_set_push (&new_items, new_def);
 	    }
@@ -4637,7 +4612,7 @@ before_element:
 	  addons = ((unsigned long) (num_word)) >> 16;
 	  ptr += addons;
 
-	  for (; atts_fill > 1; atts_fill -= 2)		/* loop by attributes */
+	  for (; atts_fill > 1; atts_fill -= 2)	/* loop by attributes */
 	    {
 	      int adtp = *ptr;
 	      alen = (long) skip_string_length (&ptr);
@@ -4656,20 +4631,17 @@ before_element:
 			if (!strcmp (def->nsd_prefix, (const char *) ptr))
 			  goto after_attr_new_def;	/* see below */
 		      }
-		      END_DO_SET ()
-		      DO_SET (ns_def_t *, def, &outer_items)
+		      END_DO_SET ()DO_SET (ns_def_t *, def, &outer_items)
 		      {
 			if (!strcmp (def->nsd_prefix, (const char *) ptr))
 			  goto after_attr_new_def;	/* see below */
 		      }
-		      END_DO_SET ()
-			  DO_SET (ns_def_t *, def, &inner_items)
+		      END_DO_SET ()DO_SET (ns_def_t *, def, &inner_items)
 		      {
 			if (!strcmp (def->nsd_prefix, (const char *) ptr))
 			  goto after_attr_new_def;	/* see below */
 		      }
-		      END_DO_SET ()
-		      ns_pos_field = ptr + anmlen + 1;
+		      END_DO_SET ()ns_pos_field = ptr + anmlen + 1;
 		      ns_pos = LONG_REF_NA (ns_pos_field);
 		      new_def = (ns_def_t *) dk_alloc_box (sizeof (ns_def_t), DV_ARRAY_OF_LONG);
 		      NSD_FILL (new_def, box_string ((char *) ptr), NULL, ns_pos, -1);
@@ -4682,30 +4654,25 @@ before_element:
 		case DV_SHORT_STRING_SERIAL:
 		  if (strncmp ((const char *) ptr, "xmlns", 5 /* = strlen("xmlns") */ ))
 		    break;
-		  if (':' == ptr[5]) /* declaration of explicit prefix */
+		  if (':' == ptr[5])	/* declaration of explicit prefix */
 		    {
 		      new_def = (ns_def_t *) dk_alloc_box (sizeof (ns_def_t), DV_ARRAY_OF_LONG);
-		      NSD_FILL (new_def,
-			  box_dv_short_nchars ((const char *) ptr + 6, alen - 6),	/* rest of attribute name is a prefix */
-			  NULL,
-			  pos + (avalue - (unsigned char *) (box)),	/* position of attribute value in BLOB is a position of namespace */
+		      NSD_FILL (new_def, box_dv_short_nchars ((const char *) ptr + 6, alen - 6),	/* rest of attribute name is a prefix */
+			  NULL, pos + (avalue - (unsigned char *) (box)),	/* position of attribute value in BLOB is a position of namespace */
 			  depth);
 		      dk_set_push (&inner_items, new_def);
 		    }
-		  else if (5 == alen) /* declaration of implicit prefix */
+		  else if (5 == alen)	/* declaration of implicit prefix */
 		    {
 		      new_def = (ns_def_t *) dk_alloc_box (sizeof (ns_def_t), DV_ARRAY_OF_LONG);
-		      NSD_FILL (new_def,
-			  box_string (""),	/* no prefix */
-			  NULL,
-			  pos + (avalue - (unsigned char *) (box)),	/* position of attribute value in BLOB is a position of namespace */
+		      NSD_FILL (new_def, box_string (""),	/* no prefix */
+			  NULL, pos + (avalue - (unsigned char *) (box)),	/* position of attribute value in BLOB is a position of namespace */
 			  depth);
 		      dk_set_push (&inner_items, new_def);
 		    }
 		  break;
 		default:
-		  error = srv_make_new_error ("42000", "XM006",
-		      "Error while serializing XML_PERSISTENT: invalid box tag");
+		  error = srv_make_new_error ("42000", "XM006", "Error while serializing XML_PERSISTENT: invalid box tag");
 		  goto emit_error;
 		}
 	      ptr = avalue;	/* skip attribute name */
@@ -4720,24 +4687,22 @@ before_element:
 		break;
 	      new_def = (ns_def_t *) dk_set_pop (&new_items);
 	      DO_SET (ns_def_t *, def, &outer_items)
-		{
-		  if (!strcmp (def->nsd_prefix, new_def->nsd_prefix))
-		    {
-		      NSD_FREE (new_def);
-		      goto before_check_new_item;	/* see above */
-		    }
-		}
-	      END_DO_SET ()
-	      DO_SET (ns_def_t *, def, &inner_items)
-		{
-		  if (!strcmp (def->nsd_prefix, new_def->nsd_prefix))
-		    {
-		      NSD_FREE (new_def);
-		      goto before_check_new_item;	/* see above */
-		    }
-		}
-	      END_DO_SET ()
-	      dk_set_push (&outer_items, new_def);
+	      {
+		if (!strcmp (def->nsd_prefix, new_def->nsd_prefix))
+		  {
+		    NSD_FREE (new_def);
+		    goto before_check_new_item;	/* see above */
+		  }
+	      }
+	      END_DO_SET ()DO_SET (ns_def_t *, def, &inner_items)
+	      {
+		if (!strcmp (def->nsd_prefix, new_def->nsd_prefix))
+		  {
+		    NSD_FREE (new_def);
+		    goto before_check_new_item;	/* see above */
+		  }
+	      }
+	      END_DO_SET ()dk_set_push (&outer_items, new_def);
 	    }
 	  depth++;
 	  break;
@@ -4757,8 +4722,7 @@ before_element:
 	case XML_MKUP_COMMENT:
 	  break;
 	default:
-	  error = srv_make_new_error ("42000", "XM007",
-	      "Error while serializing XML_PERSISTENT: invalid markup type");
+	  error = srv_make_new_error ("42000", "XM007", "Error while serializing XML_PERSISTENT: invalid markup type");
 	  goto emit_error;
 	}
       break;
@@ -4766,8 +4730,7 @@ before_element:
     case DV_STRING:
       break;
     default:
-      error = srv_make_new_error ("42000", "XM008",
-	  "Error while serializing XML_PERSISTENT: invalid box tag");
+      error = srv_make_new_error ("42000", "XM008", "Error while serializing XML_PERSISTENT: invalid box tag");
       goto emit_error;
     }
   pos += ((DV_SHORT_STRING_SERIAL == dtp) ? 2 : 5);
@@ -4783,26 +4746,23 @@ emit_error:
   {
     NSD_FREE (def);
   }
-  END_DO_SET ()
-  dk_set_free (new_items);
+  END_DO_SET ()dk_set_free (new_items);
   DO_SET (ns_def_t *, def, &inner_items)
   {
     NSD_FREE (def);
   }
-  END_DO_SET ()
-  dk_set_free (inner_items);
+  END_DO_SET ()dk_set_free (inner_items);
   DO_SET (ns_def_t *, def, &outer_items)
   {
     NSD_FREE (def);
   }
-  END_DO_SET ()
-  dk_set_free (outer_items);
+  END_DO_SET ()dk_set_free (outer_items);
   sqlr_resignal (error);
   return NULL;			/* never reached */
 }
 
 long
-xp_serialize_element (xper_entity_t * xpe, long pos, dk_session_t * ses, dk_set_t * outer_ns_dict, wcharset_t *charset)
+xp_serialize_element (xper_entity_t * xpe, long pos, dk_session_t * ses, dk_set_t * outer_ns_dict, wcharset_t * charset)
 {
   caddr_t box = get_tag_data (xpe, pos);
   unsigned char *ptr = (unsigned char *) box;
@@ -4837,8 +4797,7 @@ xp_serialize_element (xper_entity_t * xpe, long pos, dk_session_t * ses, dk_set_
 		    if ('\0' != def->nsd_prefix[0])
 		      {
 			session_buffered_write_char (':', ses);
-			write_escaped (ses, (unsigned char *) def->nsd_prefix,
-					(int) strlen (def->nsd_prefix), charset);
+			write_escaped (ses, (unsigned char *) def->nsd_prefix, (int) strlen (def->nsd_prefix), charset);
 		      }
 		    SES_PRINT (ses, "=\"");
 		    write_escaped_attvalue (ses, (unsigned char *) def->nsd_strg, box_length (def->nsd_strg) - 1, charset);
@@ -4846,8 +4805,7 @@ xp_serialize_element (xper_entity_t * xpe, long pos, dk_session_t * ses, dk_set_
 		  }
 		NSD_FREE (def);
 	      }
-	      END_DO_SET ()
-	      dk_set_free (outer_ns_dict[0]);
+	      END_DO_SET ()dk_set_free (outer_ns_dict[0]);
 	      outer_ns_dict[0] = NULL;
 	    }
 	  ptr += namelen + STR_END_TAG_OFF;
@@ -4935,7 +4893,8 @@ xp_serialize_element (xper_entity_t * xpe, long pos, dk_session_t * ses, dk_set_
 	  sqlr_new_error ("XE000", "XP9B2", "Error while serializing XML_PERSISTENT: invalid markup type %d", xpe->xper_type);
 	}
       break;
-    case DV_STRING: case DV_SHORT_STRING_SERIAL:
+    case DV_STRING:
+    case DV_SHORT_STRING_SERIAL:
       write_escaped (ses, (unsigned char *) box, box_length (box), charset);
       break;
     default:
@@ -4951,7 +4910,7 @@ void
 xp_serialize (xml_entity_t * xe, dk_session_t * ses)
 {
   xper_entity_t *xpe = (xper_entity_t *) xe;
-  wcharset_t * charset = NULL;
+  wcharset_t *charset = NULL;
   dk_set_t dict = NULL;
   long pos = xpe->xper_pos;
   xper_dbg_print ("xp_serialize\n");
@@ -4967,9 +4926,7 @@ xp_serialize (xml_entity_t * xe, dk_session_t * ses)
   {
     def->nsd_strg = xper_get_namespace (xpe, (long) def->nsd_pos);
   }
-  END_DO_SET ()
-
-  while (pos <= xpe->xper_end)
+  END_DO_SET ()while (pos <= xpe->xper_end)
     {
       pos = xp_serialize_element (xpe, pos, ses, &dict, charset);
     }
@@ -4977,8 +4934,7 @@ xp_serialize (xml_entity_t * xe, dk_session_t * ses)
   {
     NSD_FREE (def);
   }
-  END_DO_SET ()
-      dk_set_free (dict);
+  END_DO_SET ()dk_set_free (dict);
 }
 
 struct xper_vtbf_env_s
@@ -4993,7 +4949,8 @@ typedef struct xper_vtbf_env_s xper_vtbf_env_t;
 
 /* IvAn/TextXperIndex/000815 Persistent XML support functions added */
 const char *
-xper_elements_vtb_feed (xper_entity_t * xpe, vt_batch_t * vtb, lh_word_callback_t * cbk, lang_handler_t * root_lh, caddr_t * textbufptr)
+xper_elements_vtb_feed (xper_entity_t * xpe, vt_batch_t * vtb, lh_word_callback_t * cbk, lang_handler_t * root_lh,
+    caddr_t * textbufptr)
 {
   caddr_t box;
   unsigned char *ptr, *start_tag_longs, *start_attrs, *start_name;
@@ -5038,7 +4995,8 @@ first_element:
   curr_el_pos += el_length;
   switch (dtp)
     {
-    case DV_STRING: case DV_SHORT_STRING_SERIAL:
+    case DV_STRING:
+    case DV_SHORT_STRING_SERIAL:
       s_frag_begin = ptr;
       old_word_pos = vtb->vtb_word_pos;
       box_end = (unsigned char *) box + el_length;
@@ -5085,11 +5043,8 @@ first_element:
       if (space_found)
 	{
 	  int res;
-	  res = lh_iterate_patched_words (
-	      &eh__UTF8, active_lang,
-	      textbufptr[0], text_buf_use,
-	      active_lang->lh_is_vtb_word, active_lang->lh_normalize_word,
-	      cbk, vtb);
+	  res = lh_iterate_patched_words (&eh__UTF8, active_lang,
+	      textbufptr[0], text_buf_use, active_lang->lh_is_vtb_word, active_lang->lh_normalize_word, cbk, vtb);
 	  if (res < 0)
 	    {
 	      errmsg = "corrupted text entity (UTF-8 encoding error)";
@@ -5115,11 +5070,8 @@ first_element:
     {
       int res;
       old_word_pos = vtb->vtb_word_pos;
-      res = lh_iterate_patched_words (
-	  &eh__UTF8, active_lang,
-	  textbufptr[0], text_buf_use,
-	  active_lang->lh_is_vtb_word, active_lang->lh_normalize_word,
-	  cbk, vtb);
+      res = lh_iterate_patched_words (&eh__UTF8, active_lang,
+	  textbufptr[0], text_buf_use, active_lang->lh_is_vtb_word, active_lang->lh_normalize_word, cbk, vtb);
       if (res < 0)
 	{
 	  errmsg = "corrupted text entity (UTF-8 encoding error)";
@@ -5154,8 +5106,8 @@ first_element:
 	  uint32 ns_uri_len, local_len;
 	  ns_uri = xper_get_namespace (xpe, ns_pos);
 	  ns_uri_len = box_length (ns_uri) - 1;
-          if (0 == ns_uri_len)
-            goto no_box_in_env_stack; /* see below */
+	  if (0 == ns_uri_len)
+	    goto no_box_in_env_stack;	/* see below */
 	  local = start_name + namelen;
 	  while ((local > start_name) && (':' != local[-1]))
 	    local--;
@@ -5172,18 +5124,18 @@ first_element:
 	  tail[0] = '\0';
 	  dk_free_box (ns_uri);
 	  cbk ((const utf8char *) vtb_name, wordlen, vtb);
-          goto cbk_for_start_tag_done; /* see below */
-        }
+	  goto cbk_for_start_tag_done;	/* see below */
+	}
 
-no_box_in_env_stack:
-      vtb_name = NULL;	/* No need to create separate box and store it in env's stack */
+    no_box_in_env_stack:
+      vtb_name = NULL;		/* No need to create separate box and store it in env's stack */
       textbufptr[0][0] = '<';
       memcpy (textbufptr[0] + 1, start_name, namelen);
       wordlen = 1 + namelen;
       textbufptr[0][wordlen] = '\0';
       cbk ((const utf8char *) textbufptr[0], wordlen, vtb);
 
-cbk_for_start_tag_done:
+    cbk_for_start_tag_done:
       ptr = start_tag_longs + STR_ATTR_NO_OFF;
       num_word = LONG_REF_NA (ptr);
       ptr += 4;
@@ -5256,8 +5208,8 @@ cbk_for_start_tag_done:
 		  namelen = (int) skip_string_length ((unsigned char **) (&start_name));
 		  ns_pos = LONG_REF_NA (start_name + namelen + 1);
 		  ns_uri = xper_get_namespace (xpe, ns_pos);
-                  if (uname___empty == ns_uri)
-                    ns_pos = 0;
+		  if (uname___empty == ns_uri)
+		    ns_pos = 0;
 		}
 	      else
 		ns_pos = 0;
@@ -5303,21 +5255,18 @@ cbk_for_start_tag_done:
 		    index_this_attr = 0;
 		}
 	      if (index_this_attr)
-	        {
+		{
 		  buf[0] = '{';
 		  cbk (buf, wordlen, vtb);
 		  vallen = (int) skip_string_length ((unsigned char **) (&ptr));
-		  lh_iterate_patched_words (
-		    &eh__UTF8, active_lang,
-		    (char *) ptr, vallen,
-		    active_lang->lh_is_vtb_word, active_lang->lh_normalize_word,
-		    cbk, vtb );
+		  lh_iterate_patched_words (&eh__UTF8, active_lang,
+		      (char *) ptr, vallen, active_lang->lh_is_vtb_word, active_lang->lh_normalize_word, cbk, vtb);
 		  ptr += vallen;
 		  buf[0] = '}';
 		  cbk (buf, wordlen, vtb);
 		}
 	      else
-	        {
+		{
 		  wpos_t word_count;
 		  vallen = (int) skip_string_length ((unsigned char **) (&ptr));
 #ifndef SKIP_XMLNS_WORD_POS
@@ -5381,11 +5330,12 @@ done:
 }
 
 void
-xper_blob_vtb_feed (query_instance_t * qi, blob_handle_t * xper_blob, vt_batch_t * vtb, lh_word_callback_t * cbk, lang_handler_t * lh, caddr_t * textbufptr)
+xper_blob_vtb_feed (query_instance_t * qi, blob_handle_t * xper_blob, vt_batch_t * vtb, lh_word_callback_t * cbk,
+    lang_handler_t * lh, caddr_t * textbufptr)
 {
   xper_entity_t *xpe;		/* temporary entity to traverse document */
   const char *errmsg;
-  xpe = xper_entity (qi, (caddr_t) xper_blob, NULL, 0, NULL /* no path */ , NULL /* no encoding */ , lh, NULL /* DTD config */, 0);
+  xpe = xper_entity (qi, (caddr_t) xper_blob, NULL, 0, NULL /* no path */ , NULL /* no encoding */ , lh, NULL /* DTD config */ , 0);
   errmsg = xper_elements_vtb_feed (xpe, vtb, cbk, lh, textbufptr);
   dk_free_tree ((box_t) xpe);
   if (NULL != errmsg)
@@ -5394,11 +5344,12 @@ xper_blob_vtb_feed (query_instance_t * qi, blob_handle_t * xper_blob, vt_batch_t
 
 
 void
-xper_str_vtb_feed (query_instance_t * qi, caddr_t xper_str, vt_batch_t * vtb, lh_word_callback_t * cbk, lang_handler_t * lh, caddr_t * textbufptr)
+xper_str_vtb_feed (query_instance_t * qi, caddr_t xper_str, vt_batch_t * vtb, lh_word_callback_t * cbk, lang_handler_t * lh,
+    caddr_t * textbufptr)
 {
   xper_entity_t *xpe;		/* temporary entity to traverse document */
   const char *errmsg;
-  xpe = xper_entity (qi, xper_str, NULL, 0, NULL /* no path */ , NULL /* no encoding */ , lh, NULL /* DTD config */, 0);
+  xpe = xper_entity (qi, xper_str, NULL, 0, NULL /* no path */ , NULL /* no encoding */ , lh, NULL /* DTD config */ , 0);
   errmsg = xper_elements_vtb_feed (xpe, vtb, cbk, lh, textbufptr);
   dk_free_tree ((box_t) xpe);
   if (NULL != errmsg)
@@ -5428,11 +5379,11 @@ xp_destroy (xml_entity_t * xe)
   if (0 >= --xpe->xe_doc.xd->xd_ref_count)
     {
       xper_doc_t *xpd = xpe->xe_doc.xpd;
-#if 0 /* This is no longer valid because document cache can release the last entity on the document
-and the document will stay locked in that time */
+#if 0				/* This is no longer valid because document cache can release the last entity on the document
+				   and the document will stay locked in that time */
 #ifdef DEBUG
       if (0 != xpd->xd_dom_lock_count)
-        GPF_T1("attempt of destroying of a DOM-locked entity");
+	GPF_T1 ("attempt of destroying of a DOM-locked entity");
 #endif
 #endif
       if (XPD_PERSISTENT != xpe->xe_doc.xpd->xpd_state)
@@ -5446,7 +5397,7 @@ and the document will stay locked in that time */
       dk_free_box (xpd->xd_uri);
       DO_SET (xml_entity_t *, refd, &xpd->xd_referenced_entities)
       {
-        XD_DOM_RELEASE(refd->xe_doc.xd);
+	XD_DOM_RELEASE (refd->xe_doc.xd);
 #ifdef MALLOC_DEBUG
 	refd->xe_doc.xd->xd_top_doc = NULL;
 #endif
@@ -5527,7 +5478,8 @@ first_element:
   curr_el_pos += el_length;
   switch (box_tag (box))
     {
-    case DV_STRING: case DV_SHORT_STRING_SERIAL:
+    case DV_STRING:
+    case DV_SHORT_STRING_SERIAL:
       goto next_element;
     case DV_XML_MARKUP:
       break;
@@ -5717,7 +5669,8 @@ xp_follow_path (xml_entity_t * xe, ptrlong * path, size_t path_depth)
 }
 
 
-void dtd_load_from_buffer (dtd_t *res, caddr_t dtd_string)
+void
+dtd_load_from_buffer (dtd_t * res, caddr_t dtd_string)
 {
   size_t len;
   unsigned char *end = (unsigned char *) (dtd_string + box_length (dtd_string));
@@ -5765,9 +5718,9 @@ again:
       tail++;
       DIG_NAME (el_name);	/* Reading of name of element */
       DIG_NAME (attr_name);	/* Reading of name of element's ID attribute */
-      el_idx = ecm_map_name (el_name, (void **)&(res->ed_els), &(res->ed_el_no), sizeof (ecm_el_t));
+      el_idx = ecm_map_name (el_name, (void **) &(res->ed_els), &(res->ed_el_no), sizeof (ecm_el_t));
       el = res->ed_els + el_idx;
-      attr_idx = ecm_map_name (attr_name, (void **)&(el->ee_attrs), &(el->ee_attrs_no), sizeof (ecm_attr_t));
+      attr_idx = ecm_map_name (attr_name, (void **) &(el->ee_attrs), &(el->ee_attrs_no), sizeof (ecm_attr_t));
       attr = el->ee_attrs + attr_idx;
       attr->da_type = ECM_AT_ID;
       el->ee_has_id_attr = 1;
@@ -5777,7 +5730,7 @@ again:
     case 'g':
       tail++;
       DIG_URI (entname);	/* Reading of name of entity */
-      DIG_URI (sysid);	/* Reading of SYSTEM URI of the entity */
+      DIG_URI (sysid);		/* Reading of SYSTEM URI of the entity */
       /* Reading of PUBLIC name of the entity */
       if ('g' == type_byte)
 	pubid = NULL;
@@ -5804,7 +5757,8 @@ again:
 }
 
 
-int dtd_insert_soft (dtd_t *tgt, dtd_t *src)
+int
+dtd_insert_soft (dtd_t * tgt, dtd_t * src)
 {
   size_t len;
   ecm_el_idx_t src_el_idx, src_el_no;
@@ -5826,25 +5780,25 @@ int dtd_insert_soft (dtd_t *tgt, dtd_t *src)
       ecm_el_idx_t tgt_el_idx;
       char *src_attrname;
       if (!src_el->ee_has_id_attr)
-        continue;
+	continue;
       tgt_el_idx = ecm_find_name (src_el->ee_name, tgt->ed_els, tgt->ed_el_no, sizeof (ecm_el_t));
       if (ECM_MEM_NOT_FOUND == tgt_el_idx)
-        {
-          char *tgt_elname;
-          COPY_NAME (tgt_elname, src_el->ee_name);
-	  tgt_el_idx = ecm_map_name (tgt_elname, (void **)&(tgt->ed_els), &(tgt->ed_el_no), sizeof (ecm_el_t));
+	{
+	  char *tgt_elname;
+	  COPY_NAME (tgt_elname, src_el->ee_name);
+	  tgt_el_idx = ecm_map_name (tgt_elname, (void **) &(tgt->ed_els), &(tgt->ed_el_no), sizeof (ecm_el_t));
 	}
       tgt_el = tgt->ed_els + tgt_el_idx;
       if (tgt_el->ee_has_id_attr)
-        continue;
+	continue;
       key_idx = src_el->ee_id_attr_idx;
       src_attrname = src_el->ee_attrs[key_idx].da_name;
       tgt_attr_idx = ecm_find_name (src_attrname, tgt_el->ee_attrs, tgt_el->ee_attrs_no, sizeof (ecm_attr_t));
       if (ECM_MEM_NOT_FOUND == tgt_attr_idx)
-        {
-          char *tgt_attrname;
-          COPY_NAME (tgt_attrname, src_attrname);
-	  tgt_attr_idx = ecm_map_name (tgt_attrname, (void **)&(tgt_el->ee_attrs), &(tgt_el->ee_attrs_no), sizeof (ecm_attr_t));
+	{
+	  char *tgt_attrname;
+	  COPY_NAME (tgt_attrname, src_attrname);
+	  tgt_attr_idx = ecm_map_name (tgt_attrname, (void **) &(tgt_el->ee_attrs), &(tgt_el->ee_attrs_no), sizeof (ecm_attr_t));
 	}
       tgt_attr = tgt_el->ee_attrs + tgt_attr_idx;
       tgt_attr->da_type = ECM_AT_ID;
@@ -5863,9 +5817,9 @@ int dtd_insert_soft (dtd_t *tgt, dtd_t *src)
 	tgt_dict = tgt->ed_generics = id_hash_allocate (251, sizeof (caddr_t), sizeof (caddr_t), strhash, strhashcmp);
       for (id_hash_iterator (&src_dict_hit, src_dict);
 	  hit_next (&src_dict_hit, (char **) (&src_dict_key_ptr), (char **) (&src_ent_ptr));
-      /*no step */ )
+	  /*no step */ )
 	{
-	  xml_def_4_entity_t **tgt_hit = (xml_def_4_entity_t **)id_hash_get (tgt_dict, (caddr_t)(src_dict_key_ptr));
+	  xml_def_4_entity_t **tgt_hit = (xml_def_4_entity_t **) id_hash_get (tgt_dict, (caddr_t) (src_dict_key_ptr));
 	  if (NULL != tgt_hit)
 	    continue;
 	  tgt_ent = (xml_def_4_entity_t *) dk_alloc (sizeof (xml_def_4_entity_t));
@@ -5876,7 +5830,7 @@ int dtd_insert_soft (dtd_t *tgt, dtd_t *src)
 	    tgt_ent->xd4e_publicId = box_dv_short_string (src_ent_ptr[0]->xd4e_publicId);
 	  if (src_ent_ptr[0]->xd4e_systemId)
 	    tgt_ent->xd4e_systemId = box_dv_short_string (src_ent_ptr[0]->xd4e_systemId);
-          tgt_dict_key = box_dv_short_string (src_dict_key_ptr[0]);
+	  tgt_dict_key = box_dv_short_string (src_dict_key_ptr[0]);
 	  id_hash_set (tgt_dict, (caddr_t) (&tgt_dict_key), (caddr_t) (&tgt_ent));
 	}
     }
@@ -6000,8 +5954,7 @@ register_ns (volatile long *volatile end_of_cut_pos, dk_set_t * namespaces, size
 {
   xper_ns_t *new_ns;
   dtp_t str_type;
-  DO_SET (xper_ns_t *, ns_i, namespaces)
-      if (ns_i->xpns_old_pos == old_ns_pos)
+  DO_SET (xper_ns_t *, ns_i, namespaces) if (ns_i->xpns_old_pos == old_ns_pos)
     return ns_i->xpns_pos;
   END_DO_SET ();
   /* Now we're sure that the given old_ns_pos was never provided before */
@@ -6018,7 +5971,8 @@ register_ns (volatile long *volatile end_of_cut_pos, dk_set_t * namespaces, size
 }
 
 static void
-translate_attributes (volatile long *volatile end_of_cut_pos, dk_set_t * namespaces, unsigned char *src_box_tail, xper_entity_t * src_xpe)
+translate_attributes (volatile long *volatile end_of_cut_pos, dk_set_t * namespaces, unsigned char *src_box_tail,
+    xper_entity_t * src_xpe)
 {
   long num_word, addons, no_of_attrs;
   long old_ns_pos;
@@ -6043,8 +5997,7 @@ translate_attributes (volatile long *volatile end_of_cut_pos, dk_set_t * namespa
 	  old_ns_pos = LONG_REF_NA (src_box_tail);
 	  if (old_ns_pos)
 	    {
-	      TRANSLATE_TO_CONST (0,
-		  (long) register_ns (end_of_cut_pos, namespaces, old_ns_pos, src_xpe));
+	      TRANSLATE_TO_CONST (0, (long) register_ns (end_of_cut_pos, namespaces, old_ns_pos, src_xpe));
 	    }
 	  src_box_tail += 4;
 	}
@@ -6057,8 +6010,7 @@ translate_attributes (volatile long *volatile end_of_cut_pos, dk_set_t * namespa
 }
 
 
-xper_entity_t *
- DBG_NAME (xper_cut_xper) (DBG_PARAMS query_instance_t * volatile qi, xper_entity_t * src_xpe)
+xper_entity_t *DBG_NAME (xper_cut_xper) (DBG_PARAMS query_instance_t * volatile qi, xper_entity_t * src_xpe)
 {
   xper_doc_t *tgt_xpd;		/* New document */
   buffer_desc_t *buf;		/* Buffer for new document */
@@ -6084,7 +6036,7 @@ xper_entity_t *
   xper_ns_t *curr_ns;		/* Current namespace to write */
   long num_word;		/* Mix of number of attributes and size of addon */
   long addons;			/* Length of addon */
-  dbe_key_t* xper_key;
+  dbe_key_t *xper_key;
   unsigned char *tmp_tail;
   xper_stag_t root_data;
   vxml_parser_attrdata_t root_attrdata;
@@ -6101,8 +6053,7 @@ xper_entity_t *
   do
     {
       size_t p1, p2;
-      if (
-	  (XPER_ROOT_POS + MIN_START_ROOT_RECORD_SZ != src_xpe->xper_pos) &&
+      if ((XPER_ROOT_POS + MIN_START_ROOT_RECORD_SZ != src_xpe->xper_pos) &&
 	  (XPER_ROOT_POS + MIN_START_ROOT_RECORD_SZ + (3 * 4) != src_xpe->xper_pos))
 	break;
       if (src_xpe->xper_type != XML_MKUP_STAG)
@@ -6110,8 +6061,9 @@ xper_entity_t *
       p1 = (src_xpe->xe_doc.xpd->xpd_bh->bh_length - END_ROOT_RECORD_SZ);
       p2 = src_xpe->xper_end + (1 + 4 + 1) + dv_string_size (src_xpe->xper_name);
       if (p1 == p2)
-        return (xper_entity_t *) (xp_copy ((xml_entity_t *) (src_xpe)));
-    } while (0);
+	return (xper_entity_t *) (xp_copy ((xml_entity_t *) (src_xpe)));
+    }
+  while (0);
   src_dtd_ptr = &(src_xpe->xe_doc.xd->xd_dtd);
   if (NULL == src_dtd_ptr[0])
     {				/* Try to process an alternate DTD origin, e.g. read something from XPER BLOB */
@@ -6183,8 +6135,10 @@ xper_entity_t *
 	      {
 		src_attr_start_word = LONG_REF_NA (src_box_tail + STR_ADDON_OR_ATTR_OFF);
 		root_data.wrs.xewr_attr_beg = FIRST_ATTR_WORD_POS;
-		root_data.wrs.xewr_attr_this_end = FIRST_ATTR_WORD_POS + LONG_REF_NA (src_box_tail + STR_ADDON_OR_ATTR_OFF + (1 * 4)) - src_attr_start_word;
-		root_data.wrs.xewr_attr_tree_end = FIRST_ATTR_WORD_POS + LONG_REF_NA (src_box_tail + STR_ADDON_OR_ATTR_OFF + (2 * 4)) - src_attr_start_word;
+		root_data.wrs.xewr_attr_this_end =
+		    FIRST_ATTR_WORD_POS + LONG_REF_NA (src_box_tail + STR_ADDON_OR_ATTR_OFF + (1 * 4)) - src_attr_start_word;
+		root_data.wrs.xewr_attr_tree_end =
+		    FIRST_ATTR_WORD_POS + LONG_REF_NA (src_box_tail + STR_ADDON_OR_ATTR_OFF + (2 * 4)) - src_attr_start_word;
 		context.xpc_attr_word_ctr = root_data.wrs.xewr_attr_tree_end;
 		root_data.recalc_wrs = 0;
 		root_data.store_wrs = 1;
@@ -6202,9 +6156,8 @@ xper_entity_t *
 	    TRANSLATE_TO_CONST (STR_FIRST_CHILD_OFF, ADJUST_POS (src_curr_pos, 0));
 	    src_box_tail = tmp_tail;
 	    src_end_pos = LONG_REF_NA (src_box_tail + STR_END_TAG_OFF);
-	    tgt_end_pos = (long) (
-		tgt_start_pos +	/* Ordinary data will be started at tgt_start_pos */
-		(src_end_pos - src_start_pos) +		/* space before closing tag */
+	    tgt_end_pos = (long) (tgt_start_pos +	/* Ordinary data will be started at tgt_start_pos */
+		(src_end_pos - src_start_pos) +	/* space before closing tag */
 		5 +		/* space for box header of closing tag */
 		(src_box_tail - (unsigned char *) (src_box)) +	/* space for the body of closing tag */
 		(1 + 4 + 1 + 7 /*DV_SHORT_STR " root" */ )	/* space for closing " root" tag */
@@ -6330,7 +6283,8 @@ xper_entity_t *
 	if (&lh__xany == root_data.lh)	/* Optimization for most common case */
 	  context.xpc_main_word_ctr = elh__xany__UTF8.elh_count_words (src_box, box_length (src_box), lh__xany.lh_is_vtb_word);
 	else
-	  context.xpc_main_word_ctr = lh_count_words (&eh__UTF8, root_data.lh, src_box, box_length (src_box), root_data.lh->lh_is_vtb_word);
+	  context.xpc_main_word_ctr =
+	      lh_count_words (&eh__UTF8, root_data.lh, src_box, box_length (src_box), root_data.lh->lh_is_vtb_word);
 	dk_set_push (&context.xpc_cut_chain, src_box);
       }
     src_box_tail = (unsigned char *) (root_box + 1 + 7) /*DV_SHORT_STR " root" */ ;
@@ -6346,8 +6300,7 @@ xper_entity_t *
     tgt_xpd->xpd_bh->bh_it = context.xpc_itc->itc_tree;
     ITC_FAIL (context.xpc_itc)
     {
-      buf = it_new_page (context.xpc_itc->itc_tree, context.xpc_itc->itc_page,
-	  DPF_BLOB, 0, 0);
+      buf = it_new_page (context.xpc_itc->itc_tree, context.xpc_itc->itc_page, DPF_BLOB, 0, 0);
       ITC_LEAVE_MAPS (context.xpc_itc);
       if (!buf)
 	{
@@ -6367,8 +6320,8 @@ xper_entity_t *
     END_FAIL (context.xpc_itc);
     memcpy (buf->bd_buffer + DP_DATA, XPER_PREFIX, XPER_ROOT_POS);
     tgt_xpd->xpd_bh->bh_length = tgt_xpd->xpd_bh->bh_diskbytes = XPER_ROOT_POS;
-    LONG_SET/*_NA*/ (buf->bd_buffer + DP_BLOB_LEN, XPER_ROOT_POS);
-    LONG_SET/*_NA*/ (buf->bd_buffer + DP_OVERFLOW, 0);
+    LONG_SET /*_NA*/ (buf->bd_buffer + DP_BLOB_LEN, XPER_ROOT_POS);
+    LONG_SET /*_NA*/ (buf->bd_buffer + DP_OVERFLOW, 0);
     /* Writing boxes with main data, including root tags */
     context.xpc_cut_chain = dk_set_nreverse (context.xpc_cut_chain);
     while (NULL != context.xpc_cut_chain)
@@ -6393,8 +6346,7 @@ xper_entity_t *
       if (0 < dtd_get_buffer_length (src_dtd_ptr[0]))
 	{
 	  set_long_in_blob (&context, XPER_ROOT_POS + 7 /*DV_SHORT_STR " root" */  +
-	      STR_NAME_OFF + STR_NS_OFF,
-	      (long) tgt_xpd->xpd_bh->bh_length);
+	      STR_NAME_OFF + STR_NS_OFF, (long) tgt_xpd->xpd_bh->bh_length);
 	  blob_append_dtd (&context, src_dtd_ptr[0]);
 	}
       buf_set_dirty (context.xpc_buf);
@@ -6448,8 +6400,7 @@ xper_entity_t *
 #undef TRANSLATE_WORD_NO
 
 
-static xml_entity_t *
- DBG_NAME (xp_cut) (DBG_PARAMS xml_entity_t * xe, query_instance_t * qi)
+static xml_entity_t *DBG_NAME (xp_cut) (DBG_PARAMS xml_entity_t * xe, query_instance_t * qi)
 {
   xper_entity_t *res;
   res = DBG_NAME (xper_cut_xper) (DBG_ARGS qi, (xper_entity_t *) xe);
@@ -6576,7 +6527,7 @@ bif_xper_locate_words (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	}
       if ((iter->xper_start_word <= start_word) && (iter->xper_end_word >= end_word))	/* We're above the place */
 	{
-	  if (XML_MKUP_STAG != iter->xper_type)		/* Place is busy with non-tag entity */
+	  if (XML_MKUP_STAG != iter->xper_type)	/* Place is busy with non-tag entity */
 	    break;
 	  if (!iter->xper_first_child)	/* No way to bury in depth */
 	    {
@@ -6826,8 +6777,7 @@ bif_dtd_get_attr_default (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  return NEW_DB_NULL;
 	attr = el->ee_attrs + attr_idx;
 	default_value = ((NULL == attr->da_values) ?
-	    attr->da_default.boxed_value :
-	    ((attr->da_default.index < 0) ? NULL : attr->da_values[attr->da_default.index]));
+	    attr->da_default.boxed_value : ((attr->da_default.index < 0) ? NULL : attr->da_values[attr->da_default.index]));
 	return ((NULL == default_value) ? NULL : box_dv_short_string (default_value));
       }
       break;
@@ -6842,8 +6792,7 @@ bif_dtd_get_attr_default (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 }
 
 
-static const char *attribute_type_name[] =
-{
+static const char *attribute_type_name[] = {
   /* ECM_AT_CDATA               0 */ "CDATA",
   /* ECM_AT_ENUM_NAMES          1 */ "<!-- NAMES -->",
   /* ECM_AT_ENUM_NOTATIONS      2 */ "<!-- NOTATIONS -->",
@@ -6853,7 +6802,8 @@ static const char *attribute_type_name[] =
   /* ECM_AT_ENTITY              6 */ "ENTITY",
   /* ECM_AT_ENTITIES            7 */ "ENTITIES",
   /* ECM_AT_NMTOKEN             8 */ "NMTOKEN",
-  /* ECM_AT_NMTOKENS            9 */ "NMTOKENS"};
+  /* ECM_AT_NMTOKENS            9 */ "NMTOKENS"
+};
 
 
 void

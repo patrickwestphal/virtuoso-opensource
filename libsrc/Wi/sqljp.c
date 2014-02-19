@@ -92,32 +92,32 @@ dfe_p_const_abbrev (df_elt_t * tb_dfe)
   int len;
   DO_SET (df_elt_t *, pred, &tb_dfe->_.table.col_preds)
   {
-      if (PRED_IS_EQ (pred) && pred->_.bin.left->dfe_type == DFE_COLUMN && 'P' == toupper (pred->_.bin.left->_.col.col->col_name[0]))
+    if (PRED_IS_EQ (pred) && pred->_.bin.left->dfe_type == DFE_COLUMN && 'P' == toupper (pred->_.bin.left->_.col.col->col_name[0]))
       {
-	  df_elt_t * right = pred->_.bin.right;
-	  if (DFE_CONST == right->dfe_type && DV_IRI_ID == DV_TYPE_OF (right->dfe_tree))
+	df_elt_t *right = pred->_.bin.right;
+	if (DFE_CONST == right->dfe_type && DV_IRI_ID == DV_TYPE_OF (right->dfe_tree))
 	  {
-	      caddr_t box = dv_iri_short_name ((caddr_t)right->dfe_tree);
-	      strncpy (tmp, box ? box : "unnamed", sizeof (tmp));
+	    caddr_t box = dv_iri_short_name ((caddr_t) right->dfe_tree);
+	    strncpy (tmp, box ? box : "unnamed", sizeof (tmp));
 	    tmp[sizeof (tmp) - 1] = 0;
-	      dk_free_box (box);
-	    }
-	  else if ((name  = sqlo_iri_constant_name (pred->_.bin.right->dfe_tree)))
-	    {
-	      caddr_t pref, local;
-	      if (iri_split (name, &pref, &local))
-		{
-		  dk_free_box (pref);
-		  len = box_length (local) - 5;
-		  strncpy (tmp, local + 4 + (len > sizeof (tmp) ? len - sizeof (tmp) : 0), sizeof (tmp));
-		  tmp[sizeof (tmp) - 1] = 0;
-		  dk_free_box (local);
-		  return tmp;
-		}
+	    dk_free_box (box);
 	  }
-	  else
-	    tmp[0] = 0;
-	  return tmp;
+	else if ((name = sqlo_iri_constant_name (pred->_.bin.right->dfe_tree)))
+	  {
+	    caddr_t pref, local;
+	    if (iri_split (name, &pref, &local))
+	      {
+		dk_free_box (pref);
+		len = box_length (local) - 5;
+		strncpy (tmp, local + 4 + (len > sizeof (tmp) ? len - sizeof (tmp) : 0), sizeof (tmp));
+		tmp[sizeof (tmp) - 1] = 0;
+		dk_free_box (local);
+		return tmp;
+	      }
+	  }
+	else
+	  tmp[0] = 0;
+	return tmp;
       }
   }
   END_DO_SET ();
@@ -140,7 +140,7 @@ again:
   if (!pk->key_p_stat)
     {
       if (tried)
-    return NULL;
+	return NULL;
       tried = 1;
       dfe_init_p_stat (tb_dfe, pred);
       goto again;
@@ -186,7 +186,7 @@ sqlo_rdfs_type_card (df_elt_t * tb_dfe, df_elt_t * p_dfe, df_elt_t * o_dfe)
   df_elt_t *lower[2];
   df_elt_t *upper[2];
   index_choice_t ic;
-  locus_t * loc_save = tb_dfe->dfe_locus;
+  locus_t *loc_save = tb_dfe->dfe_locus;
   float ret;
   memzero (&ic, sizeof (ic));
   lower[0] = p_dfe;
@@ -215,12 +215,13 @@ dfe_is_iri_id_test (df_elt_t * pred)
   rhs = pred->_.bin.right;
   if (st_is_call (rhs->dfe_tree, "isiri_id", 1)
       || (DFE_BOP == rhs->dfe_type && rhs->_.bin.right && st_is_call (rhs->_.bin.right->dfe_tree, "isiri_id", 1)))
-  return 1;
+    return 1;
   return 0;
 }
 
 
 extern caddr_t rdfs_type;
+
 
 float
 jp_fanout (join_plan_t * jp)
@@ -305,8 +306,8 @@ jp_fanout (join_plan_t * jp)
 	    {
 	      if (1 == nth_col)
 		{
-	    o_card = p_stat[nth_col];
-	    break;
+		  o_card = p_stat[nth_col];
+		  break;
 		}
 	      o_card = o_stat ? o_stat[1] : p_stat[nth_col];
 	      break;
@@ -396,7 +397,7 @@ int
 dfe_pred_is_redundant (df_elt_t * first_tb, df_elt_t * pred)
 {
   /* true if an identical pred occurs in the col preds of the first_tb */
-  op_table_t * ot = first_tb->_.table.ot->ot_super;
+  op_table_t *ot = first_tb->_.table.ot->ot_super;
   if (!ot)
     return 0;
   if (!enable_jp_red_pred)
@@ -404,13 +405,13 @@ dfe_pred_is_redundant (df_elt_t * first_tb, df_elt_t * pred)
   if (!dfe_is_eq_pred (pred) || DFE_COLUMN != pred->_.bin.left->dfe_type || DFE_COLUMN != pred->_.bin.right->dfe_type)
     return 0;
   DO_SET (df_elt_t *, first_pred, &first_tb->_.table.col_preds)
-    {
-      if (dfe_is_eq_pred (first_pred) 
-	  && DFE_COLUMN == first_pred->_.bin.left->dfe_type && DFE_COLUMN == first_pred->_.bin.right->dfe_type
-	  && pred_is_same (ot, first_pred, pred))
-	return 1;
-    }
-  END_DO_SET();
+  {
+    if (dfe_is_eq_pred (first_pred)
+	&& DFE_COLUMN == first_pred->_.bin.left->dfe_type && DFE_COLUMN == first_pred->_.bin.right->dfe_type
+	&& pred_is_same (ot, first_pred, pred))
+      return 1;
+  }
+  END_DO_SET ();
   return 0;
 }
 
@@ -459,8 +460,8 @@ jp_add (join_plan_t * jp, df_elt_t * tb_dfe, df_elt_t * pred, int is_join)
 		if (root_jp->jp_fill_selectivity < 0.5 && dfe_pred_is_redundant (first_tb, pred))
 		  is_redundant = 1;
 		else
-	      jp->jp_not_for_hash_fill = 1;
-	  }
+		  jp->jp_not_for_hash_fill = 1;
+	      }
 	  }
 	  END_DO_SET ();
 	  if (is_redundant)
@@ -534,7 +535,7 @@ dfe_jp_fill (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, join_plan_t * jp, 
     else if (dk_set_member (pred->dfe_tables, (void *) tb_dfe->_.table.ot) && dfe_in_hash_set (tb_dfe, hash_set))
       {
 	jp_add (jp, tb_dfe, pred, 1 | mode);
-	  if (jp->jp_n_preds && jp->jp_preds[jp->jp_n_preds - 1].ps_is_placeable)
+	if (jp->jp_n_preds && jp->jp_preds[jp->jp_n_preds - 1].ps_is_placeable)
 	  {
 	    if (!jp->jp_prev)
 	      tb_dfe->dfe_is_joined = 1;
@@ -616,7 +617,7 @@ dfe_join_score_jp (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, dk_set_t * r
     }
   jp.jp_best_card = jp.jp_best_cost = -1;
 
-  if (jp.jp_fanout * path_fanout / (so->so_any_placed ? 1 : root_fanout)  < 0.7)
+  if (jp.jp_fanout * path_fanout / (so->so_any_placed ? 1 : root_fanout) < 0.7)
     goto restricting;
   if (jp.jp_n_joined && (level < 2 || (jp.jp_fanout < 1.1 && level < 4)))
     {
@@ -674,7 +675,7 @@ sqlo_hash_filler_unique (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t * fill_co
   /* a join in a hash filler for a unique hash ref may destroy uniqueness if all joins atre not gguaranteed cardinality reducing, i.e. fk to pk.
    * Uniqueness is preserved if the filler for the joined table is not unique in the filler and if everything else is. */
   caddr_t head_prefix = hash_ref_tb->_.table.ot->ot_new_prefix;
-  df_elt_t * dfe;
+  df_elt_t *dfe;
   if (fill_copy->_.sub.generated_dfe)
     return sqlo_hash_filler_unique (so, hash_ref_tb, fill_copy);
   for (dfe = fill_copy->_.sub.first; dfe; dfe = dfe->dfe_next)
@@ -683,7 +684,7 @@ sqlo_hash_filler_unique (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t * fill_co
 	return 0;
       if (DFE_TABLE == dfe->dfe_type)
 	{
-	  if (! strcmp (dfe->_.table.ot->ot_prefix, head_prefix))
+	  if (!strcmp (dfe->_.table.ot->ot_prefix, head_prefix))
 	    continue;
 	  if (!dfe->_.table.is_unique)
 	    return 0;
@@ -699,10 +700,10 @@ void
 jp_add_hash_fill_join (join_plan_t * root_jp, join_plan_t * jp)
 {
   int n_pk, pos, inx;
-  dbe_key_t * pk;
-  if (dk_set_member (root_jp->jp_hash_fill_dfes, (void*)jp->jp_tb_dfe))
+  dbe_key_t *pk;
+  if (dk_set_member (root_jp->jp_hash_fill_dfes, (void *) jp->jp_tb_dfe))
     return;
-  t_set_push (&root_jp->jp_hash_fill_dfes, (void*)jp->jp_tb_dfe);
+  t_set_push (&root_jp->jp_hash_fill_dfes, (void *) jp->jp_tb_dfe);
   pk = jp->jp_tb_dfe->_.table.ot->ot_table->tb_primary_key;
   n_pk = pk->key_n_significant;
   for (inx = 0; inx < jp->jp_n_preds; inx++)
@@ -717,7 +718,7 @@ jp_add_hash_fill_join (join_plan_t * root_jp, join_plan_t * jp)
 	break;
     }
   if (n_pk)
-    root_jp->jp_hash_fill_non_unq = 1; /* hash join build side not guaranteed to keep unique, conatins other than pk to fk joins */
+    root_jp->jp_hash_fill_non_unq = 1;	/* hash join build side not guaranteed to keep unique, conatins other than pk to fk joins */
 }
 
 void
@@ -737,7 +738,7 @@ dfe_hash_fill_score (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, join_plan_
       root_jp = prev_jp;
       level++;
     }
-  if (dk_set_member (root_jp->jp_hash_fill_dfes, (void*)tb_dfe))
+  if (dk_set_member (root_jp->jp_hash_fill_dfes, (void *) tb_dfe))
     return;
   jp.jp_hash_fill_dfes = jp.jp_prev->jp_hash_fill_dfes;
   if (tb_dfe->dfe_is_placed)
@@ -844,7 +845,7 @@ sqlo_hash_fill_join (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t ** fill_ret, 
   if (jp.jp_best_card > 0.9 && !hash_set)
     return 0;
   if (ref_card <= jp.jp_fanout * jp.jp_best_card && !hash_set)
-    return 0; /* the build is larger than the probe, reverse order bound to be better  */
+    return 0;			/* the build is larger than the probe, reverse order bound to be better  */
   if (2 == enable_hash_fill_join)
     return 0;
   if (so->so_cache_subqs)

@@ -28,17 +28,16 @@
 
 typedef struct sinv_map_s
 {
-  caddr_t   sinvm_name;
-  unsigned  sinvm_flags;
-  caddr_t * sinvm_inverse;
+  caddr_t sinvm_name;
+  unsigned sinvm_flags;
+  caddr_t *sinvm_inverse;
 } sinv_map_t;
 
 #define SINV_FLAG_ORDER_PRESERVING 1
 
 #define IS_ORDER_PRESERVING(x) ((x)->sinvm_flags & SINV_FLAG_ORDER_PRESERVING)
 
-void sinv_read_sql_inverses (const char * function_name,
-    client_connection_t * cli);
+void sinv_read_sql_inverses (const char *function_name, client_connection_t * cli);
 void sqlo_inv_bif_int (void);
 
 #endif /* _SQLOINV_H */

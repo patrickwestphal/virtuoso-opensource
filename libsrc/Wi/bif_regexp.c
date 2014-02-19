@@ -67,9 +67,7 @@ pcre_info_t;
 safe_hash_t regexp_codes;
 
 
-static
-caddr_t get_regexp_code (safe_hash_t * rx_codes, const char *pattern,
-    pcre_info_t * pcre_info, int options);
+static caddr_t get_regexp_code (safe_hash_t * rx_codes, const char *pattern, pcre_info_t * pcre_info, int options);
 
 #define SET_INVALID_ARG(fmt) \
   do { \
@@ -83,78 +81,86 @@ caddr_t get_regexp_code (safe_hash_t * rx_codes, const char *pattern,
 
 caddr_t
 bif_regexp_str_arg (caddr_t * qst, state_slot_t ** args, int nth,
-  const char *func, int strg_is_utf8_by_default, int *utf8, caddr_t *ret_to_free, caddr_t *err_ret)
+    const char *func, int strg_is_utf8_by_default, int *utf8, caddr_t * ret_to_free, caddr_t * err_ret)
 {
   caddr_t arg = NULL;
   dtp_t arg_dtp;
   *ret_to_free = NULL;
   *err_ret = NULL;
   if (((uint32) nth) >= BOX_ELEMENTS (args))
-    SET_INVALID_ARG("Missing argument %d to %s");
+    SET_INVALID_ARG ("Missing argument %d to %s");
   arg = bif_arg (qst, args, nth, func);
   arg_dtp = DV_TYPE_OF (arg);
   if (DV_RDF == arg_dtp)
     {
-      rdf_box_t *rb = (rdf_box_t *)arg;
+      rdf_box_t *rb = (rdf_box_t *) arg;
       if (!rb->rb_is_complete)
-        SET_INVALID_ARG("Argument %d of %s is an incomplete RDF box. Must be complete RDF box or narrow or wide string");
+	SET_INVALID_ARG ("Argument %d of %s is an incomplete RDF box. Must be complete RDF box or narrow or wide string");
       if (DV_STRING != DV_TYPE_OF (rb->rb_box))
-        return NULL;
+	return NULL;
       if (*utf8 == 1)
-        return rb->rb_box;
+	return rb->rb_box;
       if (*utf8 == 0)
-        {
-          *utf8 = 1;
-          return rb->rb_box;
-        }
-      SET_INVALID_ARG("Invalid argument %d to %s. Must be narrow string");
+	{
+	  *utf8 = 1;
+	  return rb->rb_box;
+	}
+      SET_INVALID_ARG ("Invalid argument %d to %s. Must be narrow string");
     }
   if (DV_DB_NULL == DV_TYPE_OF (arg))
     return NULL;
   if (*utf8 == 1)
     {
       if (DV_UNAME == arg_dtp)
-        return arg;
+	return arg;
       if (DV_STRING == arg_dtp)
-        {
-          switch (strg_is_utf8_by_default)
-            {
-            case REGEXP_YES: return arg;
-            case REGEXP_BF: if (box_flags (arg) & BF_UTF8) return arg;
-            }
-          return (*ret_to_free = box_narrow_string_as_utf8 (NULL, arg, 0, QST_CHARSET (qst), err_ret, 1));
-        }
+	{
+	  switch (strg_is_utf8_by_default)
+	    {
+	    case REGEXP_YES:
+	      return arg;
+	    case REGEXP_BF:
+	      if (box_flags (arg) & BF_UTF8)
+		return arg;
+	    }
+	  return (*ret_to_free = box_narrow_string_as_utf8 (NULL, arg, 0, QST_CHARSET (qst), err_ret, 1));
+	}
       if (DV_WIDE == arg_dtp || DV_LONG_WIDE == arg_dtp)
-        return (*ret_to_free = box_wide_as_utf8_char (arg, box_length (arg) / sizeof (wchar_t) - 1, DV_SHORT_STRING));
-      SET_INVALID_ARG("Invalid argument %d to %s. Must be narrow or wide string or an complete string RDF box");
+	return (*ret_to_free = box_wide_as_utf8_char (arg, box_length (arg) / sizeof (wchar_t) - 1, DV_SHORT_STRING));
+      SET_INVALID_ARG ("Invalid argument %d to %s. Must be narrow or wide string or an complete string RDF box");
     }
   if (*utf8 == 0)
     {
       if (DV_WIDE == arg_dtp || DV_LONG_WIDE == arg_dtp)
-        {
-          *utf8 = 1;
-          return (*ret_to_free = box_wide_as_utf8_char (arg, box_length (arg) / sizeof (wchar_t) - 1, DV_SHORT_STRING));
-        }
+	{
+	  *utf8 = 1;
+	  return (*ret_to_free = box_wide_as_utf8_char (arg, box_length (arg) / sizeof (wchar_t) - 1, DV_SHORT_STRING));
+	}
       if (DV_UNAME == arg_dtp)
-        {
-          *utf8 = 1;
-          return arg;
-        }
+	{
+	  *utf8 = 1;
+	  return arg;
+	}
       if (DV_STRING == arg_dtp)
-        {
-          switch (strg_is_utf8_by_default)
-            {
-            case REGEXP_YES: *utf8 = 1; break;
-            case REGEXP_BF: if (box_flags (arg) & BF_UTF8) *utf8 = 1; break;
-            }
-          return arg;
-        }
-      SET_INVALID_ARG("Invalid argument %d to %s. Must be narrow or wide string or an complete string RDF box");
+	{
+	  switch (strg_is_utf8_by_default)
+	    {
+	    case REGEXP_YES:
+	      *utf8 = 1;
+	      break;
+	    case REGEXP_BF:
+	      if (box_flags (arg) & BF_UTF8)
+		*utf8 = 1;
+	      break;
+	    }
+	  return arg;
+	}
+      SET_INVALID_ARG ("Invalid argument %d to %s. Must be narrow or wide string or an complete string RDF box");
     }
   /* The rest is for *utf8 == 2 */
   if (DV_STRING == arg_dtp || DV_UNAME == arg_dtp)
     return arg;
-  SET_INVALID_ARG("Invalid argument %d to %s. Must be narrow string");
+  SET_INVALID_ARG ("Invalid argument %d to %s. Must be narrow string");
   return NULL;
 }
 
@@ -167,10 +173,19 @@ regexp_optchars_to_bits (const char *strg)
   for (tail = strg; '\0' != tail[0]; tail++)
     {
       switch (tail[0])
-        {
-        case 'i': case 'I': res |= PCRE_CASELESS; break;
-        case 'm': case 'M': res |= PCRE_MULTILINE; break;
-        case 's': case 'S': res |= PCRE_DOTALL; break;
+	{
+	case 'i':
+	case 'I':
+	  res |= PCRE_CASELESS;
+	  break;
+	case 'm':
+	case 'M':
+	  res |= PCRE_MULTILINE;
+	  break;
+	case 's':
+	case 'S':
+	  res |= PCRE_DOTALL;
+	  break;
 /*
 #define PCRE_EXTENDED           0x0008
 #define PCRE_ANCHORED           0x0010
@@ -181,11 +196,14 @@ regexp_optchars_to_bits (const char *strg)
 #define PCRE_UNGREEDY           0x0200
 #define PCRE_NOTEMPTY           0x0400
         */
-        case 'u': case 'U': res |= PCRE_UTF8; break;
-        /*
-#define PCRE_NO_AUTO_CAPTURE    0x1000
-        */
-        }
+	case 'u':
+	case 'U':
+	  res |= PCRE_UTF8;
+	  break;
+	  /*
+	     #define PCRE_NO_AUTO_CAPTURE    0x1000
+	   */
+	}
     }
   return res;
 }
@@ -208,15 +226,22 @@ bif_regexp_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   switch ((BOX_ELEMENTS (args)))
     {
     default:
-    case 5: utf8_mode = (long) bif_long_arg (qst, args, 4, "regexp_match");
-    case 4: c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 3, "regexp_match"));
-    case 3: replace_the_instr = (long) bif_long_arg (qst, args, 2, "regexp_match");
-    case 2: case 1: case 0: ;
+    case 5:
+      utf8_mode = (long) bif_long_arg (qst, args, 4, "regexp_match");
+    case 4:
+      c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 3, "regexp_match"));
+    case 3:
+      replace_the_instr = (long) bif_long_arg (qst, args, 2, "regexp_match");
+    case 2:
+    case 1:
+    case 0:;
     }
   pattern = bif_regexp_str_arg (qst, args, 0, "regexp_match", REGEXP_BF, &utf8_mode, &p_to_free, err_ret);
-  if (*err_ret) goto done;
+  if (*err_ret)
+    goto done;
   str = bif_regexp_str_arg (qst, args, 1, "regexp_match", REGEXP_BF, &utf8_mode, &str_to_free, err_ret);
-  if (*err_ret) goto done;
+  if (*err_ret)
+    goto done;
 
   if (utf8_mode)
     c_opts |= PCRE_UTF8;
@@ -231,8 +256,7 @@ bif_regexp_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       int offvect[NOFFSETS];
       int result;
       str_len = (int) strlen (str);
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts,
-	  offvect, NOFFSETS);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts, offvect, NOFFSETS);
       if (result != -1)
 	{
 	  ret_str = dk_alloc_box (offvect[1] - offvect[0] + 1, DV_SHORT_STRING);
@@ -240,7 +264,7 @@ bif_regexp_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	  ret_str[offvect[1] - offvect[0]] = 0;
 
 	  if (replace_the_instr && args[1]->ssl_type != SSL_CONSTANT)
-	    { /* GK: compatibility mode */
+	    {			/* GK: compatibility mode */
 	      caddr_t mod_str = NULL, ret_mod_str = NULL;
 	      int arg_is_wide = DV_WIDESTRINGP (bif_arg (qst, args, 1, "regexp_match"));
 
@@ -253,8 +277,7 @@ bif_regexp_match (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 		  if (utf8_mode)
 		    ret_mod_str = box_utf8_as_wide_char (mod_str, NULL, str_len - offvect[1], 0, DV_WIDE);
 		  else
-		    ret_mod_str = box_narrow_string_as_wide ((unsigned char *) mod_str,
-			NULL, 0, QST_CHARSET (qst), err_ret, 1);
+		    ret_mod_str = box_narrow_string_as_wide ((unsigned char *) mod_str, NULL, 0, QST_CHARSET (qst), err_ret, 1);
 		}
 	      else
 		{
@@ -302,13 +325,18 @@ bif_rdf_regex_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   switch ((BOX_ELEMENTS (args)))
     {
     default:
-    case 3: c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 2, "rdf_regex_impl"));
-    case 2: case 1: case 0: ;
+    case 3:
+      c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 2, "rdf_regex_impl"));
+    case 2:
+    case 1:
+    case 0:;
     }
   pattern = bif_regexp_str_arg (qst, args, 1, "rdf_regex_impl", REGEXP_YES, &utf8_mode, &p_to_free, &err);
-  if (err) goto done;
+  if (err)
+    goto done;
   str = bif_regexp_str_arg (qst, args, 0, "rdf_regex_impl", REGEXP_BF, &utf8_mode, &str_to_free, &err);
-  if (err) goto done;
+  if (err)
+    goto done;
 
   if (utf8_mode)
     c_opts |= PCRE_UTF8;
@@ -322,8 +350,7 @@ bif_rdf_regex_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       int offvect[NOFFSETS];
       str_len = (int) strlen (str);
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts,
-	  offvect, NOFFSETS);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts, offvect, NOFFSETS);
     }
 
 done:
@@ -331,7 +358,7 @@ done:
     dk_free_tree (err);
   dk_free_tree (p_to_free);
   dk_free_tree (str_to_free);
-  return (caddr_t)((ptrlong)((-1 == result) ? 0 : 1));
+  return (caddr_t) ((ptrlong) ((-1 == result) ? 0 : 1));
 }
 
 /* string regexp_substr(in pattern string, in str string, in offset number); */
@@ -350,15 +377,21 @@ bif_regexp_substr (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   utf8_mode = 0;
   pattern = bif_regexp_str_arg (qst, args, 0, "regexp_substr", REGEXP_BF, &utf8_mode, &p_to_free, err_ret);
-  if (*err_ret) goto done;
+  if (*err_ret)
+    goto done;
   str = bif_regexp_str_arg (qst, args, 1, "regexp_substr", REGEXP_BF, &utf8_mode, &str_to_free, err_ret);
-  if (*err_ret) goto done;
+  if (*err_ret)
+    goto done;
   offset = (int) bif_long_arg (qst, args, 2, "regexp_substr");
   switch ((BOX_ELEMENTS (args)))
     {
     default:
-    case 4: c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 3, "regexp_substr"));
-    case 3: case 2: case 1: case 0: ;
+    case 4:
+      c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 3, "regexp_substr"));
+    case 3:
+    case 2:
+    case 1:
+    case 0:;
     }
   if (!pattern || !str)
     goto done;
@@ -370,21 +403,18 @@ bif_regexp_substr (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       int result;
       int offvect[NOFFSETS];
       res_len = (int) strlen (str);
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, res_len, 0, r_opts,
-	  offvect, NOFFSETS);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, res_len, 0, r_opts, offvect, NOFFSETS);
 
       if (result > 0)
 	{
-	  int offs = offset*2, rc;
+	  int offs = offset * 2, rc;
 	  ret_str = dk_alloc_box ((offset < result && offset >= 0 ?
-		(offvect[offs+1] - offvect[offs]) : res_len) + 1, DV_SHORT_STRING);
-	  rc = pcre_copy_substring (str, offvect, result, offset, ret_str,
-	      res_len + 1);
+		  (offvect[offs + 1] - offvect[offs]) : res_len) + 1, DV_SHORT_STRING);
+	  rc = pcre_copy_substring (str, offvect, result, offset, ret_str, res_len + 1);
 	  if (rc < 0)
 	    {
 	      *err_ret = srv_make_new_error ("2201B", "SR097",
-		  "regexp error : could not obtain substring (%d of %d)",
-		  offset, result - 1);
+		  "regexp error : could not obtain substring (%d of %d)", offset, result - 1);
 	    }
 	  else
 	    {
@@ -408,7 +438,7 @@ done:
 }
 
 ptrlong *
-regexp_offvect_to_array_of_long (utf8char *str, int *offvect, int result, int utf8_mode)
+regexp_offvect_to_array_of_long (utf8char * str, int *offvect, int result, int utf8_mode)
 {
   int i, idx_to_fill;
   int prev_ofs, ofs, prev_wide_len;
@@ -418,11 +448,11 @@ regexp_offvect_to_array_of_long (utf8char *str, int *offvect, int result, int ut
   if (0 >= result)
     return NULL;
   result *= 2;
-  ret_vec = (ptrlong *)dk_alloc_box (sizeof (ptrlong) * result, DV_ARRAY_OF_LONG);
+  ret_vec = (ptrlong *) dk_alloc_box (sizeof (ptrlong) * result, DV_ARRAY_OF_LONG);
   if (!utf8_mode)
     {
-      for (i = result; i--; /* no step */)
-        ret_vec[i] = offvect[i];
+      for (i = result; i--; /* no step */ )
+	ret_vec[i] = offvect[i];
       return ret_vec;
     }
   i = 0;
@@ -432,11 +462,11 @@ regexp_offvect_to_array_of_long (utf8char *str, int *offvect, int result, int ut
   memset (&mb, 0, sizeof (virt_mbstate_t));
 
 again:
-  if ((i < result) && (0 >= offvect[i])) /* That's for fragments like "(.?)" that were matched to an empty string */
+  if ((i < result) && (0 >= offvect[i]))	/* That's for fragments like "(.?)" that were matched to an empty string */
     {
-      ret_vec [i] = offvect[i];
+      ret_vec[i] = offvect[i];
       i++;
-      goto again; /* see above */
+      goto again;		/* see above */
     }
 /*The result vector is { B,E, B1,E1, B2,E2... Bn,En } where B <= B1 <= B2... <= Bn but there's no good order for Es.
 However all out-of-order E-s form a proper backstack. */
@@ -445,26 +475,27 @@ However all out-of-order E-s form a proper backstack. */
     {
       int next_nonnegative_ofs_i = i + 1;
       while (next_nonnegative_ofs_i < result)
-        {
-          if (0 > offvect[next_nonnegative_ofs_i])
-            {
-              next_nonnegative_ofs_i++;
-              continue;
-            }
-          if (offvect[i] > offvect[next_nonnegative_ofs_i])
-            {
-              dk_set_push (&skipped_i, (void *)((ptrlong)i));
-              i++;
-              goto again;
-            }
-          break;
-        }
+	{
+	  if (0 > offvect[next_nonnegative_ofs_i])
+	    {
+	      next_nonnegative_ofs_i++;
+	      continue;
+	    }
+	  if (offvect[i] > offvect[next_nonnegative_ofs_i])
+	    {
+	      dk_set_push (&skipped_i, (void *) ((ptrlong) i));
+	      i++;
+	      goto again;
+	    }
+	  break;
+	}
     }
 /*...and we pop out-of-order E-s as soon as possible */
-  if ((NULL != skipped_i) && ((i >= result) || ((prev_ofs <= offvect[(ptrlong)(skipped_i->data)]) && (offvect[i] >= offvect[(ptrlong)(skipped_i->data)]))))
+  if ((NULL != skipped_i) && ((i >= result) || ((prev_ofs <= offvect[(ptrlong) (skipped_i->data)])
+	      && (offvect[i] >= offvect[(ptrlong) (skipped_i->data)]))))
     {
-      idx_to_fill = (ptrlong)dk_set_pop (&skipped_i);
-      goto idx_found; /* see below */
+      idx_to_fill = (ptrlong) dk_set_pop (&skipped_i);
+      goto idx_found;		/* see below */
     }
   if (i >= result)
     goto done;
@@ -476,16 +507,16 @@ idx_found:
     GPF_T1 ("Corrupted regexp result");
   else if (ofs == prev_ofs)
     {
-      ret_vec [idx_to_fill] = prev_wide_len;
-      goto again; /* see above */
+      ret_vec[idx_to_fill] = prev_wide_len;
+      goto again;		/* see above */
     }
   else
     {
       int wide_len_diff = (int) virt_mbsnrtowcs (NULL, &str, ofs - prev_ofs, 0, &mb);
       prev_wide_len += wide_len_diff;
       prev_ofs = ofs;
-      ret_vec [idx_to_fill] = prev_wide_len;
-      goto again; /* see above */
+      ret_vec[idx_to_fill] = prev_wide_len;
+      goto again;		/* see above */
     }
 
 done:
@@ -528,18 +559,26 @@ bif_regexp_parse_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, i
   utf8_mode = utf8_mode2 = 0;
   offset = (int) bif_long_arg (qst, args, 2, fname);
   str = bif_regexp_str_arg (qst, args, 1, fname, REGEXP_BF, &utf8_mode, &str_to_free, err_ret);
-  if (*err_ret) goto done;
+  if (*err_ret)
+    goto done;
 
   utf8_mode2 = utf8_mode ? utf8_mode : 2;
   pattern = bif_regexp_str_arg (qst, args, 0, fname, REGEXP_BF, &utf8_mode2, &p_to_free, err_ret);
-  if (*err_ret) goto done;
+  if (*err_ret)
+    goto done;
 
   switch ((BOX_ELEMENTS (args)))
     {
     default:
-    case 5: if (parse_list) max_n_hits = bif_long_range_arg (qst, args, 4, fname, 0, max_n_hits);
-    case 4: c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 3, fname));
-    case 3: case 2: case 1: case 0: ;
+    case 5:
+      if (parse_list)
+	max_n_hits = bif_long_range_arg (qst, args, 4, fname, 0, max_n_hits);
+    case 4:
+      c_opts |= regexp_optchars_to_bits (bif_string_arg (qst, args, 3, fname));
+    case 3:
+    case 2:
+    case 1:
+    case 0:;
     }
 
   if (!pattern || !str)
@@ -553,24 +592,24 @@ bif_regexp_parse_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, i
   if (parse_list)
     {
       while (0 < max_n_hits--)
-        {
-          int result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, offset, r_opts,
-            offvect, NOFFSETS);
-          if (0 >= result)
-            break;
-          ret_vec = regexp_offvect_to_array_of_long ((utf8char *)str, offvect, result, utf8_mode);
-          if (offset >= ret_vec[1])
-            offset++;
-          else
-            offset = ret_vec[1];
-          dk_set_push (&ret_revlist, ret_vec);
-        }
+	{
+	  int result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, offset, r_opts,
+	      offvect, NOFFSETS);
+	  if (0 >= result)
+	    break;
+	  ret_vec = regexp_offvect_to_array_of_long ((utf8char *) str, offvect, result, utf8_mode);
+	  if (offset >= ret_vec[1])
+	    offset++;
+	  else
+	    offset = ret_vec[1];
+	  dk_set_push (&ret_revlist, ret_vec);
+	}
     }
   else
     {
       int result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, offset, r_opts,
-        offvect, NOFFSETS);
-      ret_vec = regexp_offvect_to_array_of_long ((utf8char *)str, offvect, result, utf8_mode);
+	  offvect, NOFFSETS);
+      ret_vec = regexp_offvect_to_array_of_long ((utf8char *) str, offvect, result, utf8_mode);
     }
 
 done:
@@ -581,7 +620,7 @@ done:
   if (parse_list)
     return revlist_to_array (ret_revlist);
   if (NULL != ret_vec)
-    return (caddr_t)ret_vec;
+    return (caddr_t) ret_vec;
   return NEW_DB_NULL;
 }
 
@@ -612,71 +651,71 @@ parse_replacing_template (caddr_t tmpl, int tmpl_syntax_is_xpf, int pos_count)
   if (tmpl_syntax_is_xpf)
     {
       while (tmpl_tail < tmpl_end)
-        {
-          if ('\\' == TMPL_TAIL_CHR(0))
-            {
-              if (tmpl_cut_start < tmpl_tail)
-                PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
-              tmpl_tail += charsize;
-              tmpl_cut_start = tmpl_tail;
-              if (tmpl_tail < tmpl_end)
-                tmpl_tail += charsize;
-              continue;
-            }
-          else if (('$' == TMPL_TAIL_CHR(0)) && (tmpl_tail < (tmpl_end - charsize))
-             && ('0' <= TMPL_TAIL_CHR(1)) && ('9' >= TMPL_TAIL_CHR(1)) )
-            {
-              int pos_idx = TMPL_TAIL_CHR(1) - '0';
-              if (tmpl_cut_start < tmpl_tail)
-                PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
-              tmpl_tail += charsize * 2;
-              if ((pos_count > 9) && (tmpl_tail < tmpl_end) && ('0' <= TMPL_TAIL_CHR(0)) && ('9' >= TMPL_TAIL_CHR(0)))
-                {
-                  pos_idx = pos_idx * 10 + TMPL_TAIL_CHR(0) - '0';
-                  tmpl_tail += charsize;
-                }
-              if (pos_idx < pos_count)
-                PUSH_TO_RES (-1, pos_idx);
-              tmpl_cut_start = tmpl_tail;
-              continue;
-            }
-          tmpl_tail += charsize;
-        }
+	{
+	  if ('\\' == TMPL_TAIL_CHR (0))
+	    {
+	      if (tmpl_cut_start < tmpl_tail)
+		PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
+	      tmpl_tail += charsize;
+	      tmpl_cut_start = tmpl_tail;
+	      if (tmpl_tail < tmpl_end)
+		tmpl_tail += charsize;
+	      continue;
+	    }
+	  else if (('$' == TMPL_TAIL_CHR (0)) && (tmpl_tail < (tmpl_end - charsize))
+	      && ('0' <= TMPL_TAIL_CHR (1)) && ('9' >= TMPL_TAIL_CHR (1)))
+	    {
+	      int pos_idx = TMPL_TAIL_CHR (1) - '0';
+	      if (tmpl_cut_start < tmpl_tail)
+		PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
+	      tmpl_tail += charsize * 2;
+	      if ((pos_count > 9) && (tmpl_tail < tmpl_end) && ('0' <= TMPL_TAIL_CHR (0)) && ('9' >= TMPL_TAIL_CHR (0)))
+		{
+		  pos_idx = pos_idx * 10 + TMPL_TAIL_CHR (0) - '0';
+		  tmpl_tail += charsize;
+		}
+	      if (pos_idx < pos_count)
+		PUSH_TO_RES (-1, pos_idx);
+	      tmpl_cut_start = tmpl_tail;
+	      continue;
+	    }
+	  tmpl_tail += charsize;
+	}
     }
   else
     {
       while (tmpl_tail < tmpl_end)
-        {
-          if ('\\' == TMPL_TAIL_CHR(0))
-            {
-              if (tmpl_cut_start < tmpl_tail)
-                PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
-              tmpl_tail += charsize;
-              if ((tmpl_tail < tmpl_end)  && ('0' <= TMPL_TAIL_CHR(0)) && ('9' >= TMPL_TAIL_CHR(0)))
-                {
-                  int pos_idx = TMPL_TAIL_CHR(0) - '0';
-                  tmpl_tail += charsize;
-                  if ((pos_count > 9) && (tmpl_tail < tmpl_end) && ('0' <= TMPL_TAIL_CHR(0)) && ('9' >= TMPL_TAIL_CHR(0)))
-                    {
-                      pos_idx = pos_idx * 10 + TMPL_TAIL_CHR(0) - '0';
-                      tmpl_tail += charsize;
-                    }
-                  if (pos_idx < pos_count)
-                    PUSH_TO_RES (-1, pos_idx);
-                  tmpl_cut_start = tmpl_tail;
-                  continue;
-                }
-              tmpl_cut_start = tmpl_tail;
-              if (tmpl_tail < tmpl_end)
-                tmpl_tail += charsize;
-              continue;
-            }
-          tmpl_tail += charsize;
-        }
+	{
+	  if ('\\' == TMPL_TAIL_CHR (0))
+	    {
+	      if (tmpl_cut_start < tmpl_tail)
+		PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
+	      tmpl_tail += charsize;
+	      if ((tmpl_tail < tmpl_end) && ('0' <= TMPL_TAIL_CHR (0)) && ('9' >= TMPL_TAIL_CHR (0)))
+		{
+		  int pos_idx = TMPL_TAIL_CHR (0) - '0';
+		  tmpl_tail += charsize;
+		  if ((pos_count > 9) && (tmpl_tail < tmpl_end) && ('0' <= TMPL_TAIL_CHR (0)) && ('9' >= TMPL_TAIL_CHR (0)))
+		    {
+		      pos_idx = pos_idx * 10 + TMPL_TAIL_CHR (0) - '0';
+		      tmpl_tail += charsize;
+		    }
+		  if (pos_idx < pos_count)
+		    PUSH_TO_RES (-1, pos_idx);
+		  tmpl_cut_start = tmpl_tail;
+		  continue;
+		}
+	      tmpl_cut_start = tmpl_tail;
+	      if (tmpl_tail < tmpl_end)
+		tmpl_tail += charsize;
+	      continue;
+	    }
+	  tmpl_tail += charsize;
+	}
     }
   if (tmpl_cut_start < tmpl_tail)
     PUSH_TO_RES ((tmpl_cut_start - tmpl) / charsize, ((tmpl_tail - tmpl) / charsize));
-  return (ptrlong *)revlist_to_array (res);
+  return (ptrlong *) revlist_to_array (res);
 }
 
 /*! The value is 0 if PCRE omits trailing hits in top-level 'OR' cases like pattern '(ab)|(c)|(d)' on string 'abcd',
@@ -711,48 +750,51 @@ bif_regexp_replace_hits_with_template (caddr_t * qst, caddr_t * err_ret, state_s
 /* Integrity check first */
   for (hit_ctr = 0; hit_ctr < hit_count; hit_ctr++)
     {
-      ptrlong *hit = (ptrlong *)(hit_list[hit_ctr]);
+      ptrlong *hit = (ptrlong *) (hit_list[hit_ctr]);
       dtp_t hit_dtp = DV_TYPE_OF (hit);
       int pos_ctr, pos_count;
       ptrlong hit_b, hit_e;
       if ((DV_ARRAY_OF_LONG != hit_dtp) && (DV_ARRAY_OF_POINTER != hit_dtp))
-        sqlr_new_error ("22023", "SR647",
-          "Function regexp_replace_hits_with_template() has invalid hit list count as argument 2 (hit with index %d is not an array)", hit_ctr );
+	sqlr_new_error ("22023", "SR647",
+	    "Function regexp_replace_hits_with_template() has invalid hit list count as argument 2 (hit with index %d is not an array)",
+	    hit_ctr);
       pos_count = BOX_ELEMENTS (hit);
       if ((2 > pos_count) || (200 < pos_count) || (pos_count % 2))
-        sqlr_new_error ("22023", "SR647",
-          "Function regexp_replace_hits_with_template() has invalid hit (index %d) in argument 2 (invalid length of position list)", hit_ctr );
+	sqlr_new_error ("22023", "SR647",
+	    "Function regexp_replace_hits_with_template() has invalid hit (index %d) in argument 2 (invalid length of position list)",
+	    hit_ctr);
       if (0 == hit_ctr)
-        pos_count_in_hits = pos_count;
+	pos_count_in_hits = pos_count;
       else if (pcre_makes_full_length_lists)
-        {
-          if (pos_count_in_hits != pos_count)
-            sqlr_new_error ("22023", "SR647",
-              "Function regexp_replace_hits_with_template() has invalid hit (index %d) in argument 2 (the length of position list is %d, but it is %d for the first hit)", hit_ctr, pos_count, pos_count_in_hits );
-        }
+	{
+	  if (pos_count_in_hits != pos_count)
+	    sqlr_new_error ("22023", "SR647",
+		"Function regexp_replace_hits_with_template() has invalid hit (index %d) in argument 2 (the length of position list is %d, but it is %d for the first hit)",
+		hit_ctr, pos_count, pos_count_in_hits);
+	}
       else
-        {
-          if (pos_count_in_hits < pos_count)
-            pos_count_in_hits = pos_count;
-        }
-      hit_b = HIT_NTH_POS(0);
-      hit_e = HIT_NTH_POS(1);
+	{
+	  if (pos_count_in_hits < pos_count)
+	    pos_count_in_hits = pos_count;
+	}
+      hit_b = HIT_NTH_POS (0);
+      hit_e = HIT_NTH_POS (1);
       if ((hit_b < prev_left_pos) || (hit_e < hit_b) || (hit_e > src_charcount))
-        sqlr_new_error ("22023", "SR647",
-          "Function regexp_replace_hits_with_template() has invalid hit (index %d) in argument 2 (from %d to %d, limits are %d to %d)",
-          hit_ctr, (int)hit_b, (int)hit_e, prev_left_pos, src_charcount );
+	sqlr_new_error ("22023", "SR647",
+	    "Function regexp_replace_hits_with_template() has invalid hit (index %d) in argument 2 (from %d to %d, limits are %d to %d)",
+	    hit_ctr, (int) hit_b, (int) hit_e, prev_left_pos, src_charcount);
       for (pos_ctr = 2; pos_ctr < pos_count; pos_ctr += 2)
-        {
-          ptrlong pos_b = HIT_NTH_POS(pos_ctr);
-          ptrlong pos_e = HIT_NTH_POS(pos_ctr+1);
-          if ((-1 == pos_b) && (-1 == pos_e))
-            continue;
-          if ((pos_b < prev_left_pos) || (pos_e < pos_b) || (pos_e > hit_e))
-            sqlr_new_error ("22023", "SR647",
-              "Function regexp_replace_hits_with_template() has invalid pos pair (hit index %d, pos %d) in argument 2 (from %d to %d, limits are %d to %d, hit is from %d to %d)",
-              hit_ctr, pos_ctr, (int)pos_b, (int)pos_e, prev_left_pos, (int)hit_e, (int)hit_b, (int)hit_e );
-          prev_left_pos = pos_b;
-        }
+	{
+	  ptrlong pos_b = HIT_NTH_POS (pos_ctr);
+	  ptrlong pos_e = HIT_NTH_POS (pos_ctr + 1);
+	  if ((-1 == pos_b) && (-1 == pos_e))
+	    continue;
+	  if ((pos_b < prev_left_pos) || (pos_e < pos_b) || (pos_e > hit_e))
+	    sqlr_new_error ("22023", "SR647",
+		"Function regexp_replace_hits_with_template() has invalid pos pair (hit index %d, pos %d) in argument 2 (from %d to %d, limits are %d to %d, hit is from %d to %d)",
+		hit_ctr, pos_ctr, (int) pos_b, (int) pos_e, prev_left_pos, (int) hit_e, (int) hit_b, (int) hit_e);
+	  prev_left_pos = pos_b;
+	}
     }
 /* Now we know that the processing will not hang so we can go on */
   src_cs = charset_native_for_box (src, tmpl_syntax_is_xpf ? BF_UTF8 : BF_DEFAULT_SERVER_ENC);
@@ -763,9 +805,9 @@ bif_regexp_replace_hits_with_template (caddr_t * qst, caddr_t * err_ret, state_s
       caddr_t tmpl_temp_copy = box_copy (orig_tmpl);
       tmpl = charset_recode_from_cs_or_eh_to_cs (orig_tmpl, 0, NULL, tmpl_cs, src_cs, &res_is_new, &err);
       if (res_is_new)
-        dk_free_box (tmpl_temp_copy);
+	dk_free_box (tmpl_temp_copy);
       if (NULL != err)
-        sqlr_resignal (err);
+	sqlr_resignal (err);
     }
   else
     tmpl = orig_tmpl;
@@ -774,73 +816,73 @@ bif_regexp_replace_hits_with_template (caddr_t * qst, caddr_t * err_ret, state_s
   if (pcre_makes_full_length_lists)
     {
       for (parsed_tmpl_tail = parsed_tmpl; parsed_tmpl_tail < parsed_tmpl_end; parsed_tmpl_tail += 2)
-        {
-          if (-1 == parsed_tmpl_tail[0])
-            {
-              int idx_in_hit = parsed_tmpl_tail[1];
-              if (((idx_in_hit * 2 + 1) >= pos_count_in_hits) || (idx_in_hit < 0))
-                {
-                  err = srv_make_new_error ("22023", "SR647",
-                    "Function regexp_replace_hits_with_template() refers to $%d, but valid placeholders for given search hits are $0 to $%d",
-                    idx_in_hit, (pos_count_in_hits / 2)-1 );
-                  goto err_at_replace;
-                }
-            }
-        }
+	{
+	  if (-1 == parsed_tmpl_tail[0])
+	    {
+	      int idx_in_hit = parsed_tmpl_tail[1];
+	      if (((idx_in_hit * 2 + 1) >= pos_count_in_hits) || (idx_in_hit < 0))
+		{
+		  err = srv_make_new_error ("22023", "SR647",
+		      "Function regexp_replace_hits_with_template() refers to $%d, but valid placeholders for given search hits are $0 to $%d",
+		      idx_in_hit, (pos_count_in_hits / 2) - 1);
+		  goto err_at_replace;
+		}
+	    }
+	}
     }
   ses = strses_allocate ();
   prev_left_pos = 0;
 #define PASTE(strg,b,e) session_buffered_write (ses, (strg) + ((b) *src_charsize), ((e)-(b))*src_charsize)
   for (hit_ctr = 0; hit_ctr < hit_count; hit_ctr++)
     {
-      ptrlong *hit = (ptrlong *)(hit_list[hit_ctr]);
+      ptrlong *hit = (ptrlong *) (hit_list[hit_ctr]);
       dtp_t hit_dtp = DV_TYPE_OF (hit);
-      ptrlong hit_b = HIT_NTH_POS(0);
-      ptrlong hit_e = HIT_NTH_POS(1);
+      ptrlong hit_b = HIT_NTH_POS (0);
+      ptrlong hit_e = HIT_NTH_POS (1);
       if (hit_b > prev_left_pos)
-        PASTE (src, prev_left_pos,hit_b);
+	PASTE (src, prev_left_pos, hit_b);
       for (parsed_tmpl_tail = parsed_tmpl; parsed_tmpl_tail < parsed_tmpl_end; parsed_tmpl_tail += 2)
-        {
-          if (-1 == parsed_tmpl_tail[0])
-            {
-              if (pcre_makes_full_length_lists)
-                {
-                  ptrlong pos_b = HIT_NTH_POS (parsed_tmpl_tail[1] * 2);
-                  ptrlong pos_e = HIT_NTH_POS (parsed_tmpl_tail[1] * 2 + 1);
-                  PASTE (src, pos_b, pos_e);
-                }
-              else
-                {
-                  int pos_idx = parsed_tmpl_tail[1] * 2;
-                  int pos_count = BOX_ELEMENTS (hit);
-                  if ((0 <= pos_idx) && ((pos_idx + 1) < pos_count))
-                    {
-                      ptrlong pos_b = HIT_NTH_POS (pos_idx);
-                      ptrlong pos_e = HIT_NTH_POS (pos_idx + 1);
-                      PASTE (src, pos_b, pos_e);
-                    }
-                }
-            }
-          else
-            {
-              ptrlong pos_b = parsed_tmpl_tail[0];
-              ptrlong pos_e = parsed_tmpl_tail[1];
-              if (0 <= pos_b)
-                PASTE (tmpl, pos_b, pos_e);
-            }
-        }
+	{
+	  if (-1 == parsed_tmpl_tail[0])
+	    {
+	      if (pcre_makes_full_length_lists)
+		{
+		  ptrlong pos_b = HIT_NTH_POS (parsed_tmpl_tail[1] * 2);
+		  ptrlong pos_e = HIT_NTH_POS (parsed_tmpl_tail[1] * 2 + 1);
+		  PASTE (src, pos_b, pos_e);
+		}
+	      else
+		{
+		  int pos_idx = parsed_tmpl_tail[1] * 2;
+		  int pos_count = BOX_ELEMENTS (hit);
+		  if ((0 <= pos_idx) && ((pos_idx + 1) < pos_count))
+		    {
+		      ptrlong pos_b = HIT_NTH_POS (pos_idx);
+		      ptrlong pos_e = HIT_NTH_POS (pos_idx + 1);
+		      PASTE (src, pos_b, pos_e);
+		    }
+		}
+	    }
+	  else
+	    {
+	      ptrlong pos_b = parsed_tmpl_tail[0];
+	      ptrlong pos_e = parsed_tmpl_tail[1];
+	      if (0 <= pos_b)
+		PASTE (tmpl, pos_b, pos_e);
+	    }
+	}
       prev_left_pos = hit_e;
     }
   if (prev_left_pos < src_charcount)
     PASTE (src, prev_left_pos, src_charcount);
 err_at_replace:
-  dk_free_box ((caddr_t)parsed_tmpl);
+  dk_free_box ((caddr_t) parsed_tmpl);
   if (tmpl != orig_tmpl)
     dk_free_box (tmpl);
   if (NULL != err)
     {
       if (NULL != ses)
-        strses_free (ses);
+	strses_free (ses);
       sqlr_resignal (err);
     }
   if (src_is_wide)
@@ -849,7 +891,7 @@ err_at_replace:
     {
       res_strg = strses_string (ses);
       if (CHARSET_UTF8 == src_cs)
-        box_flags (res_strg) |= BF_UTF8;
+	box_flags (res_strg) |= BF_UTF8;
     }
   strses_free (ses);
   return res_strg;
@@ -858,8 +900,7 @@ err_at_replace:
 int32 c_match_limit_recursion = 150;
 
 static caddr_t
-get_regexp_code_1 (safe_hash_t * rx_codes, const char *pattern,
-		 pcre_info_t * pcre_info, int options, void**ret)
+get_regexp_code_1 (safe_hash_t * rx_codes, const char *pattern, pcre_info_t * pcre_info, int options, void **ret)
 {
   const char *error = 0;
   int erroff;
@@ -900,8 +941,7 @@ get_regexp_code_1 (safe_hash_t * rx_codes, const char *pattern,
       else if (error)
 	{
 	  RELEASE_OBJECT (rx_codes);
-	  return srv_make_new_error ("2201B",
-	      "SR098", "regexp error at \'%s\' column %d (%s)", pattern, erroff, error);
+	  return srv_make_new_error ("2201B", "SR098", "regexp error at \'%s\' column %d (%s)", pattern, erroff, error);
 	};
     }
   else
@@ -917,27 +957,24 @@ get_regexp_code_1 (safe_hash_t * rx_codes, const char *pattern,
 
 
 caddr_t
-get_regexp_code (safe_hash_t * rx_codes, const char *pattern,
-		 pcre_info_t * pcre_info, int options)
+get_regexp_code (safe_hash_t * rx_codes, const char *pattern, pcre_info_t * pcre_info, int options)
 {
-  void * ign = NULL;
-  return get_regexp_code_1 (rx_codes,  pattern,
-			  pcre_info, options, &ign);
+  void *ign = NULL;
+  return get_regexp_code_1 (rx_codes, pattern, pcre_info, options, &ign);
 }
 
 
 static caddr_t
 bif_regexp_version (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  return box_dv_short_string(pcre_version());
+  return box_dv_short_string (pcre_version ());
 }
 
 void
 bif_regexp_init ()
 {
   INIT_OBJECT (&regexp_codes);
-  regexp_codes.hash = id_hash_allocate (NHASHITEMS, sizeof (caddr_t), sizeof (pcre_info_t),
-      strhash, strhashcmp);
+  regexp_codes.hash = id_hash_allocate (NHASHITEMS, sizeof (caddr_t), sizeof (pcre_info_t), strhash, strhashcmp);
 
   bif_define_ex ("regexp_match", bif_regexp_match, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
   bif_define_ex ("rdf_regex_impl", bif_rdf_regex_impl, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
@@ -951,7 +988,7 @@ bif_regexp_init ()
 
 /* internal functions for internal usage in Virtuoso */
 caddr_t
-regexp_match_01 (const char* pattern, const char* str, int c_opts)
+regexp_match_01 (const char *pattern, const char *str, int c_opts)
 {
   pcre_info_t cd_info;
   int r_opts = 0;
@@ -967,8 +1004,7 @@ regexp_match_01 (const char* pattern, const char* str, int c_opts)
       int result;
       int str_len = (int) strlen (str);
       memset (offvect, -1, NOFFSETS * sizeof (int));
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts,
-	  offvect, NOFFSETS);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts, offvect, NOFFSETS);
       if (result != -1)
 	{
 	  caddr_t ret_str = dk_alloc_box (offvect[1] - offvect[0] + 1, DV_SHORT_STRING);
@@ -982,7 +1018,7 @@ regexp_match_01 (const char* pattern, const char* str, int c_opts)
 
 
 caddr_t
-regexp_match_01_const (const char* pattern, const char* str, int c_opts, void** ret)
+regexp_match_01_const (const char *pattern, const char *str, int c_opts, void **ret)
 {
   pcre_info_t cd_info;
   int r_opts = 0;
@@ -993,15 +1029,14 @@ regexp_match_01_const (const char* pattern, const char* str, int c_opts, void** 
       if (err)
 	sqlr_resignal (err);
     }
-  cd_info = **(pcre_info_t **)ret;
+  cd_info = **(pcre_info_t **) ret;
   if (cd_info.code)
     {
       int offvect[NOFFSETS];
       int result;
       int str_len = (int) strlen (str);
       memset (offvect, -1, NOFFSETS * sizeof (int));
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts,
-	  offvect, NOFFSETS);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts, offvect, NOFFSETS);
       if (result != -1)
 	{
 	  caddr_t ret_str = dk_alloc_box (offvect[1] - offvect[0] + 1, DV_SHORT_STRING);
@@ -1014,14 +1049,20 @@ regexp_match_01_const (const char* pattern, const char* str, int c_opts, void** 
 }
 
 
-struct regexp_opts_s {
-  char	mc;
-  int	opt;
-} regexp_mode_table[] = {
-  { 'i',	PCRE_CASELESS },
-  { 'm',	PCRE_MULTILINE },
-  { 's',	PCRE_DOTALL },
-  { 'x',	PCRE_EXTENDED }
+struct regexp_opts_s
+{
+  char mc;
+  int opt;
+} regexp_mode_table[] =
+{
+  {
+  'i', PCRE_CASELESS},
+  {
+  'm', PCRE_MULTILINE},
+  {
+  's', PCRE_DOTALL},
+  {
+  'x', PCRE_EXTENDED}
 };
 
 #define regexp_mode_table_l (sizeof(regexp_mode_table)/sizeof(struct regexp_opts_s))
@@ -1029,16 +1070,16 @@ struct regexp_opts_s {
 
 
 int
-regexp_make_opts (const char* mode)
+regexp_make_opts (const char *mode)
 {
-  const char* mode_char = mode;
+  const char *mode_char = mode;
   int c_opts = 0;
   if (!mode)
     return 0;
   while (mode_char[0])
     {
       int i;
-      for (i=0;i<regexp_mode_table_l;i++)
+      for (i = 0; i < regexp_mode_table_l; i++)
 	{
 	  if (regexp_mode_table[i].mc == mode_char[0])
 	    {
@@ -1046,7 +1087,7 @@ regexp_make_opts (const char* mode)
 	      break;
 	    }
 	}
-      if (i==regexp_mode_table_l)
+      if (i == regexp_mode_table_l)
 	return -1;
       mode_char++;
     }
@@ -1067,7 +1108,7 @@ regexp_make_opts (const char* mode)
 */
 
 int
-regexp_split_parse (const char* pattern, const char* str, int* offvect, int offvect_sz, int c_opts)
+regexp_split_parse (const char *pattern, const char *str, int *offvect, int offvect_sz, int c_opts)
 {
   int str_len;
   pcre_info_t cd_info;
@@ -1082,8 +1123,7 @@ regexp_split_parse (const char* pattern, const char* str, int* offvect, int offv
     {
       int result;
       str_len = (int) strlen (str);
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts,
-	  offvect, offvect_sz);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts, offvect, offvect_sz);
       return result;
     }
   return -1;
@@ -1098,7 +1138,7 @@ regexp_split_parse (const char* pattern, const char* str, int* offvect, int offv
 */
 
 caddr_t
-regexp_split_match (const char* pattern, const char* str, int* next, int c_opts)
+regexp_split_match (const char *pattern, const char *str, int *next, int c_opts)
 {
   int str_len;
   pcre_info_t cd_info;
@@ -1115,8 +1155,7 @@ regexp_split_match (const char* pattern, const char* str, int* next, int c_opts)
       int result;
       caddr_t ret_str;
       str_len = (int) strlen (str);
-      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts,
-	  offvect, NOFFSETS);
+      result = pcre_exec (cd_info.code, cd_info.code_x, str, str_len, 0, r_opts, offvect, NOFFSETS);
       if (result != -1)
 	{
 	  ret_str = dk_alloc_box (offvect[0] + 1, DV_STRING);

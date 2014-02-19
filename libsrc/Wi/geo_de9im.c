@@ -35,50 +35,29 @@
 #define GDSFILL GEO_DE9IM_SUBOP_FILLER
 
 /* *INDENT-OFF* */
-
 /*							      ii,ib,ie, bi,bb,be, ei,eb, #1,#2,rule */
-geo_de9im_op_t geo_de9im_op_Equals =		{ 1, {	GDS8 (pT,p_,pF, p_,p_,pF, pF,pF, IE,EI,0),
-							GDSFILL, GDSFILL, GDSFILL, GDSFILL} };
-
-geo_de9im_op_t geo_de9im_op_Disjoint = 		{ 1, {	GDS8 (pF, pF, p_, pF, pF, p_, p_, p_, II, BB, 0),
-							GDSFILL, GDSFILL, GDSFILL, GDSFILL} };
-
+geo_de9im_op_t geo_de9im_op_Equals =		{ 1, {	GDS8 (pT,p_,pF, p_,p_,pF, pF,pF, IE,EI,0), GDSFILL, GDSFILL, GDSFILL, GDSFILL } };
+geo_de9im_op_t geo_de9im_op_Disjoint =		{ 1, {	GDS8 (pF,pF,p_, pF,pF,p_, p_,p_, II,BB,0), GDSFILL, GDSFILL, GDSFILL, GDSFILL } };
 geo_de9im_op_t geo_de9im_op_Touches =		{ 3, {	GDS8 (pF,pT,p_, p_,p_,p_, p_,p_, II,IB,0),
 							GDS8 (pF,p_,p_, pT,p_,p_, p_,p_, BI,BI,0),
-							GDS8 (pF, p_, p_, p_, pT, p_, p_, p_, BB, BB, 0),
-							GDSFILL, GDSFILL} };
-
-geo_de9im_op_t geo_de9im_op_Contains = 		{ 1, {	GDS8 (pT, p_, p_, p_, p_, p_, pF, pF, II, EI, 0),
-							GDSFILL, GDSFILL, GDSFILL, GDSFILL} };
-
+							GDS8 (pF,p_,p_, p_,pT,p_, p_,p_, BB,BB,0), GDSFILL, GDSFILL } };
+geo_de9im_op_t geo_de9im_op_Contains =		{ 1, {	GDS8 (pT,p_,p_, p_,p_,p_, pF,pF, II,EI,0), GDSFILL, GDSFILL, GDSFILL, GDSFILL } };
 geo_de9im_op_t geo_de9im_op_Covers =		{ 4, {	GDS8 (pT,p_,p_, p_,p_,p_, pF,pF, II,EI,0),
 							GDS8 (p_,pT,p_, p_,p_,p_, pF,pF, IB,EB,0),
 							GDS8 (p_,p_,p_, pT,p_,p_, pF,pF, BI,BI,0),
-							GDS8 (p_, p_, p_, p_, pT, p_, pF, pF, BB, BB, 0),
-							GDSFILL} };
-
+							GDS8 (p_,p_,p_, p_,pT,p_, pF,pF, BB,BB,0), GDSFILL } };
 geo_de9im_op_t geo_de9im_op_Intersects =	{ 4, {	GDS8 (pT,p_,p_, p_,p_,p_, p_,p_, II,II,0),
 							GDS8 (p_,pT,p_, p_,p_,p_, p_,p_, IB,IB,0),
 							GDS8 (p_,p_,p_, pT,p_,p_, p_,p_, BI,BI,0),
-							GDS8 (p_, p_, p_, p_, pT, p_, p_, p_, BB, BB, 0),
-							GDSFILL} };
-
-geo_de9im_op_t geo_de9im_op_Within =		{ 1, {	GDS8 (pT,p_,pF, p_,p_,pF, p_,p_, II,IE,0),
-							GDSFILL, GDSFILL, GDSFILL, GDSFILL} };
-
+							GDS8 (p_,p_,p_, p_,pT,p_, p_,p_, BB,BB,0), GDSFILL } };
+geo_de9im_op_t geo_de9im_op_Within =		{ 1, {	GDS8 (pT,p_,pF, p_,p_,pF, p_,p_, II,IE,0), GDSFILL, GDSFILL, GDSFILL, GDSFILL } };
 geo_de9im_op_t geo_de9im_op_CoveredBy =		{ 4, {	GDS8 (pT,p_,pF, p_,p_,pF, p_,p_, II,IE,0),
 							GDS8 (p_,pT,pF, p_,p_,pF, p_,p_, IB,BE,0),
 							GDS8 (p_,p_,pF, pT,p_,pF, p_,p_, BI,BI,0),
-							GDS8 (p_, p_, pF, p_, pT, pF, p_, p_, BB, BB, 0),
-							GDSFILL} };
-
+							GDS8 (p_,p_,pF, p_,pT,pF, p_,p_, BB,BB,0), GDSFILL } };
 geo_de9im_op_t geo_de9im_op_Crosses =		{ 3, {	GDS8 (pT,p_,pT, p_,p_,p_, p_,p_, II,IE,GEO_DE9IM_DIM_A_LT_B),
 							GDS8 (pT,p_,p_, p_,p_,p_, pT,p_, EI,EI,GEO_DE9IM_DIM_A_GT_B),
-							GDS8 (p0, p_, p_, p_, p_, p_, p_, p_, II, II, GEO_DE9IM_DIM_A_EQ_B_NEQ_2),
-							 GDSFILL, GDSFILL} };
-
+							GDS8 (p0,p_,p_, p_,p_,p_, p_,p_, II,II,GEO_DE9IM_DIM_A_EQ_B_NEQ_2), GDSFILL, GDSFILL } };
 geo_de9im_op_t geo_de9im_op_Overlaps =		{ 2, {	GDS8 (pT,p_,pT, p_,p_,p_, pT,p_, II,IE,GEO_DE9IM_DIM_A_EQ_B_NEQ_1),
-							GDS8 (p1, p_, pT, p_, p_, p_, pT, p_, EI, EI, GEO_DE9IM_DIM_BOTH_1),
-							GDSFILL, GDSFILL, GDSFILL} };
-
+							GDS8 (p1,p_,pT, p_,p_,p_, pT,p_, EI,EI,GEO_DE9IM_DIM_BOTH_1), GDSFILL, GDSFILL, GDSFILL } };
 /* *INDENT-ON* */

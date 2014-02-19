@@ -38,15 +38,15 @@
 #define JSO_PRIVATE	14	/*!< The property is never loaded. It's used only in C code */
 #define JSO_DEPRECATED	15	/*!< The property is deprecated and should not be specified at all */
 
-#define JSO_ANY		"http://www.w3.org/2001/XMLSchema#any"			/*!< Arbitrary boxed SQL value */
+#define JSO_ANY		"http://www.w3.org/2001/XMLSchema#any"	/*!< Arbitrary boxed SQL value */
 #define JSO_ANY_array	"http://www.openlinksw.com/schemas/virtrdf#array-of-any"	/*!< A vector of arbitrary boxed SQL values */
-#define JSO_ANY_URI	"http://www.w3.org/2001/XMLSchema#anyURI"		/*!< boxed DV_UNAME in UTF-8 encoding */
-#define JSO_BOOLEAN	"http://www.w3.org/2001/XMLSchema#boolean"		/*!< Bool as ptrlong 1 or 0 */
+#define JSO_ANY_URI	"http://www.w3.org/2001/XMLSchema#anyURI"	/*!< boxed DV_UNAME in UTF-8 encoding */
+#define JSO_BOOLEAN	"http://www.w3.org/2001/XMLSchema#boolean"	/*!< Bool as ptrlong 1 or 0 */
 #define JSO_BITMASK	"http://www.openlinksw.com/schemas/virtrdf#bitmask"	/*!< Bitmask as ptrlong, can be loaded as OR of a list of values */
-#define JSO_DOUBLE	"http://www.w3.org/2001/XMLSchema#double"		/*!< Double float as unboxed double */
-#define JSO_INTEGER	"http://www.w3.org/2001/XMLSchema#integer"		/*!< Integer as ptrlong */
+#define JSO_DOUBLE	"http://www.w3.org/2001/XMLSchema#double"	/*!< Double float as unboxed double */
+#define JSO_INTEGER	"http://www.w3.org/2001/XMLSchema#integer"	/*!< Integer as ptrlong */
 #define JSO_INTEGER_array	"http://www.openlinksw.com/schemas/virtrdf#array-of-integer"	/*!< Either a vector of DV_LONG_INTs or DV_ARRAY_OF_LONG */
-#define JSO_STRING	"http://www.w3.org/2001/XMLSchema#string"		/*!< String, boxed DV_STRING */
+#define JSO_STRING	"http://www.w3.org/2001/XMLSchema#string"	/*!< String, boxed DV_STRING */
 #define JSO_STRING_array	"http://www.openlinksw.com/schemas/virtrdf#array-of-string"	/*!< A vector of DV_STRING-s */
 
 #define JSO_FIELD_OFFSET(dt,f) (((char *)(&(((dt *)NULL)->f)))-((char *)NULL))
@@ -54,13 +54,14 @@
 #define JSO_FIELD_PTR(inst,fldd) JSO_FIELD_ACCESS(caddr_t,(inst),(fldd)->jsofd_byte_offset)
 
 /*! Description of a single field of JSO class or JSO array */
-typedef struct jso_field_descr_s {
-  const char *	jsofd_property_iri;	/*!< IRI for loading from RDF graphs, will be used as a predicate IRI */
-  const char *	jsofd_local_name;	/*!< Name of a field in C structure, it usually matches local part of \c jsofd_property_iri */
-  const char *	jsofd_type;		/*!< Datatype IRI that is either one of JSO_xxx preset type IRIs or an IRI of some JSO class */
-  int		jsofd_required;		/*!< One of JSO_OPTIONAL ... JSO_DEPRECATED */
-  ptrdiff_t	jsofd_byte_offset;	/*!< Byte offset of the beginning of the field from the beginning of the class instance */
-  struct jso_class_descr_s *	jsofd_class;	/*!< The backlink to the class where the field is declared */
+typedef struct jso_field_descr_s
+{
+  const char *jsofd_property_iri;	/*!< IRI for loading from RDF graphs, will be used as a predicate IRI */
+  const char *jsofd_local_name;	/*!< Name of a field in C structure, it usually matches local part of \c jsofd_property_iri */
+  const char *jsofd_type;	/*!< Datatype IRI that is either one of JSO_xxx preset type IRIs or an IRI of some JSO class */
+  int jsofd_required;		/*!< One of JSO_OPTIONAL ... JSO_DEPRECATED */
+  ptrdiff_t jsofd_byte_offset;	/*!< Byte offset of the beginning of the field from the beginning of the class instance */
+  struct jso_class_descr_s *jsofd_class;	/*!< The backlink to the class where the field is declared */
 } jso_field_descr_t;
 
 /* Category of JSO class. This implementation supports only structures with fixed list of named fields and arrays with nonnegative integer indexes */
@@ -69,42 +70,46 @@ typedef struct jso_field_descr_s {
 /*#define JSO_CAT_MAP	23	*!< Class instances are sets of key-value pairs with keys and values of any types */
 
 /*! Data specific to JSO_CAT_STRUCT classes */
-typedef struct jso_struct_descr_s {
-  size_t	jsosd_sizeof;			/*!< Size of an instance in bytes */
-  int		jsosd_field_count;		/*!< Number of fields, including deprecated fields */
-  jso_field_descr_t *	jsosd_field_list;	/*!< Array of field descriptions. The array may be longer than needed and have NULL pointers at the end */
-  dk_hash_t *	jsosd_field_hash;		/*!< Hashtable to get field description by jsofd_property_iri of a field */
-  jso_field_descr_t **	jsosd_fields_by_idx;	/*!< \c jsosd_fields_by_idx is array of (mostly) NULLs, jsosd_sizeof/sizeof(caddr_t) elements long. If the structure is treated as DV_ARRAY_OF_POINTER, N-th item of arrary can be a described field. In this case the description can be found as jsosd_fields_by_idx[N]. */
+typedef struct jso_struct_descr_s
+{
+  size_t jsosd_sizeof;		/*!< Size of an instance in bytes */
+  int jsosd_field_count;	/*!< Number of fields, including deprecated fields */
+  jso_field_descr_t *jsosd_field_list;	/*!< Array of field descriptions. The array may be longer than needed and have NULL pointers at the end */
+  dk_hash_t *jsosd_field_hash;	/*!< Hashtable to get field description by jsofd_property_iri of a field */
+  jso_field_descr_t **jsosd_fields_by_idx;	/*!< \c jsosd_fields_by_idx is array of (mostly) NULLs, jsosd_sizeof/sizeof(caddr_t) elements long. If the structure is treated as DV_ARRAY_OF_POINTER, N-th item of arrary can be a described field. In this case the description can be found as jsosd_fields_by_idx[N]. */
 } jso_struct_descr_t;
 
 /*! Data specific to JSO_CAT_ARRAY classes */
-typedef struct jso_array_descr_s {
-  const char *	jsoad_member_type;	/*!< Datatype IRI that is either one of JSO_xxx preset type IRIs or an IRI of some JSO class */
-  int		jsoad_min_length;	/*!< Min allowed number of elements in the instance */
-  int		jsoad_max_length;	/*!< Max allowed number of elements in the instance */
+typedef struct jso_array_descr_s
+{
+  const char *jsoad_member_type;	/*!< Datatype IRI that is either one of JSO_xxx preset type IRIs or an IRI of some JSO class */
+  int jsoad_min_length;		/*!< Min allowed number of elements in the instance */
+  int jsoad_max_length;		/*!< Max allowed number of elements in the instance */
 } jso_array_descr_t;
 
 /*! A type for validation callback called at the end of jso_validate(). The callback can validate and optionally enrich the data.
 \c warning_acc_ptr is a pointer to set of 2-element vectors, each vector is a pair of pointer to jso_rtti_t and text of warning.
 \c inst_rtti is made void * because gcc 4.4.7 disliked proper typedef for proper type of pointer. */
-typedef void jso_validation_cbk_t (void * /* actually jso_rtti_t * */ inst_rtti, dk_set_t *warnings_log_ptr);
+typedef void jso_validation_cbk_t (void * /* actually jso_rtti_t * */ inst_rtti, dk_set_t * warnings_log_ptr);
 
 /*! Description of a JSO class */
-typedef struct jso_class_descr_s {
-  int		jsocd_cat;		/*!< Class category as an JSO_CAT_xxx value */
-  const char *	jsocd_c_typedef;	/*!< Text of C typedef (say, 'struct myexample_s') */
-  const char *  jsocd_class_iri;	/*!< IRI for loading from RDF graphs, will be used as value of rdf:type property of an instance */
-  const char *	jsocd_ns_uri;		/*!< Namespace URI, it will be used for fields as well */
-  const char *	jsocd_local_name;	/*!< Local part of jsocd_class_iri */
+typedef struct jso_class_descr_s
+{
+  int jsocd_cat;		/*!< Class category as an JSO_CAT_xxx value */
+  const char *jsocd_c_typedef;	/*!< Text of C typedef (say, 'struct myexample_s') */
+  const char *jsocd_class_iri;	/*!< IRI for loading from RDF graphs, will be used as value of rdf:type property of an instance */
+  const char *jsocd_ns_uri;	/*!< Namespace URI, it will be used for fields as well */
+  const char *jsocd_local_name;	/*!< Local part of jsocd_class_iri */
   jso_validation_cbk_t *jsocd_validation_cbk;
-  dk_hash_t *	jsocd_rttis;		/*!< Hashtable to get jso_rtti_t of an instance by instance IRI */
-  struct {
+  dk_hash_t *jsocd_rttis;	/*!< Hashtable to get jso_rtti_t of an instance by instance IRI */
+  struct
+  {
     jso_struct_descr_t sd;
     jso_array_descr_t ad;
-    } _;
+  } _;
 } jso_class_descr_t;
 
-extern jso_class_descr_t jso_cd_array_of_any;		/*!< JSO class 'array of any number of values' */
+extern jso_class_descr_t jso_cd_array_of_any;	/*!< JSO class 'array of any number of values' */
 extern jso_class_descr_t jso_cd_array_of_string;	/*!< JSO class 'array of any number of strings' */
 
 /* State of a JSO class instance. An instance is NEW when created, FAILED if filled incorrectly, LOADED if filled correctly, DELETED when it become a memory leak */
@@ -114,13 +119,14 @@ extern jso_class_descr_t jso_cd_array_of_string;	/*!< JSO class 'array of any nu
 #define JSO_STATUS_DELETED	34	/*!< The instance is deleted. It stays in memory because it still can have references from other places */
 
 /*! Run-time type info about JSO instance */
-typedef struct jso_rtti_s {
-  void *	jrtti_self;		/*!< Pointer to the actual C structure that contains instance data */
-  caddr_t	jrtti_inst_iri;		/*!< Instance IRI */
-  jso_class_descr_t *	jrtti_class;	/*!< Pointer to description of the class of the instance */
-  int		jrtti_status;		/*!< Status as one of JSO_STATUS_xxx values */
+typedef struct jso_rtti_s
+{
+  void *jrtti_self;		/*!< Pointer to the actual C structure that contains instance data */
+  caddr_t jrtti_inst_iri;	/*!< Instance IRI */
+  jso_class_descr_t *jrtti_class;	/*!< Pointer to description of the class of the instance */
+  int jrtti_status;		/*!< Status as one of JSO_STATUS_xxx values */
 #ifdef DEBUG
-  struct jso_rtti_s *	jrtti_loop;		/*!< Loop pointer to the RTTI itself: when debug code copies DV_OBJECT box, the pointer remains unchanged and points to the original rtti */
+  struct jso_rtti_s *jrtti_loop;	/*!< Loop pointer to the RTTI itself: when debug code copies DV_OBJECT box, the pointer remains unchanged and points to the original rtti */
 #endif
 } jso_rtti_t;
 
@@ -131,18 +137,19 @@ extern void jso_init (void);
 extern void jso_define_const (const char *iri, ptrlong value);
 
 /*! Initialization of an class description that can be used later in loading instances of that class */
-extern void jso_define_class (jso_class_descr_t *jsocd);
+extern void jso_define_class (jso_class_descr_t * jsocd);
 
 /*! The function searches for an loaded instance such that { ?jinstance rdf:type ?jclass } */
-extern void jso_get_cd_and_rtti (ccaddr_t jclass, ccaddr_t jinstance, jso_class_descr_t **cd_ptr, jso_rtti_t **inst_rtti_ptr, int quiet_if_deleted);
+extern void jso_get_cd_and_rtti (ccaddr_t jclass, ccaddr_t jinstance, jso_class_descr_t ** cd_ptr, jso_rtti_t ** inst_rtti_ptr,
+    int quiet_if_deleted);
 
 /*! The function returns a description of member field pointed to by \c inst_member_field assuming that this is a field of instance described by \c inst_rtti and the category is JSO_CAT_STRUCT */
-extern jso_field_descr_t *jso_get_fd_by_rtti_and_member (jso_rtti_t *inst_rtti, void *inst_member_field);
+extern jso_field_descr_t *jso_get_fd_by_rtti_and_member (jso_rtti_t * inst_rtti, void *inst_member_field);
 
-extern caddr_t jso_dbg_text_fd_and_member_field (jso_field_descr_t *fd, void *inst_member_field);
+extern caddr_t jso_dbg_text_fd_and_member_field (jso_field_descr_t * fd, void *inst_member_field);
 
-extern dk_hash_t *jso_consts;		/*!< All known named constants, e.g., made by jso_define_const() */
-extern dk_hash_t *jso_classes;		/*!< All known JSO classes, e.g., made by jso_define_class() */
+extern dk_hash_t *jso_consts;	/*!< All known named constants, e.g., made by jso_define_const() */
+extern dk_hash_t *jso_classes;	/*!< All known JSO classes, e.g., made by jso_define_class() */
 extern dk_hash_t *jso_properties;	/*!< All known property names of all JSO classes, to cross-check classes for duplicate names */
 extern dk_hash_t *jso_rttis_of_names;	/*!< All JSO class instances of all classes, to distinguish between missing instances and type mismatches */
 extern dk_hash_t *jso_rttis_of_structs;	/*!< Similar to jso_rttis_of_names but keys are 'jrtti_self' structures, not instance IRIs */

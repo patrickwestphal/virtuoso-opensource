@@ -20,6 +20,7 @@
 --  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 --
 --
+
 -- DB.DBA.OPENXML_DEFINE (viewname, tablename, datacolumn, xpath_expression, metadata)
 -- creates a procedure view over an XML content
 -- Parameters:

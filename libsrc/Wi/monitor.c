@@ -1,26 +1,3 @@
-/*
- *  $Id$
- *
- *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
- *  project.
- *
- *  Copyright (C) 1998-2014 OpenLink Software
- *
- *  This project is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; only version 2 of the License, dated June 1991.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- *
- */
-
 #include "sqlnode.h"
 #include "sqlfn.h"
 #include "monitor.h"
@@ -28,7 +5,7 @@
 
 #define DIMENSION_OF_STATISTICS 60
 static monitor_t statistics[DIMENSION_OF_STATISTICS];
-static long mon_log_time[PAGE_SZ]; /* 8k log checks */
+static long mon_log_time[PAGE_SZ];	/* 8k log checks */
 uint32 mon_max_threads;
 int mon_is_inited;
 int32 mon_enable = 1;
@@ -61,7 +38,7 @@ extern unsigned char byte_logcount[256];
 extern int32 enable_qp;
 extern int64 mp_mmap_clocks;
 static unsigned int monitor_index = 0;
-static unsigned int current_inx; /* the last sample in stats */
+static unsigned int current_inx;	/* the last sample in stats */
 
 void
 mon_init ()
@@ -74,7 +51,7 @@ mon_init ()
 }
 
 int
-mon_get_next (int n_threads, int n_vdb_threads, int n_lw_threads, const monitor_t* prev, monitor_t *next)
+mon_get_next (int n_threads, int n_vdb_threads, int n_lw_threads, const monitor_t * prev, monitor_t * next)
 {
   int thr_run = n_threads - n_vdb_threads - n_lw_threads;
   long now = get_msec_real_time ();
@@ -84,8 +61,10 @@ mon_get_next (int n_threads, int n_vdb_threads, int n_lw_threads, const monitor_
   next->mon_time_elapsed = now - prev->mon_time_now;
   if (getrusage (RUSAGE_SELF, &ru) != 0)
     return 1;
-  next->mon_cpu_time = (ru.ru_utime.tv_sec * 1000 +  ru.ru_utime.tv_usec / 1000) + (ru.ru_stime.tv_sec * 1000 +  ru.ru_stime.tv_usec / 1000);
-  curr_cpu_pct = next->mon_cpu_pct = (next->mon_cpu_time - prev->mon_cpu_time) / (double)(next->mon_time_now - prev->mon_time_now) * 100;
+  next->mon_cpu_time =
+      (ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000) + (ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
+  curr_cpu_pct = next->mon_cpu_pct =
+      (next->mon_cpu_time - prev->mon_cpu_time) / (double) (next->mon_time_now - prev->mon_time_now) * 100;
   next->mon_pageflts = ru.ru_majflt - prev->mon_pageflts;
 #endif
   /* thread counts */
@@ -141,7 +120,7 @@ mon_update (int n_threads, int n_vdb_threads, int n_lw_threads)
     }
 }
 
-#define CLK_SCALE 2000000LL /* how many rtdsc clocks are 1msec */
+#define CLK_SCALE 2000000LL	/* how many rtdsc clocks are 1msec */
 #define LOG_INTERVAL_MSEC 120000L
 #define MON_LOG "* Monitor: "
 #define N_SAMPLES_CK 10
@@ -178,21 +157,18 @@ mon_##name##_ck () \
 
 #define CK(cond) if ((++i >= 0) && (cond))
 
-MON_CK(read, (c->mon_read_pct > (2.0 * c->mon_cpu_pct)), (c->mon_cpu_pct <= 0))
-MON_CK(locks, (c->mon_lw_thr > (0.7 * c->mon_thr)), (c->mon_thr <= 0))
-MON_CK(thr_run, (c->mon_thr_run > (3 * mon_max_threads) && c->mon_high_cpu), 0)
-MON_CK(tws, (c->mon_tws_accept_queued > p->mon_tws_accept_queued), 0)
-MON_CK(thr, (c->mon_thr_run > mon_max_threads && c->mon_cpu_pct < 70.0), 0)
-MON_CK(no_thr_idle, (c->mon_tc_no_thread_kill_idle > p->mon_tc_no_thread_kill_idle), 0)
-MON_CK(no_thr_vdb, (c->mon_tc_no_thread_kill_vdb > p->mon_tc_no_thread_kill_vdb), 0)
-MON_CK(no_thr_running, (c->mon_tc_no_thread_kill_running > p->mon_tc_no_thread_kill_running), 0)
-MON_CK(no_part_hj, (c->mon_tc_part_hash_join > p->mon_tc_part_hash_join), 0)
-MON_CK(no_qmem, (c->mon_tc_no_mem_for_longer_batch > p->mon_tc_no_mem_for_longer_batch), 0)
-
+MON_CK (read, (c->mon_read_pct > (2.0 * c->mon_cpu_pct)), (c->mon_cpu_pct <= 0))
+MON_CK (locks, (c->mon_lw_thr > (0.7 * c->mon_thr)), (c->mon_thr <= 0))
+MON_CK (thr_run, (c->mon_thr_run > (3 * mon_max_threads) && c->mon_high_cpu), 0)
+MON_CK (tws, (c->mon_tws_accept_queued > p->mon_tws_accept_queued), 0)
+MON_CK (thr, (c->mon_thr_run > mon_max_threads && c->mon_cpu_pct < 70.0), 0)
+MON_CK (no_thr_idle, (c->mon_tc_no_thread_kill_idle > p->mon_tc_no_thread_kill_idle), 0)
+MON_CK (no_thr_vdb, (c->mon_tc_no_thread_kill_vdb > p->mon_tc_no_thread_kill_vdb), 0)
+MON_CK (no_thr_running, (c->mon_tc_no_thread_kill_running > p->mon_tc_no_thread_kill_running), 0)
+MON_CK (no_part_hj, (c->mon_tc_part_hash_join > p->mon_tc_part_hash_join), 0)
+MON_CK (no_qmem, (c->mon_tc_no_mem_for_longer_batch > p->mon_tc_no_mem_for_longer_batch), 0)
 #define DELTA(m) (c->m - p->m)
-
-void
-mon_check ()
+     void mon_check ()
 {
   monitor_t *c, *p;
   int prev_inx, i = 0;
@@ -206,36 +182,29 @@ mon_check ()
   fprintf (stderr, "thr# %d cpu: %.02f%% read: %.02f%%\n", c->mon_thr_run, c->mon_cpu_pct, c->mon_read_pct);
 #endif
   /* disk */
-  CK (main_bufs < DELTA (mon_disk_reads) && !c->mon_high_cpu)
-    MON_LOG_WARNING (MON_LOG "High disk read (1)");
-  CK (mon_read_ck ())
-    MON_LOG_WARNING (MON_LOG "High disk read (2)");
+  CK (main_bufs < DELTA (mon_disk_reads) && !c->mon_high_cpu) MON_LOG_WARNING (MON_LOG "High disk read (1)");
+  CK (mon_read_ck ())MON_LOG_WARNING (MON_LOG "High disk read (2)");
 
   /* locks */
-  CK (mon_locks_ck ())
-    MON_LOG_WARNING (MON_LOG "Many lock waits");
+  CK (mon_locks_ck ())MON_LOG_WARNING (MON_LOG "Many lock waits");
   CK ((DELTA (mon_lock_deadlocks) + DELTA (mon_tc_cl_deadlocks)) > (0.1 * DELTA (mon_lock_waits)))
-    MON_LOG_WARNING (MON_LOG "Should read for update because lock escalation from shared to exclusive fails frequently (1)");
+      MON_LOG_WARNING (MON_LOG "Should read for update because lock escalation from shared to exclusive fails frequently (1)");
   CK (DELTA (mon_lock_2r1w_deadlocks) > (0.1 * DELTA (mon_lock_deadlocks)))
-    MON_LOG_WARNING (MON_LOG "Should read for update because lock escalation from shared to exclusive fails frequently (2)");
+      MON_LOG_WARNING (MON_LOG "Should read for update because lock escalation from shared to exclusive fails frequently (2)");
   CK (((double) DELTA (mon_lock_wait_msec) / (DELTA (mon_lock_waits) + 1)) > 1)
-    MON_LOG_WARNING (MON_LOG "Locks are held for a long time");
+      MON_LOG_WARNING (MON_LOG "Locks are held for a long time");
 
   /* threads */
-  CK (mon_tws_ck ())
-    MON_LOG_WARNING (MON_LOG "No Web Server threads avalable, ServerThreads in [HTTP Server] may have to be increased");
-  CK (mon_thr_run_ck ())
-    MON_LOG_WARNING (MON_LOG "System is under high load. Adding cluster nodes or using more replicated copies may needed");
-  CK (mon_thr_ck ())
-    MON_LOG_WARNING (MON_LOG "CPU%% is low while there are large numbers of runnable threads");
-  CK (mon_no_thr_idle_ck () || mon_no_thr_vdb_ck () || mon_no_thr_running_ck ())
-    MON_LOG_WARNING (MON_LOG "There are too few client threads configured");
+  CK (mon_tws_ck ())MON_LOG_WARNING (MON_LOG
+      "No Web Server threads avalable, ServerThreads in [HTTP Server] may have to be increased");
+  CK (mon_thr_run_ck ())MON_LOG_WARNING (MON_LOG
+      "System is under high load. Adding cluster nodes or using more replicated copies may needed");
+  CK (mon_thr_ck ())MON_LOG_WARNING (MON_LOG "CPU%% is low while there are large numbers of runnable threads");
+  CK (mon_no_thr_idle_ck () || mon_no_thr_vdb_ck ()
+      || mon_no_thr_running_ck ())MON_LOG_WARNING (MON_LOG "There are too few client threads configured");
 
   /* memory */
-  CK (((mp_mmap_clocks / CLK_SCALE) * 1.1) > now)
-    MON_LOG_WARNING (MON_LOG "The mp_mmap_clocks over 10%% of real time");
-  CK (mon_no_part_hj_ck ())
-    MON_LOG_WARNING (MON_LOG "Low hash join space, try to increase HashJoinSpace");
-  CK (mon_no_qmem_ck ())
-    MON_LOG_WARNING (MON_LOG "Low query memory limit, try to increase MaxQueryMem");
+  CK (((mp_mmap_clocks / CLK_SCALE) * 1.1) > now) MON_LOG_WARNING (MON_LOG "The mp_mmap_clocks over 10%% of real time");
+  CK (mon_no_part_hj_ck ())MON_LOG_WARNING (MON_LOG "Low hash join space, try to increase HashJoinSpace");
+  CK (mon_no_qmem_ck ())MON_LOG_WARNING (MON_LOG "Low query memory limit, try to increase MaxQueryMem");
 }

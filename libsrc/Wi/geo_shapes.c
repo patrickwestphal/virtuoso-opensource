@@ -129,55 +129,152 @@ geo_alloc_safe (geo_flags_t geo_flags_, int len_, int srcode_, dk_session_t * se
   int head_sz, gcb_bcount, gcb_sz, full_sz;
   switch (GEO_TYPE (geo_flags_))
     {
-    case GEO_NULL_SHAPE:		GEO_ALLOC_POINT(XYbox); break;
-    case GEO_POINT:			GEO_ALLOC_POINT(XYbox); break;
-    case GEO_POINT_Z:			GEO_ALLOC_POINT(_.point.point_ZMbox.Zmax); break;
-    case GEO_POINT_M:			GEO_ALLOC_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_POINT_Z_M:			GEO_ALLOC_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_LINESTRING:		GEO_ALLOC_PLINE(_.pline.Ys		, 2, 0, 0x100, 0x40, 1); break;
-    case GEO_LINESTRING_Z:		GEO_ALLOC_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0, 0x100, 0x40, 1); GEO_SET_CVECT(_.pline.Zs); break;
-    case GEO_LINESTRING_M:		GEO_ALLOC_PLINE(_.pline.Ms		, 2, 1, 0x100, 0x40, 1); GEO_SET_MVECT(_.pline.Ms); break;
-    case GEO_LINESTRING_Z_M:		GEO_ALLOC_PLINE(_.pline.Ms		, 3, 1, 0x100, 0x40, 1); GEO_SET_CVECT(_.pline.Zs); GEO_SET_MVECT(_.pline.Ms); break;
-    case GEO_BOX:			GEO_ALLOC_POINT(XYbox); break;
-    case GEO_BOX_Z:			GEO_ALLOC_POINT(_.point.point_ZMbox.Zmax); break;
-    case GEO_BOX_M:			GEO_ALLOC_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_BOX_Z_M:			GEO_ALLOC_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_ARCSTRING:			GEO_ALLOC_PLINE(_.pline.Ys		, 2, 0,  0x10, 0x08, 1); break;
-    case GEO_GSOP:			GEO_ALLOC_POINT(_.point.point_gs_precision); break;
-    case GEO_RING:			GEO_ALLOC_PLINE(_.pline.Ys		, 2, 0,  0x4, 0x2, 1); break;
-    case GEO_RING_Z:			GEO_ALLOC_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0,  0x80, 0x20, 1); GEO_SET_CVECT(_.pline.Zs); break;
-    case GEO_RING_M:			GEO_ALLOC_PLINE(_.pline.Ms		, 2, 1,  0x80, 0x20, 1); GEO_SET_MVECT(_.pline.Ms); break;
-    case GEO_RING_Z_M:			GEO_ALLOC_PLINE(_.pline.Ms		, 3, 1,  0x80, 0x20, 1); GEO_SET_CVECT(_.pline.Zs); GEO_SET_MVECT(_.pline.Ms); break;
-    case GEO_POINTLIST:			GEO_ALLOC_PLINE(_.pline.Ys		, 2, 0, 0x200, 0x20, 0);
-    case GEO_POINTLIST_Z:		GEO_ALLOC_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0, 0x200, 0x20, 0); GEO_SET_CVECT(_.pline.Zs); break;
-    case GEO_POINTLIST_M:		GEO_ALLOC_PLINE(_.pline.Ms		, 2, 1, 0x200, 0x20, 0); GEO_SET_MVECT(_.pline.Ms); break;
-    case GEO_POINTLIST_Z_M:		GEO_ALLOC_PLINE(_.pline.Ms		, 3, 1, 0x200, 0x20, 0); GEO_SET_CVECT(_.pline.Zs); GEO_SET_MVECT(_.pline.Ms); break;
-    case GEO_MULTI_LINESTRING:		GEO_ALLOC_PARTS(_.parts.items		, 0x100, 0x10, 0); break;
-    case GEO_MULTI_LINESTRING_Z:	GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 0); break;
-    case GEO_MULTI_LINESTRING_M:	GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0); break;
-    case GEO_MULTI_LINESTRING_Z_M:	GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0); break;
-    case GEO_POLYGON:			GEO_ALLOC_PARTS(_.parts.items		, 0x100, 0x10, 1); break;
-    case GEO_POLYGON_Z:			GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 1); break;
-    case GEO_POLYGON_M:			GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 1); break;
-    case GEO_POLYGON_Z_M:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 1); break;
-    case GEO_MULTI_POLYGON:		GEO_ALLOC_PARTS(_.parts.items		, 0x100, 0x10, 0); break;
-    case GEO_MULTI_POLYGON_Z:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 0); break;
-    case GEO_MULTI_POLYGON_M:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0); break;
-    case GEO_MULTI_POLYGON_Z_M:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0); break;
-    case GEO_COLLECTION:		GEO_ALLOC_PARTS(_.parts.items		, 0x100, 0x10, 0); break;
-    case GEO_COLLECTION_Z:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 0); break;
-    case GEO_COLLECTION_M:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0); break;
-    case GEO_COLLECTION_Z_M:		GEO_ALLOC_PARTS(_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0); break;
-    case GEO_CURVE:			GEO_ALLOC_PARTS(_.parts.items		,  0x10, 0x04, 0); break;
-    case GEO_CLOSEDCURVE:		GEO_ALLOC_PARTS(_.parts.items		,  0x10, 0x04, 0); break;
-    case GEO_CURVEPOLYGON:		GEO_ALLOC_PARTS(_.parts.items		,  0x10, 0x04, 1); break;
-    case GEO_MULTI_CURVE:		GEO_ALLOC_PARTS(_.parts.items		,  0x10, 0x04, 0); break;
+    case GEO_NULL_SHAPE:
+      GEO_ALLOC_POINT (XYbox);
+      break;
+    case GEO_POINT:
+      GEO_ALLOC_POINT (XYbox);
+      break;
+    case GEO_POINT_Z:
+      GEO_ALLOC_POINT (_.point.point_ZMbox.Zmax);
+      break;
+    case GEO_POINT_M:
+      GEO_ALLOC_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_POINT_Z_M:
+      GEO_ALLOC_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_LINESTRING:
+      GEO_ALLOC_PLINE (_.pline.Ys, 2, 0, 0x100, 0x40, 1);
+      break;
+    case GEO_LINESTRING_Z:
+      GEO_ALLOC_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0, 0x100, 0x40, 1);
+      GEO_SET_CVECT (_.pline.Zs);
+      break;
+    case GEO_LINESTRING_M:
+      GEO_ALLOC_PLINE (_.pline.Ms, 2, 1, 0x100, 0x40, 1);
+      GEO_SET_MVECT (_.pline.Ms);
+      break;
+    case GEO_LINESTRING_Z_M:
+      GEO_ALLOC_PLINE (_.pline.Ms, 3, 1, 0x100, 0x40, 1);
+      GEO_SET_CVECT (_.pline.Zs);
+      GEO_SET_MVECT (_.pline.Ms);
+      break;
+    case GEO_BOX:
+      GEO_ALLOC_POINT (XYbox);
+      break;
+    case GEO_BOX_Z:
+      GEO_ALLOC_POINT (_.point.point_ZMbox.Zmax);
+      break;
+    case GEO_BOX_M:
+      GEO_ALLOC_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_BOX_Z_M:
+      GEO_ALLOC_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_ARCSTRING:
+      GEO_ALLOC_PLINE (_.pline.Ys, 2, 0, 0x10, 0x08, 1);
+      break;
+    case GEO_GSOP:
+      GEO_ALLOC_POINT (_.point.point_gs_precision);
+      break;
+    case GEO_RING:
+      GEO_ALLOC_PLINE (_.pline.Ys, 2, 0, 0x80, 0x20, 1);
+      break;
+    case GEO_RING_Z:
+      GEO_ALLOC_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0, 0x80, 0x20, 1);
+      GEO_SET_CVECT (_.pline.Zs);
+      break;
+    case GEO_RING_M:
+      GEO_ALLOC_PLINE (_.pline.Ms, 2, 1, 0x80, 0x20, 1);
+      GEO_SET_MVECT (_.pline.Ms);
+      break;
+    case GEO_RING_Z_M:
+      GEO_ALLOC_PLINE (_.pline.Ms, 3, 1, 0x80, 0x20, 1);
+      GEO_SET_CVECT (_.pline.Zs);
+      GEO_SET_MVECT (_.pline.Ms);
+      break;
+    case GEO_POINTLIST:
+      GEO_ALLOC_PLINE (_.pline.Ys, 2, 0, 0x200, 0x20, 0);
+    case GEO_POINTLIST_Z:
+      GEO_ALLOC_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0, 0x200, 0x20, 0);
+      GEO_SET_CVECT (_.pline.Zs);
+      break;
+    case GEO_POINTLIST_M:
+      GEO_ALLOC_PLINE (_.pline.Ms, 2, 1, 0x200, 0x20, 0);
+      GEO_SET_MVECT (_.pline.Ms);
+      break;
+    case GEO_POINTLIST_Z_M:
+      GEO_ALLOC_PLINE (_.pline.Ms, 3, 1, 0x200, 0x20, 0);
+      GEO_SET_CVECT (_.pline.Zs);
+      GEO_SET_MVECT (_.pline.Ms);
+      break;
+    case GEO_MULTI_LINESTRING:
+      GEO_ALLOC_PARTS (_.parts.items, 0x100, 0x10, 0);
+      break;
+    case GEO_MULTI_LINESTRING_Z:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 0);
+      break;
+    case GEO_MULTI_LINESTRING_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0);
+      break;
+    case GEO_MULTI_LINESTRING_Z_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0);
+      break;
+    case GEO_POLYGON:
+      GEO_ALLOC_PARTS (_.parts.items, 0x100, 0x10, 1);
+      break;
+    case GEO_POLYGON_Z:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 1);
+      break;
+    case GEO_POLYGON_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 1);
+      break;
+    case GEO_POLYGON_Z_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 1);
+      break;
+    case GEO_MULTI_POLYGON:
+      GEO_ALLOC_PARTS (_.parts.items, 0x100, 0x10, 0);
+      break;
+    case GEO_MULTI_POLYGON_Z:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 0);
+      break;
+    case GEO_MULTI_POLYGON_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0);
+      break;
+    case GEO_MULTI_POLYGON_Z_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0);
+      break;
+    case GEO_COLLECTION:
+      GEO_ALLOC_PARTS (_.parts.items, 0x100, 0x10, 0);
+      break;
+    case GEO_COLLECTION_Z:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Zmax, 0x100, 0x10, 0);
+      break;
+    case GEO_COLLECTION_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0);
+      break;
+    case GEO_COLLECTION_Z_M:
+      GEO_ALLOC_PARTS (_.parts.parts_ZMbox.Mmax, 0x100, 0x10, 0);
+      break;
+    case GEO_CURVE:
+      GEO_ALLOC_PARTS (_.parts.items, 0x10, 0x04, 0);
+      break;
+    case GEO_CLOSEDCURVE:
+      GEO_ALLOC_PARTS (_.parts.items, 0x10, 0x04, 0);
+      break;
+    case GEO_CURVEPOLYGON:
+      GEO_ALLOC_PARTS (_.parts.items, 0x10, 0x04, 1);
+      break;
+    case GEO_MULTI_CURVE:
+      GEO_ALLOC_PARTS (_.parts.items, 0x10, 0x04, 0);
+      break;
     default:
-					{
-					  if (!ses)
-					    GPF_T;
-					  box_read_error (ses, DV_GEO);
-					}
+      {
+	if (!ses)
+	  GPF_T;
+	box_read_error (ses, DV_GEO);
+      }
     }
   res->geo_flags = geo_flags_;
   res->geo_srcode = srcode_;
@@ -211,7 +308,7 @@ geo_t *
 geo_bbox (geoc Xmin, geoc Ymin, geoc Xmax, geoc Ymax)
 {
   geo_t *res;
-  GEO_ALLOC_POINT(XYbox);
+  GEO_ALLOC_POINT (XYbox);
   res->geo_flags = GEO_BOX;
   res->geo_srcode = GEO_SRCODE_DEFAULT;
   res->XYbox.Xmin = Xmin;
@@ -247,57 +344,155 @@ geo_bbox (geoc Xmin, geoc Ymin, geoc Xmax, geoc Ymax)
   } while (0)
 
 geo_t *
-geo_copy (geo_t *src)
+geo_copy (geo_t * src)
 {
   size_t full_sz = box_length (src);
-  geo_t *res = (geo_t *)dk_alloc_box (full_sz, DV_GEO);
+  geo_t *res = (geo_t *) dk_alloc_box (full_sz, DV_GEO);
   memcpy (res, src, full_sz);
   switch (GEO_TYPE (src->geo_flags))
     {
-    case GEO_NULL_SHAPE:		GEO_COPY_POINT(XYbox); break;
-    case GEO_POINT:			GEO_COPY_POINT(XYbox); break;
-    case GEO_POINT_Z:			GEO_COPY_POINT(_.point.point_ZMbox.Zmax); break;
-    case GEO_POINT_M:			GEO_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_POINT_Z_M:			GEO_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_LINESTRING:		GEO_COPY_PLINE(_.pline.Ys, 2, 0); break;
-    case GEO_LINESTRING_Z:		GEO_COPY_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0); GEO_RESET_CVECT(_.pline.Zs); break;
-    case GEO_LINESTRING_M:		GEO_COPY_PLINE(_.pline.Ms, 2, 1); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_LINESTRING_Z_M:		GEO_COPY_PLINE(_.pline.Ms, 3, 1); GEO_RESET_CVECT(_.pline.Zs); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_BOX:			GEO_COPY_POINT(XYbox); break;
-    case GEO_BOX_Z:			GEO_COPY_POINT(_.point.point_ZMbox.Zmax); break;
-    case GEO_BOX_M:			GEO_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_BOX_Z_M:			GEO_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_ARCSTRING:			GEO_COPY_PLINE(_.pline.Ys, 2, 0); break;
-    case GEO_GSOP:			GEO_COPY_POINT(_.point.point_gs_precision); break;
-    case GEO_RING:			GEO_COPY_PLINE(_.pline.Ys, 2, 0); break;
-    case GEO_RING_Z:			GEO_COPY_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0); GEO_RESET_CVECT(_.pline.Zs); break;
-    case GEO_RING_M:			GEO_COPY_PLINE(_.pline.Ms, 2, 1); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_RING_Z_M:			GEO_COPY_PLINE(_.pline.Ms, 3, 1); GEO_RESET_CVECT(_.pline.Zs); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_POINTLIST:			GEO_COPY_PLINE(_.pline.Ys, 2, 0);
-    case GEO_POINTLIST_Z:		GEO_COPY_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0); GEO_RESET_CVECT(_.pline.Zs); break;
-    case GEO_POINTLIST_M:		GEO_COPY_PLINE(_.pline.Ms, 2, 1); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_POINTLIST_Z_M:		GEO_COPY_PLINE(_.pline.Ms, 3, 1); GEO_RESET_CVECT(_.pline.Zs); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_MULTI_LINESTRING:		GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_MULTI_LINESTRING_Z:	GEO_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_MULTI_LINESTRING_M:	GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_MULTI_LINESTRING_Z_M:	GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_POLYGON:			GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_POLYGON_Z:			GEO_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_POLYGON_M:			GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_POLYGON_Z_M:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_MULTI_POLYGON:		GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_MULTI_POLYGON_Z:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_MULTI_POLYGON_M:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_MULTI_POLYGON_Z_M:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_COLLECTION:		GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_COLLECTION_Z:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_COLLECTION_M:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_COLLECTION_Z_M:		GEO_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_CLOSEDCURVE:		GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_CURVE:			GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_CURVEPOLYGON:		GEO_COPY_PARTS(_.parts.items); break;
-    case GEO_MULTI_CURVE:		GEO_COPY_PARTS(_.parts.items); break;
-    default: GPF_T;
+    case GEO_NULL_SHAPE:
+      GEO_COPY_POINT (XYbox);
+      break;
+    case GEO_POINT:
+      GEO_COPY_POINT (XYbox);
+      break;
+    case GEO_POINT_Z:
+      GEO_COPY_POINT (_.point.point_ZMbox.Zmax);
+      break;
+    case GEO_POINT_M:
+      GEO_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_POINT_Z_M:
+      GEO_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_LINESTRING:
+      GEO_COPY_PLINE (_.pline.Ys, 2, 0);
+      break;
+    case GEO_LINESTRING_Z:
+      GEO_COPY_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0);
+      GEO_RESET_CVECT (_.pline.Zs);
+      break;
+    case GEO_LINESTRING_M:
+      GEO_COPY_PLINE (_.pline.Ms, 2, 1);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_LINESTRING_Z_M:
+      GEO_COPY_PLINE (_.pline.Ms, 3, 1);
+      GEO_RESET_CVECT (_.pline.Zs);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_BOX:
+      GEO_COPY_POINT (XYbox);
+      break;
+    case GEO_BOX_Z:
+      GEO_COPY_POINT (_.point.point_ZMbox.Zmax);
+      break;
+    case GEO_BOX_M:
+      GEO_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_BOX_Z_M:
+      GEO_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_ARCSTRING:
+      GEO_COPY_PLINE (_.pline.Ys, 2, 0);
+      break;
+    case GEO_GSOP:
+      GEO_COPY_POINT (_.point.point_gs_precision);
+      break;
+    case GEO_RING:
+      GEO_COPY_PLINE (_.pline.Ys, 2, 0);
+      break;
+    case GEO_RING_Z:
+      GEO_COPY_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0);
+      GEO_RESET_CVECT (_.pline.Zs);
+      break;
+    case GEO_RING_M:
+      GEO_COPY_PLINE (_.pline.Ms, 2, 1);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_RING_Z_M:
+      GEO_COPY_PLINE (_.pline.Ms, 3, 1);
+      GEO_RESET_CVECT (_.pline.Zs);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_POINTLIST:
+      GEO_COPY_PLINE (_.pline.Ys, 2, 0);
+    case GEO_POINTLIST_Z:
+      GEO_COPY_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0);
+      GEO_RESET_CVECT (_.pline.Zs);
+      break;
+    case GEO_POINTLIST_M:
+      GEO_COPY_PLINE (_.pline.Ms, 2, 1);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_POINTLIST_Z_M:
+      GEO_COPY_PLINE (_.pline.Ms, 3, 1);
+      GEO_RESET_CVECT (_.pline.Zs);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_MULTI_LINESTRING:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_MULTI_LINESTRING_Z:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_MULTI_LINESTRING_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_MULTI_LINESTRING_Z_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_POLYGON:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_POLYGON_Z:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_POLYGON_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_POLYGON_Z_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_MULTI_POLYGON:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_MULTI_POLYGON_Z:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_MULTI_POLYGON_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_MULTI_POLYGON_Z_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_COLLECTION:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_COLLECTION_Z:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_COLLECTION_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_COLLECTION_Z_M:
+      GEO_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_CLOSEDCURVE:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_CURVE:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_CURVEPOLYGON:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_MULTI_CURVE:
+      GEO_COPY_PARTS (_.parts.items);
+      break;
+    default:
+      GPF_T;
     }
   return res;
 }
@@ -321,57 +516,155 @@ geo_copy (geo_t *src)
   } while (0)
 
 geo_t *
-mp_geo_copy (mem_pool_t * mp, geo_t *src)
+mp_geo_copy (mem_pool_t * mp, geo_t * src)
 {
   size_t full_sz = box_length (src);
-  geo_t *res = (geo_t *)mp_alloc_box (mp, full_sz, DV_GEO);
+  geo_t *res = (geo_t *) mp_alloc_box (mp, full_sz, DV_GEO);
   memcpy (res, src, full_sz);
   switch (GEO_TYPE (src->geo_flags))
     {
-    case GEO_NULL_SHAPE:		GEO_MP_COPY_POINT(XYbox); break;
-    case GEO_POINT:			GEO_MP_COPY_POINT(XYbox); break;
-    case GEO_POINT_Z:			GEO_MP_COPY_POINT(_.point.point_ZMbox.Zmax); break;
-    case GEO_POINT_M:			GEO_MP_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_POINT_Z_M:			GEO_MP_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_LINESTRING:		GEO_MP_COPY_PLINE(_.pline.Ys, 2, 0); break;
-    case GEO_LINESTRING_Z:		GEO_MP_COPY_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0); GEO_RESET_CVECT(_.pline.Zs); break;
-    case GEO_LINESTRING_M:		GEO_MP_COPY_PLINE(_.pline.Ms, 2, 1); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_LINESTRING_Z_M:		GEO_MP_COPY_PLINE(_.pline.Ms, 3, 1); GEO_RESET_CVECT(_.pline.Zs); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_BOX:			GEO_MP_COPY_POINT(XYbox); break;
-    case GEO_BOX_Z:			GEO_MP_COPY_POINT(_.point.point_ZMbox.Zmax); break;
-    case GEO_BOX_M:			GEO_MP_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_BOX_Z_M:			GEO_MP_COPY_POINT(_.point.point_ZMbox.Mmax); break;
-    case GEO_ARCSTRING:			GEO_MP_COPY_PLINE(_.pline.Ys, 2, 0); break;
-    case GEO_GSOP:			GEO_MP_COPY_POINT(_.point.point_gs_precision); break;
-    case GEO_RING:			GEO_MP_COPY_PLINE(_.pline.Ys, 2, 0); break;
-    case GEO_RING_Z:			GEO_MP_COPY_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0); GEO_RESET_CVECT(_.pline.Zs); break;
-    case GEO_RING_M:			GEO_MP_COPY_PLINE(_.pline.Ms, 2, 1); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_RING_Z_M:			GEO_MP_COPY_PLINE(_.pline.Ms, 3, 1); GEO_RESET_CVECT(_.pline.Zs); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_POINTLIST:			GEO_MP_COPY_PLINE(_.pline.Ys, 2, 0);
-    case GEO_POINTLIST_Z:		GEO_MP_COPY_PLINE(_.pline.pline_ZMbox.Zmax, 3, 0); GEO_RESET_CVECT(_.pline.Zs); break;
-    case GEO_POINTLIST_M:		GEO_MP_COPY_PLINE(_.pline.Ms, 2, 1); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_POINTLIST_Z_M:		GEO_MP_COPY_PLINE(_.pline.Ms, 3, 1); GEO_RESET_CVECT(_.pline.Zs); GEO_RESET_MVECT(_.pline.Ms); break;
-    case GEO_MULTI_LINESTRING:		GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_MULTI_LINESTRING_Z:	GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_MULTI_LINESTRING_M:	GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_MULTI_LINESTRING_Z_M:	GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_POLYGON:			GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_POLYGON_Z:			GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_POLYGON_M:			GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_POLYGON_Z_M:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_MULTI_POLYGON:		GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_MULTI_POLYGON_Z:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_MULTI_POLYGON_M:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_MULTI_POLYGON_Z_M:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_COLLECTION:		GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_COLLECTION_Z:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Zmax); break;
-    case GEO_COLLECTION_M:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_COLLECTION_Z_M:		GEO_MP_COPY_PARTS(_.parts.parts_ZMbox.Mmax); break;
-    case GEO_CURVE:			GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_CLOSEDCURVE:		GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_CURVEPOLYGON:		GEO_MP_COPY_PARTS(_.parts.items); break;
-    case GEO_MULTI_CURVE:		GEO_MP_COPY_PARTS(_.parts.items); break;
-    default: GPF_T;
+    case GEO_NULL_SHAPE:
+      GEO_MP_COPY_POINT (XYbox);
+      break;
+    case GEO_POINT:
+      GEO_MP_COPY_POINT (XYbox);
+      break;
+    case GEO_POINT_Z:
+      GEO_MP_COPY_POINT (_.point.point_ZMbox.Zmax);
+      break;
+    case GEO_POINT_M:
+      GEO_MP_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_POINT_Z_M:
+      GEO_MP_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_LINESTRING:
+      GEO_MP_COPY_PLINE (_.pline.Ys, 2, 0);
+      break;
+    case GEO_LINESTRING_Z:
+      GEO_MP_COPY_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0);
+      GEO_RESET_CVECT (_.pline.Zs);
+      break;
+    case GEO_LINESTRING_M:
+      GEO_MP_COPY_PLINE (_.pline.Ms, 2, 1);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_LINESTRING_Z_M:
+      GEO_MP_COPY_PLINE (_.pline.Ms, 3, 1);
+      GEO_RESET_CVECT (_.pline.Zs);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_BOX:
+      GEO_MP_COPY_POINT (XYbox);
+      break;
+    case GEO_BOX_Z:
+      GEO_MP_COPY_POINT (_.point.point_ZMbox.Zmax);
+      break;
+    case GEO_BOX_M:
+      GEO_MP_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_BOX_Z_M:
+      GEO_MP_COPY_POINT (_.point.point_ZMbox.Mmax);
+      break;
+    case GEO_ARCSTRING:
+      GEO_MP_COPY_PLINE (_.pline.Ys, 2, 0);
+      break;
+    case GEO_GSOP:
+      GEO_MP_COPY_POINT (_.point.point_gs_precision);
+      break;
+    case GEO_RING:
+      GEO_MP_COPY_PLINE (_.pline.Ys, 2, 0);
+      break;
+    case GEO_RING_Z:
+      GEO_MP_COPY_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0);
+      GEO_RESET_CVECT (_.pline.Zs);
+      break;
+    case GEO_RING_M:
+      GEO_MP_COPY_PLINE (_.pline.Ms, 2, 1);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_RING_Z_M:
+      GEO_MP_COPY_PLINE (_.pline.Ms, 3, 1);
+      GEO_RESET_CVECT (_.pline.Zs);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_POINTLIST:
+      GEO_MP_COPY_PLINE (_.pline.Ys, 2, 0);
+    case GEO_POINTLIST_Z:
+      GEO_MP_COPY_PLINE (_.pline.pline_ZMbox.Zmax, 3, 0);
+      GEO_RESET_CVECT (_.pline.Zs);
+      break;
+    case GEO_POINTLIST_M:
+      GEO_MP_COPY_PLINE (_.pline.Ms, 2, 1);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_POINTLIST_Z_M:
+      GEO_MP_COPY_PLINE (_.pline.Ms, 3, 1);
+      GEO_RESET_CVECT (_.pline.Zs);
+      GEO_RESET_MVECT (_.pline.Ms);
+      break;
+    case GEO_MULTI_LINESTRING:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_MULTI_LINESTRING_Z:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_MULTI_LINESTRING_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_MULTI_LINESTRING_Z_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_POLYGON:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_POLYGON_Z:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_POLYGON_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_POLYGON_Z_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_MULTI_POLYGON:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_MULTI_POLYGON_Z:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_MULTI_POLYGON_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_MULTI_POLYGON_Z_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_COLLECTION:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_COLLECTION_Z:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Zmax);
+      break;
+    case GEO_COLLECTION_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_COLLECTION_Z_M:
+      GEO_MP_COPY_PARTS (_.parts.parts_ZMbox.Mmax);
+      break;
+    case GEO_CURVE:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_CLOSEDCURVE:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_CURVEPOLYGON:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    case GEO_MULTI_CURVE:
+      GEO_MP_COPY_PARTS (_.parts.items);
+      break;
+    default:
+      GPF_T;
     }
   return res;
 }
@@ -383,7 +676,7 @@ mp_geo_copy (mem_pool_t * mp, geo_t *src)
 #undef GEO_MP_COPY_PARTS
 
 int
-geo_destroy (geo_t *res)
+geo_destroy (geo_t * res)
 {
   geo_t **iter, **begin;
   switch (GEO_TYPE (res->geo_flags))
@@ -433,11 +726,12 @@ geo_destroy (geo_t *res)
     case GEO_CURVEPOLYGON:
     case GEO_MULTI_CURVE:
       break;
-    default: GPF_T;
+    default:
+      GPF_T;
     }
   begin = res->_.parts.items;
-  for (iter = begin + res->_.parts.len; iter-- > begin; /*no step*/)
-    dk_free_box ((caddr_t)(iter[0]));
+  for (iter = begin + res->_.parts.len; iter-- > begin; /*no step */ )
+    dk_free_box ((caddr_t) (iter[0]));
   return 0;
 }
 
@@ -1284,92 +1578,93 @@ typedef union ewkt_token_val_s
 
 ewkt_kwd_metas_t ewkt_keyword_metas[] = {
 /*  Name			| Serial| Type			| Subtype		| (...(	|minnums|maxnums|alias */
-  {"BOX"			,  0	, EWKT_KWD_GEO_TYPE	, GEO_BOX		, 1	, 2	, 3	, 0	},
-  {"BOX2D"			,  1	, EWKT_KWD_GEO_TYPE	, GEO_BOX		, 1	, 2	, 2	, 1	},
-  {"BOX3D"			,  2	, EWKT_KWD_GEO_TYPE	, GEO_BOX_Z		, 1	, 3	, 3	, 0	},
-  {"BOXM"			,  3	, EWKT_KWD_GEO_TYPE	, GEO_BOX_M		, 1	, 3	, 4	, 0	},
-  {"BOXZ"			,  4	, EWKT_KWD_GEO_TYPE	, GEO_BOX_Z		, 1	, 3	, 4	, 1	},
-  {"BOXZM"			,  5	, EWKT_KWD_GEO_TYPE	, GEO_BOX_Z_M		, 1	, 4	, 4	, 0	},
-  {"CIRCULARSTRING"		,  6	, EWKT_KWD_GEO_TYPE	, GEO_ARCSTRING		, 1	, 2	, 2	, 0	},
-  {"CIRCULARSTRINGM"		,  7	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CIRCULARSTRINGZ"		,  8	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CIRCULARSTRINGZM"		,  9	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"COMPOUNDCURVE"		, 10	, EWKT_KWD_GEO_TYPE	, GEO_CURVE		, 1	, 2	, 2	, 0	},
-  {"COMPOUNDCURVEM"		, 11	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"COMPOUNDCURVEZ"		, 12	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"COMPOUNDCURVEZM"		, 13	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVE"			, 14	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVEM"			, 15	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVEPOLYGON"		, 16	, EWKT_KWD_GEO_TYPE	, GEO_CURVEPOLYGON	, 2	, -1	, -1	, 0	},
-  {"CURVEPOLYGONM"		, 17	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVEPOLYGONZ"		, 18	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVEPOLYGONZM"		, 19	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVEZ"			, 20	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"CURVEZM"			, 21	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"EMPTY"			, 22	, EWKT_KWD_GEO_TYPE	, GEO_NULL_SHAPE	, 0	, 0	, 0	, 0	},
-  {"GEOMETRYCOLLECTION"		, 23	, EWKT_KWD_GEO_TYPE	, GEO_COLLECTION	, -1	, -1	, -1	, 0	},
-  {"GEOMETRYCOLLECTIONM"	, 24	, EWKT_KWD_GEO_TYPE	, GEO_COLLECTION_M	, -1	, -1	, -1	, 0	},
-  {"GEOMETRYCOLLECTIONZ"	, 25	, EWKT_KWD_GEO_TYPE	, GEO_COLLECTION_Z	, -1	, -1	, -1	, 0	},
-  {"GEOMETRYCOLLECTIONZM"	, 26	, EWKT_KWD_GEO_TYPE	, GEO_COLLECTION_Z_M	, -1	, -1	, -1	, 0	},
-  {"GEOMETRY"			, 27	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"GEOMETRYZ"			, 28	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"GEOMETRYZM"			, 29	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"LINESTRING"			, 30	, EWKT_KWD_GEO_TYPE	, GEO_LINESTRING	, 1	, 2	, 3	, 0	},
-  {"LINESTRINGM"		, 31	, EWKT_KWD_GEO_TYPE	, GEO_LINESTRING_M	, 1	, 3	, 4	, 0	},
-  {"LINESTRINGZ"		, 32	, EWKT_KWD_GEO_TYPE	, GEO_LINESTRING_Z	, 1	, 3	, 4	, 0	},
-  {"LINESTRINGZM"		, 33	, EWKT_KWD_GEO_TYPE	, GEO_LINESTRING_Z_M	, 1	, 4	, 4	, 0	},
-  {"M"				, 34	, EWKT_KWD_MODIF	, GEO_A_M		, 0	, 0	, 0	, 0	},
-  {"MULTICURVE"			, 35	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_CURVE	, 2	, 2	, 2	, 0	},
-  {"MULTICURVEM"		, 36	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTICURVEZ"		, 37	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTICURVEZM"		, 38	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTILINESTRING"		, 39	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_LINESTRING	, 2	, 2	, 3	, 0	},
-  {"MULTILINESTRINGM"		, 40	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_LINESTRING_M, 2	, 3	, 4	, 0	},
-  {"MULTILINESTRINGZ"		, 41	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_LINESTRING_Z, 2	, 3	, 4	, 0	},
-  {"MULTILINESTRINGZM"		, 42	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_LINESTRING_Z_M, 2	, 4	, 4	, 0	},
-  {"MULTIPATCH"			, 43	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTIPOINT"			, 44	, EWKT_KWD_GEO_TYPE	, GEO_POINTLIST		, 1	, 2	, 3	, 0	},
-  {"MULTIPOINTM"		, 45	, EWKT_KWD_GEO_TYPE	, GEO_POINTLIST_M	, 1	, 3	, 4	, 0	},
-  {"MULTIPOINTZ"		, 46	, EWKT_KWD_GEO_TYPE	, GEO_POINTLIST_Z	, 1	, 3	, 4	, 0	},
-  {"MULTIPOINTZM"		, 47	, EWKT_KWD_GEO_TYPE	, GEO_POINTLIST_Z_M	, 1	, 4	, 4	, 0	},
-  {"MULTIPOLYGON"		, 48	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_POLYGON	, 3	, 2	, 3	, 0	},
-  {"MULTIPOLYGONM"		, 49	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_POLYGON_M	, 3	, 3	, 4	, 0	},
-  {"MULTIPOLYGONZ"		, 50	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_POLYGON_Z	, 3	, 3	, 4	, 0	},
-  {"MULTIPOLYGONZM"		, 51	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_POLYGON_Z_M	, 3	, 4	, 4	, 0	},
-  {"MULTISURFACE"		, 52	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTISURFACEM"		, 53	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTISURFACEZ"		, 54	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"MULTISURFACEZM"		, 55	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"POINT"			, 56	, EWKT_KWD_GEO_TYPE	, GEO_POINT		, 1	, 2	, 3	, 0	},
-  {"POINTM"			, 57	, EWKT_KWD_GEO_TYPE	, GEO_POINT_M		, 1	, 3	, 4	, 0	},
-  {"POINTZ"			, 58	, EWKT_KWD_GEO_TYPE	, GEO_POINT_Z		, 1	, 3	, 4	, 0	},
-  {"POINTZM"			, 59	, EWKT_KWD_GEO_TYPE	, GEO_POINT_Z_M		, 1	, 4	, 4	, 0	},
-  {"POLYGON"			, 60	, EWKT_KWD_GEO_TYPE	, GEO_POLYGON		, 2	, 2	, 3	, 0	},
-  {"POLYGONM"			, 61	, EWKT_KWD_GEO_TYPE	, GEO_POLYGON_M		, 2	, 3	, 4	, 0	},
-  {"POLYGONZ"			, 62	, EWKT_KWD_GEO_TYPE	, GEO_POLYGON_Z		, 2	, 3	, 4	, 0	},
-  {"POLYGONZM"			, 63	, EWKT_KWD_GEO_TYPE	, GEO_POLYGON_Z_M	, 2	, 4	, 4	, 0	},
-  {"POLYHEDRALSURFACE"		, 64	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"POLYHEDRALSURFACEM"		, 65	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"POLYHEDRALSURFACEZ"		, 66	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"POLYHEDRALSURFACEZM"	, 67	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"POLYLINE"			, 68	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_LINESTRING	, 2	, 2	, 3	, 1	},
-  {"POLYLINEM"			, 69	, EWKT_KWD_GEO_TYPE	, -1			, 2	, 2	, 2	, 1	},
-  {"POLYLINEZ"			, 70	, EWKT_KWD_GEO_TYPE	, GEO_MULTI_LINESTRING_Z, 2	, 3	, 3	, 1	},
-  {"RING"			, 71	, EWKT_KWD_GEO_TYPE	, GEO_RING		, 1	, 2	, 3	, 0	},
-  {"RINGM"			, 72	, EWKT_KWD_GEO_TYPE	, GEO_RING_M		, 1	, 3	, 4	, 0	},
-  {"RINGZ"			, 73	, EWKT_KWD_GEO_TYPE	, GEO_RING_Z		, 1	, 3	, 4	, 0	},
-  {"RINGZM"			, 74	, EWKT_KWD_GEO_TYPE	, GEO_RING_Z_M		, 1	, 4	, 4	, 0	},
-  {"SRID"			, 75	, EWKT_KWD_EXT		, 0			, 0	, 0	, 0	, 0	},
-  {"SURFACE"			, 76	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"SURFACEM"			, 77	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"SURFACEZ"			, 78	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"SURFACEZM"			, 79	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"TIN"			, 80	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"TINM"			, 81	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"TINZ"			, 82	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"TINZM"			, 83	, EWKT_KWD_GEO_TYPE	, -1			, 1	, 2	, 2	, 0	},
-  {"Z"				, 84	, EWKT_KWD_MODIF	, GEO_A_Z		, 0	, 0	, 0	, 0	},
-  {"ZM"				, 85	, EWKT_KWD_MODIF	, GEO_A_Z | GEO_A_M	, 0	, 0	, 0	, 0	} };
+  {"BOX", 0, EWKT_KWD_GEO_TYPE, GEO_BOX, 1, 2, 3, 0},
+  {"BOX2D", 1, EWKT_KWD_GEO_TYPE, GEO_BOX, 1, 2, 2, 1},
+  {"BOX3D", 2, EWKT_KWD_GEO_TYPE, GEO_BOX_Z, 1, 3, 3, 0},
+  {"BOXM", 3, EWKT_KWD_GEO_TYPE, GEO_BOX_M, 1, 3, 4, 0},
+  {"BOXZ", 4, EWKT_KWD_GEO_TYPE, GEO_BOX_Z, 1, 3, 4, 1},
+  {"BOXZM", 5, EWKT_KWD_GEO_TYPE, GEO_BOX_Z_M, 1, 4, 4, 0},
+  {"CIRCULARSTRING", 6, EWKT_KWD_GEO_TYPE, GEO_ARCSTRING, 1, 2, 2, 0},
+  {"CIRCULARSTRINGM", 7, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CIRCULARSTRINGZ", 8, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CIRCULARSTRINGZM", 9, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"COMPOUNDCURVE", 10, EWKT_KWD_GEO_TYPE, GEO_CURVE, 1, 2, 2, 0},
+  {"COMPOUNDCURVEM", 11, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"COMPOUNDCURVEZ", 12, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"COMPOUNDCURVEZM", 13, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVE", 14, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVEM", 15, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVEPOLYGON", 16, EWKT_KWD_GEO_TYPE, GEO_CURVEPOLYGON, 2, -1, -1, 0},
+  {"CURVEPOLYGONM", 17, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVEPOLYGONZ", 18, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVEPOLYGONZM", 19, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVEZ", 20, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"CURVEZM", 21, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"EMPTY", 22, EWKT_KWD_GEO_TYPE, GEO_NULL_SHAPE, 0, 0, 0, 0},
+  {"GEOMETRYCOLLECTION", 23, EWKT_KWD_GEO_TYPE, GEO_COLLECTION, -1, -1, -1, 0},
+  {"GEOMETRYCOLLECTIONM", 24, EWKT_KWD_GEO_TYPE, GEO_COLLECTION_M, -1, -1, -1, 0},
+  {"GEOMETRYCOLLECTIONZ", 25, EWKT_KWD_GEO_TYPE, GEO_COLLECTION_Z, -1, -1, -1, 0},
+  {"GEOMETRYCOLLECTIONZM", 26, EWKT_KWD_GEO_TYPE, GEO_COLLECTION_Z_M, -1, -1, -1, 0},
+  {"GEOMETRY", 27, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"GEOMETRYZ", 28, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"GEOMETRYZM", 29, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"LINESTRING", 30, EWKT_KWD_GEO_TYPE, GEO_LINESTRING, 1, 2, 3, 0},
+  {"LINESTRINGM", 31, EWKT_KWD_GEO_TYPE, GEO_LINESTRING_M, 1, 3, 4, 0},
+  {"LINESTRINGZ", 32, EWKT_KWD_GEO_TYPE, GEO_LINESTRING_Z, 1, 3, 4, 0},
+  {"LINESTRINGZM", 33, EWKT_KWD_GEO_TYPE, GEO_LINESTRING_Z_M, 1, 4, 4, 0},
+  {"M", 34, EWKT_KWD_MODIF, GEO_A_M, 0, 0, 0, 0},
+  {"MULTICURVE", 35, EWKT_KWD_GEO_TYPE, GEO_MULTI_CURVE, 2, 2, 2, 0},
+  {"MULTICURVEM", 36, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTICURVEZ", 37, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTICURVEZM", 38, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTILINESTRING", 39, EWKT_KWD_GEO_TYPE, GEO_MULTI_LINESTRING, 2, 2, 3, 0},
+  {"MULTILINESTRINGM", 40, EWKT_KWD_GEO_TYPE, GEO_MULTI_LINESTRING_M, 2, 3, 4, 0},
+  {"MULTILINESTRINGZ", 41, EWKT_KWD_GEO_TYPE, GEO_MULTI_LINESTRING_Z, 2, 3, 4, 0},
+  {"MULTILINESTRINGZM", 42, EWKT_KWD_GEO_TYPE, GEO_MULTI_LINESTRING_Z_M, 2, 4, 4, 0},
+  {"MULTIPATCH", 43, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTIPOINT", 44, EWKT_KWD_GEO_TYPE, GEO_POINTLIST, 1, 2, 3, 0},
+  {"MULTIPOINTM", 45, EWKT_KWD_GEO_TYPE, GEO_POINTLIST_M, 1, 3, 4, 0},
+  {"MULTIPOINTZ", 46, EWKT_KWD_GEO_TYPE, GEO_POINTLIST_Z, 1, 3, 4, 0},
+  {"MULTIPOINTZM", 47, EWKT_KWD_GEO_TYPE, GEO_POINTLIST_Z_M, 1, 4, 4, 0},
+  {"MULTIPOLYGON", 48, EWKT_KWD_GEO_TYPE, GEO_MULTI_POLYGON, 3, 2, 3, 0},
+  {"MULTIPOLYGONM", 49, EWKT_KWD_GEO_TYPE, GEO_MULTI_POLYGON_M, 3, 3, 4, 0},
+  {"MULTIPOLYGONZ", 50, EWKT_KWD_GEO_TYPE, GEO_MULTI_POLYGON_Z, 3, 3, 4, 0},
+  {"MULTIPOLYGONZM", 51, EWKT_KWD_GEO_TYPE, GEO_MULTI_POLYGON_Z_M, 3, 4, 4, 0},
+  {"MULTISURFACE", 52, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTISURFACEM", 53, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTISURFACEZ", 54, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"MULTISURFACEZM", 55, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"POINT", 56, EWKT_KWD_GEO_TYPE, GEO_POINT, 1, 2, 3, 0},
+  {"POINTM", 57, EWKT_KWD_GEO_TYPE, GEO_POINT_M, 1, 3, 4, 0},
+  {"POINTZ", 58, EWKT_KWD_GEO_TYPE, GEO_POINT_Z, 1, 3, 4, 0},
+  {"POINTZM", 59, EWKT_KWD_GEO_TYPE, GEO_POINT_Z_M, 1, 4, 4, 0},
+  {"POLYGON", 60, EWKT_KWD_GEO_TYPE, GEO_POLYGON, 2, 2, 3, 0},
+  {"POLYGONM", 61, EWKT_KWD_GEO_TYPE, GEO_POLYGON_M, 2, 3, 4, 0},
+  {"POLYGONZ", 62, EWKT_KWD_GEO_TYPE, GEO_POLYGON_Z, 2, 3, 4, 0},
+  {"POLYGONZM", 63, EWKT_KWD_GEO_TYPE, GEO_POLYGON_Z_M, 2, 4, 4, 0},
+  {"POLYHEDRALSURFACE", 64, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"POLYHEDRALSURFACEM", 65, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"POLYHEDRALSURFACEZ", 66, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"POLYHEDRALSURFACEZM", 67, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"POLYLINE", 68, EWKT_KWD_GEO_TYPE, GEO_MULTI_LINESTRING, 2, 2, 3, 1},
+  {"POLYLINEM", 69, EWKT_KWD_GEO_TYPE, -1, 2, 2, 2, 1},
+  {"POLYLINEZ", 70, EWKT_KWD_GEO_TYPE, GEO_MULTI_LINESTRING_Z, 2, 3, 3, 1},
+  {"RING", 71, EWKT_KWD_GEO_TYPE, GEO_RING, 1, 2, 3, 0},
+  {"RINGM", 72, EWKT_KWD_GEO_TYPE, GEO_RING_M, 1, 3, 4, 0},
+  {"RINGZ", 73, EWKT_KWD_GEO_TYPE, GEO_RING_Z, 1, 3, 4, 0},
+  {"RINGZM", 74, EWKT_KWD_GEO_TYPE, GEO_RING_Z_M, 1, 4, 4, 0},
+  {"SRID", 75, EWKT_KWD_EXT, 0, 0, 0, 0, 0},
+  {"SURFACE", 76, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"SURFACEM", 77, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"SURFACEZ", 78, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"SURFACEZM", 79, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"TIN", 80, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"TINM", 81, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"TINZ", 82, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"TINZM", 83, EWKT_KWD_GEO_TYPE, -1, 1, 2, 2, 0},
+  {"Z", 84, EWKT_KWD_MODIF, GEO_A_Z, 0, 0, 0, 0},
+  {"ZM", 85, EWKT_KWD_MODIF, GEO_A_Z | GEO_A_M, 0, 0, 0, 0}
+};
 
 dk_hash_t *ewkt_geotype_metas = NULL;
 
@@ -1531,30 +1826,31 @@ ewkt_get_points (ewkt_input_t * in, ewkt_kwd_metas_t * head_metas)
 		ewkt_signal (in, "Too many coordinates are listed for a point");
 	      if (dim_idx >= head_metas->kwd_max_nums)
 		ewkt_signal (in, "The point has more coordinates than permitted by the spatial type");
-              if (GEO_SR_SPHEROID_DEGREES (in->ewkt_srcode))
-                {
-                  switch (dim_idx)
-                    {
-                    case 0:
-                      if ((val.v_geoc < -270.0) || (val.v_geoc > 450.0))
-                        ewkt_signal (in, "The point coordinates are spherical degrees and the longitude is out of range -270..450");
-                    break;
-                    case 1:
-                      if ((val.v_geoc < -90.0) || (val.v_geoc > 90.0))
-                        {
-                          geo_flags_t core_type = GEO_TYPE_CORE (head_metas->kwd_subtype);
-                          if ((GEO_BOX != core_type) || ((val.v_geoc < -181.0) || (val.v_geoc > 181.0)))
-                            ewkt_signal (in, "The point coordinates are spherical degrees and the latitude is out of range -90..90");
-                          val.v_geoc = ((val.v_geoc < 0) ? -90 : 90.0); /* Special case for bounding boxes calculated by ill algorithms */
-                        }
-                    break;
-                    }
-                }
-              else
-                {
-                  if ((val.v_geoc <= -0.5 * geoc_FARAWAY) || (val.v_geoc >= 0.5 * geoc_FARAWAY))
-                    ewkt_signal (in, "The point coordinate is out of range -5E37..+5E37");
-                }
+	      if (GEO_SR_SPHEROID_DEGREES (in->ewkt_srcode))
+		{
+		  switch (dim_idx)
+		    {
+		    case 0:
+		      if ((val.v_geoc < -270.0) || (val.v_geoc > 450.0))
+			ewkt_signal (in, "The point coordinates are spherical degrees and the longitude is out of range -270..450");
+		      break;
+		    case 1:
+		      if ((val.v_geoc < -90.0) || (val.v_geoc > 90.0))
+			{
+			  geo_flags_t core_type = GEO_TYPE_CORE (head_metas->kwd_subtype);
+			  if ((GEO_BOX != core_type) || ((val.v_geoc < -181.0) || (val.v_geoc > 181.0)))
+			    ewkt_signal (in,
+				"The point coordinates are spherical degrees and the latitude is out of range -90..90");
+			  val.v_geoc = ((val.v_geoc < 0) ? -90 : 90.0);	/* Special case for bounding boxes calculated by ill algorithms */
+			}
+		      break;
+		    }
+		}
+	      else
+		{
+		  if ((val.v_geoc <= -0.5 * geoc_FARAWAY) || (val.v_geoc >= 0.5 * geoc_FARAWAY))
+		    ewkt_signal (in, "The point coordinate is out of range -5E37..+5E37");
+		}
 	      in->ekwt_Cs[dim_idx++][in->ekwt_point_count] = val.v_geoc;
 	      continue;
 	    case EWKT_NUM_BAD:
@@ -1839,12 +2135,12 @@ ewkt_get_one (ewkt_input_t * in, ewkt_kwd_metas_t * head_metas)
   res->Cmax = in->ekwt_Cs[dim_ctr++][1]; \
   if (res->Cmax < res->Cmin) { geoc Cswap = res->Cmin ; res->Cmin = res->Cmax; res->Cmax = Cswap; } \
   } while (0)
-          SET_MINMAX(XYbox.Xmin,XYbox.Xmax);
-          SET_MINMAX(XYbox.Ymin,XYbox.Ymax);
+	  SET_MINMAX (XYbox.Xmin, XYbox.Xmax);
+	  SET_MINMAX (XYbox.Ymin, XYbox.Ymax);
 	  if (GEO_A_Z & geo_type)
-            SET_MINMAX(_.point.point_ZMbox.Zmin,_.point.point_ZMbox.Zmax);
+	    SET_MINMAX (_.point.point_ZMbox.Zmin, _.point.point_ZMbox.Zmax);
 	  if (GEO_A_M & geo_type)
-            SET_MINMAX(_.point.point_ZMbox.Mmin,_.point.point_ZMbox.Mmax);
+	    SET_MINMAX (_.point.point_ZMbox.Mmin, _.point.point_ZMbox.Mmax);
 	  return res;
 	}
       res = geo_alloc (geo_type, in->ekwt_point_count, in->ewkt_srcode);
@@ -2121,35 +2417,47 @@ ewkt_print_sf12 (geo_t * g, dk_session_t * ses)
   } while (0)
 
 void
-geo_print_dxf_attrs (caddr_t *attrs, dk_session_t *ses)
+geo_print_dxf_attrs (caddr_t * attrs, dk_session_t * ses)
 {
   int ofs, len = BOX_ELEMENTS (attrs);
   if (len % 2)
     sqlr_new_error ("22023", "DXF01", "Vector of DXF attributes should be of even length, not of length %d", len);
   for (ofs = 0; ofs < len; ofs += 2)
     {
-      caddr_t mark_box = attrs [ofs], v_box = attrs [ofs + 1];
+      caddr_t mark_box = attrs[ofs], v_box = attrs[ofs + 1];
       int mark;
       if (DV_LONG_INT != DV_TYPE_OF (mark_box))
-        sqlr_new_error ("22023", "DXF02", "Vector of DXF attributes contains non-integer attribute mark at offset %d", ofs);
+	sqlr_new_error ("22023", "DXF02", "Vector of DXF attributes contains non-integer attribute mark at offset %d", ofs);
       mark = unbox (mark_box);
       if ((mark <= 0) || (mark > 9999))
-        sqlr_new_error ("22023", "DXF03", "Vector of DXF attributes contains wrong attribute mark %d at offset %d", mark, ofs);
+	sqlr_new_error ("22023", "DXF03", "Vector of DXF attributes contains wrong attribute mark %d at offset %d", mark, ofs);
       switch (DV_TYPE_OF (v_box))
-        {
-        case DV_SINGLE_FLOAT: SES_DXF_REAL (ses, mark, unbox_float (v_box)); break;
-        case DV_DOUBLE_FLOAT: SES_DXF_REAL (ses, mark, unbox_double (v_box)); break;
-        case DV_LONG_INT: SES_DXF_INTEGER (ses, mark, unbox (v_box)); break;
-        case DV_UNAME: SES_DXF_ID (ses, mark, v_box); break;
-        case DV_STRING: SES_DXF_ID (ses, mark, v_box); break;
-        default:
-          sqlr_new_error ("22023", "DXF04", "Vector of DXF attributes contains value of unsupported type %d for attribute mark %d at offset %d", DV_TYPE_OF (v_box), mark, ofs);
-        }
+	{
+	case DV_SINGLE_FLOAT:
+	  SES_DXF_REAL (ses, mark, unbox_float (v_box));
+	  break;
+	case DV_DOUBLE_FLOAT:
+	  SES_DXF_REAL (ses, mark, unbox_double (v_box));
+	  break;
+	case DV_LONG_INT:
+	  SES_DXF_INTEGER (ses, mark, unbox (v_box));
+	  break;
+	case DV_UNAME:
+	  SES_DXF_ID (ses, mark, v_box);
+	  break;
+	case DV_STRING:
+	  SES_DXF_ID (ses, mark, v_box);
+	  break;
+	default:
+	  sqlr_new_error ("22023", "DXF04",
+	      "Vector of DXF attributes contains value of unsupported type %d for attribute mark %d at offset %d",
+	      DV_TYPE_OF (v_box), mark, ofs);
+	}
     }
 }
 
 void
-geo_print_as_dxf_entity (geo_t *g, caddr_t *attrs, dk_session_t *ses)
+geo_print_as_dxf_entity (geo_t * g, caddr_t * attrs, dk_session_t * ses)
 {
   int flags_no_zm = GEO_TYPE_NO_ZM (g->geo_flags);
   switch (flags_no_zm)
@@ -2165,49 +2473,57 @@ geo_print_as_dxf_entity (geo_t *g, caddr_t *attrs, dk_session_t *ses)
       SES_DXF_XYZ (ses, 12, g->XYbox.Xmax, g->XYbox.Ymin, 0.0, 0);
       SES_DXF_XYZ (ses, 13, g->XYbox.Xmax, g->XYbox.Ymax, 0.0, 0);
       if (g->geo_flags & GEO_A_Z)
-        {
-          SES_DXF_REAL (ses, 38, g->_.point.point_ZMbox.Zmin);
-          SES_DXF_REAL (ses, 39, g->_.point.point_ZMbox.Zmax - g->_.point.point_ZMbox.Zmin);
-        }
+	{
+	  SES_DXF_REAL (ses, 38, g->_.point.point_ZMbox.Zmin);
+	  SES_DXF_REAL (ses, 39, g->_.point.point_ZMbox.Zmax - g->_.point.point_ZMbox.Zmin);
+	}
       break;
     case GEO_POINTLIST:
       {
-        int inx, len = g->_.pline.len;
-        for (inx=0; inx < len; inx++)
-          {
-            SES_DXF_ID (ses, 0, "POINT");
-            SES_DXF_XYZ (ses, 10, g->_.pline.Xs[inx], g->_.pline.Ys[inx], g->_.pline.Zs[inx], g->geo_flags);
-            geo_print_dxf_attrs (attrs, ses);
-          }
-        return; /* not "break" because attrs are repeatedly printed for each point */
+	int inx, len = g->_.pline.len;
+	for (inx = 0; inx < len; inx++)
+	  {
+	    SES_DXF_ID (ses, 0, "POINT");
+	    SES_DXF_XYZ (ses, 10, g->_.pline.Xs[inx], g->_.pline.Ys[inx], g->_.pline.Zs[inx], g->geo_flags);
+	    geo_print_dxf_attrs (attrs, ses);
+	  }
+	return;			/* not "break" because attrs are repeatedly printed for each point */
       }
-    case GEO_LINESTRING: case GEO_RING:
+    case GEO_LINESTRING:
+    case GEO_RING:
       {
-        int inx, len = g->_.pline.len;
-        SES_DXF_ID (ses, 0, "LWPOLYLINE");
-        if (GEO_RING == flags_no_zm)
-          SES_DXF_INTEGER (ses, 70, 1);
-        geo_print_dxf_attrs (attrs, ses);
-        SES_DXF_INTEGER (ses, 90, len);
-        for (inx=0; inx < len; inx++)
-          SES_DXF_XYZ (ses, 10, g->_.pline.Xs[inx], g->_.pline.Ys[inx], g->_.pline.Zs[inx], g->geo_flags);
-        return; /* not "break" because attrs are repeatedly printed for each point */
+	int inx, len = g->_.pline.len;
+	SES_DXF_ID (ses, 0, "LWPOLYLINE");
+	if (GEO_RING == flags_no_zm)
+	  SES_DXF_INTEGER (ses, 70, 1);
+	geo_print_dxf_attrs (attrs, ses);
+	SES_DXF_INTEGER (ses, 90, len);
+	for (inx = 0; inx < len; inx++)
+	  SES_DXF_XYZ (ses, 10, g->_.pline.Xs[inx], g->_.pline.Ys[inx], g->_.pline.Zs[inx], g->geo_flags);
+	return;			/* not "break" because attrs are repeatedly printed for each point */
       }
-    case GEO_COLLECTION: case GEO_MULTI_LINESTRING: case GEO_MULTI_POLYGON: case GEO_MULTI_CURVE:
+    case GEO_COLLECTION:
+    case GEO_MULTI_LINESTRING:
+    case GEO_MULTI_POLYGON:
+    case GEO_MULTI_CURVE:
     case GEO_POLYGON:
       {
-        int inx, len = g->_.parts.len;
-        for (inx=0; inx < len; inx++)
-          {
-            geo_t *itm = g->_.parts.items[inx];
-            geo_print_as_dxf_entity (itm, attrs, ses);
-          }
-        return; /* not "break" because attrs are repeatedly printed for each item */
+	int inx, len = g->_.parts.len;
+	for (inx = 0; inx < len; inx++)
+	  {
+	    geo_t *itm = g->_.parts.items[inx];
+	    geo_print_as_dxf_entity (itm, attrs, ses);
+	  }
+	return;			/* not "break" because attrs are repeatedly printed for each item */
       }
-    case GEO_ARCSTRING: case GEO_ARCSTRING | GEO_A_CLOSED:
-    case GEO_CURVE: case GEO_CLOSEDCURVE: case GEO_CURVEPOLYGON:
+    case GEO_ARCSTRING:
+    case GEO_ARCSTRING | GEO_A_CLOSED:
+    case GEO_CURVE:
+    case GEO_CLOSEDCURVE:
+    case GEO_CURVEPOLYGON:
       sqlr_new_error ("22023", "DXF05", "This version of Virtuoso does not support DXF output of shapes of type %d", g->geo_flags);
-    default: GPF_T;
+    default:
+      GPF_T;
     }
   geo_print_dxf_attrs (attrs, ses);
 }
@@ -2470,8 +2786,8 @@ geo_serialize_one (geo_t * g, int is_topmost, dk_session_t * ses)
     {
 /* Old types */
     case GEO_POINT:
-      print_v_double (Xkey(g), ses);
-      print_v_double (Ykey(g), ses);
+      print_v_double (Xkey (g), ses);
+      print_v_double (Ykey (g), ses);
       return;
     case GEO_BOX:
       print_v_double (g->XYbox.Xmin, ses);
@@ -2581,9 +2897,18 @@ geo_serialize (geo_t * g, dk_session_t * ses)
   if (cli && cli->cli_version)
     {
       caddr_t xx = geo_wkt ((caddr_t) g);
-      session_buffered_write_char (DV_SHORT_STRING_SERIAL, ses);
-      session_buffered_write_char (strlen (xx), ses);
-      session_buffered_write (ses, xx, strlen (xx));
+      size_t len = box_length (xx) - 1;
+      if (len < 256)
+	{
+	  session_buffered_write_char (DV_SHORT_STRING_SERIAL, ses);
+	  session_buffered_write_char (len, ses);
+	}
+      else
+	{
+	  session_buffered_write_char (DV_STRING, ses);
+	  print_long ((long) len, ses);
+	}
+      session_buffered_write (ses, xx, len);
       dk_free_box (xx);
       return;
     }
@@ -2631,12 +2956,12 @@ geo_deserialize_one (int srcode /* -1 for topmost */ , dk_session_t * ses)
       {
 	int inx, pointcount = (read_int (ses) - 1) / 2;
 	g = geo_alloc_safe (flags, pointcount, srcode, ses);
-        GEO_XYBOX_SET_EMPTY (g->XYbox);
+	GEO_XYBOX_SET_EMPTY (g->XYbox);
 	for (inx = 0; inx < pointcount; inx++)
 	  {
-            geoc pX = g->_.pline.Xs[inx] = read_v_double (ses);
-            geoc pY = g->_.pline.Ys[inx] = read_v_double (ses);
-            GEO_XYBOX_STRETCH_BY_POINT (g->XYbox, pX, pY);
+	    geoc pX = g->_.pline.Xs[inx] = read_v_double (ses);
+	    geoc pY = g->_.pline.Ys[inx] = read_v_double (ses);
+	    GEO_XYBOX_STRETCH_BY_POINT (g->XYbox, pX, pY);
 	  }
 	return g;
       }
@@ -2676,10 +3001,10 @@ geo_deserialize_one (int srcode /* -1 for topmost */ , dk_session_t * ses)
   switch (GEO_TYPE_CORE (flags))
     {
     case GEO_NULL_SHAPE:
-        g = geo_alloc_safe (flags, 0, srcode, ses);
+      g = geo_alloc_safe (flags, 0, srcode, ses);
       return g;
     case GEO_POINT:
-        g = geo_alloc_safe (flags, 0, srcode, ses);
+      g = geo_alloc_safe (flags, 0, srcode, ses);
       g->XYbox.Xmin = g->XYbox.Xmax = read_v_double (ses);
       g->XYbox.Ymin = g->XYbox.Ymax = read_v_double (ses);
       print_v_double (g->XYbox.Ymin, ses);
@@ -2689,7 +3014,7 @@ geo_deserialize_one (int srcode /* -1 for topmost */ , dk_session_t * ses)
 	g->_.point.point_ZMbox.Mmin = g->_.point.point_ZMbox.Mmax = read_v_double (ses);
       return g;
     case GEO_BOX:
-        g = geo_alloc_safe (flags, 0, srcode, ses);
+      g = geo_alloc_safe (flags, 0, srcode, ses);
       read_bbox (g, g->_.point.point_ZMbox, ses);
       return g;
     case GEO_ARCSTRING:
@@ -2698,7 +3023,7 @@ geo_deserialize_one (int srcode /* -1 for topmost */ , dk_session_t * ses)
       {
 	int bbox_preserved = ((GEO_ARCSTRING == GEO_TYPE_CORE (flags)) || (flags & GEO_IS_CHAINBOXED));
 	int pointcount = read_int (ses);
-        g = geo_alloc_safe (flags, pointcount, srcode, ses);
+	g = geo_alloc_safe (flags, pointcount, srcode, ses);
 	if (flags & GEO_IS_CHAINBOXED)
 	  {
 	    geo_chainbox_t *gcb;
@@ -2948,7 +3273,8 @@ geo_XY_inoutside_ring (geoc pX, geoc pY, geo_t * ring)
 	    {
 	      if (pX >= gcb_ptr->Xmin)
 		{
-		  int inoutside = geo_XY_inoutside_ring_lines (pX, pY, gcb_next_stop - inx, Xs + inx, Ys + inx, &up_crosses_ray,
+		  int inoutside =
+		      geo_XY_inoutside_ring_lines (pX, pY, gcb_next_stop - inx, Xs + inx, Ys + inx, &up_crosses_ray,
 		      &down_crosses_ray);
 		  if (inoutside)
 		    return inoutside;
@@ -3048,7 +3374,7 @@ geo_XY_inoutside_polygon (geoc pX, geoc pY, geo_t * g)
 }
 
 void
-geo_modify_by_translate (geo_t *g, geoc dX, geoc dY, geoc dZ)
+geo_modify_by_translate (geo_t * g, geoc dX, geoc dY, geoc dZ)
 {
   geo_flags_t flags = g->geo_flags;
 
@@ -3068,63 +3394,69 @@ geo_modify_by_translate (geo_t *g, geoc dX, geoc dY, geoc dZ)
   if (flags & (GEO_A_RINGS | GEO_A_COMPOUND | GEO_A_MULTI | GEO_A_ARRAY))
     {
       int ctr;
-      for (ctr = g->_.parts.len; ctr--; /* no step */)
-        geo_modify_by_translate (g->_.parts.items[ctr], dX, dY, dZ);
+      for (ctr = g->_.parts.len; ctr--; /* no step */ )
+	geo_modify_by_translate (g->_.parts.items[ctr], dX, dY, dZ);
       if (flags & GEO_IS_CHAINBOXED)
-        {
-          geo_chainbox_t *gcb = g->_.parts.parts_gcb;
-          if (gcb->gcb_is_set)
-            for (ctr = gcb->gcb_box_count; ctr--; /* no step */)
-              if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(gcb->gcb_boxes[ctr]))
-                XYBOX_TRANSLATE(gcb->gcb_boxes[ctr]);
-        }
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XYBOX_TRANSLATE(g->XYbox);
-          ZBOX_TRANSLATE(g->_.parts.parts_ZMbox);
-        }
+	{
+	  geo_chainbox_t *gcb = g->_.parts.parts_gcb;
+	  if (gcb->gcb_is_set)
+	    for (ctr = gcb->gcb_box_count; ctr--; /* no step */ )
+	      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (gcb->gcb_boxes[ctr]))
+		XYBOX_TRANSLATE (gcb->gcb_boxes[ctr]);
+	}
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XYBOX_TRANSLATE (g->XYbox);
+	  ZBOX_TRANSLATE (g->_.parts.parts_ZMbox);
+	}
       return;
     }
   switch (GEO_TYPE_CORE (flags))
     {
-    case GEO_NULL_SHAPE: case GEO_BOX:
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XYBOX_TRANSLATE(g->XYbox);
-          ZBOX_TRANSLATE(g->_.point.point_ZMbox);
-        }
+    case GEO_NULL_SHAPE:
+    case GEO_BOX:
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XYBOX_TRANSLATE (g->XYbox);
+	  ZBOX_TRANSLATE (g->_.point.point_ZMbox);
+	}
       return;
-    case GEO_POINT: case GEO_GSOP:
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XY_TRANSLATE(g->XYbox.Xmin, g->XYbox.Ymin);
-          g->XYbox.Xmax = g->XYbox.Xmin; g->XYbox.Ymax = g->XYbox.Ymin;
-          ZBOX_TRANSLATE(g->_.point.point_ZMbox);
-        }
+    case GEO_POINT:
+    case GEO_GSOP:
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XY_TRANSLATE (g->XYbox.Xmin, g->XYbox.Ymin);
+	  g->XYbox.Xmax = g->XYbox.Xmin;
+	  g->XYbox.Ymax = g->XYbox.Ymin;
+	  ZBOX_TRANSLATE (g->_.point.point_ZMbox);
+	}
       return;
-    case GEO_LINESTRING: case GEO_POINTLIST: case GEO_ARCSTRING:
+    case GEO_LINESTRING:
+    case GEO_POINTLIST:
+    case GEO_ARCSTRING:
       {
-        int ctr;
-        for (ctr = g->_.pline.len; ctr--; /* no step */)
-          XY_TRANSLATE(g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
-        if ((0 != dZ) && (flags & GEO_A_Z))
-          for (ctr = g->_.pline.len; ctr--; /* no step */)
-            Z_TRANSLATE(g->_.pline.Zs[ctr]);
-        if (flags & GEO_IS_CHAINBOXED)
-          {
-            geo_chainbox_t *gcb = g->_.pline.pline_gcb;
-            if (gcb->gcb_is_set)
-              for (ctr = gcb->gcb_box_count; ctr--; /* no step */)
-                XYBOX_TRANSLATE(gcb->gcb_boxes[ctr]);
-          }
-        if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-          {
-            XYBOX_TRANSLATE(g->XYbox);
-            ZBOX_TRANSLATE(g->_.pline.pline_ZMbox);
-          }
-        return;
+	int ctr;
+	for (ctr = g->_.pline.len; ctr--; /* no step */ )
+	  XY_TRANSLATE (g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
+	if ((0 != dZ) && (flags & GEO_A_Z))
+	  for (ctr = g->_.pline.len; ctr--; /* no step */ )
+	    Z_TRANSLATE (g->_.pline.Zs[ctr]);
+	if (flags & GEO_IS_CHAINBOXED)
+	  {
+	    geo_chainbox_t *gcb = g->_.pline.pline_gcb;
+	    if (gcb->gcb_is_set)
+	      for (ctr = gcb->gcb_box_count; ctr--; /* no step */ )
+		XYBOX_TRANSLATE (gcb->gcb_boxes[ctr]);
+	  }
+	if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	  {
+	    XYBOX_TRANSLATE (g->XYbox);
+	    ZBOX_TRANSLATE (g->_.pline.pline_ZMbox);
+	  }
+	return;
       }
-    default: GPF_T;
+    default:
+      GPF_T;
     }
   return;
 #undef XY_TRANSLATE
@@ -3134,7 +3466,7 @@ geo_modify_by_translate (geo_t *g, geoc dX, geoc dY, geoc dZ)
 }
 
 void
-geo_modify_by_transscale (geo_t *g, geoc dX, geoc dY, geoc Xfactor, geoc Yfactor)
+geo_modify_by_transscale (geo_t * g, geoc dX, geoc dY, geoc Xfactor, geoc Yfactor)
 {
   geo_flags_t flags = g->geo_flags;
 
@@ -3151,68 +3483,74 @@ geo_modify_by_transscale (geo_t *g, geoc dX, geoc dY, geoc Xfactor, geoc Yfactor
     {
       int ctr;
       int invert = ((flags & GEO_A_COMPOUND) && (0 < (Xfactor * Yfactor)));
-      for (ctr = g->_.parts.len; ctr--; /* no step */)
-        geo_modify_by_transscale (g->_.parts.items[ctr], dX, dY, Xfactor, Yfactor);
+      for (ctr = g->_.parts.len; ctr--; /* no step */ )
+	geo_modify_by_transscale (g->_.parts.items[ctr], dX, dY, Xfactor, Yfactor);
       if (invert)
-        {
-          geo_inverse_point_order (g);
-          geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
-          return;
-        }
+	{
+	  geo_inverse_point_order (g);
+	  geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
+	  return;
+	}
       if (flags & GEO_IS_CHAINBOXED)
-        {
-          geo_chainbox_t *gcb = g->_.parts.parts_gcb;
-          if (gcb->gcb_is_set)
-            for (ctr = gcb->gcb_box_count; ctr--; /* no step */)
-              if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(gcb->gcb_boxes[ctr]))
-                XYBOX_TRANSSCALE(gcb->gcb_boxes[ctr]);
-        }
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XYBOX_TRANSSCALE(g->XYbox);
-        }
+	{
+	  geo_chainbox_t *gcb = g->_.parts.parts_gcb;
+	  if (gcb->gcb_is_set)
+	    for (ctr = gcb->gcb_box_count; ctr--; /* no step */ )
+	      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (gcb->gcb_boxes[ctr]))
+		XYBOX_TRANSSCALE (gcb->gcb_boxes[ctr]);
+	}
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XYBOX_TRANSSCALE (g->XYbox);
+	}
       return;
     }
   switch (GEO_TYPE_CORE (flags))
     {
-    case GEO_NULL_SHAPE: case GEO_BOX:
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XYBOX_TRANSSCALE(g->XYbox);
-        }
+    case GEO_NULL_SHAPE:
+    case GEO_BOX:
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XYBOX_TRANSSCALE (g->XYbox);
+	}
       return;
-    case GEO_POINT: case GEO_GSOP:
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XY_TRANSSCALE(g->XYbox.Xmin, g->XYbox.Ymin);
-          g->XYbox.Xmax = g->XYbox.Xmin; g->XYbox.Ymax = g->XYbox.Ymin;
-        }
+    case GEO_POINT:
+    case GEO_GSOP:
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XY_TRANSSCALE (g->XYbox.Xmin, g->XYbox.Ymin);
+	  g->XYbox.Xmax = g->XYbox.Xmin;
+	  g->XYbox.Ymax = g->XYbox.Ymin;
+	}
       return;
-    case GEO_LINESTRING: case GEO_POINTLIST: case GEO_ARCSTRING:
+    case GEO_LINESTRING:
+    case GEO_POINTLIST:
+    case GEO_ARCSTRING:
       {
-        int ctr;
-        int invert = ((flags & GEO_A_CLOSED) && (0 < (Xfactor * Yfactor)));
-        for (ctr = g->_.pline.len; ctr--; /* no step */)
-          XY_TRANSSCALE(g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
-        if (invert)
-          geo_inverse_point_order (g);
-        if (invert || ((Xfactor != Yfactor) && (GEO_ARCSTRING == GEO_TYPE_CORE(flags))))
-          {
-            geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
-            return;
-          }
-        if (flags & GEO_IS_CHAINBOXED)
-          {
-            geo_chainbox_t *gcb = g->_.pline.pline_gcb;
-            if (gcb->gcb_is_set)
-              for (ctr = gcb->gcb_box_count; ctr--; /* no step */)
-                XYBOX_TRANSSCALE(gcb->gcb_boxes[ctr]);
-          }
-        if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-          XYBOX_TRANSSCALE(g->XYbox);
-        return;
+	int ctr;
+	int invert = ((flags & GEO_A_CLOSED) && (0 < (Xfactor * Yfactor)));
+	for (ctr = g->_.pline.len; ctr--; /* no step */ )
+	  XY_TRANSSCALE (g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
+	if (invert)
+	  geo_inverse_point_order (g);
+	if (invert || ((Xfactor != Yfactor) && (GEO_ARCSTRING == GEO_TYPE_CORE (flags))))
+	  {
+	    geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
+	    return;
+	  }
+	if (flags & GEO_IS_CHAINBOXED)
+	  {
+	    geo_chainbox_t *gcb = g->_.pline.pline_gcb;
+	    if (gcb->gcb_is_set)
+	      for (ctr = gcb->gcb_box_count; ctr--; /* no step */ )
+		XYBOX_TRANSSCALE (gcb->gcb_boxes[ctr]);
+	  }
+	if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	  XYBOX_TRANSSCALE (g->XYbox);
+	return;
       }
-    default: GPF_T;
+    default:
+      GPF_T;
     }
   return;
 #undef XY_TRANSSCALE
@@ -3220,7 +3558,7 @@ geo_modify_by_transscale (geo_t *g, geoc dX, geoc dY, geoc Xfactor, geoc Yfactor
 }
 
 void
-geo_modify_by_affine2d (geo_t *g, geoc XXa, geoc XYb, geoc YXd, geoc YYe, geoc Xoff, geoc Yoff)
+geo_modify_by_affine2d (geo_t * g, geoc XXa, geoc XYb, geoc YXd, geoc YYe, geoc Xoff, geoc Yoff)
 {
   geo_flags_t flags = g->geo_flags;
 
@@ -3246,40 +3584,46 @@ geo_modify_by_affine2d (geo_t *g, geoc XXa, geoc XYb, geoc YXd, geoc YYe, geoc X
     {
       int ctr;
       int invert = ((XXa * YYe) < (XYb * YXd));
-      for (ctr = g->_.parts.len; ctr--; /* no step */)
-        geo_modify_by_affine2d (g->_.parts.items[ctr], XXa, XYb, YXd, YYe, Xoff, Yoff);
+      for (ctr = g->_.parts.len; ctr--; /* no step */ )
+	geo_modify_by_affine2d (g->_.parts.items[ctr], XXa, XYb, YXd, YYe, Xoff, Yoff);
       if (invert)
-        geo_inverse_point_order (g);
+	geo_inverse_point_order (g);
       geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
       return;
     }
   switch (GEO_TYPE_CORE (flags))
     {
-    case GEO_NULL_SHAPE: case GEO_BOX:
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XYBOX_AFFINE2D(g->XYbox);
-        }
+    case GEO_NULL_SHAPE:
+    case GEO_BOX:
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XYBOX_AFFINE2D (g->XYbox);
+	}
       return;
-    case GEO_POINT: case GEO_GSOP:
-      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        {
-          XY_AFFINE2D(g->XYbox.Xmin, g->XYbox.Ymin);
-          g->XYbox.Xmax = g->XYbox.Xmin; g->XYbox.Ymax = g->XYbox.Ymin;
-        }
+    case GEO_POINT:
+    case GEO_GSOP:
+      if (!GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	{
+	  XY_AFFINE2D (g->XYbox.Xmin, g->XYbox.Ymin);
+	  g->XYbox.Xmax = g->XYbox.Xmin;
+	  g->XYbox.Ymax = g->XYbox.Ymin;
+	}
       return;
-    case GEO_LINESTRING: case GEO_POINTLIST: case GEO_ARCSTRING:
+    case GEO_LINESTRING:
+    case GEO_POINTLIST:
+    case GEO_ARCSTRING:
       {
-        int ctr;
-        int invert = ((XXa * YYe) < (XYb * YXd));
-        for (ctr = g->_.pline.len; ctr--; /* no step */)
-          XY_AFFINE2D(g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
-        if (invert)
-          geo_inverse_point_order (g);
-        geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
-        return;
+	int ctr;
+	int invert = ((XXa * YYe) < (XYb * YXd));
+	for (ctr = g->_.pline.len; ctr--; /* no step */ )
+	  XY_AFFINE2D (g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
+	if (invert)
+	  geo_inverse_point_order (g);
+	geo_calc_bounding (g, GEO_CALC_BOUNDING_DO_ALL);
+	return;
       }
-    default: GPF_T;
+    default:
+      GPF_T;
     }
   return;
 #undef XY_AFFINE2D
@@ -3287,9 +3631,9 @@ geo_modify_by_affine2d (geo_t *g, geoc XXa, geoc XYb, geoc YXd, geoc YYe, geoc X
 }
 
 const char *
-geo_modify_by_projection (geo_t *g, void *geo_proj)
+geo_modify_by_projection (geo_t * g, void *geo_proj)
 {
-  geo_proj_point_cbk_t *gp_point_cbk = ((geo_proj_t *)geo_proj)->gp_point_cbk;
+  geo_proj_point_cbk_t *gp_point_cbk = ((geo_proj_t *) geo_proj)->gp_point_cbk;
   geo_flags_t flags = g->geo_flags;
 /* local macro defs */
 #define XY_PROJECT(x,y) do { \
@@ -3313,44 +3657,48 @@ geo_modify_by_projection (geo_t *g, void *geo_proj)
   v12 = double_min (y1, y2); v34 = double_min (y3, y4); xybox.Ymin = double_min (v12, v34); \
   v12 = double_max (y1, y2); v34 = double_max (y3, y4); xybox.Ymax = double_max (v12, v34); \
   } while (0)
-  if (((geo_proj_t *)geo_proj)->gp_input_srcode != g->geo_srcode)
+  if (((geo_proj_t *) geo_proj)->gp_input_srcode != g->geo_srcode)
     return "The shape is in spatial reference system that is not equal to the input spatial reference system of the projection";
-  g->geo_srcode = ((geo_proj_t *)geo_proj)->gp_result_srcode;
+  g->geo_srcode = ((geo_proj_t *) geo_proj)->gp_result_srcode;
   if (flags & (GEO_A_RINGS | GEO_A_COMPOUND | GEO_A_MULTI | GEO_A_ARRAY))
     {
       int ctr;
       if (0 == g->_.parts.len)
-        return NULL;
-      for (ctr = g->_.parts.len; ctr--; /* no step */)
-        geo_modify_by_projection (g->_.parts.items[ctr], geo_proj);
+	return NULL;
+      for (ctr = g->_.parts.len; ctr--; /* no step */ )
+	geo_modify_by_projection (g->_.parts.items[ctr], geo_proj);
       geo_calc_bounding (g, 0);
       return NULL;
     }
   switch (GEO_TYPE_CORE (flags))
     {
-    case GEO_NULL_SHAPE: case GEO_BOX:
-      XYBOX_PROJECT(g->XYbox);
+    case GEO_NULL_SHAPE:
+    case GEO_BOX:
+      XYBOX_PROJECT (g->XYbox);
       return NULL;
     case GEO_POINT:
-      if (GEO_XYBOX_IS_EMPTY_OR_FARAWAY(g->XYbox))
-        return "The point is intentionally invalidated so it cannot be projected";
-      XY_PROJECT(g->XYbox.Xmin, g->XYbox.Ymin);
-      g->XYbox.Xmax = g->XYbox.Xmin; g->XYbox.Ymax = g->XYbox.Ymin;
+      if (GEO_XYBOX_IS_EMPTY_OR_FARAWAY (g->XYbox))
+	return "The point is intentionally invalidated so it cannot be projected";
+      XY_PROJECT (g->XYbox.Xmin, g->XYbox.Ymin);
+      g->XYbox.Xmax = g->XYbox.Xmin;
+      g->XYbox.Ymax = g->XYbox.Ymin;
       return NULL;
     case GEO_GSOP:
       return "Spatial operator is not a true shape so it cannot be projected";
-    case GEO_LINESTRING: case GEO_POINTLIST: case GEO_ARCSTRING:
+    case GEO_LINESTRING:
+    case GEO_POINTLIST:
+    case GEO_ARCSTRING:
       {
-        int ctr;
-        for (ctr = g->_.pline.len; ctr--; /* no step */)
-          XY_PROJECT(g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
-        geo_calc_bounding (g, 0);
-        return NULL;
+	int ctr;
+	for (ctr = g->_.pline.len; ctr--; /* no step */ )
+	  XY_PROJECT (g->_.pline.Xs[ctr], g->_.pline.Ys[ctr]);
+	geo_calc_bounding (g, 0);
+	return NULL;
       }
-    default: GPF_T;
+    default:
+      GPF_T;
     }
   return NULL;
 #undef XY_PROJECT
 #undef XYBOX_PROJECT
 }
-

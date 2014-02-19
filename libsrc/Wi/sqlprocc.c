@@ -35,29 +35,29 @@
 #include "sqlpfn.h"
 #include "statuslog.h"
 #include "crsr.h"
-#include "sqlbif.h"	/* for e.g. bif_find() */
+#include "sqlbif.h"		/* for e.g. bif_find() */
 #include "sqlo.h"
 #include "sqltype.h"
 #include "sqlcstate.h"
 
 
 void
-sqlc_decl_variable_list_const (sql_comp_t * sc, dk_set_t *ref_recs)
+sqlc_decl_variable_list_const (sql_comp_t * sc, dk_set_t * ref_recs)
 {
-      t_NEW_VAR (col_ref_rec_t, state_cr);
-      t_NEW_VAR (col_ref_rec_t, message_cr);
-      memset (state_cr, 0, sizeof (col_ref_rec_t));
-      memset (message_cr, 0, sizeof (col_ref_rec_t));
-      sc->sc_sqlstate = ssl_new_inst_variable (sc->sc_cc, "__SQL_STATE", DV_ANY);
-      sc->sc_sqlmessage = ssl_new_inst_variable (sc->sc_cc, "__SQL_MESSAGE", DV_SHORT_STRING);
-      sc->sc_sqlstate->ssl_prec = 5;
-      sc->sc_sqlmessage->ssl_prec = DV_STRING_PREC;
-      state_cr->crr_col_ref = t_listst (3, COL_DOTTED, NULL, t_sym_string ("__SQL_STATE"));
-      message_cr->crr_col_ref = t_listst (3, COL_DOTTED, NULL, t_sym_string ("__SQL_MESSAGE"));
-      state_cr->crr_ssl = sc->sc_sqlstate;
-      message_cr->crr_ssl = sc->sc_sqlmessage;
-      t_set_push (ref_recs, (void *) state_cr);
-      t_set_push (ref_recs, (void *) message_cr);
+  t_NEW_VAR (col_ref_rec_t, state_cr);
+  t_NEW_VAR (col_ref_rec_t, message_cr);
+  memset (state_cr, 0, sizeof (col_ref_rec_t));
+  memset (message_cr, 0, sizeof (col_ref_rec_t));
+  sc->sc_sqlstate = ssl_new_inst_variable (sc->sc_cc, "__SQL_STATE", DV_ANY);
+  sc->sc_sqlmessage = ssl_new_inst_variable (sc->sc_cc, "__SQL_MESSAGE", DV_SHORT_STRING);
+  sc->sc_sqlstate->ssl_prec = 5;
+  sc->sc_sqlmessage->ssl_prec = DV_STRING_PREC;
+  state_cr->crr_col_ref = t_listst (3, COL_DOTTED, NULL, t_sym_string ("__SQL_STATE"));
+  message_cr->crr_col_ref = t_listst (3, COL_DOTTED, NULL, t_sym_string ("__SQL_MESSAGE"));
+  state_cr->crr_ssl = sc->sc_sqlstate;
+  message_cr->crr_ssl = sc->sc_sqlmessage;
+  t_set_push (ref_recs, (void *) state_cr);
+  t_set_push (ref_recs, (void *) message_cr);
 }
 
 long sql_warnings_to_syslog = 0;
@@ -65,14 +65,14 @@ long sql_warnings_to_syslog = 0;
 void
 sql_warning_add (caddr_t err, int is_comp)
 {
-  du_thread_t * self;
+  du_thread_t *self;
   dk_set_t warnings_set;
   if (!err)
     return;
 
 #ifndef NDEBUG
   if (!IS_BOX_POINTER (err) || BOX_ELEMENTS (err) != 3)
-    GPF_T1("invalid warning text");
+    GPF_T1 ("invalid warning text");
 #endif
 
   if (sql_warning_mode == SQW_OFF
@@ -94,7 +94,7 @@ sql_warning_add (caddr_t err, int is_comp)
   if (sql_warnings_to_syslog)
     log_debug ("SQL warning : [%.5s] %s", ERR_STATE (err), ERR_MESSAGE (err));
 
-  ((caddr_t *)err)[0] = (caddr_t) QA_WARNING;
+  ((caddr_t *) err)[0] = (caddr_t) QA_WARNING;
   self = THREAD_CURRENT_THREAD;
   warnings_set = (dk_set_t) THR_ATTR (self, TA_SQL_WARNING_SET);
   dk_set_push (&warnings_set, err);
@@ -112,36 +112,28 @@ sqlc_warning (const char *code, const char *virt_code, const char *string, ...)
   va_start (list, string);
   vsnprintf (temp, sizeof (temp), string, list);
   va_end (list);
-  temp[sizeof(temp)-1] = '\0';
+  temp[sizeof (temp) - 1] = '\0';
 
   DO_SET (instruction_t *, ins, &sc_code)
-    {
-       if (ins->ins_type == INS_COMPOUND_START &&
-	   ins->_.compound_start.l_line_no)
-	 {
-	   if (top_sc && top_sc->sc_cc->cc_query &&
-	       top_sc->sc_cc->cc_query->qr_proc_name)
-	     {
-	       err = srv_make_new_error (code, virt_code, "%s:%d: %s: %s",
-		   ins->_.compound_start.file_name ?
-		   ins->_.compound_start.file_name :
-		   "<unspec>",
-		   (int) ins->_.compound_start.l_line_no,
-		   top_sc->sc_cc->cc_query->qr_proc_name,
-		   temp);
-	     }
-	   else
-	     {
-	       err = srv_make_new_error (code, virt_code, "%s:%d: %s",
-		   ins->_.compound_start.file_name ?
-		   ins->_.compound_start.file_name :
-		   "<unspec>",
-		   (int) ins->_.compound_start.l_line_no,
-		   temp);
-	     }
-	   break;
-	 }
-    }
+  {
+    if (ins->ins_type == INS_COMPOUND_START && ins->_.compound_start.l_line_no)
+      {
+	if (top_sc && top_sc->sc_cc->cc_query && top_sc->sc_cc->cc_query->qr_proc_name)
+	  {
+	    err = srv_make_new_error (code, virt_code, "%s:%d: %s: %s",
+		ins->_.compound_start.file_name ?
+		ins->_.compound_start.file_name :
+		"<unspec>", (int) ins->_.compound_start.l_line_no, top_sc->sc_cc->cc_query->qr_proc_name, temp);
+	  }
+	else
+	  {
+	    err = srv_make_new_error (code, virt_code, "%s:%d: %s",
+		ins->_.compound_start.file_name ?
+		ins->_.compound_start.file_name : "<unspec>", (int) ins->_.compound_start.l_line_no, temp);
+	  }
+	break;
+      }
+  }
   END_DO_SET ();
 
   if (!err)
@@ -151,10 +143,10 @@ sqlc_warning (const char *code, const char *virt_code, const char *string, ...)
 
 
 void
-sqlc_decl_variable_list_1 (sql_comp_t * sc, ST ** params, int is_arg_list, dk_set_t *ref_recs)
+sqlc_decl_variable_list_1 (sql_comp_t * sc, ST ** params, int is_arg_list, dk_set_t * ref_recs)
 {
   /* procedure argument list or local variable list */
-  query_t * qr = sc->sc_cc->cc_query;
+  query_t *qr = sc->sc_cc->cc_query;
   int inx;
 
   DO_BOX (ST *, decl, inx, params)
@@ -170,8 +162,7 @@ sqlc_decl_variable_list_1 (sql_comp_t * sc, ST ** params, int is_arg_list, dk_se
     if (sqlc_find_crr (sc, decl->_.var.name))
       {
 	sqlc_warning ("01V01", "QW001",
-	    "Local declaration of %.*s shadows a definition of the same name",
-	    MAX_NAME_LEN, decl->_.var.name->_.col_ref.name);
+	    "Local declaration of %.*s shadows a definition of the same name", MAX_NAME_LEN, decl->_.var.name->_.col_ref.name);
       }
     if (is_arg_list)
       {
@@ -182,16 +173,14 @@ sqlc_decl_variable_list_1 (sql_comp_t * sc, ST ** params, int is_arg_list, dk_se
 	    qr->qr_parms = dk_set_conc (qr->qr_parms, dk_set_cons ((caddr_t) var, NULL));
 	  }
 	else
-	var = ssl_new_parameter (sc->sc_cc, decl->_.var.name->_.col_ref.name);
+	  var = ssl_new_parameter (sc->sc_cc, decl->_.var.name->_.col_ref.name);
       }
     else
       {
 	if (sc->sc_cc->cc_query->qr_proc_vectored)
-	  var = ssl_new_vec (sc->sc_cc,
-				       decl->_.var.name->_.col_ref.name, DV_SHORT_STRING);
+	  var = ssl_new_vec (sc->sc_cc, decl->_.var.name->_.col_ref.name, DV_SHORT_STRING);
 	else
-	var = ssl_new_inst_variable (sc->sc_cc,
-	    decl->_.var.name->_.col_ref.name, DV_SHORT_STRING);
+	  var = ssl_new_inst_variable (sc->sc_cc, decl->_.var.name->_.col_ref.name, DV_SHORT_STRING);
       }
     ddl_type_to_sqt (&(var->ssl_sqt), (caddr_t *) decl->_.var.type);
     var->ssl_dc_dtp = 0;
@@ -201,14 +190,14 @@ sqlc_decl_variable_list_1 (sql_comp_t * sc, ST ** params, int is_arg_list, dk_se
 	if (SSL_VEC == var->ssl_type)
 	  var->ssl_vec_param = SSL_VP_OUT;
 	else
-      var->ssl_type = SSL_REF_PARAMETER;
+	  var->ssl_type = SSL_REF_PARAMETER;
       }
     else if (decl->_.var.mode == OUT_MODE)
       {
 	if (SSL_VEC == var->ssl_type)
 	  var->ssl_vec_param = SSL_VP_OUT;
 	else
-      var->ssl_type = SSL_REF_PARAMETER_OUT;
+	  var->ssl_type = SSL_REF_PARAMETER_OUT;
       }
     if (ref_recs)
       {
@@ -230,23 +219,23 @@ sqlc_decl_variable_list_1 (sql_comp_t * sc, ST ** params, int is_arg_list, dk_se
 
   if (is_arg_list)
     {
-      caddr_t * defs = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
-      caddr_t * alts = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
-      caddr_t * places = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
-      caddr_t * soap_opts = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
+      caddr_t *defs = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
+      caddr_t *alts = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
+      caddr_t *places = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
+      caddr_t *soap_opts = (caddr_t *) dk_alloc_box (box_length ((caddr_t) params), DV_ARRAY_OF_POINTER);
       DO_BOX (ST *, decl, inx, params)
-	{
-	  caddr_t * alt_type = (caddr_t *)decl->_.var.alt_type; /* array of three elements */
-	  defs[inx] = box_copy_tree (decl->_.var.deflt);
-	  alts[inx] = alt_type ? box_copy (alt_type[0]) : NULL;
-	  places[inx] = alt_type ? box_num ((ptrlong) alt_type[1]) : 0;
-	  soap_opts[inx] = alt_type ? box_copy_tree (alt_type[2]) : NULL;
-	}
+      {
+	caddr_t *alt_type = (caddr_t *) decl->_.var.alt_type;	/* array of three elements */
+	defs[inx] = box_copy_tree (decl->_.var.deflt);
+	alts[inx] = alt_type ? box_copy (alt_type[0]) : NULL;
+	places[inx] = alt_type ? box_num ((ptrlong) alt_type[1]) : 0;
+	soap_opts[inx] = alt_type ? box_copy_tree (alt_type[2]) : NULL;
+      }
       END_DO_BOX;
       sc->sc_cc->cc_query->qr_parm_default = defs;
-      sc->sc_cc->cc_query->qr_parm_alt_types = alts;      /*an alternative to the SQL datatype*/
-      sc->sc_cc->cc_query->qr_parm_place = places; 	  /*where is it exposed*/
-      sc->sc_cc->cc_query->qr_parm_soap_opts = soap_opts; /* SOAP options for parameters */
+      sc->sc_cc->cc_query->qr_parm_alt_types = alts;	/*an alternative to the SQL datatype */
+      sc->sc_cc->cc_query->qr_parm_place = places;	/*where is it exposed */
+      sc->sc_cc->cc_query->qr_parm_soap_opts = soap_opts;	/* SOAP options for parameters */
     }
 }
 
@@ -316,10 +305,9 @@ sqlc_cursor_def (sql_comp_t * sc, ST * stmt)
   sc->sc_in_cursor_def = 1;
   if (stmt->_.cr_def.type == _SQL_CURSOR_FORWARD_ONLY &&
       0 != strcmp (stmt->_.cr_def.name, "temp_cr") && ST_P (stmt->_.cr_def.spec, SELECT_STMT) &&
-	!SEL_IS_DISTINCT (stmt->_.cr_def.spec) &&
-	!sqlp_tree_has_fun_ref (stmt->_.cr_def.spec))
+      !SEL_IS_DISTINCT (stmt->_.cr_def.spec) && !sqlp_tree_has_fun_ref (stmt->_.cr_def.spec))
     {
-    remote_co = sqlc_expand_remote_cursor (sc, stmt->_.cr_def.spec);
+      remote_co = sqlc_expand_remote_cursor (sc, stmt->_.cr_def.spec);
     }
   else
     remote_co = NULL;
@@ -335,7 +323,7 @@ sqlc_cursor_def (sql_comp_t * sc, ST * stmt)
       sqc = sqlc_subquery_1 (sc, NULL, &(stmt->_.cr_def.spec), (int) stmt->_.cr_def.type, stmt->_.cr_def.params);
 
       cv_call (&sc->sc_routine_code, NULL, __SCROLL_CR_INIT, var,
-	  (state_slot_t **) /*list*/ sc_list (1, ssl_new_constant (sc->sc_cc, t_box_num ((ptrlong) sqc->sqc_query))));
+	  (state_slot_t **) /*list */ sc_list (1, ssl_new_constant (sc->sc_cc, t_box_num ((ptrlong) sqc->sqc_query))));
     }
   else
     sqc = sqlc_subquery (sc, NULL, &(stmt->_.cr_def.spec));
@@ -344,8 +332,7 @@ sqlc_cursor_def (sql_comp_t * sc, ST * stmt)
   sqc->sqc_name = stmt->_.cr_def.name;
   sqc->sqc_ssl = qr_current_of_ssl (sqc->sqc_query);
   sqc->sqc_is_cursor = 1;
-  sqc->sqc_cr_state_ssl =
-      ssl_new_inst_variable (sc->sc_cc, "cr_state", DV_LONG_INT);
+  sqc->sqc_cr_state_ssl = ssl_new_inst_variable (sc->sc_cc, "cr_state", DV_LONG_INT);
 }
 
 
@@ -365,8 +352,7 @@ sqlc_remove_unrefd_current_ofs (sql_comp_t * sc)
 	END_DO_SET ();
       }
   }
-  END_DO_SET ()
-}
+END_DO_SET ()}
 
 
 void
@@ -376,27 +362,26 @@ sqlc_opt_fetches (sql_comp_t * sc)
   {
     if (sqc->sqc_is_cursor && sqc->sqc_query->qr_proc_vectored)
       {
-	state_slot_t * set_no;
+	state_slot_t *set_no;
 	int ctr = 0;
 	DO_SET (instruction_t *, fetch, &sqc->sqc_fetches)
-	  {
-	    if (!ctr)
-	      {
-		char tmp[MAX_NAME_LEN + 10];
-		snprintf (tmp, sizeof (tmp), "%s_SET", sqc->sqc_name);
-		ctr = cc_new_instance_slot (sc->sc_cc);
-		set_no = ssl_new_inst_variable (sc->sc_cc, tmp, DV_LONG_INT);
-	      }
-	    fetch->_.fetch.row_ctr = ctr;
-	    fetch->_.fetch.set_no_ret = set_no;
-	  }
-	END_DO_SET();
+	{
+	  if (!ctr)
+	    {
+	      char tmp[MAX_NAME_LEN + 10];
+	      snprintf (tmp, sizeof (tmp), "%s_SET", sqc->sqc_name);
+	      ctr = cc_new_instance_slot (sc->sc_cc);
+	      set_no = ssl_new_inst_variable (sc->sc_cc, tmp, DV_LONG_INT);
+	    }
+	  fetch->_.fetch.row_ctr = ctr;
+	  fetch->_.fetch.set_no_ret = set_no;
+	}
+	END_DO_SET ();
       }
     if (sqc->sqc_is_cursor && sqc->sqc_fetches && !sqc->sqc_fetches->next)
       {
 	instruction_t *ins = (instruction_t *) sqc->sqc_fetches->data;
-	state_slot_t **out_slots =
-	    sqc->sqc_query->qr_select_node->sel_out_slots;
+	state_slot_t **out_slots = sqc->sqc_query->qr_select_node->sel_out_slots;
 	state_slot_t **targets = ins->_.fetch.targets;
 	int inx, n_targets = BOX_ELEMENTS (ins->_.fetch.targets);
 	int all_targets_remd = 1;
@@ -405,8 +390,7 @@ sqlc_opt_fetches (sql_comp_t * sc)
 	{
 	  if (inx >= n_targets)
 	    break;
-	  if ((out_slots[inx]->ssl_type == SSL_COLUMN
-	       || out_slots[inx]->ssl_type == SSL_VARIABLE))
+	  if ((out_slots[inx]->ssl_type == SSL_COLUMN || out_slots[inx]->ssl_type == SSL_VARIABLE))
 	    {
 	      ssl_alias (out_slot, targets[inx]);
 	      targets[inx] = NULL;
@@ -436,8 +420,7 @@ sqlc_open_stmt (sql_comp_t * sc, ST * stmt)
   if (sqc && sqc->sqc_query->qr_cursor_type != _SQL_CURSOR_FORWARD_ONLY)
     {
       ST *cursor_var = t_listst (3, COL_DOTTED, NULL, stmt->_.open_stmt.name);
-      state_slot_t **call_params = (state_slot_t **)
-	  dk_alloc_box (box_length (sqc->sqc_scroll_params) + sizeof (caddr_t),
+      state_slot_t **call_params = (state_slot_t **) dk_alloc_box (box_length (sqc->sqc_scroll_params) + sizeof (caddr_t),
 	  DV_ARRAY_OF_POINTER);
       call_params[0] = scalar_exp_generate (sc, cursor_var, &sc->sc_routine_code);
       memcpy (&(call_params[1]), sqc->sqc_scroll_params, box_length (sqc->sqc_scroll_params));
@@ -468,69 +451,64 @@ sqlc_fetch_stmt (sql_comp_t * sc, ST * stmt)
     sqlc_new_error (sc->sc_cc, "42000", "SQ130",
 	"The count of supplied parameters to Virtuoso/PL FETCH "
 	"statement does not match the count of selected columns: %d parameters, %d columns", n_slots, BOX_ELEMENTS (targets));
-  /**/
-  DO_BOX_FAST (ST *, ref, inx, targets)
+   /**/ DO_BOX_FAST (ST *, ref, inx, targets)
+  {
+    char tmp_name[50];
+    state_slot_t *tmp_var;
+    col_ref_rec_t *tmp_cr;
+    int src_is_duped = 0, actual_inx = inx;
+    int tgt_is_aref = (ST_P (ref, CALL_STMT) &&
+	IS_BOX_POINTER (ref->_.call.name) &&
+	DV_TYPE_OF (ref->_.call.name) != DV_ARRAY_OF_POINTER &&
+	!CASEMODESTRCMP (ref->_.call.name, aref_name) &&
+	IS_BOX_POINTER (ref->_.call.params) && BOX_ELEMENTS (ref->_.call.params) == 2);
+    ST *var_to_be = (tgt_is_aref ? NULL : sqlo_udt_is_mutator (sc->sc_so, sc, ref));
+    _DO_BOX_FAST (inx2, targets)
     {
-      char tmp_name[50];
-      state_slot_t *tmp_var;
-      col_ref_rec_t * tmp_cr;
-      int src_is_duped = 0, actual_inx = inx;
-      int tgt_is_aref = (ST_P (ref, CALL_STMT) &&
-		IS_BOX_POINTER (ref->_.call.name) &&
-		DV_TYPE_OF (ref->_.call.name) != DV_ARRAY_OF_POINTER &&
-		!CASEMODESTRCMP (ref->_.call.name, aref_name) &&
-		IS_BOX_POINTER (ref->_.call.params) && BOX_ELEMENTS (ref->_.call.params) == 2) ;
-      ST *var_to_be = (tgt_is_aref ? NULL : sqlo_udt_is_mutator (sc->sc_so, sc, ref));
-      _DO_BOX_FAST (inx2, targets)
+      if (inx == inx2)
+	continue;
+      if (src_ssls[inx]->ssl_index == src_ssls[inx2]->ssl_index)
 	{
-          if (inx == inx2)
-            continue;
-	  if (src_ssls[inx]->ssl_index == src_ssls[inx2]->ssl_index)
-	    {
-	      src_is_duped = 1;
-	      if (inx2 < inx)
-	        actual_inx = inx2;
-	      break;
-	    }
-        }
-      END_DO_BOX_FAST;
-      if (tgt_is_aref || (NULL != var_to_be) || (src_is_duped && (actual_inx == inx)))
-        {
-	  snprintf (tmp_name, sizeof (tmp_name), "__fetch%p_c%d", (void *)stmt, inx);
-	  tmp_var = ssl_new_inst_variable (sc->sc_cc, t_sym_string (tmp_name), DV_UNKNOWN);
-	  tmp_cr = (col_ref_rec_t *) t_alloc (sizeof (col_ref_rec_t));
-          memset (tmp_cr, 0, sizeof (col_ref_rec_t));
-	  tmp_cr->crr_col_ref = t_listst (3, COL_DOTTED, NULL, t_sym_string (tmp_name));
-	  tmp_cr->crr_ssl = tmp_var;
-	  t_set_push (&sc->sc_col_ref_recs, (void *) tmp_cr);
-	  targets[inx] = (ST *) t_box_copy_tree ( (caddr_t) tmp_cr->crr_col_ref);
-        }
-      if (tgt_is_aref)
-	t_set_push (&asg_set,
-	  t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("aset"),
-	    t_listst (3, ref->_.call.params[0], ref->_.call.params[1],
-	      t_box_copy_tree ((caddr_t)(targets[actual_inx])) ) ) );
-      else if (NULL != var_to_be)
-	t_set_push (&asg_set,
-	  sqlo_udt_make_mutator (sc->sc_so, sc, ref,
-	    (ST *) t_box_copy_tree ((caddr_t)(targets[actual_inx])), var_to_be));
-      else if (src_is_duped)
-	t_set_push (&asg_set,
-	  t_listst (3, ASG_STMT, ref, (ST *) t_box_copy_tree ((caddr_t)(targets[actual_inx]))) );
+	  src_is_duped = 1;
+	  if (inx2 < inx)
+	    actual_inx = inx2;
+	  break;
+	}
     }
+    END_DO_BOX_FAST;
+    if (tgt_is_aref || (NULL != var_to_be) || (src_is_duped && (actual_inx == inx)))
+      {
+	snprintf (tmp_name, sizeof (tmp_name), "__fetch%p_c%d", (void *) stmt, inx);
+	tmp_var = ssl_new_inst_variable (sc->sc_cc, t_sym_string (tmp_name), DV_UNKNOWN);
+	tmp_cr = (col_ref_rec_t *) t_alloc (sizeof (col_ref_rec_t));
+	memset (tmp_cr, 0, sizeof (col_ref_rec_t));
+	tmp_cr->crr_col_ref = t_listst (3, COL_DOTTED, NULL, t_sym_string (tmp_name));
+	tmp_cr->crr_ssl = tmp_var;
+	t_set_push (&sc->sc_col_ref_recs, (void *) tmp_cr);
+	targets[inx] = (ST *) t_box_copy_tree ((caddr_t) tmp_cr->crr_col_ref);
+      }
+    if (tgt_is_aref)
+      t_set_push (&asg_set,
+	  t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("aset"),
+	      t_listst (3, ref->_.call.params[0], ref->_.call.params[1], t_box_copy_tree ((caddr_t) (targets[actual_inx])))));
+    else if (NULL != var_to_be)
+      t_set_push (&asg_set,
+	  sqlo_udt_make_mutator (sc->sc_so, sc, ref, (ST *) t_box_copy_tree ((caddr_t) (targets[actual_inx])), var_to_be));
+    else if (src_is_duped)
+      t_set_push (&asg_set, t_listst (3, ASG_STMT, ref, (ST *) t_box_copy_tree ((caddr_t) (targets[actual_inx]))));
+  }
   END_DO_BOX_FAST;
 
   if (sqc && sqc->sqc_query->qr_cursor_type != _SQL_CURSOR_FORWARD_ONLY)
     {
       ST *cursor_var = t_listst (3, COL_DOTTED, NULL, stmt->_.fetch.cursor);
-      ssl_box = (state_slot_t **)
-	  dk_alloc_box (box_length (targets) + 3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+      ssl_box = (state_slot_t **) dk_alloc_box (box_length (targets) + 3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
       DO_BOX (ST *, ref, inx, targets)
-	{
-	  col_ref_rec_t *crr = sqlc_col_ref_rec (sc, ref, 1);
-	  ssl_box[inx + 3] = crr->crr_ssl;
-	  cv_bop_params (crr->crr_ssl, sqc->sqc_query->qr_select_node->sel_out_slots[inx], "FETCH");
-	}
+      {
+	col_ref_rec_t *crr = sqlc_col_ref_rec (sc, ref, 1);
+	ssl_box[inx + 3] = crr->crr_ssl;
+	cv_bop_params (crr->crr_ssl, sqc->sqc_query->qr_select_node->sel_out_slots[inx], "FETCH");
+      }
       END_DO_BOX;
       ssl_box[0] = scalar_exp_generate (sc, cursor_var, &sc->sc_routine_code);
       ssl_box[1] = ssl_new_constant (sc->sc_cc, stmt->_.fetch.scroll_type);
@@ -540,23 +518,22 @@ sqlc_fetch_stmt (sql_comp_t * sc, ST * stmt)
   else
     {
       if (stmt->_.fetch.scroll_type != (caddr_t) _SQL_FETCH_NEXT)
-	sqlc_new_error (sc->sc_cc, "09000", "SQ087",
-	    "Forward only cursor called not with FETCH NEXT");
-      ssl_box =(state_slot_t **) box_copy ((caddr_t) targets);
+	sqlc_new_error (sc->sc_cc, "09000", "SQ087", "Forward only cursor called not with FETCH NEXT");
+      ssl_box = (state_slot_t **) box_copy ((caddr_t) targets);
       DO_BOX (ST *, ref, inx, targets)
-	{
-	  col_ref_rec_t *crr = sqlc_col_ref_rec (sc, ref, 1);
-	  ssl_box[inx] = crr->crr_ssl;
-	}
+      {
+	col_ref_rec_t *crr = sqlc_col_ref_rec (sc, ref, 1);
+	ssl_box[inx] = crr->crr_ssl;
+      }
       END_DO_BOX;
       cv_fetch (&sc->sc_routine_code, sqc, ssl_box);
     }
   asg_set = dk_set_nreverse (asg_set);
   DO_SET (ST *, asg, &asg_set)
-    { /* this is a local var, but the asg_set is discarded in it's completeness */
-      sqlc_proc_stmt (sc, &asg);
-    }
-  END_DO_SET();
+  {				/* this is a local var, but the asg_set is discarded in it's completeness */
+    sqlc_proc_stmt (sc, &asg);
+  }
+  END_DO_SET ();
 }
 
 
@@ -567,10 +544,9 @@ sqlc_close_stmt (sql_comp_t * sc, ST * stmt)
   if (sqc && sqc->sqc_query->qr_cursor_type != _SQL_CURSOR_FORWARD_ONLY)
     {
       ST *cursor_var = t_listst (3, COL_DOTTED, NULL, stmt->_.op.arg_1);
-      cv_call (&sc->sc_routine_code, NULL, __SCROLL_CR_CLOSE, NULL,
-	  (state_slot_t **)
-	    /*list*/ sc_list (1,
-	    scalar_exp_generate (sc, cursor_var, &sc->sc_routine_code)));
+      cv_call (&sc->sc_routine_code, NULL, __SCROLL_CR_CLOSE, NULL, (state_slot_t **)
+	  /*list */ sc_list (1,
+	      scalar_exp_generate (sc, cursor_var, &sc->sc_routine_code)));
     }
   cv_close (&sc->sc_routine_code, sqc->sqc_cr_state_ssl);
 }
@@ -588,16 +564,15 @@ sqlc_handler_decl (sql_comp_t * sc, ST * stmt)
   loc = sqlc_new_temp (sc, throw_loc_name, DV_LONG_INT);
   nest = sqlc_new_temp (sc, nest_name, DV_LONG_INT);
 
-  cv_handler (&sc->sc_routine_code, stmt->_.handler.sql_states, end_label, loc, nest,
-      sc->sc_sqlstate, sc->sc_sqlmessage);
+  cv_handler (&sc->sc_routine_code, stmt->_.handler.sql_states, end_label, loc, nest, sc->sc_sqlstate, sc->sc_sqlmessage);
   if (stmt->_.handler.code)
-      sqlc_proc_stmt (sc, &(stmt->_.handler.code));
+    sqlc_proc_stmt (sc, &(stmt->_.handler.code));
   cv_handler_end (&sc->sc_routine_code, stmt->_.handler.type, loc, nest);
   cv_label (&sc->sc_routine_code, end_label);
 }
 
 
-#define SC_LEAVE_SCOPE ((dk_set_t)-1)  /* a compound stmt can declare vars and they stay visible after it */
+#define SC_LEAVE_SCOPE ((dk_set_t)-1)	/* a compound stmt can declare vars and they stay visible after it */
 
 state_slot_t **
 sqlc_compound_stmt (sql_comp_t * sc, ST * tree, dk_set_t ret_exps)
@@ -614,8 +589,7 @@ sqlc_compound_stmt (sql_comp_t * sc, ST * tree, dk_set_t ret_exps)
     proc_start->_.compound_start.l_line_no = (int) (BOX_ELEMENTS (tree) > 3 ? unbox (tree->_.compound.l_line_no) : 0);
     if (parse_pldbg)
       {
-	proc_start->_.compound_start.file_name =
-	    (BOX_ELEMENTS (tree) > 4 ? box_string (tree->_.compound.file_name) : NULL);
+	proc_start->_.compound_start.file_name = (BOX_ELEMENTS (tree) > 4 ? box_string (tree->_.compound.file_name) : NULL);
       }
     skip = (int) (BOX_ELEMENTS (tree) > 5 ? 1 : 0);
     proc_start->_.compound_start.skip = skip;
@@ -630,9 +604,9 @@ sqlc_compound_stmt (sql_comp_t * sc, ST * tree, dk_set_t ret_exps)
 	  if (!id_hash_get (sc->sc_decl_name_to_label, (caddr_t) & stmt->_.op.arg_1))
 	    {
 	      long label = sc_name_to_label (sc, stmt->_.op.arg_1);
-	      id_hash_set (sc->sc_decl_name_to_label, (caddr_t) & stmt->_.op.arg_1, (caddr_t) &label);
+	      id_hash_set (sc->sc_decl_name_to_label, (caddr_t) & stmt->_.op.arg_1, (caddr_t) & label);
 	      cv_label (&sc->sc_routine_code, label);
-	      sqlc_proc_stmt (sc, (ST **) &(stmt->_.op.arg_2));
+	      sqlc_proc_stmt (sc, (ST **) & (stmt->_.op.arg_2));
 	      break;
 	    }
 	  else
@@ -646,11 +620,11 @@ sqlc_compound_stmt (sql_comp_t * sc, ST * tree, dk_set_t ret_exps)
   END_DO_BOX;
   if (SC_LEAVE_SCOPE != ret_exps)
     {
-      DO_SET  (ST *, ret, &ret_exps)
-	{
-	  dk_set_push (&rets, (void*)scalar_exp_generate (sc, ret, &sc->sc_routine_code));
-	}
-      END_DO_SET();
+      DO_SET (ST *, ret, &ret_exps)
+      {
+	dk_set_push (&rets, (void *) scalar_exp_generate (sc, ret, &sc->sc_routine_code));
+      }
+      END_DO_SET ();
     }
   {
     NEW_INSTR (proc_start, INS_COMPOUND_END, &sc->sc_routine_code);
@@ -660,13 +634,13 @@ sqlc_compound_stmt (sql_comp_t * sc, ST * tree, dk_set_t ret_exps)
   if (SC_LEAVE_SCOPE != ret_exps)
     {
       DO_SET (col_ref_rec_t *, crr, &compound_recs)
-	{
-	  t_set_delete (&sc->sc_col_ref_recs, crr);
-	}
-      END_DO_SET();
+      {
+	t_set_delete (&sc->sc_col_ref_recs, crr);
+      }
+      END_DO_SET ();
     }
   if (rets)
-    return (state_slot_t **)revlist_to_array (rets);
+    return (state_slot_t **) revlist_to_array (rets);
   return NULL;
 }
 
@@ -689,8 +663,7 @@ sqlc_if_stmt (sql_comp_t * sc, ST * stmt)
     jmp_label_t then_l = sqlc_new_label (sc);
     jmp_label_t else_l = sqlc_new_label (sc);
     sqlc_mark_pred_deps (sc, NULL, clause->_.elseif.cond);
-    pred_gen_1 (sc, clause->_.elseif.cond, &sc->sc_routine_code,
-	then_l, else_l, else_l);
+    pred_gen_1 (sc, clause->_.elseif.cond, &sc->sc_routine_code, then_l, else_l, else_l);
     cv_label (&sc->sc_routine_code, then_l);
     sqlc_proc_stmt (sc, &(clause->_.elseif.then));
     cv_jump (&sc->sc_routine_code, end_label);
@@ -714,8 +687,7 @@ sqlc_while_stmt (sql_comp_t * sc, ST * stmt)
 
   cv_label (&sc->sc_routine_code, loop);
   sqlc_mark_pred_deps (sc, NULL, stmt->_.while_stmt.cond);
-  pred_gen_1 (sc, stmt->_.while_stmt.cond, &sc->sc_routine_code,
-      next_l, end_label, end_label);
+  pred_gen_1 (sc, stmt->_.while_stmt.cond, &sc->sc_routine_code, next_l, end_label, end_label);
   cv_label (&sc->sc_routine_code, next_l);
   sqlc_proc_stmt (sc, &(stmt->_.while_stmt.body));
   cv_jump (&sc->sc_routine_code, loop);
@@ -749,8 +721,7 @@ sqlc_return_stmt (sql_comp_t * sc, ST * stmt)
   if (stmt->_.op.arg_1)
     {
       sqlc_mark_pred_deps (sc, NULL, (ST *) stmt->_.op.arg_1);
-      ret = scalar_exp_generate (sc, (ST *) stmt->_.op.arg_1,
-				 &sc->sc_routine_code);
+      ret = scalar_exp_generate (sc, (ST *) stmt->_.op.arg_1, &sc->sc_routine_code);
     }
   cv_vret (&sc->sc_routine_code, ret);
 }
@@ -763,7 +734,7 @@ sqlc_asg_stmt (sql_comp_t * sc, ST * stmt, dk_set_t * code)
   state_slot_t *left, *right;
   left = scalar_exp_generate (sc, (ST *) stmt->_.op.arg_1, code);
   if (ST_P (rtree, CALL_STMT))
-      stmt->_.op.arg_2 = (caddr_t) (rtree = sqlo_udt_check_method_call (sc->sc_so, sc, rtree));
+    stmt->_.op.arg_2 = (caddr_t) (rtree = sqlo_udt_check_method_call (sc->sc_so, sc, rtree));
   if (!sc->sc_so)
     sqlc_mark_pred_deps (sc, NULL, stmt->_.bin_exp.right);
   if (ST_P (rtree, CALL_STMT))
@@ -772,8 +743,8 @@ sqlc_asg_stmt (sql_comp_t * sc, ST * stmt, dk_set_t * code)
     }
   else if (BIN_EXP_P (rtree))
     {
-      state_slot_t * lhs = scalar_exp_generate (sc, rtree->_.bin_exp.left, code);
-      state_slot_t * rhs = scalar_exp_generate (sc, rtree->_.bin_exp.right, code);
+      state_slot_t *lhs = scalar_exp_generate (sc, rtree->_.bin_exp.left, code);
+      state_slot_t *rhs = scalar_exp_generate (sc, rtree->_.bin_exp.right, code);
       state_slot_t *op_left, *op_right;
       /* Generate operands BEFORE op instruction (NEW_INSTR). */
       NEW_INSTR (ins, bop_to_artm_code ((int) rtree->type), code);
@@ -782,28 +753,28 @@ sqlc_asg_stmt (sql_comp_t * sc, ST * stmt, dk_set_t * code)
       ins->_.artm.left = op_left;
       ins->_.artm.right = op_right;
       ins->_.artm.result = left;
-      cv_artm_set_type ((instruction_t *)(*code)->data);
+      cv_artm_set_type ((instruction_t *) (*code)->data);
     }
   else
     {
       right = scalar_exp_generate (sc, (ST *) stmt->_.op.arg_2, code);
-      cv_artm (code, (ao_func_t)box_identity, left, right, NULL);
+      cv_artm (code, (ao_func_t) box_identity, left, right, NULL);
     }
   return left;
 }
 
 int
-sqlc_set_brk (query_t *qr, long line1, int what, caddr_t * inst)
+sqlc_set_brk (query_t * qr, long line1, int what, caddr_t * inst)
 {
   int rc = 0;
   if (!qr && !line1 && inst && *inst)
     {
-      instruction_t * instr = (instruction_t *) (*inst);
+      instruction_t *instr = (instruction_t *) (*inst);
       if (instr->ins_type == INS_BREAKPOINT)
 	{
 	  instr->_.breakpoint.brk_set = what;
 	  *inst = NULL;
-          return instr->_.breakpoint.line_no;
+	  return instr->_.breakpoint.line_no;
 	}
       else
 	return 0;
@@ -811,27 +782,27 @@ sqlc_set_brk (query_t *qr, long line1, int what, caddr_t * inst)
   else if (!qr || !qr->qr_head_node)
     return 0;
   DO_INSTR (instr, 0, qr->qr_head_node->src_pre_code)
-    {
-	if (instr->ins_type == INS_BREAKPOINT)
+  {
+    if (instr->ins_type == INS_BREAKPOINT)
+      {
+	if ((line1 > 0 && instr->_.breakpoint.line_no >= line1) || line1 <= 0)
 	  {
-	    if ((line1 > 0 && instr->_.breakpoint.line_no >= line1) || line1 <= 0)
-	      {
-		if (line1 >= 0)
-		  instr->_.breakpoint.brk_set = what;
-		else
-		  instr->_.breakpoint.brk_set = (instr->_.breakpoint.brk_set & 2) | (what & 1);
+	    if (line1 >= 0)
+	      instr->_.breakpoint.brk_set = what;
+	    else
+	      instr->_.breakpoint.brk_set = (instr->_.breakpoint.brk_set & 2) | (what & 1);
 /*		fprintf (stderr, "Set Brkp %p at (%ld)\n", instr, instr->_.breakpoint.line_no);*/
-		rc++;
-		if (line1 >= 0)
-		  {
-		    rc = instr->_.breakpoint.line_no;
-		    if (inst)
-		      *inst = (caddr_t) instr;
-		    break;
-		  }
+	    rc++;
+	    if (line1 >= 0)
+	      {
+		rc = instr->_.breakpoint.line_no;
+		if (inst)
+		  *inst = (caddr_t) instr;
+		break;
 	      }
 	  }
-    }
+      }
+  }
   END_DO_INSTR;
   return rc;
 }
@@ -840,15 +811,15 @@ sqlc_set_brk (query_t *qr, long line1, int what, caddr_t * inst)
 void
 sqlc_proc_cost (sql_comp_t * sc, ST * stmt)
 {
-  query_t * qr = sc->sc_cc->cc_query;
-  caddr_t * numbers = (caddr_t*) stmt->_.op.arg_1;
+  query_t *qr = sc->sc_cc->cc_query;
+  caddr_t *numbers = (caddr_t *) stmt->_.op.arg_1;
   int n_nums = BOX_ELEMENTS (numbers);
-  float * floats = (float*) dk_alloc_box_zero (sizeof (float) * (n_nums < 2 ? 2 : n_nums), DV_ARRAY_OF_FLOAT);
+  float *floats = (float *) dk_alloc_box_zero (sizeof (float) * (n_nums < 2 ? 2 : n_nums), DV_ARRAY_OF_FLOAT);
   int inx;
   DO_BOX (caddr_t, n, inx, numbers)
-    {
-      floats[inx] = unbox_float (n);
-    }
+  {
+    floats[inx] = unbox_float (n);
+  }
   END_DO_BOX;
   qr->qr_proc_cost = floats;
 }
@@ -860,37 +831,36 @@ sqlc_for_vectored_decl (sql_comp_t * sc, ST ** params, state_slot_t *** init_ret
   dk_set_t res = NULL;
   int inx;
   DO_BOX (ST *, decl, inx, params)
-    {
-      state_slot_t *var;
-      dk_set_t *compound_set = NULL;
-      if (IN_MODE != decl->_.vect_decl.mode)
-	continue;
-      compound_set = (dk_set_t *) sc->sc_compound_scopes->data;
+  {
+    state_slot_t *var;
+    dk_set_t *compound_set = NULL;
+    if (IN_MODE != decl->_.vect_decl.mode)
+      continue;
+    compound_set = (dk_set_t *) sc->sc_compound_scopes->data;
 
-      if (sqlc_find_crr (sc, decl->_.vect_decl.name))
-	{
-	  sqlc_warning ("01V01", "QW001",
-			"Local declaration of %.*s shadows a definition of the same name",
-			MAX_NAME_LEN, decl->_.vect_decl.name->_.col_ref.name);
-	}
+    if (sqlc_find_crr (sc, decl->_.vect_decl.name))
       {
-	sql_type_t sqt;
-	t_NEW_VARZ (col_ref_rec_t, crr);
-	ddl_type_to_sqt (&sqt, (caddr_t *) decl->_.vect_decl.type);
-	var = ssl_new_vec (sc->sc_cc,
-			   decl->_.vect_decl.name->_.col_ref.name, sqt.sqt_dtp);
-	var->ssl_sqt = sqt;
-	ssl_set_dc_type (var);
-	dk_set_push (&res, (void*)var);
-	dk_set_push (&inits, (void*)scalar_exp_generate (sc, decl->_.vect_decl.exp, &sc->sc_routine_code));
-	crr->crr_ssl = var;
-	crr->crr_col_ref = decl->_.vect_decl.name;
-	t_set_push (&sc->sc_col_ref_recs, (void*)crr);
+	sqlc_warning ("01V01", "QW001",
+	    "Local declaration of %.*s shadows a definition of the same name",
+	    MAX_NAME_LEN, decl->_.vect_decl.name->_.col_ref.name);
       }
+    {
+      sql_type_t sqt;
+      t_NEW_VARZ (col_ref_rec_t, crr);
+      ddl_type_to_sqt (&sqt, (caddr_t *) decl->_.vect_decl.type);
+      var = ssl_new_vec (sc->sc_cc, decl->_.vect_decl.name->_.col_ref.name, sqt.sqt_dtp);
+      var->ssl_sqt = sqt;
+      ssl_set_dc_type (var);
+      dk_set_push (&res, (void *) var);
+      dk_set_push (&inits, (void *) scalar_exp_generate (sc, decl->_.vect_decl.exp, &sc->sc_routine_code));
+      crr->crr_ssl = var;
+      crr->crr_col_ref = decl->_.vect_decl.name;
+      t_set_push (&sc->sc_col_ref_recs, (void *) crr);
     }
+  }
   END_DO_BOX;
-  *init_ret = (state_slot_t **)list_to_array (dk_set_nreverse (inits));
-  return (state_slot_t **)list_to_array (dk_set_nreverse (res));
+  *init_ret = (state_slot_t **) list_to_array (dk_set_nreverse (inits));
+  return (state_slot_t **) list_to_array (dk_set_nreverse (res));
 }
 
 void
@@ -908,12 +878,12 @@ sqlc_code_dpipe (sql_comp_t * sc, dk_set_t * code)
 void
 sqlc_for_vectored_stmt (sql_comp_t * sc, ST * stmt)
 {
-  state_slot_t ** out;
+  state_slot_t **out;
   dk_set_t crr_save = sc->sc_col_ref_recs;
   end_node_t en;
   dk_set_t out_exps = NULL;
   dk_set_t out_ssls = NULL;
-  data_source_t * save_qn;
+  data_source_t *save_qn;
   dk_set_t save;
   int inx;
   NEW_INSTR (ins, INS_FOR_VECT, &sc->sc_routine_code);
@@ -922,19 +892,19 @@ sqlc_for_vectored_stmt (sql_comp_t * sc, ST * stmt)
   ins->_.for_vect.modify = stmt->_.for_vec.modify;
   ins->_.for_vect.in_vars = sqlc_for_vectored_decl (sc, stmt->_.for_vec.decl, &ins->_.for_vect.in_values);
   DO_BOX_FAST (ST *, decl, inx, stmt->_.for_vec.decl)
-    {
-      dk_set_t ign = NULL;
-      if (OUT_MODE != decl->_.vect_decl.mode)
-	continue;
-      t_set_push (&out_exps, (void*)decl->_.vect_decl.exp);
-      dk_set_push (&out_ssls, (void*)scalar_exp_generate (sc, decl->_.vect_decl.name, &ign));
-    }
+  {
+    dk_set_t ign = NULL;
+    if (OUT_MODE != decl->_.vect_decl.mode)
+      continue;
+    t_set_push (&out_exps, (void *) decl->_.vect_decl.exp);
+    dk_set_push (&out_ssls, (void *) scalar_exp_generate (sc, decl->_.vect_decl.name, &ign));
+  }
   END_DO_BOX_FAST;
   save = sc->sc_routine_code;
   sc->sc_routine_code = NULL;
   sc->sc_cc->cc_query->qr_proc_vectored = QR_VEC_STMT;
   out = sqlc_compound_stmt (sc, stmt->_.for_vec.body, dk_set_nreverse (out_exps));
-  ins->_.for_vect.out_vars = (state_slot_t**)revlist_to_array (out_ssls);
+  ins->_.for_vect.out_vars = (state_slot_t **) revlist_to_array (out_ssls);
   ins->_.for_vect.out_values = out;
 
   sqlc_code_dpipe (sc, &sc->sc_routine_code);
@@ -944,7 +914,7 @@ sqlc_for_vectored_stmt (sql_comp_t * sc, ST * stmt)
   memset (&en, 0, sizeof (en));
   en.src_gen.src_pre_code = ins->_.for_vect.code;
   save_qn = sc->sc_cc->cc_query->qr_head_node;
-  sc->sc_cc->cc_query->qr_head_node = (data_source_t*)&en;
+  sc->sc_cc->cc_query->qr_head_node = (data_source_t *) & en;
   sqlg_vector_subq (sc);
   sc->sc_cc->cc_query->qr_proc_vectored = 0;
   sc->sc_routine_code = save;
@@ -957,7 +927,7 @@ void
 sqlc_not_vectored_stmt (sql_comp_t * sc, ST * stmt)
 {
   end_node_t en;
-  data_source_t * save_qn;
+  data_source_t *save_qn;
   dk_set_t save;
   int inx;
   NEW_INSTR (ins, INS_FOR_VECT, &sc->sc_routine_code);
@@ -972,7 +942,7 @@ sqlc_not_vectored_stmt (sql_comp_t * sc, ST * stmt)
   memset (&en, 0, sizeof (en));
   en.src_gen.src_pre_code = ins->_.for_vect.code;
   save_qn = sc->sc_cc->cc_query->qr_head_node;
-  sc->sc_cc->cc_query->qr_head_node = (data_source_t*)&en;
+  sc->sc_cc->cc_query->qr_head_node = (data_source_t *) & en;
   sc->sc_cc->cc_query->qr_proc_vectored = QR_VEC_STMT;
   sc->sc_routine_code = save;
   sc->sc_cc->cc_query->qr_head_node = save_qn;
@@ -982,10 +952,10 @@ sqlc_not_vectored_stmt (sql_comp_t * sc, ST * stmt)
 void
 sqlc_vec_qnode (sql_comp_t * sc, data_source_t ** qn_ret)
 {
-  data_source_t * qn = *qn_ret;
-  query_t * qr = sc->sc_cc->cc_query;
+  data_source_t *qn = *qn_ret;
+  query_t *qr = sc->sc_cc->cc_query;
   dk_set_t crr_save = sc->sc_col_ref_recs;
-  data_source_t * save_qn;
+  data_source_t *save_qn;
   dk_set_t save;
   save = sc->sc_routine_code;
   sc->sc_routine_code = NULL;
@@ -1006,7 +976,7 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
 {
   ST *stmt = *pstmt;
   subq_compilation_t *cursor_sqc;
-  ST * src_stmt = NULL;
+  ST *src_stmt = NULL;
   switch (stmt->type)
     {
 
@@ -1076,10 +1046,11 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
 	}
       else
 	{
-	  dbe_table_t * tb = sch_name_to_table (wi_inst.wi_schema, stmt->_.insert.table->_.table.name);
-	  int vec_this = tb && !sc->sc_cc->cc_query->qr_proc_vectored && (tb->tb_primary_key->key_partition || INS_REPLACING == stmt->_.insert.mode);
-	    if (vec_this)
-	      sc->sc_cc->cc_query->qr_proc_vectored = QR_VEC_STMT;
+	  dbe_table_t *tb = sch_name_to_table (wi_inst.wi_schema, stmt->_.insert.table->_.table.name);
+	  int vec_this = tb && !sc->sc_cc->cc_query->qr_proc_vectored && (tb->tb_primary_key->key_partition
+	      || INS_REPLACING == stmt->_.insert.mode);
+	  if (vec_this)
+	    sc->sc_cc->cc_query->qr_proc_vectored = QR_VEC_STMT;
 	  sqlc_insert (sc, stmt);
 	  if (vec_this)
 	    {
@@ -1097,7 +1068,7 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
       if (src_stmt)
 	sqlc_subq_stmt (sc, &src_stmt);
       else
-      sqlc_qnode_stmt (sc);
+	sqlc_qnode_stmt (sc);
       break;
 
     case DELETE_POS:
@@ -1107,7 +1078,7 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
       if (src_stmt)
 	sqlc_subq_stmt (sc, &src_stmt);
       else
-      sqlc_qnode_stmt (sc);
+	sqlc_qnode_stmt (sc);
       break;
 
     case UPDATE_SRC:
@@ -1117,17 +1088,17 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
       break;
 
     case ASG_STMT:
-	{
-	  ST *new_stmt = sqlo_udt_check_mutator (sc->sc_so, sc, stmt);
-	  if (new_stmt != stmt)
-	    {
-	      *pstmt = new_stmt;
-	      stmt = new_stmt;
-	      sqlc_proc_stmt (sc, pstmt);
-	    }
-	  else
-	    sqlc_asg_stmt (sc, stmt, &sc->sc_routine_code);
-	}
+      {
+	ST *new_stmt = sqlo_udt_check_mutator (sc->sc_so, sc, stmt);
+	if (new_stmt != stmt)
+	  {
+	    *pstmt = new_stmt;
+	    stmt = new_stmt;
+	    sqlc_proc_stmt (sc, pstmt);
+	  }
+	else
+	  sqlc_asg_stmt (sc, stmt, &sc->sc_routine_code);
+      }
       break;
 
     case NULL_STMT:
@@ -1138,12 +1109,12 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
       if (sc->sc_cc->cc_query->qr_brk)
 	{
 	  NEW_INSTR (breakpoint, INS_BREAKPOINT, &sc->sc_routine_code);
-	  breakpoint->_.breakpoint.line_no = (short) unbox(stmt->_.op.arg_1);
-	  DO_SET (col_ref_rec_t *, elm,  &sc->sc_col_ref_recs)
-	    {
-	      dk_set_push (&(breakpoint->_.breakpoint.scope), (void *)(elm->crr_ssl));
-	    }
-	  END_DO_SET();
+	  breakpoint->_.breakpoint.line_no = (short) unbox (stmt->_.op.arg_1);
+	  DO_SET (col_ref_rec_t *, elm, &sc->sc_col_ref_recs)
+	  {
+	    dk_set_push (&(breakpoint->_.breakpoint.scope), (void *) (elm->crr_ssl));
+	  }
+	  END_DO_SET ();
 	}
       break;
 #endif
@@ -1154,20 +1125,20 @@ sqlc_proc_stmt (sql_comp_t * sc, ST ** pstmt)
     case OPT_VECTORED:
       if (!sc->sc_cc->cc_query->qr_proc_vectored)
 	sqlc_new_error (sc->sc_cc, "37000", "VEC..", "Vectored declaration must be at top level of a procedure");
-      break; /* checked before compilation */
+      break;			/* checked before compilation */
     default:
       sqlc_new_error (sc->sc_cc, "39000", "SQ088", "Statement not supported in a procedure context.");
     }
 }
 
 void
-sqlo_add_opts (caddr_t ** opts_ret, long opt, void* val)
+sqlo_add_opts (caddr_t ** opts_ret, long opt, void *val)
 {
-  caddr_t * opts = *opts_ret;
+  caddr_t *opts = *opts_ret;
   int len = opts ? BOX_ELEMENTS (opts) : 0;
-  caddr_t * n = (caddr_t*)t_alloc_box (sizeof (caddr_t) * (2 + len), DV_ARRAY_OF_POINTER);
-  n[0] = (caddr_t)(ptrlong)opt;
-  n[1] = (caddr_t)val;
+  caddr_t *n = (caddr_t *) t_alloc_box (sizeof (caddr_t) * (2 + len), DV_ARRAY_OF_POINTER);
+  n[0] = (caddr_t) (ptrlong) opt;
+  n[1] = (caddr_t) val;
   memcpy (&n[2], opts, len * sizeof (caddr_t));
   *opts_ret = n;
 }
@@ -1177,7 +1148,7 @@ void
 sqlc_cursor_no_vec (ST * tree, caddr_t cr)
 {
   /* find cursor decl and set it to be non-vectored.  If cluster, do it only if table is local only or is dec;decl no cluster in cr  */
-  ST * sel;
+  ST *sel;
   int inx;
   if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (tree))
     return;
@@ -1186,8 +1157,8 @@ sqlc_cursor_no_vec (ST * tree, caddr_t cr)
   if (ST_P (tree, CURSOR_DEF) && BOX_ELEMENTS (tree) == 5 && SYMBOLP (tree->_.cr_def.name)
       && ST_P ((sel = tree->_.cr_def.spec), SELECT_STMT) && 0 == CASEMODESTRCMP (tree->_.cr_def.name, cr))
     {
-      ST ** from = sel->_.select_stmt.table_exp->_.table_exp.from;
-      dbe_table_t * tb;
+      ST **from = sel->_.select_stmt.table_exp->_.table_exp.from;
+      dbe_table_t *tb;
       if (BOX_ELEMENTS (from) > 1 || !ST_P (from[0], TABLE_REF) || !ST_P (from[0]->_.table_ref.table, TABLE_DOTTED))
 	return;
       tb = sch_name_to_table (wi_inst.wi_schema, from[0]->_.table_ref.table->_.table.name);
@@ -1198,12 +1169,11 @@ sqlc_cursor_no_vec (ST * tree, caddr_t cr)
       if (find_remote_table (tb->tb_name, 0))
 	return;
       if (!tb->tb_primary_key->key_partition || sqlo_opt_value (from[0]->_.table_ref.table->_.table.opts, OPT_NO_CLUSTER))
-      sqlo_add_opts (&sel->_.select_stmt.table_exp->_.table_exp.opts, OPT_NOT_VECTORED, (void*) 1);
+	sqlo_add_opts (&sel->_.select_stmt.table_exp->_.table_exp.opts, OPT_NOT_VECTORED, (void *) 1);
     }
   else
     {
-      DO_BOX (ST *, exp, inx, tree)
-	sqlc_cursor_no_vec (exp, cr);
+      DO_BOX (ST *, exp, inx, tree) sqlc_cursor_no_vec (exp, cr);
       END_DO_BOX;
     }
 }
@@ -1223,22 +1193,21 @@ sqlc_vec_current_of (sql_comp_t * sc, ST * tree, ST * whole_tree)
     sqlc_cursor_no_vec (whole_tree, tree->_.update_pos.cursor);
   else
     {
-      DO_BOX (ST *, exp, inx, tree)
-	sqlc_vec_current_of (sc, exp, whole_tree);
+      DO_BOX (ST *, exp, inx, tree) sqlc_vec_current_of (sc, exp, whole_tree);
       END_DO_BOX;
     }
 }
 
 
-id_hash_t * ua_func_to_ua;
+id_hash_t *ua_func_to_ua;
 
 query_t *
 sch_ua_func_ua (caddr_t name)
 {
-  query_t ** place;
+  query_t **place;
   if (!ua_func_to_ua)
     return NULL;
-  place = (query_t**)id_hash_get (ua_func_to_ua, (caddr_t)&name);
+  place = (query_t **) id_hash_get (ua_func_to_ua, (caddr_t) & name);
   return place ? *place : NULL;
 }
 
@@ -1249,8 +1218,9 @@ sch_set_ua_func_ua (caddr_t name, query_t * qr)
   if (!ua_func_to_ua)
     ua_func_to_ua = id_casemode_hash_create (23);
   name = box_copy (name);
-  if (strstr (name, "DB.DBA.SPARQL_RSET_TTL_H")) bing ();
-  id_hash_set (ua_func_to_ua, (caddr_t)&name, (caddr_t)&qr);
+  if (strstr (name, "DB.DBA.SPARQL_RSET_TTL_H"))
+    bing ();
+  id_hash_set (ua_func_to_ua, (caddr_t) & name, (caddr_t) & qr);
 }
 
 
@@ -1277,17 +1247,13 @@ sqlc_user_aggregate_decl (sql_comp_t * sc, ST * tree)
   sc->sc_name_to_label = id_str_hash_create (4);
   sc->sc_decl_name_to_label = id_str_hash_create (4);
   sqlc_decl_variable_list (sc, tree->_.user_aggregate.params, 1);
-  o_sc_trig_decl = sc->sc_is_trigger_decl; /* save old value and go */
+  o_sc_trig_decl = sc->sc_is_trigger_decl;	/* save old value and go */
   sc->sc_is_trigger_decl = 0;
   stub = t_listst (5, COMPOUND_STMT,
-    t_list (1,
-      t_list (3, CALL_STMT, t_sqlp_box_id_upcase ("signal"),
-	t_list (2, t_box_string ("42000"),
-	  t_box_string ("User-defined aggregate is called as a plain function") ) ) ),
-    t_box_num (1),
-    t_box_num (1),
-    NULL
-      );
+      t_list (1,
+	  t_list (3, CALL_STMT, t_sqlp_box_id_upcase ("signal"),
+	      t_list (2, t_box_string ("42000"),
+		  t_box_string ("User-defined aggregate is called as a plain function")))), t_box_num (1), t_box_num (1), NULL);
   sqlc_vec_current_of (sc, stub, stub);
   sqlc_proc_stmt (sc, &stub);
   sc->sc_is_trigger_decl = o_sc_trig_decl;
@@ -1304,7 +1270,7 @@ sqlc_user_aggregate_decl (sql_comp_t * sc, ST * tree)
   aggr->ua_init.uaf_bif = box_num ((ptrlong) bif_ua_find (aggr->ua_init.uaf_name));
   aggr->ua_acc.uaf_bif = box_num ((ptrlong) bif_find (aggr->ua_acc.uaf_name));
   if (aggr->ua_acc.uaf_bif)
-    bif_set_is_aggregate ((bif_t)unbox (aggr->ua_acc.uaf_bif));
+    bif_set_is_aggregate ((bif_t) unbox (aggr->ua_acc.uaf_bif));
   aggr->ua_final.uaf_bif = box_num ((ptrlong) bif_find (aggr->ua_final.uaf_name));
   if (aggr->ua_merge.uaf_name)
     aggr->ua_merge.uaf_bif = box_num ((ptrlong) bif_find (aggr->ua_merge.uaf_name));
@@ -1320,26 +1286,26 @@ sqlc_check_vectored (query_t * qr, ST * tree)
   int inx, inx2;
   if (!ST_P (tree, COMPOUND_STMT))
     return;
-  DO_BOX (ST*, decl, inx, tree->_.compound.body)
-    {
-      if (ST_P (decl, COMPOUND_STMT))
+  DO_BOX (ST *, decl, inx, tree->_.compound.body)
+  {
+    if (ST_P (decl, COMPOUND_STMT))
+      {
+	DO_BOX (ST *, decl2, inx2, decl->_.compound.body)
 	{
-	  DO_BOX (ST*, decl2, inx2, decl->_.compound.body)
+	  if (ST_P (decl2, OPT_VECTORED))
 	    {
-	      if (ST_P (decl2, OPT_VECTORED))
-		{
-		  qr->qr_proc_vectored = 1;
-		  return;
-		}
+	      qr->qr_proc_vectored = 1;
+	      return;
 	    }
-	  END_DO_BOX;
 	}
-      else if (ST_P (decl, OPT_VECTORED))
-	{
-	  qr->qr_proc_vectored = 1;
-	  return;
-	}
-    }
+	END_DO_BOX;
+      }
+    else if (ST_P (decl, OPT_VECTORED))
+      {
+	qr->qr_proc_vectored = 1;
+	return;
+      }
+  }
   END_DO_BOX;
 }
 
@@ -1350,14 +1316,13 @@ sqlc_routine_decl (sql_comp_t * sc, ST * tree)
   int o_sc_trig_decl = 0;
   caddr_t *alt_type = (caddr_t *) tree->_.routine.alt_ret;
   sc->sc_cc->cc_query->qr_proc_name = box_string (tree->_.routine.name);
-  sc->sc_cc->cc_query->qr_proc_ret_type =
-      box_copy_tree ((caddr_t) tree->_.routine.ret);
-  sc->sc_cc->cc_query->qr_proc_alt_ret_type = alt_type ? box_copy(alt_type[0]): NULL;
+  sc->sc_cc->cc_query->qr_proc_ret_type = box_copy_tree ((caddr_t) tree->_.routine.ret);
+  sc->sc_cc->cc_query->qr_proc_alt_ret_type = alt_type ? box_copy (alt_type[0]) : NULL;
   sc->sc_cc->cc_query->qr_proc_place = alt_type ? ((long) (ptrlong) alt_type[1]) : 0;
   sc->sc_cc->cc_query->qr_proc_soap_opts = alt_type ? (caddr_t *) box_copy_tree (alt_type[2]) : NULL;
-                                              /*an alternative return type and SOAP options */
+  /*an alternative return type and SOAP options */
   if (BOX_ELEMENTS (tree) > 7)
-    { /* UDT method */
+    {				/* UDT method */
       sc->sc_cc->cc_query->qr_udt_mtd_info = (caddr_t *) box_copy_tree ((box_t) tree->_.routine.udt_mtd_info);
     }
 
@@ -1365,7 +1330,7 @@ sqlc_routine_decl (sql_comp_t * sc, ST * tree)
   sc->sc_decl_name_to_label = id_str_hash_create (4);
   sqlc_check_vectored (sc->sc_cc->cc_query, tree->_.routine.body);
   sqlc_decl_variable_list (sc, tree->_.routine.params, 1);
-  o_sc_trig_decl = sc->sc_is_trigger_decl; /* save old value and go */
+  o_sc_trig_decl = sc->sc_is_trigger_decl;	/* save old value and go */
   sc->sc_is_trigger_decl = 0;
   sqlc_vec_current_of (sc, tree->_.routine.body, tree->_.routine.body);
   if (sc->sc_cc->cc_query->qr_proc_vectored)
@@ -1391,60 +1356,58 @@ sqlc_module_decl (sql_comp_t * sc, ST * tree)
   if (sch_module_def (sc->sc_cc->cc_schema, tree->_.module.name))
     {
       err = srv_make_new_error ("37000", "SQ140",
-	  "Module declaration tries to overwrite a module"
-	  " with the same name. Drop the module %s first", tree->_.module.name);
+	  "Module declaration tries to overwrite a module" " with the same name. Drop the module %s first", tree->_.module.name);
       goto error;
     }
 
   DO_BOX (ST *, sc_proc, inx, tree->_.module.procs)
-    {
-      query_t *qr;
-      caddr_t old_name = sc_proc->_.routine.name;
-      char buff[4*MAX_NAME_LEN + 4];
+  {
+    query_t *qr;
+    caddr_t old_name = sc_proc->_.routine.name;
+    char buff[4 * MAX_NAME_LEN + 4];
 
-      snprintf (buff, sizeof (buff), "%s.%s", tree->_.module.name, old_name);
-      sc_proc->_.routine.name = t_alloc_box (strlen (buff) + 1, DV_TYPE_OF (old_name));
-      strcpy_box_ck (sc_proc->_.routine.name, buff);
+    snprintf (buff, sizeof (buff), "%s.%s", tree->_.module.name, old_name);
+    sc_proc->_.routine.name = t_alloc_box (strlen (buff) + 1, DV_TYPE_OF (old_name));
+    strcpy_box_ck (sc_proc->_.routine.name, buff);
 
-      qr = sql_compile_st (&(tree->_.module.procs[inx]), sc->sc_client, &err, sc);
-      sc_proc = tree->_.module.procs[inx];
-      if (err)
-	goto error;
-      qr->qr_module = sc->sc_cc->cc_query;
-      if (sc->sc_client->cli_user)
-	qr->qr_proc_owner = sc->sc_client->cli_user->usr_id;
+    qr = sql_compile_st (&(tree->_.module.procs[inx]), sc->sc_client, &err, sc);
+    sc_proc = tree->_.module.procs[inx];
+    if (err)
+      goto error;
+    qr->qr_module = sc->sc_cc->cc_query;
+    if (sc->sc_client->cli_user)
+      qr->qr_proc_owner = sc->sc_client->cli_user->usr_id;
 #if 0
-      /* no longer needed as top condition for module must handle such situation */
-      if (sch_proc_def (sc->sc_cc->cc_schema, qr->qr_proc_name))
-	{
-	    err = srv_make_new_error ("37000", "SQ140",
-		"Module procedure declaration tries to overwrite a procedure"
-		" with the same name. Drop the procedure %s (or the module containing it) first.",
-		qr->qr_proc_name);
-	    goto error;
-	}
+    /* no longer needed as top condition for module must handle such situation */
+    if (sch_proc_def (sc->sc_cc->cc_schema, qr->qr_proc_name))
+      {
+	err = srv_make_new_error ("37000", "SQ140",
+	    "Module procedure declaration tries to overwrite a procedure"
+	    " with the same name. Drop the procedure %s (or the module containing it) first.", qr->qr_proc_name);
+	goto error;
+      }
 #endif
 #ifdef PLDBG
-      if (sc->sc_cc->cc_query->qr_brk)
-	{ /* source & line are from qr_module */
-	  qr->qr_line_counts = hash_table_allocate (100);
-	  qr->qr_call_counts = id_str_hash_create (101);
-	  qr->qr_stats_mtx = mutex_allocate ();
-	}
+    if (sc->sc_cc->cc_query->qr_brk)
+      {				/* source & line are from qr_module */
+	qr->qr_line_counts = hash_table_allocate (100);
+	qr->qr_call_counts = id_str_hash_create (101);
+	qr->qr_stats_mtx = mutex_allocate ();
+      }
 #endif
 
-      sch_set_proc_def (sc->sc_cc->cc_schema, qr->qr_proc_name, qr);
-      t_set_push (&qr_set, qr);
-    }
+    sch_set_proc_def (sc->sc_cc->cc_schema, qr->qr_proc_name, qr);
+    t_set_push (&qr_set, qr);
+  }
   END_DO_BOX;
   return;
 
 error:
   DO_SET (query_t *, qr, &qr_set)
-    {
-      sch_set_proc_def (sc->sc_cc->cc_schema, qr->qr_proc_name, NULL);
-    }
-  END_DO_SET();
+  {
+    sch_set_proc_def (sc->sc_cc->cc_schema, qr->qr_proc_name, NULL);
+  }
+  END_DO_SET ();
   sqlc_resignal_1 (sc->sc_cc, err);
 }
 
@@ -1470,8 +1433,8 @@ sqlc_trig_param (sql_comp_t * sc, char *prefix, dbe_column_t * col)
     }
   else
     {
-  ssl = ssl_new_parameter (sc->sc_cc, tmp);
-  ssl->ssl_type = SSL_REF_PARAMETER;
+      ssl = ssl_new_parameter (sc->sc_cc, tmp);
+      ssl->ssl_type = SSL_REF_PARAMETER;
     }
   crr->crr_ssl = ssl;
   crr->crr_col_ref = ref;
@@ -1491,25 +1454,25 @@ sqlc_trig_params (sql_comp_t * sc, ST * tree, dbe_table_t * tb)
   if (tree->_.trigger.old_alias)
     {
       DO_BOX (ST *, alias, inx, tree->_.trigger.old_alias)
-	{
-	  switch (alias->type)
-	    {
-	    case OLD_ALIAS:
-	      if (qr->qr_trig_event == TRIG_INSERT)
-		sqlc_new_error (sc->sc_cc, "S0022", "SQ151",
+      {
+	switch (alias->type)
+	  {
+	  case OLD_ALIAS:
+	    if (qr->qr_trig_event == TRIG_INSERT)
+	      sqlc_new_error (sc->sc_cc, "S0022", "SQ151",
 		  "Invalid alias declaration: insert trigger cannot reference old values.");
-	      o_prefix = alias->_.op.arg_1;
-	      break;
-	    case NEW_ALIAS:
-	      if (qr->qr_trig_event == TRIG_DELETE)
-		sqlc_new_error (sc->sc_cc, "S0022", "SQ152",
+	    o_prefix = alias->_.op.arg_1;
+	    break;
+	  case NEW_ALIAS:
+	    if (qr->qr_trig_event == TRIG_DELETE)
+	      sqlc_new_error (sc->sc_cc, "S0022", "SQ152",
 		  "Invalid alias declaration: delete trigger cannot reference new values.");
-	      n_prefix = alias->_.op.arg_1;
-	      break;
-	    default:
-	      SQL_GPF_T (sc->sc_cc);
-	    }
-	}
+	    n_prefix = alias->_.op.arg_1;
+	    break;
+	  default:
+	    SQL_GPF_T (sc->sc_cc);
+	  }
+      }
       END_DO_BOX;
     }
   else
@@ -1522,15 +1485,15 @@ sqlc_trig_params (sql_comp_t * sc, ST * tree, dbe_table_t * tb)
 	    o_prefix = box_string ("O");
 	}
     }
-  if ((NULL != n_prefix) && (NULL != o_prefix) && !CASEMODESTRCMP(n_prefix, o_prefix))
+  if ((NULL != n_prefix) && (NULL != o_prefix) && !CASEMODESTRCMP (n_prefix, o_prefix))
     sqlc_new_error (sc->sc_cc, "S0022", "SQ149",
-      "An alias %s is used in both 'referencing old as' and 'referencing new as' declarations.", n_prefix);
+	"An alias %s is used in both 'referencing old as' and 'referencing new as' declarations.", n_prefix);
   if (qr->qr_trig_event != TRIG_INSERT)
     {
       DO_SET (dbe_column_t *, col, &key->key_parts)
-	{
-	  sqlc_trig_param (sc, o_prefix, col);
-	}
+      {
+	sqlc_trig_param (sc, o_prefix, col);
+      }
       END_DO_SET ();
     }
   if (qr->qr_trig_event != TRIG_DELETE)
@@ -1554,7 +1517,7 @@ sqlc_trigger_scope (sql_comp_t * sc, ST * tree)
 }
 
 
-ST ** box_add_prime_keys (ST ** selection, dbe_table_t * tb);
+ST **box_add_prime_keys (ST ** selection, dbe_table_t * tb);
 
 
 void
@@ -1567,14 +1530,12 @@ sqlc_qr_trig_event (sql_comp_t * sc, query_t * qr, ST * tree)
       qr->qr_trig_event = TRIG_UPDATE;
       if (0 != BOX_ELEMENTS (event))
 	{
-	  qr->qr_trig_upd_cols = (oid_t *) dk_alloc_box (
-	      sizeof (oid_t) * BOX_ELEMENTS (event), DV_ARRAY_OF_LONG);
+	  qr->qr_trig_upd_cols = (oid_t *) dk_alloc_box (sizeof (oid_t) * BOX_ELEMENTS (event), DV_ARRAY_OF_LONG);
 	  DO_BOX (caddr_t, cname, inx, event)
 	  {
 	    dbe_column_t *col = tb_name_to_column (qr->qr_trig_dbe_table, cname);
 	    if (!col)
-	      sqlc_new_error (sc->sc_cc, "S0022", "SQ089",
-		  "Bad column %s  in trigger column list", cname);
+	      sqlc_new_error (sc->sc_cc, "S0022", "SQ089", "Bad column %s  in trigger column list", cname);
 	    qr->qr_trig_upd_cols[inx] = col->col_id;
 	  }
 	  END_DO_BOX;
@@ -1590,13 +1551,13 @@ sqlc_trigger_decl (sql_comp_t * sc, ST * tree)
 {
   int has_similar, o_sc_trig_decl = 0;
   query_t *qr = sc->sc_cc->cc_query;
-  user_t * usr = sc->sc_client->cli_user;
+  user_t *usr = sc->sc_client->cli_user;
   dbe_table_t *tb = sch_name_to_table (sc->sc_cc->cc_schema,
       tree->_.trigger.table);
   if (!tb)
     sqlc_new_error (sc->sc_cc, "42S02", "SQ090", "Bad table %s in trigger %s definition",
 	tree->_.trigger.table, tree->_.trigger.name);
-  if (usr && !sec_tb_check (tb, usr->usr_id, usr->usr_id, GR_SELECT)) /*XXX: let check is the all columns granted to the creator */
+  if (usr && !sec_tb_check (tb, usr->usr_id, usr->usr_id, GR_SELECT))	/*XXX: let check is the all columns granted to the creator */
     sqlc_new_error (sc->sc_cc, "42000", "SQ092", "Access denied for table %s", tb->tb_name);
   qr->qr_trig_dbe_table = tb;
   qr->qr_proc_name = box_string (tree->_.trigger.name);
@@ -1605,11 +1566,9 @@ sqlc_trigger_decl (sql_comp_t * sc, ST * tree)
   sqlc_qr_trig_event (sc, qr, tree);
   if (sch_view_def (sc->sc_cc->cc_schema, tb->tb_name))
     {
-      if (((char) tree->_.trigger.time) != TRIG_INSTEAD &&
-       !tb_is_trig_at (tb, qr->qr_trig_event, TRIG_INSTEAD, NULL))
-	  sqlc_new_error (sc->sc_cc, "42000", "SQ091",
-	      "In order to have triggers, a view %s must first have an INSTEAD OF trigger.",
-	      tb->tb_name);
+      if (((char) tree->_.trigger.time) != TRIG_INSTEAD && !tb_is_trig_at (tb, qr->qr_trig_event, TRIG_INSTEAD, NULL))
+	sqlc_new_error (sc->sc_cc, "42000", "SQ091",
+	    "In order to have triggers, a view %s must first have an INSTEAD OF trigger.", tb->tb_name);
     }
   qr->qr_trig_order = (int) unbox (tree->_.trigger.order);
 
@@ -1623,7 +1582,7 @@ sqlc_trigger_decl (sql_comp_t * sc, ST * tree)
 
   has_similar = tb_has_similar_trigger (tb, qr);
   trig_set_def (qr->qr_trig_dbe_table, qr);
-  o_sc_trig_decl = sc->sc_is_trigger_decl; /* save old value and go */
+  o_sc_trig_decl = sc->sc_is_trigger_decl;	/* save old value and go */
   sc->sc_is_trigger_decl = 1;
   sqlc_vec_current_of (sc, tree->_.trigger.body, tree->_.trigger.body);
   sqlc_proc_stmt (sc, &(tree->_.trigger.body));
@@ -1637,10 +1596,9 @@ sqlc_trigger_decl (sql_comp_t * sc, ST * tree)
   qr->qr_to_recompile = 0;
   qr->qr_parse_tree_to_reparse = 0;
 
-  if (DO_LOG(LOG_DDL))
+  if (DO_LOG (LOG_DDL))
     {
       log_info ("DDLC_8 %s Create trigger %.*s (%.*s)", GET_USER,
 	  LOG_PRINT_STR_L, tree->_.trigger.name, LOG_PRINT_STR_L, tree->_.trigger.table);
     }
 }
-

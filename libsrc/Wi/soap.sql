@@ -20,6 +20,7 @@
 --  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 --
 --
+
 --!AWK PUBLIC
 create procedure
 SOAP_CLIENT (
@@ -663,7 +664,7 @@ WS_SOAP (in path any, in params any, in lines any)
       _fwd := xpath_eval ('fwd', rp, 1);
       _rev := xpath_eval ('rev', rp, 1);
       --this_host := http_request_header (lines, 'Host', null, 'localhost');
-      --this_host := 'imitko:6666'; -- find out how to get port if not supplied
+      --this_host := 'imitko:6666'; -- findout how to get port if not supplied
       --this_path := http_path();
       --this_point := sprintf ('http://%s%s', this_host, this_path);
       this_point := soap_current_url ();
@@ -2284,7 +2285,7 @@ nxt:;
 		      </Error>', __SQL_STATE, __SQL_MESSAGE));
 	goto err;
       };
-      if (atoi (virtuoso_ini_item_value ('HTTPServer', 'ServerThreads')) < 2)
+      if (atoi (cfg_item_value (virtuoso_ini_path(), 'HTTPServer', 'ServerThreads')) < 2)
 	{
 	    result := xml_tree_doc (sprintf ('<Error>
 			  <Code>%V

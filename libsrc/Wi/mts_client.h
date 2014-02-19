@@ -30,12 +30,9 @@
 #include "Dk/Dktypes.h"
 #include "msdtc.h"
 
-EXE_IMPORT (void, mts_get_trx_cookie, (void *con, void *i_trx, void **cookie,
-	unsigned long *cookie_len));
-EXE_IMPORT (caddr_t, mts_bin_encode, (void *bin_array,
-	unsigned long bin_array_len));
-EXE_IMPORT (int, mts_bin_decode, (const char *encoded_str, void **array,
-	unsigned long *len));
+EXE_IMPORT (void, mts_get_trx_cookie, (void *con, void *i_trx, void **cookie, unsigned long *cookie_len));
+EXE_IMPORT (caddr_t, mts_bin_encode, (void *bin_array, unsigned long bin_array_len));
+EXE_IMPORT (int, mts_bin_decode, (const char *encoded_str, void **array, unsigned long *len));
 void mts_client_init ();
 
 #endif /* _MTS_CLIENT_H */

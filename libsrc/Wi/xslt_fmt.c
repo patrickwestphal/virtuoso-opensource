@@ -39,12 +39,14 @@
 typedef char *roman_digits_t[10];
 
 roman_digits_t roman_digits[4] = {
-  { "", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix" },
-  { "", "x", "xx", "xxx", "xl", "l", "lx", "lxx", "lxxx", "xc" },
-  { "", "c", "cc", "ccc", "cd", "d", "dc", "dcc", "dccc", "cm" },
-  { "", "m", "mm", "mmm", "mq", "q", "qm", "qmm", "qmmm", "mq" } };
+  {"", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix"},
+  {"", "x", "xx", "xxx", "xl", "l", "lx", "lxx", "lxxx", "xc"},
+  {"", "c", "cc", "ccc", "cd", "d", "dc", "dcc", "dccc", "cm"},
+  {"", "m", "mm", "mmm", "mq", "q", "qm", "qmm", "qmmm", "mq"}
+};
 
-char *xslt_fmt_print_roman (char *tail, unsigned num, int uppercase)
+char *
+xslt_fmt_print_roman (char *tail, unsigned num, int uppercase)
 {
   int digit_ctr = 3;
   unsigned digit_factor = 1000;
@@ -53,7 +55,7 @@ char *xslt_fmt_print_roman (char *tail, unsigned num, int uppercase)
       (tail++)[0] = '0';
       return tail;
     }
-  if (num >=10000)
+  if (num >= 10000)
     {
       (tail++)[0] = '?';
       num %= 10000;
@@ -79,7 +81,8 @@ char *xslt_fmt_print_roman (char *tail, unsigned num, int uppercase)
   return tail;
 }
 
-char *xslt_fmt_print_latin_alpha (char *tail, unsigned num, int uppercase)
+char *
+xslt_fmt_print_latin_alpha (char *tail, unsigned num, int uppercase)
 {
   int digit_ctr = 1;
   unsigned digit_factor = 1;
@@ -111,7 +114,8 @@ char *xslt_fmt_print_latin_alpha (char *tail, unsigned num, int uppercase)
   return tail;
 }
 
-char *xslt_fmt_print_decimal (char *tail, unsigned num, int min_len)
+char *
+xslt_fmt_print_decimal (char *tail, unsigned num, int min_len)
 {
   char buf[20];
   int len = sprintf (buf, "%u", num);
@@ -124,27 +128,28 @@ char *xslt_fmt_print_decimal (char *tail, unsigned num, int min_len)
   return tail + len;
 }
 
-char *xslt_fmt_print_numbers (char *tail, int tail_max_fill, unsigned *nums, int nums_count, char *format)
+char *
+xslt_fmt_print_numbers (char *tail, int tail_max_fill, unsigned *nums, int nums_count, char *format)
 {
   char *last_nonalpha_begin;
   char *delim_begin, *delim_end, *delim_tail;
-  char *fmt_end = NULL; /* To keep gcc 4.0 happy */
+  char *fmt_end = NULL;		/* To keep gcc 4.0 happy */
   char *buf_end = tail + tail_max_fill;
   int fmt_type = '1', fmt_len = 1;
   int num_idx;
-  int format_len = (int) strlen(format);
+  int format_len = (int) strlen (format);
 /* Printing starting nonalpha-s */
   while (('\0' != format[0]) && !isalnum ((unsigned char) (format[0])))
     (tail++)[0] = (format++)[0];
   delim_begin = delim_end = format;
 /* Remembering format end */
   last_nonalpha_begin = format + format_len;
-  while ((last_nonalpha_begin > format) && !isalnum((unsigned char) (last_nonalpha_begin[-1])))
+  while ((last_nonalpha_begin > format) && !isalnum ((unsigned char) (last_nonalpha_begin[-1])))
     last_nonalpha_begin--;
 /* Now the printing loop is running. */
   for (num_idx = 0; num_idx < nums_count; num_idx++)
     {
-      unsigned curr_num = nums [num_idx];
+      unsigned curr_num = nums[num_idx];
 /* Finding the format */
       if (delim_end < last_nonalpha_begin)
 	{
@@ -160,13 +165,19 @@ char *xslt_fmt_print_numbers (char *tail, int tail_max_fill, unsigned *nums, int
 	      fmt_type = '1';
 	      fmt_len = 1;
 	      while ('0' == fmt_end[0])
-		{ fmt_end++; fmt_len++; }
+		{
+		  fmt_end++;
+		  fmt_len++;
+		}
 	      if ('1' == fmt_end[0])
 		fmt_end++;
 	      else
 		fmt_len = 1;
 	      break;
-	    case 'A': case 'a': case 'I': case 'i':
+	    case 'A':
+	    case 'a':
+	    case 'I':
+	    case 'i':
 	      fmt_end++;
 	      break;
 	    }
@@ -181,7 +192,7 @@ char *xslt_fmt_print_numbers (char *tail, int tail_max_fill, unsigned *nums, int
 	}
 /* Printing the current number */
 #ifdef GPF_T
-      if (tail > (buf_end-16))
+      if (tail > (buf_end - 16))
 	GPF_T;
 #endif
       switch (fmt_type)
@@ -203,7 +214,7 @@ char *xslt_fmt_print_numbers (char *tail, int tail_max_fill, unsigned *nums, int
 	  break;
 	}
 /* If needed, printing the delimiter */
-      if (num_idx < (nums_count-1))
+      if (num_idx < (nums_count - 1))
 	{
 	  if (delim_end < last_nonalpha_begin)
 	    {
@@ -231,97 +242,155 @@ char *xslt_fmt_print_numbers (char *tail, int tail_max_fill, unsigned *nums, int
 
 char tst_buf[100000];
 
-void main(void)
+void
+main (void)
 {
-  static unsigned n1[] = { 1,2,3,4,5,6,7,8,9,10 };
-  static unsigned n2[] = { 10,20,30,40,50,60,70,80,90,100 };
-  static unsigned n3[] = { 100,200,300,400,500,600,700,800,900,1000 };
-  static unsigned n4[] = { 1234,2345,3456,4576,5678,6789,7890,8901,9012,27 };
+  static unsigned n1[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+  static unsigned n2[] = { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
+  static unsigned n3[] = { 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000 };
+  static unsigned n4[] = { 1234, 2345, 3456, 4576, 5678, 6789, 7890, 8901, 9012, 27 };
   static unsigned n5[] = { 1000000000 };
   char *tail;
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nSpecial numberings:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 1, "A.i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 2, "A.i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "A.i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 1, "((A.i))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 2, "((A.i))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((A.i))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 1, "((001))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 2, "((001))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((001))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 1, "#");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 2, "#");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "#");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 1, "A.i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 2, "A.i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "A.i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 1, "((A.i))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 2, "((A.i))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((A.i))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 1, "((001))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 2, "((001))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((001))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 1, "#");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 2, "#");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "#");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nAlpha lowercase:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 10, "a");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n2, 10, "a");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n3, 10, "a");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "a");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n5, 10, "a");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 10, "a");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n2, 10, "a");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n3, 10, "a");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "a");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n5, 10, "a");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nAlpha uppercase:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 10, "A");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n2, 10, "A");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n3, 10, "A");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "A");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n5, 10, "A");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 10, "A");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n2, 10, "A");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n3, 10, "A");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "A");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n5, 10, "A");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nRoman lowercase:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 10, "i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n2, 10, "i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n3, 10, "i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n5, 10, "i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 10, "i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n2, 10, "i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n3, 10, "i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n5, 10, "i");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nRoman uppercase:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 10, "I");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n2, 10, "I");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n3, 10, "I");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "I");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n5, 10, "I");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 10, "I");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n2, 10, "I");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n3, 10, "I");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "I");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n5, 10, "I");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nDefault:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 10, "");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n2, 10, "");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n3, 10, "");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n5, 10, "");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 10, "");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n2, 10, "");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n3, 10, "");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n5, 10, "");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nFormats that are equal to default:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "1");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "1.1");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n4, 10, "1.1.1.1.1.1.1.1.1.1.1");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "1");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "1.1");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n4, 10, "1.1.1.1.1.1.1.1.1.1.1");
   printf ("%s", tst_buf);
 
-  tail = tst_buf; memset (tst_buf, 0, sizeof (tst_buf));
+  tail = tst_buf;
+  memset (tst_buf, 0, sizeof (tst_buf));
   tail += sprintf (tail, "\nInvalid formats:");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "A.z");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "z.i");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "z.z");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((A.z))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((z.z))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((z.z))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((000))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((00A))");
-  tail += sprintf (tail, "\n"); tail = xslt_fmt_print_numbers (tail, n1, 3, "((011))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "A.z");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "z.i");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "z.z");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((A.z))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((z.z))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((z.z))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((000))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((00A))");
+  tail += sprintf (tail, "\n");
+  tail = xslt_fmt_print_numbers (tail, n1, 3, "((011))");
   printf ("%s", tst_buf);
 
-  exit(0);
+  exit (0);
 }
 
 #endif

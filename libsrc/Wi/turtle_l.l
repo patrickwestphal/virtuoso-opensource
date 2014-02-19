@@ -541,7 +541,7 @@ SPAR_NCNAME_X		(([A-Za-z0-9_./#%+?&=@*:\x7f-\xfe-]*[A-Za-z0-9_/#%+?&=@*:\x7f-\xf
 <INITIAL>[+-]?{DOUBLE_LITERAL}		{ return ttlp_NUMBER_double (yylval, ttlp_arg, yyg); }
 
 <INITIAL>("#"(.*))?{S_NLNL}[ \t]*				{ TTL_TWO_CRS; }
-<INITIAL,GARBAGE_BOL,GARBAGE,TWO_CRS>("#"(.*))?{S_NL}		{ TTL_ONE_CR; }
+<INITIAL,GARBAGE_BOL,GARBAGE,TWO_CRS>("#"(.*))?{S_NL}	{ TTL_ONE_CR; }
 <INITIAL,TWO_CRS>"#"(.*)		{ }
 <INITIAL,TWO_CRS>[ \t]+			{ }
 <INITIAL,TWO_CRS>.		{
@@ -558,11 +558,11 @@ SPAR_NCNAME_X		(([A-Za-z0-9_./#%+?&=@*:\x7f-\xfe-]*[A-Za-z0-9_/#%+?&=@*:\x7f-\xf
 <GARBAGE,GARBAGE_BOL><<EOF>>				{ return 0; }
 <GARBAGE>([^_<@# \t\:\r\n][^: \t\r\n]*[ \t]+)+		{ ttlyy_dbg_printf(("{Garbage 1 %s}", yytext)); }
 <GARBAGE>[^ \t\r\n]+					{ ttlyy_dbg_printf(("{Garbage 2 %s}", yytext)); }
-<GARBAGE>[ \t]+	{ }
+<GARBAGE>[ \t]+						{ }
 <GARBAGE_BOL>([^_<@# \t\:\r\n][^: \t\r\n]*[ \t]+)+	{ ttlyy_dbg_printf(("{Garbage_BOL 1 %s}", yytext)); TTLYYBEGIN(GARBAGE); }
 <GARBAGE_BOL>[^ \t\r\n]+				{ ttlyy_dbg_printf(("{Garbage_BOL 2 %s}", yytext)); TTLYYBEGIN(GARBAGE); }
 <GARBAGE,GARBAGE_BOL>{S_NL}[ \t]*			{ TTLYYBEGIN(GARBAGE_BOL); TTL_ONE_CR; }
-<TWO_CRS>("#"(.*))?{S_NL}[ \t]*		{ TTL_ONE_CR; }
+<TWO_CRS>("#"(.*))?{S_NL}[ \t]*				{ TTL_ONE_CR; }
 <GARBAGE,GARBAGE_BOL>.					{ }
 
 %%
@@ -725,7 +725,7 @@ resume_sniffing:
 #ifdef TTLYYDEBUG
               ttlyy_dbg_printf (("{END}"));
 #endif
-            break;
+              break;
             }
 #ifdef DEBUG
           if (lexem <= __TTL_NONPUNCT_END)
@@ -829,7 +829,6 @@ rdf_load_turtle (
   tf = ttlp->ttlp_tf;
   tf->tf_qi = qi;
   tf->tf_app_env = app_env;
-
   if (arg1_is_filename)
     {
       sec_check_dba (qi, "<read XML from URL of type file://...>");

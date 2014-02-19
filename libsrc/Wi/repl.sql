@@ -101,8 +101,43 @@ create procedure REPL_PUB_REMOVE (in __pub varchar, in _item varchar, in _type i
 }
 ;
 
+create procedure REPL_GET_ADDR_FROM_DSN (in dsn varchar)
+{
+  declare arr, dsn_exists any;
+  dsn_exists := 0;
+  declare exit handler for sqlstate '*'
+    {
+      rollback work;
+      signal ('42000', sprintf ('Can not get host address from DSN "%s"', dsn));
+    };
+  arr := sql_get_private_profile_string (dsn, 'user');
+  if (isvector (arr))
+    {
+      foreach (any x in arr) do
+	{
+	  dsn_exists := 1;
+	  if (lower (x[0]) = 'address' or lower (x[0]) = 'host')
+	    return x[1];
+	}
+    }
+  arr := sql_get_private_profile_string (dsn, 'system');
+  if (isvector (arr))
+    {
+      foreach (any x in arr) do
+	{
+	  dsn_exists := 1;
+	  if (lower (x[0]) = 'address' or lower (x[0]) = 'host')
+	    return x[1];
+	}
+    }
+  if (dsn_exists)
+    return 'localhost:1111';
+  signal ('22023', sprintf ('Can not find DSN "%s"', dsn));
+}
+;
 
-create procedure REPL_SERVER (in name varchar, in addr varchar, in repl_addr varchar)
+
+create procedure REPL_SERVER (in name varchar, in addr varchar, in repl_addr varchar := null)
 {
   if (not isstring (sys_stat ('st_repl_server_enable')))
     {
@@ -113,8 +148,15 @@ create procedure REPL_SERVER (in name varchar, in addr varchar, in repl_addr var
     }
   if (name = repl_this_server ())
     return;
+  if (repl_addr is null)
+    {
+      if (__proc_exists ('sql_get_private_profile_string', 2) is not null)
+	repl_addr := REPL_GET_ADDR_FROM_DSN (addr);
+      else
+	repl_addr := addr;
+    }
   insert replacing DB.DBA.SYS_SERVERS (SERVER, DB_ADDRESS, REPL_ADDRESS)
-      values (name, addr, coalesce (repl_addr, addr));
+      values (name, addr, repl_addr);
   repl_changed ();
   log_text ('repl_changed ()');
 }
@@ -153,7 +195,7 @@ create procedure REPL_PUBLISH (in _acct varchar, in log_path varchar, in _is_upd
   _nth := coalesce ((select max (NTH) from DB.DBA.SYS_REPL_ACCOUNTS), 0);
   insert into DB.DBA.SYS_REPL_ACCOUNTS (SERVER, ACCOUNT, NTH, IS_UPDATEABLE, SYNC_USER)
     values (repl_this_server (), acct, _nth + 1, _is_updatable, _sync_user);
-  repl_changed ();
+  cl_exec ('repl_changed ()');
   log_text ('repl_changed ()');
   sequence_set (concat ('repl_', repl_this_server(), '_', acct), 0, 0);
   repl_new_log (repl_this_server(), acct, log_path);
@@ -181,6 +223,11 @@ cont:
       REPL_REVOKE (pub, grnt);
     }
   delete from DB.DBA.SYS_REPL_ACCOUNTS  where SERVER = repl_this_server () and ACCOUNT = pub;
+  delete from SYS_REPL_SUBSCRIBERS where RS_SERVER = repl_this_server () and RS_ACCOUNT = pub;
+  sequence_remove (sprintf ('repl_%s_%s', repl_this_server (), pub));
+  registry_remove (sprintf ('repl_%s_%s', repl_this_server (), pub));
+  commit work;
+  repl_account_remove (pub);
   repl_changed ();
 }
 ;
@@ -294,6 +341,8 @@ create procedure REPL_UNSUBSCRIBE (in serv varchar, in _pub varchar, in _item va
     }
   else
       delete from DB.DBA.SYS_TP_ITEM where TI_SERVER = serv and TI_ACCT = pub and TI_ITEM = _item;
+  sequence_remove (sprintf ('repl_%s_%s', serv, pub));
+  registry_remove (sprintf ('repl_%s_%s', serv, pub));
   repl_changed ();
   log_text ('repl_changed ()');
 }
@@ -2177,11 +2226,11 @@ create procedure REPL_DAV_PROC (in coltbl varchar, in restbl varchar, in dav_u a
   stat := '00000'; msg :='';
   exec (str, stat, msg);
   if (dav_u is not null)
-    dav_u := cast (dav_u as varchar);
+    dav_u := sprintf ('\'%s\'', cast (dav_u as varchar));
   else
     dav_u := 'NULL';
   if (dav_g is not null)
-    dav_g := cast (dav_g as varchar);
+    dav_g := sprintf ('\'%s\'', cast (dav_g as varchar));
   else
     dav_g := 'NULL';
   str := sprintf ('create procedure REPL_DAV_FILL_ALL (in _coll varchar)
@@ -3087,4 +3136,32 @@ create procedure DB.DBA.REPL_TRX_CHECK ()
 
 --!AFTER
 DB.DBA.REPL_TRX_CHECK ()
+;
+
+create procedure CL_SEND_REPL (in srv any, in acct any, in ses any)
+{
+  declare d, hosts, txn, compr any;
+  hosts := vector (sys_stat ('cl_master_host'));
+  declare exit handler for sqlstate '*' {
+    log_message (sprintf ('REPL: %s', __SQL_MESSAGE));
+    log_enable (txn, 1);
+    resignal;
+  };
+  compr := string_output ();
+  string_output_gz_compress (ses, compr);
+  txn := log_enable (1, 1);
+  d := daq (1);
+  daq_call (d, '__ALL', hosts, 'DB.DBA.CL_MASTER_REPL', vector (srv, acct, string_output_string (compr)), 1);
+  daq_results (d);
+  log_enable (txn, 1);
+}
+;
+
+create procedure CL_MASTER_REPL (in srv any, in acct any, in ses any)
+{
+  declare decomp any;
+  decomp := string_output ();
+  gz_uncompress (ses, decomp);
+  __cl_repl_log_message (srv, acct, decomp);
+}
 ;

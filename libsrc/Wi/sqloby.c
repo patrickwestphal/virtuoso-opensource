@@ -47,24 +47,24 @@
 #define SPEC_MIXED 0
 
 int
-sqlo_oby_exp_cols (sqlo_t * so, ST * dt, ST** oby)
+sqlo_oby_exp_cols (sqlo_t * so, ST * dt, ST ** oby)
 {
   int inx;
   int res = SPEC_ALL_COLS;
   DO_BOX (ST *, spec, inx, oby)
-    {
-      if (INTEGERP (spec->_.o_spec.col))
-	{
-	  ptrlong nth = unbox ((box_t) spec->_.o_spec.col) - 1;
-	  if ((uint32)nth >= (ptrlong) BOX_ELEMENTS (dt->_.select_stmt.selection))
-	    sqlc_error (so->so_sc->sc_cc, "37000", "index of column in order by out of range");
-	  spec->_.o_spec.col = (ST*) t_box_copy_tree (dt->_.select_stmt.selection[nth]);
-	  while (ST_P (spec->_.o_spec.col, BOP_AS))
-	    spec->_.o_spec.col = spec->_.o_spec.col->_.as_exp.left;
-	}
-      if (!ST_P (spec->_.o_spec.col, COL_DOTTED))
-	res = SPEC_MIXED;
-    }
+  {
+    if (INTEGERP (spec->_.o_spec.col))
+      {
+	ptrlong nth = unbox ((box_t) spec->_.o_spec.col) - 1;
+	if ((uint32) nth >= (ptrlong) BOX_ELEMENTS (dt->_.select_stmt.selection))
+	  sqlc_error (so->so_sc->sc_cc, "37000", "index of column in order by out of range");
+	spec->_.o_spec.col = (ST *) t_box_copy_tree (dt->_.select_stmt.selection[nth]);
+	while (ST_P (spec->_.o_spec.col, BOP_AS))
+	  spec->_.o_spec.col = spec->_.o_spec.col->_.as_exp.left;
+      }
+    if (!ST_P (spec->_.o_spec.col, COL_DOTTED))
+      res = SPEC_MIXED;
+  }
   END_DO_BOX;
   return res;
 }
@@ -75,14 +75,14 @@ sqlo_ot_group (sqlo_t * so, op_table_t * from_ot)
 {
   /* if there are fun refs and no group, take out the oby
    * if there is an oby */
-  ST * dt = from_ot->ot_dt;
-  ST * texp = dt->_.select_stmt.table_exp;
+  ST *dt = from_ot->ot_dt;
+  ST *texp = dt->_.select_stmt.table_exp;
   int inx;
   if (!from_ot->ot_fun_refs)
     {
       if (texp->_.table_exp.group_by)
 	{
-	  op_table_t * ot = so->so_this_dt;
+	  op_table_t *ot = so->so_this_dt;
 	  if (!ot->ot_group_ot)
 	    {
 	      ST *dt = ot->ot_dt;
@@ -97,7 +97,7 @@ sqlo_ot_group (sqlo_t * so, op_table_t * from_ot)
       return;
     }
 
-#if 0 /* - not so correct duplicate of sqlo_select_scope - does not count aggr in oby */
+#if 0				/* - not so correct duplicate of sqlo_select_scope - does not count aggr in oby */
   if (!from_ot->ot_group_ot && texp->_.table_exp.order_by)
     {
       /* no group but fun refs means 1 row hence no point in oby */
@@ -107,12 +107,13 @@ sqlo_ot_group (sqlo_t * so, op_table_t * from_ot)
   if (!texp->_.table_exp.group_by)
     {
       DO_BOX (ST *, exp, inx, dt->_.select_stmt.selection)
-	{
-	  df_elt_t * dfe = sqlo_df (so, exp);
-	  op_table_t * dep = CAR (op_table_t *, dfe->dfe_tables);
-	  if (dep && (dep != from_ot->ot_group_ot || CDR (dfe->dfe_tables)))
-	    sqlc_error (so->so_sc->sc_cc, "37000", "A selection which has aggregates but no group by must consist of aggregates only.");
-	}
+      {
+	df_elt_t *dfe = sqlo_df (so, exp);
+	op_table_t *dep = CAR (op_table_t *, dfe->dfe_tables);
+	if (dep && (dep != from_ot->ot_group_ot || CDR (dfe->dfe_tables)))
+	  sqlc_error (so->so_sc->sc_cc, "37000",
+	      "A selection which has aggregates but no group by must consist of aggregates only.");
+      }
       END_DO_BOX;
       return;
     }
@@ -121,15 +122,14 @@ sqlo_ot_group (sqlo_t * so, op_table_t * from_ot)
 
 
 ptrlong
-sqlo_select_top_cnt (sqlo_t *so, ST *top_exp)
+sqlo_select_top_cnt (sqlo_t * so, ST * top_exp)
 {
   ptrlong res = 0;
   if (top_exp)
     {
       if (DFE_IS_CONST (sqlo_df (so, top_exp->_.top.exp)) &&
 	  DFE_IS_CONST (sqlo_df (so, top_exp->_.top.skip_exp)) &&
-	  DV_TYPE_OF (top_exp->_.top.exp) == DV_LONG_INT &&
-	  DV_TYPE_OF (top_exp->_.top.skip_exp) == DV_LONG_INT)
+	  DV_TYPE_OF (top_exp->_.top.exp) == DV_LONG_INT && DV_TYPE_OF (top_exp->_.top.skip_exp) == DV_LONG_INT)
 	{
 	  res = MAX (0, unbox ((box_t) top_exp->_.top.exp) - unbox ((box_t) top_exp->_.top.skip_exp));
 	}
@@ -143,13 +143,13 @@ sqlo_select_top_cnt (sqlo_t *so, ST *top_exp)
 void
 sqlo_ot_oby_seq (sqlo_t * so, op_table_t * top_ot)
 {
-  ST * col;
+  ST *col;
   dk_set_t new_tables = NULL, tables = NULL;
-  ST * texp, **oby;
-  ST * dt = top_ot->ot_dt;
-  op_table_t * col_ot, * prev_ot = NULL;
+  ST *texp, **oby;
+  ST *dt = top_ot->ot_dt;
+  op_table_t *col_ot, *prev_ot = NULL;
   int inx;
-  df_elt_t * col_dfe;
+  df_elt_t *col_dfe;
   ST *top_exp = SEL_TOP (dt);
 
   if (!ST_P (dt, SELECT_STMT))
@@ -165,38 +165,38 @@ sqlo_ot_oby_seq (sqlo_t * so, op_table_t * top_ot)
   top_ot->ot_oby_dfe->_.setp.specs = oby;
   top_ot->ot_oby_dfe->_.setp.top_cnt = sqlo_select_top_cnt (so, top_exp);
   DO_BOX (ST *, spec, inx, texp->_.table_exp.order_by)
-    {
-      df_elt_t * oby_dfe = sqlo_df (so, spec->_.o_spec.col);
-      tables = t_set_union (oby_dfe->dfe_tables, tables);
-    }
+  {
+    df_elt_t *oby_dfe = sqlo_df (so, spec->_.o_spec.col);
+    tables = t_set_union (oby_dfe->dfe_tables, tables);
+  }
   END_DO_BOX;
   top_ot->ot_oby_dfe->dfe_tables = tables;
 
   DO_BOX (ST *, spec, inx, oby)
-    {
-      if (!ST_P (spec->_.o_spec.col, COL_DOTTED))
-	return;
-      col = spec->_.o_spec.col;
-      col_ot = sqlo_cname_ot (so, col->_.col_ref.prefix);
-      if (col_ot != prev_ot && col_ot->ot_order_cols)
+  {
+    if (!ST_P (spec->_.o_spec.col, COL_DOTTED))
+      return;
+    col = spec->_.o_spec.col;
+    col_ot = sqlo_cname_ot (so, col->_.col_ref.prefix);
+    if (col_ot != prev_ot && col_ot->ot_order_cols)
       {
 	/* there's order cols from same table non-contiguous in ordering */
 	return;
       }
-      if (col_ot != prev_ot)
-	{
-	  prev_ot = col_ot;
-	  col_ot->ot_order_dir = (char) spec->_.o_spec.order;
-	  TNCONCF1 (new_tables, col_ot);
-	}
-      col_dfe = sqlo_df (so, col);
-      TNCONCF1 (prev_ot->ot_order_cols, col_dfe);
-      if (col_ot->ot_order_dir != spec->_.o_spec.order)
-	{
-	  col_ot->ot_order_dir = OT_ORDER_MIXED;
-	  return;
-	}
-    }
+    if (col_ot != prev_ot)
+      {
+	prev_ot = col_ot;
+	col_ot->ot_order_dir = (char) spec->_.o_spec.order;
+	TNCONCF1 (new_tables, col_ot);
+      }
+    col_dfe = sqlo_df (so, col);
+    TNCONCF1 (prev_ot->ot_order_cols, col_dfe);
+    if (col_ot->ot_order_dir != spec->_.o_spec.order)
+      {
+	col_ot->ot_order_dir = OT_ORDER_MIXED;
+	return;
+      }
+  }
   END_DO_BOX;
   /* we have an oby composed of columns which are grouped by table.  */
 
@@ -207,7 +207,7 @@ sqlo_ot_oby_seq (sqlo_t * so, op_table_t * top_ot)
 int
 sqlo_is_seq_in_oby_order (sqlo_t * so, df_elt_t * dfe, df_elt_t * last_tb)
 {
-  op_table_t * from_ot = so->so_this_dt;
+  op_table_t *from_ot = so->so_this_dt;
   int n_ordered = from_ot ? dk_set_length (from_ot->ot_oby_ots) : -1;
   int n_in_order = 0;
   for (dfe = dfe; dfe; dfe = dfe->dfe_next)
@@ -219,9 +219,8 @@ sqlo_is_seq_in_oby_order (sqlo_t * so, df_elt_t * dfe, df_elt_t * last_tb)
 	  if (dfe->_.table.hash_role == HR_REF && !dfe->_.table.is_unique)
 	    return 0;
 	  if (dfe->_.table.ot->ot_is_outer)
-	    return 0; /* vectored outer puts all the nulls at the end, not in key order */
-	  if (! (dfe->_.table.is_oby_order
-		 || dfe->_.table.is_unique))
+	    return 0;		/* vectored outer puts all the nulls at the end, not in key order */
+	  if (!(dfe->_.table.is_oby_order || dfe->_.table.is_unique))
 	    return 0;
 	  if (dfe->_.table.is_oby_order)
 	    {
@@ -231,7 +230,7 @@ sqlo_is_seq_in_oby_order (sqlo_t * so, df_elt_t * dfe, df_elt_t * last_tb)
 	    }
 	}
       else if (DFE_DT == dfe->dfe_type)
-	return 0; /* a dfe found before all ordered ones were found */
+	return 0;		/* a dfe found before all ordered ones were found */
     }
   return 1;
 }
@@ -244,14 +243,14 @@ sqlo_all_explicit_oby_placed (dk_set_t dfes, df_elt_t * last_tb, dk_set_t oby_ot
   if (-1 == dk_set_position (oby_ots, last_ot))
     {
       DO_SET (df_elt_t *, dfe, &dfes)
-	{
-	  if (dfe->dfe_type == DFE_TABLE || dfe->dfe_type == DFE_DT)
-	    {
-	      op_table_t *ot = dfe_ot (dfe);
-	      if (!dfe->dfe_is_placed && -1 != dk_set_position (oby_ots, ot))
-		return 0;
-	    }
-	}
+      {
+	if (dfe->dfe_type == DFE_TABLE || dfe->dfe_type == DFE_DT)
+	  {
+	    op_table_t *ot = dfe_ot (dfe);
+	    if (!dfe->dfe_is_placed && -1 != dk_set_position (oby_ots, ot))
+	      return 0;
+	  }
+      }
       END_DO_SET ();
     }
   return 1;
@@ -263,54 +262,52 @@ sqlo_is_key_in_order (sqlo_t * so, df_elt_t * dfe, dbe_key_t * key)
 {
   int n_parts = key->key_is_primary ? key->key_n_significant : dk_set_length (key->key_parts);
   int nth_part = 0;
-  op_table_t * ot = dfe->_.table.ot;
+  op_table_t *ot = dfe->_.table.ot;
   dk_set_t oby_cols = ot->ot_order_cols;
-  DO_SET (dbe_column_t *, col,&key->key_parts)
+  DO_SET (dbe_column_t *, col, &key->key_parts)
+  {
+    dbe_column_t *oby_col;
+    if (!oby_cols)
+      return 1;
+    if (nth_part == n_parts)
+      break;
+    oby_col = ((df_elt_t *) oby_cols->data)->_.col.col;
+    DO_SET (df_elt_t *, pred, &dfe->_.table.col_preds)
     {
-      dbe_column_t * oby_col;
-      if (!oby_cols)
-	return 1;
-      if (nth_part == n_parts)
-	break;
-      oby_col = ((df_elt_t *) oby_cols->data)->_.col.col;
-      DO_SET (df_elt_t *, pred, &dfe->_.table.col_preds)
-	{
-	  df_elt_t ** in_list;
-	  if ((in_list = sqlo_in_list (pred, NULL, NULL))
-	      && col == in_list[0]->_.col.col)
-	    return 0;
-	  if (BOP_EQ == pred->_.bin.op
-	      && col == pred->_.bin.left->_.col.col)
-	    {
-	      if (col == oby_col)
-		goto check_next_key_part;
-	      else
-		goto part_had_eq_pred;
-	    }
-	}
-      END_DO_SET();
-      if (col != oby_col)
+      df_elt_t **in_list;
+      if ((in_list = sqlo_in_list (pred, NULL, NULL)) && col == in_list[0]->_.col.col)
 	return 0;
-    check_next_key_part:
-      oby_cols = oby_cols->next;
-    part_had_eq_pred:
-      nth_part++;
+      if (BOP_EQ == pred->_.bin.op && col == pred->_.bin.left->_.col.col)
+	{
+	  if (col == oby_col)
+	    goto check_next_key_part;
+	  else
+	    goto part_had_eq_pred;
+	}
     }
-  END_DO_SET();
+    END_DO_SET ();
+    if (col != oby_col)
+      return 0;
+  check_next_key_part:
+    oby_cols = oby_cols->next;
+  part_had_eq_pred:
+    nth_part++;
+  }
+  END_DO_SET ();
   /* exhausted key parts. If index non-unique and more order needed, fail */
   if (!key->key_is_unique)
     return 1;
   if (oby_cols)
     return 0;
-  return 1; /* as many key parts as order cols */
+  return 1;			/* as many key parts as order cols */
 }
 
 
 float
-sqlo_tb_key_cost (df_elt_t * tb_dfe, dbe_key_t * key, dk_set_t preds, int * is_unq)
+sqlo_tb_key_cost (df_elt_t * tb_dfe, dbe_key_t * key, dk_set_t preds, int *is_unq)
 {
   float u, a, o;
-  dbe_key_t * old_key = tb_dfe->_.table.key;
+  dbe_key_t *old_key = tb_dfe->_.table.key;
   int unq = tb_dfe->_.table.is_unique;
   dk_set_t old_preds = tb_dfe->_.table.col_preds;
   tb_dfe->_.table.key = key;
@@ -327,8 +324,8 @@ sqlo_tb_key_cost (df_elt_t * tb_dfe, dbe_key_t * key, dk_set_t preds, int * is_u
 int
 sqlo_try_oby_order (sqlo_t * so, df_elt_t * tb_dfe)
 {
-  op_table_t * from_ot = so->so_this_dt;
-  op_table_t * ot = tb_dfe->_.table.ot;
+  op_table_t *from_ot = so->so_this_dt;
+  op_table_t *ot = tb_dfe->_.table.ot;
   float best_cost = -1;
   dbe_key_t *best = NULL;
   int is_unq, oby_nth;
@@ -371,7 +368,7 @@ sqlo_try_oby_order (sqlo_t * so, df_elt_t * tb_dfe)
 	    }
 	}
       /* not allow tables to be placed in index order if no tables were palced
-	 and the table does not have the first oby col */
+         and the table does not have the first oby col */
       if (!tb_found && oby_nth > 0)
 	return 0;
     }
@@ -380,7 +377,7 @@ sqlo_try_oby_order (sqlo_t * so, df_elt_t * tb_dfe)
 
   if (opt_inx_name && !strcmp (opt_inx_name, "PRIMARY KEY"))
     {
-    is_pk_inx = 1;
+      is_pk_inx = 1;
       opt_inx_name = tb_dfe->_.table.ot->ot_table->tb_primary_key->key_name;
     }
   else if (opt_inx_name && !strcmp (opt_inx_name, "TEXT KEY"))
@@ -396,62 +393,62 @@ sqlo_try_oby_order (sqlo_t * so, df_elt_t * tb_dfe)
 	  if (is_unq)
 	    tb_dfe->_.table.is_unique = 1;
 	  if (!is_unq && ot->ot_table->tb_primary_key->key_is_col && ORDER_DESC == ot->ot_order_dir)
-	    best = NULL; /* can't read col inx backwards */
+	    best = NULL;	/* can't read col inx backwards */
 	  else
-	  best = ot->ot_table->tb_primary_key;
+	    best = ot->ot_table->tb_primary_key;
 	}
     }
   else if (is_txt_inx || tb_dfe->_.table.index_path)
     return 0;
 
   DO_SET (dbe_key_t *, key, &ot->ot_table->tb_keys)
-    {
-      if (key->key_no_pk_ref)
-	continue;
-      if (opt_inx_name)
-	{
-	  if (key_matches_index_opt (key, opt_inx_name))
-	    {
-	      if (!sqlo_is_key_in_order (so, tb_dfe, key))
-		return 0;
-	      else
-		{
-		  sqlo_tb_key_cost (tb_dfe, key, col_preds, &is_unq);
-		  if (is_unq)
-		    tb_dfe->_.table.is_unique = 1;
-		  if (!is_unq && key->key_is_col  && ORDER_DESC == tb_dfe->_.table.ot->ot_order_dir)
-		    {
-		      was_col_desc = 1;
+  {
+    if (key->key_no_pk_ref)
+      continue;
+    if (opt_inx_name)
+      {
+	if (key_matches_index_opt (key, opt_inx_name))
+	  {
+	    if (!sqlo_is_key_in_order (so, tb_dfe, key))
+	      return 0;
+	    else
+	      {
+		sqlo_tb_key_cost (tb_dfe, key, col_preds, &is_unq);
+		if (is_unq)
+		  tb_dfe->_.table.is_unique = 1;
+		if (!is_unq && key->key_is_col && ORDER_DESC == tb_dfe->_.table.ot->ot_order_dir)
+		  {
+		    was_col_desc = 1;
 		    best = NULL;
-		    }
-		  else
+		  }
+		else
 		  best = key;
-		  break;
-		}
-	    }
-	}
-      else if (sqlo_is_key_in_order (so, tb_dfe, key))
-	{
-	  if (1 /*key != prev_key */)
-	    {
-	      float cost  = sqlo_tb_key_cost (tb_dfe, key, tb_dfe->_.table.all_preds, &is_unq);
-	      if (key->key_is_col && ORDER_DESC == tb_dfe->_.table.ot->ot_order_dir)
-		was_col_desc = 1;
-	      if ((is_unq || cost < best_cost || -1 == best_cost)
-		  && !(key->key_is_col && ORDER_DESC == tb_dfe->_.table.ot->ot_order_dir))
-		{
-		  best_cost = cost;
-		  best = key;
-		  if (is_unq)
-		    {
-		      tb_dfe->_.table.is_unique = is_unq;
-		      break;
-		    }
-		}
-	    }
-	}
-    }
-  END_DO_SET();
+		break;
+	      }
+	  }
+      }
+    else if (sqlo_is_key_in_order (so, tb_dfe, key))
+      {
+	if (1 /*key != prev_key */ )
+	  {
+	    float cost = sqlo_tb_key_cost (tb_dfe, key, tb_dfe->_.table.all_preds, &is_unq);
+	    if (key->key_is_col && ORDER_DESC == tb_dfe->_.table.ot->ot_order_dir)
+	      was_col_desc = 1;
+	    if ((is_unq || cost < best_cost || -1 == best_cost)
+		&& !(key->key_is_col && ORDER_DESC == tb_dfe->_.table.ot->ot_order_dir))
+	      {
+		best_cost = cost;
+		best = key;
+		if (is_unq)
+		  {
+		    tb_dfe->_.table.is_unique = is_unq;
+		    break;
+		  }
+	      }
+	  }
+      }
+  }
+  END_DO_SET ();
 
   if (opt_inx_name && !best && !was_col_desc)
     sqlc_new_error (so->so_sc->sc_cc, "22023", "SQ189", "TABLE OPTION index %s not defined for table %s",
@@ -461,11 +458,11 @@ sqlo_try_oby_order (sqlo_t * so, df_elt_t * tb_dfe)
     {
 /*      if (tb_dfe->_.table.key != best)
 	{*/
-	  so->so_gen_pt = tb_dfe->dfe_prev;
-	  sqlo_dt_unplace (so, tb_dfe);
-	  tb_dfe->_.table.key = best;
-	  tb_dfe->dfe_unit = 0; /*recalc the cost next time */
-	  sqlo_place_table (so, tb_dfe);
+      so->so_gen_pt = tb_dfe->dfe_prev;
+      sqlo_dt_unplace (so, tb_dfe);
+      tb_dfe->_.table.key = best;
+      tb_dfe->dfe_unit = 0;	/*recalc the cost next time */
+      sqlo_place_table (so, tb_dfe);
 /*	}
       else if (tb_dfe->dfe_next)
 	sqlo_dt_unplace (so, tb_dfe->dfe_next);*/
@@ -481,10 +478,10 @@ sqlo_place_oby_specs (sqlo_t * so, op_table_t * from_ot, ST ** specs)
 {
   int inx;
   DO_BOX (ST *, spec, inx, specs)
-    {
-      df_elt_t *dfe_spec = sqlo_df (so, spec->_.o_spec.col);
-      sqlo_place_exp (so, from_ot->ot_work_dfe, dfe_spec);
-    }
+  {
+    df_elt_t *dfe_spec = sqlo_df (so, spec->_.o_spec.col);
+    sqlo_place_exp (so, from_ot->ot_work_dfe, dfe_spec);
+  }
   END_DO_BOX;
 }
 
@@ -504,7 +501,7 @@ sqlo_try_sorted_oby (sqlo_t * so, op_table_t * from_ot)
     return;
   if (!dfe_reqd_placed (from_ot->ot_oby_dfe))
     return;
-  if (sqlo_is_seq_in_oby_order  (so, from_ot->ot_work_dfe->_.sub.first, NULL))
+  if (sqlo_is_seq_in_oby_order (so, from_ot->ot_work_dfe->_.sub.first, NULL))
     return;
   sqlo_place_oby_specs (so, from_ot, from_ot->ot_oby_dfe->_.setp.specs);
   sqlo_place_dfe_after (so, LOC_LOCAL, so->so_gen_pt, from_ot->ot_oby_dfe);
@@ -518,24 +515,24 @@ sqlo_are_non_inx_gb_cols (op_table_t * from_ot, df_elt_t * tb_dfe, int nth)
   /* loop over the group specs and see if there are any from this table which are not in the n first of the order index */
   int inx;
   DO_BOX (ST *, spec, inx, from_ot->ot_group_dfe->_.setp.specs)
-    {
-      ST * col = spec->_.o_spec.col;
-      if (0 == strcmp (col->_.col_ref.prefix, tb_dfe->_.table.ot->ot_new_prefix))
+  {
+    ST *col = spec->_.o_spec.col;
+    if (0 == strcmp (col->_.col_ref.prefix, tb_dfe->_.table.ot->ot_new_prefix))
+      {
+	/* col of this table. Is it in the n leading order key parts? */
+	int ctr = 0;
+	DO_SET (dbe_column_t *, inxcol, &tb_dfe->_.table.key->key_parts)
 	{
-	  /* col of this table. Is it in the n leading order key parts? */
-	  int ctr = 0;
-	  DO_SET (dbe_column_t *, inxcol, &tb_dfe->_.table.key->key_parts)
-	    {
-	      if (0 == stricmp (col->_.col_ref.name, inxcol->col_name))
-		goto next_spec;
-	      ctr++;
-	      if (ctr >= nth)
-		return 1; /* a col in the specs that is of this table but not in the n first parts of order key */
-	    }
-	  END_DO_SET();
+	  if (0 == stricmp (col->_.col_ref.name, inxcol->col_name))
+	    goto next_spec;
+	  ctr++;
+	  if (ctr >= nth)
+	    return 1;		/* a col in the specs that is of this table but not in the n first parts of order key */
 	}
-    next_spec: ;
-    }
+	END_DO_SET ();
+      }
+  next_spec:;
+  }
   END_DO_BOX;
   return 0;
 }
@@ -545,12 +542,11 @@ int
 sqlo_tb_is_col_eq (df_elt_t * tb_dfe, dbe_column_t * col)
 {
   DO_SET (df_elt_t *, pred, &tb_dfe->_.table.col_preds)
-    {
-      if (BOP_EQ == pred->_.bin.op
-	  && col == pred->_.bin.left->_.col.col)
-	return 1;
-    }
-  END_DO_SET();
+  {
+    if (BOP_EQ == pred->_.bin.op && col == pred->_.bin.left->_.col.col)
+      return 1;
+  }
+  END_DO_SET ();
   return 0;
 }
 
@@ -560,12 +556,12 @@ sqlo_is_col_in_gb (op_table_t * ot, df_elt_t * tb_dfe, dbe_column_t * col)
 {
   int inx;
   DO_BOX (ST *, spec, inx, ot->ot_group_dfe->_.setp.specs)
-    {
-      ST * spec_col = spec->_.o_spec.col;
-      if (0 == stricmp (spec_col->_.col_ref.prefix, tb_dfe->_.table.ot->ot_new_prefix)
-	  && 0 == stricmp (spec_col->_.col_ref.name, col->col_name))
-	return 1;
-    }
+  {
+    ST *spec_col = spec->_.o_spec.col;
+    if (0 == stricmp (spec_col->_.col_ref.prefix, tb_dfe->_.table.ot->ot_new_prefix)
+	&& 0 == stricmp (spec_col->_.col_ref.name, col->col_name))
+      return 1;
+  }
   END_DO_BOX;
   return 0;
 }
@@ -580,50 +576,49 @@ sqlo_tb_gb_status (sqlo_t * so, op_table_t * from_ot, df_elt_t * tb_dfe)
    * if equalities and group cols together cover the full unique key it is ordered
    * if equalities and group cols cover part of the key AND no more group cols in this table then
    * the table is partially ordered */
-  dbe_key_t * key = tb_dfe->_.table.key;
+  dbe_key_t *key = tb_dfe->_.table.key;
   int n_parts = key->key_n_significant;
   int nth = 0;
 
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      if (nth == n_parts)
-	return GB_NON_ORDERED;
-      if (sqlo_is_col_in_gb (from_ot, tb_dfe, col))
-	break;
-      nth++;
-    }
-  END_DO_SET();
+  {
+    if (nth == n_parts)
+      return GB_NON_ORDERED;
+    if (sqlo_is_col_in_gb (from_ot, tb_dfe, col))
+      break;
+    nth++;
+  }
+  END_DO_SET ();
 
   nth = 0;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      if (nth == n_parts)
-	return GB_SINGLE;
-      if (!sqlo_tb_is_col_eq (tb_dfe, col))
-	break;
-      nth++;
-    }
-  END_DO_SET();
+  {
+    if (nth == n_parts)
+      return GB_SINGLE;
+    if (!sqlo_tb_is_col_eq (tb_dfe, col))
+      break;
+    nth++;
+  }
+  END_DO_SET ();
 
-      nth = 0;
+  nth = 0;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      if (nth == n_parts)
-	break;
-      if (! (sqlo_tb_is_col_eq (tb_dfe, col)
-	     || sqlo_is_col_in_gb (from_ot, tb_dfe, col)))
-	{
-	  /* if leading non-unq determined, then there must be no non-index cols of this table in the gb spec */
-	  if (0 == nth)
-	    return GB_NON_ORDERED;
-	  if (sqlo_are_non_inx_gb_cols (from_ot, tb_dfe, nth))
-	    return GB_NON_ORDERED;
-	  else
-	    return GB_ORDERED_NON_UNIQUE;
-	}
-      nth++;
-    }
-  END_DO_SET();
+  {
+    if (nth == n_parts)
+      break;
+    if (!(sqlo_tb_is_col_eq (tb_dfe, col) || sqlo_is_col_in_gb (from_ot, tb_dfe, col)))
+      {
+	/* if leading non-unq determined, then there must be no non-index cols of this table in the gb spec */
+	if (0 == nth)
+	  return GB_NON_ORDERED;
+	if (sqlo_are_non_inx_gb_cols (from_ot, tb_dfe, nth))
+	  return GB_NON_ORDERED;
+	else
+	  return GB_ORDERED_NON_UNIQUE;
+      }
+    nth++;
+  }
+  END_DO_SET ();
   return GB_ORDERED_UNIQUE;
 }
 
@@ -633,7 +628,7 @@ sqlo_is_group_linear (sqlo_t * so, op_table_t * from_ot)
 {
   /* the group is linear if all leading are unique ordered followed by max one non unique ordered followed by n unordered *
    * anything else is not linear  ord-unq* ord-non-unq? non-ord*  */
-  df_elt_t * dfe;
+  df_elt_t *dfe;
   int prev_stat = GB_INITIAL;
   for (dfe = from_ot->ot_work_dfe->_.sub.first; dfe; dfe = dfe->dfe_next)
     {
@@ -645,7 +640,7 @@ sqlo_is_group_linear (sqlo_t * so, op_table_t * from_ot)
 	  if (GB_NON_ORDERED == stat && GB_INITIAL == prev_stat)
 	    return 0;
 	  if (stat == prev_stat && stat == GB_ORDERED_NON_UNIQUE)
-	    return 0;  /* 2 partials not allowed */
+	    return 0;		/* 2 partials not allowed */
 	  if (stat > prev_stat)
 	    return 0;
 	  prev_stat = stat;
@@ -661,26 +656,25 @@ int
 sqlo_early_distinct (sqlo_t * so, op_table_t * ot)
 {
   /* take the selection.  Strip identity preserving funcs from the exps. Add a distinct node */
-  df_elt_t * dist_dfe;
-  ST ** keys;
+  df_elt_t *dist_dfe;
+  ST **keys;
   int inx;
-  ST ** sel;
+  ST **sel;
   if (!SEL_IS_DISTINCT (ot->ot_dt) || LOC_LOCAL != ot->ot_work_dfe->dfe_locus)
     return 0;
 
-  sel = (ST**)ot->ot_dt->_.select_stmt.selection;
-  keys = (ST**)t_box_copy ((caddr_t)sel);
+  sel = (ST **) ot->ot_dt->_.select_stmt.selection;
+  keys = (ST **) t_box_copy ((caddr_t) sel);
   DO_BOX (ST *, exp, inx, sel)
-    {
-      df_elt_t * exp_dfe;
-      exp = sqlc_strip_as (exp);
-      while (ST_P (exp, CALL_STMT) && sqlo_is_unq_preserving (exp->_.call.name)
-	     && 1 <= BOX_ELEMENTS (exp->_.call.params))
-	exp = exp->_.call.params[0];
-      exp_dfe = sqlo_df (so, exp);
-      keys[inx] = exp;
-      sqlo_place_exp (so, ot->ot_work_dfe, exp_dfe);
-    }
+  {
+    df_elt_t *exp_dfe;
+    exp = sqlc_strip_as (exp);
+    while (ST_P (exp, CALL_STMT) && sqlo_is_unq_preserving (exp->_.call.name) && 1 <= BOX_ELEMENTS (exp->_.call.params))
+      exp = exp->_.call.params[0];
+    exp_dfe = sqlo_df (so, exp);
+    keys[inx] = exp;
+    sqlo_place_exp (so, ot->ot_work_dfe, exp_dfe);
+  }
   END_DO_BOX;
   dist_dfe = sqlo_new_dfe (so, DFE_GROUP, NULL);
   dist_dfe->_.setp.specs = keys;
@@ -696,20 +690,19 @@ sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
 {
   int all_cols_p = 0;
   dk_set_t having_preds = NULL;
-  df_elt_t * group_dfe = from_ot->ot_group_dfe;
-  ST * texp = from_ot->ot_dt->_.select_stmt.table_exp;
-  ST ** group = texp ? texp->_.table_exp.group_by : NULL;
+  df_elt_t *group_dfe = from_ot->ot_group_dfe;
+  ST *texp = from_ot->ot_dt->_.select_stmt.table_exp;
+  ST **group = texp ? texp->_.table_exp.group_by : NULL;
 
   if (from_ot->ot_invariant_preds)
     {
-      from_ot->ot_work_dfe->_.sub.invariant_test =
-	  sqlo_and_list_body (so, LOC_LOCAL, so->so_gen_pt, from_ot->ot_invariant_preds);
+      from_ot->ot_work_dfe->_.sub.invariant_test = sqlo_and_list_body (so, LOC_LOCAL, so->so_gen_pt, from_ot->ot_invariant_preds);
     }
 
   if (!from_ot->ot_fun_refs && !group_dfe)
     {
       int is_dist = sqlo_early_distinct (so, from_ot);
-      if (sqlo_is_seq_in_oby_order  (so, from_ot->ot_work_dfe->_.sub.first, NULL))
+      if (sqlo_is_seq_in_oby_order (so, from_ot->ot_work_dfe->_.sub.first, NULL))
 	return;
       if (!from_ot->ot_oby_dfe || from_ot->ot_oby_dfe->dfe_is_placed)
 	return;
@@ -722,7 +715,7 @@ sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
     }
   if (group_dfe)
     {
-    group_dfe->dfe_locus = from_ot->ot_work_dfe->dfe_locus; /* if dt passed through then group too */
+      group_dfe->dfe_locus = from_ot->ot_work_dfe->dfe_locus;	/* if dt passed through then group too */
       group_dfe->_.setp.is_being_placed = 1;
     }
   if (group)
@@ -731,101 +724,97 @@ sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
       all_cols_p = sqlo_oby_exp_cols (so, from_ot->ot_dt, group);
       sqlo_place_oby_specs (so, from_ot, group);
       _DO_BOX (inx, texp->_.table_exp.group_by_full)
-	{
-	  sqlo_place_oby_specs (so, from_ot, texp->_.table_exp.group_by_full[inx]);
-	}
+      {
+	sqlo_place_oby_specs (so, from_ot, texp->_.table_exp.group_by_full[inx]);
+      }
       END_DO_BOX;
     }
   if (from_ot->ot_group_dfe)
-    sqlo_place_dfe_after (so, from_ot->ot_work_dfe->dfe_locus,
-			  from_ot->ot_work_dfe->_.sub.last, from_ot->ot_group_dfe);
+    sqlo_place_dfe_after (so, from_ot->ot_work_dfe->dfe_locus, from_ot->ot_work_dfe->_.sub.last, from_ot->ot_group_dfe);
   DO_SET (ST *, fref, &from_ot->ot_fun_refs)
-    {
-      df_elt_t * fref_dfe = sqlo_df (so, fref);
-      df_elt_t * arg_dfe = NULL;
-      int locus_to_loclocal = 0;
-      if (AMMSC_USER != fref->_.fn_ref.fn_code)
-	arg_dfe = sqlo_df (so, fref->_.fn_ref.fn_arg);
+  {
+    df_elt_t *fref_dfe = sqlo_df (so, fref);
+    df_elt_t *arg_dfe = NULL;
+    int locus_to_loclocal = 0;
+    if (AMMSC_USER != fref->_.fn_ref.fn_code)
+      arg_dfe = sqlo_df (so, fref->_.fn_ref.fn_arg);
 /*      if (group_dfe->_.setp.specs
 	  && fref->_.fn_ref.all_distinct
 	  && !IS_BOX_POINTER (from_ot->ot_work_dfe->dfe_locus))
 	sqlc_new_error (so->so_sc->sc_cc, "37000", "SQ111", "Distinct not allowed with an aggregate with group by.");
 */
-      fref_dfe->dfe_locus = from_ot->ot_work_dfe->dfe_locus;
-      if (AMMSC_USER == fref->_.fn_ref.fn_code)
+    fref_dfe->dfe_locus = from_ot->ot_work_dfe->dfe_locus;
+    if (AMMSC_USER == fref->_.fn_ref.fn_code)
+      {
+	int argidx;
+	DO_BOX_FAST (ST *, arg, argidx, fref->_.fn_ref.fn_arglist)
 	{
-	  int argidx;
-	  DO_BOX_FAST (ST *, arg, argidx, fref->_.fn_ref.fn_arglist)
-	    {
-	      df_elt_t * arg_dfe = sqlo_df (so, arg);
-	      sqlo_place_exp (so, from_ot->ot_work_dfe, arg_dfe);
-	      if (DFE_CONST != arg_dfe->dfe_type && arg_dfe->dfe_locus != from_ot->ot_work_dfe->dfe_locus)
-		locus_to_loclocal = 1;
-	    }
-	  END_DO_BOX_FAST;
-	}
-      else
-	{
-	  if (IS_BOX_POINTER (from_ot->ot_work_dfe->dfe_locus) &&
-	      AMMSC_COUNTSUM == fref->_.fn_ref.fn_code &&
-	      ST_P (fref->_.fn_ref.fn_arg, SEARCHED_CASE))
-	    {
-	      ST *stree = fref->_.fn_ref.fn_arg;
-	      if ((4 == BOX_ELEMENTS (stree->_.comma_exp.exps)) &&
-		  ST_P (stree->_.comma_exp.exps [0], BOP_NULL) &&
-		  ST_P (stree->_.comma_exp.exps [2], QUOTE) &&
-		  (0 == unbox ((box_t) stree->_.comma_exp.exps [1])) &&
-		  (1 == unbox ((box_t) stree->_.comma_exp.exps [3])))
-		{
-		  sqlo_place_exp (so, from_ot->ot_work_dfe,
-		      sqlo_df (so, stree->_.comma_exp.exps [0]->_.bin_exp.left));
-		  arg_dfe->dfe_locus = from_ot->ot_work_dfe->dfe_locus;
-		}
-	      else
-		sqlo_place_exp (so, from_ot->ot_work_dfe, arg_dfe);
-	    }
-	  else
-	    sqlo_place_exp (so, from_ot->ot_work_dfe, arg_dfe);
-	  if (fref->_.fn_ref.fn_code == AMMSC_COUNT || fref->_.fn_ref.fn_code == AMMSC_COUNTSUM)
-	    fref_dfe->dfe_sqt.sqt_dtp = DV_LONG_INT;
-	  else
-	    fref_dfe->dfe_sqt = arg_dfe->dfe_sqt;
+	  df_elt_t *arg_dfe = sqlo_df (so, arg);
+	  sqlo_place_exp (so, from_ot->ot_work_dfe, arg_dfe);
 	  if (DFE_CONST != arg_dfe->dfe_type && arg_dfe->dfe_locus != from_ot->ot_work_dfe->dfe_locus)
 	    locus_to_loclocal = 1;
 	}
-      if (arg_dfe)
-	sqlg_find_aggregate_sqt (so->so_sc->sc_cc->cc_schema, &(arg_dfe->dfe_sqt), fref, &(fref_dfe->dfe_sqt));
-      if (locus_to_loclocal)
-	{
-	  fref_dfe->dfe_locus = LOC_LOCAL;
-	  group_dfe->dfe_locus = LOC_LOCAL;
-	}
-      t_set_push (&group_dfe->_.setp.fun_refs, fref);
-    }
-  END_DO_SET();
+	END_DO_BOX_FAST;
+      }
+    else
+      {
+	if (IS_BOX_POINTER (from_ot->ot_work_dfe->dfe_locus) &&
+	    AMMSC_COUNTSUM == fref->_.fn_ref.fn_code && ST_P (fref->_.fn_ref.fn_arg, SEARCHED_CASE))
+	  {
+	    ST *stree = fref->_.fn_ref.fn_arg;
+	    if ((4 == BOX_ELEMENTS (stree->_.comma_exp.exps)) &&
+		ST_P (stree->_.comma_exp.exps[0], BOP_NULL) &&
+		ST_P (stree->_.comma_exp.exps[2], QUOTE) &&
+		(0 == unbox ((box_t) stree->_.comma_exp.exps[1])) && (1 == unbox ((box_t) stree->_.comma_exp.exps[3])))
+	      {
+		sqlo_place_exp (so, from_ot->ot_work_dfe, sqlo_df (so, stree->_.comma_exp.exps[0]->_.bin_exp.left));
+		arg_dfe->dfe_locus = from_ot->ot_work_dfe->dfe_locus;
+	      }
+	    else
+	      sqlo_place_exp (so, from_ot->ot_work_dfe, arg_dfe);
+	  }
+	else
+	  sqlo_place_exp (so, from_ot->ot_work_dfe, arg_dfe);
+	if (fref->_.fn_ref.fn_code == AMMSC_COUNT || fref->_.fn_ref.fn_code == AMMSC_COUNTSUM)
+	  fref_dfe->dfe_sqt.sqt_dtp = DV_LONG_INT;
+	else
+	  fref_dfe->dfe_sqt = arg_dfe->dfe_sqt;
+	if (DFE_CONST != arg_dfe->dfe_type && arg_dfe->dfe_locus != from_ot->ot_work_dfe->dfe_locus)
+	  locus_to_loclocal = 1;
+      }
+    if (arg_dfe)
+      sqlg_find_aggregate_sqt (so->so_sc->sc_cc->cc_schema, &(arg_dfe->dfe_sqt), fref, &(fref_dfe->dfe_sqt));
+    if (locus_to_loclocal)
+      {
+	fref_dfe->dfe_locus = LOC_LOCAL;
+	group_dfe->dfe_locus = LOC_LOCAL;
+      }
+    t_set_push (&group_dfe->_.setp.fun_refs, fref);
+  }
+  END_DO_SET ();
   if (group_dfe)
     group_dfe->_.setp.is_being_placed = 0;
 
   /* all the predicates not done so far are from the HAVING clause, even if not mentioned in the texp since they could hav been added to the ot from an enclosing context */
   so->so_gen_pt = from_ot->ot_group_dfe;
   DO_SET (df_elt_t *, pred, &from_ot->ot_preds)
-    {
-      if (!pred->dfe_is_placed)
-	t_set_push (&having_preds, (void*) pred);
-    }
-  END_DO_SET();
+  {
+    if (!pred->dfe_is_placed)
+      t_set_push (&having_preds, (void *) pred);
+  }
+  END_DO_SET ();
   if (having_preds)
     {
-      df_elt_t * filter;
-      df_elt_t ** after_test = sqlo_and_list_body (so,
-						   from_ot->ot_work_dfe ? from_ot->ot_work_dfe->dfe_locus : LOC_LOCAL,
-						   from_ot->ot_group_dfe, having_preds);
+      df_elt_t *filter;
+      df_elt_t **after_test = sqlo_and_list_body (so,
+	  from_ot->ot_work_dfe ? from_ot->ot_work_dfe->dfe_locus : LOC_LOCAL,
+	  from_ot->ot_group_dfe, having_preds);
       if (enable_dfe_filter)
 	{
 	  filter = sqlo_new_dfe (so, DFE_FILTER, NULL);
 	  filter->_.filter.body = after_test;
 	  filter->_.filter.preds = having_preds;
-	  sqlo_place_dfe_after  (so, group_dfe->dfe_locus, so->so_gen_pt,  filter);
+	  sqlo_place_dfe_after (so, group_dfe->dfe_locus, so->so_gen_pt, filter);
 	}
       else
 	{
@@ -845,7 +834,7 @@ sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
 }
 
 int
-sqlo_is_postprocess (sqlo_t *so, df_elt_t * dt_dfe, df_elt_t * last_tb_dfe)
+sqlo_is_postprocess (sqlo_t * so, df_elt_t * dt_dfe, df_elt_t * last_tb_dfe)
 {
   op_table_t *ot = dfe_ot (dt_dfe);
 
@@ -854,7 +843,7 @@ sqlo_is_postprocess (sqlo_t *so, df_elt_t * dt_dfe, df_elt_t * last_tb_dfe)
   if (!ot->ot_oby_dfe)
     return 0;
 
-  return (!sqlo_is_seq_in_oby_order (so, dt_dfe->_.sub.first, NULL)) ? 1 :0;
+  return (!sqlo_is_seq_in_oby_order (so, dt_dfe->_.sub.first, NULL)) ? 1 : 0;
 }
 
 void
@@ -864,7 +853,7 @@ sqlo_exp_cols_from_dt (sqlo_t * so, ST * tree, df_elt_t * dt_dfe, dk_set_t * ret
   int inx;
   if (ST_P (tree, COL_DOTTED))
     {
-      df_elt_t * pt, *col_dfe = sqlo_df (so, tree);
+      df_elt_t *pt, *col_dfe = sqlo_df (so, tree);
       for (pt = dt_dfe->_.sub.last; pt; pt = pt->dfe_prev)
 	if (dfe_defines (pt, col_dfe))
 	  break;
@@ -875,10 +864,10 @@ sqlo_exp_cols_from_dt (sqlo_t * so, ST * tree, df_elt_t * dt_dfe, dk_set_t * ret
     return;
   if (ST_P (tree, FUN_REF))
     return;
-  DO_BOX (ST*, x, inx, (ST**)tree)
-    {
-      sqlo_exp_cols_from_dt (so, x, dt_dfe, ret);
-    }
+  DO_BOX (ST *, x, inx, (ST **) tree)
+  {
+    sqlo_exp_cols_from_dt (so, x, dt_dfe, ret);
+  }
   END_DO_BOX;
 }
 
@@ -888,7 +877,7 @@ sqlo_post_oby_ref (sqlo_t * so, df_elt_t * dt_dfe, df_elt_t * sel_dfe, int inx)
 {
   /* if exps laid out after oby, add the cols refd therein to oby deps */
   dk_set_t deps = NULL;
-  df_elt_t * oby_dfe = dt_dfe->_.sub.last;
+  df_elt_t *oby_dfe = dt_dfe->_.sub.last;
   int __i;
   while (oby_dfe)
     {
@@ -899,17 +888,17 @@ sqlo_post_oby_ref (sqlo_t * so, df_elt_t * dt_dfe, df_elt_t * sel_dfe, int inx)
   if (!oby_dfe)
     return;
   DO_BOX (ST *, spec, __i, oby_dfe->_.setp.specs)
-    {
-      df_elt_t * spec_dfe = sqlo_df (so, spec->_.o_spec.col);
-      if (spec_dfe == sel_dfe)
-	return;
-    }
+  {
+    df_elt_t *spec_dfe = sqlo_df (so, spec->_.o_spec.col);
+    if (spec_dfe == sel_dfe)
+      return;
+  }
   END_DO_BOX;
   sqlo_exp_cols_from_dt (so, sel_dfe->dfe_tree, dt_dfe, &deps);
   if (!oby_dfe->_.setp.oby_dep_cols)
     {
-      oby_dfe->_.setp.oby_dep_cols = (dk_set_t*)t_box_copy ((caddr_t)dt_dfe->_.sub.dt_out);
-      memset (oby_dfe->_.setp.oby_dep_cols, 0, box_length ((caddr_t)oby_dfe->_.setp.oby_dep_cols));
+      oby_dfe->_.setp.oby_dep_cols = (dk_set_t *) t_box_copy ((caddr_t) dt_dfe->_.sub.dt_out);
+      memset (oby_dfe->_.setp.oby_dep_cols, 0, box_length ((caddr_t) oby_dfe->_.setp.oby_dep_cols));
     }
   oby_dfe->_.setp.oby_dep_cols[inx] = deps;
 }

@@ -37,6 +37,8 @@ strses_out_bytes (dk_session_t * ses)
 }
 
 
+
+
 query_t *
 cl_ins_del_qr (dbe_key_t * key, int op, int ins_mode, caddr_t * err_ret)
 {
@@ -49,7 +51,6 @@ cl_ins_del_qr (dbe_key_t * key, int op, int ins_mode, caddr_t * err_ret)
     return qr;
   return *qrp = log_key_ins_del_qr (key, err_ret, CLO_INSERT == op ? LOG_KEY_INSERT : LOG_KEY_DELETE, ins_mode, 0);
 }
-
 
 void
 cls_vec_del_rd_layout (row_delta_t * rd)

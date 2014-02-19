@@ -47,13 +47,10 @@
 #define MD5_LOGIN
 
 SQLRETURN SQL_API
-virtodbc__SQLAllocConnect (
-	SQLHENV henv,
-	SQLHDBC * phdbc)
+virtodbc__SQLAllocConnect (SQLHENV henv, SQLHDBC * phdbc)
 {
   ENV (env, henv);
   NEW_VARZ (cli_connection_t, cli);
-
   dk_set_push (&env->env_connections, (void *) cli);
   *phdbc = (SQLHDBC) cli;
   cli->con_environment = env;
@@ -72,26 +69,22 @@ virtodbc__SQLAllocConnect (
   return SQL_SUCCESS;
 }
 
-
 SQLRETURN SQL_API
-SQLAllocConnect (
-	SQLHENV henv,
-	SQLHDBC * phdbc)
+SQLAllocConnect (SQLHENV henv, SQLHDBC * phdbc)
 {
   return virtodbc__SQLAllocConnect (henv, phdbc);
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLAllocEnv (
-	SQLHENV * phenv)
+virtodbc__SQLAllocEnv (SQLHENV * phenv)
 {
   static int firsttime = 1;
   cli_dbg_printf (("SQLAllocEnv called.\n"));
 
   if (firsttime)
     {
-      srand ((unsigned int) time(NULL));
+      srand ((unsigned int) time (NULL));
       firsttime = 0;
     }
 
@@ -120,17 +113,14 @@ virtodbc__SQLAllocEnv (
 
 
 SQLRETURN SQL_API
-SQLAllocEnv (
-	SQLHENV * phenv)
+SQLAllocEnv (SQLHENV * phenv)
 {
   return virtodbc__SQLAllocEnv (phenv);
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLAllocStmt (
-	SQLHDBC hdbc,
-	SQLHSTMT * phstmt)
+virtodbc__SQLAllocStmt (SQLHDBC hdbc, SQLHSTMT * phstmt)
 {
   CON (con, hdbc);
   stmt_options_t *opts = (stmt_options_t *) dk_alloc_box (sizeof (stmt_options_t), DV_ARRAY_OF_LONG_PACKED);
@@ -147,11 +137,11 @@ virtodbc__SQLAllocStmt (
   memset (opts, 0, sizeof (stmt_options_t));
   *phstmt = (SQLHSTMT) stmt;
   dk_set_push (&con->con_statements, (void *) stmt);
-
   stmt->stmt_opts = opts;
   stmt->stmt_is_deflt_rowset = 1;
   stmt->stmt_rowset_size = 1;
   opts->so_concurrency = SQL_CONCUR_READ_ONLY;	/* Means READ-WRITE with Kubl! */
+
   stmt->stmt_id = con_new_id (con);
   stmt->stmt_parm_rows = 1;
   opts->so_cursor_type = SQL_CURSOR_FORWARD_ONLY;
@@ -198,28 +188,18 @@ virtodbc__SQLAllocStmt (
   return SQL_SUCCESS;
 }
 
-
 SQLRETURN SQL_API
-SQLAllocStmt (
-	SQLHDBC hdbc,
-	SQLHSTMT * phstmt)
+SQLAllocStmt (SQLHDBC hdbc, SQLHSTMT * phstmt)
 {
   return virtodbc__SQLAllocStmt (hdbc, phstmt);
 }
 
 
 SQLRETURN SQL_API
-SQLBindCol (
-	SQLHSTMT hstmt,
-	SQLUSMALLINT icol,
-	SQLSMALLINT fCType,
-	SQLPOINTER rgbValue,
-	SQLLEN cbValueMax,
-	SQLLEN * pcbValue)
+SQLBindCol (SQLHSTMT hstmt, SQLUSMALLINT icol, SQLSMALLINT fCType, SQLPOINTER rgbValue, SQLLEN cbValueMax, SQLLEN * pcbValue)
 {
   STMT (stmt, hstmt);
   col_binding_t *col = stmt_nth_col (stmt, icol);
-
   col->cb_c_type = fCType;
   col->cb_place = (caddr_t) rgbValue;
   col->cb_length = pcbValue;
@@ -230,8 +210,7 @@ SQLBindCol (
 
 
 SQLRETURN SQL_API
-virtodbc__SQLCancel (
-    SQLHSTMT hstmt)
+virtodbc__SQLCancel (SQLHSTMT hstmt)
 {
   STMT (stmt, hstmt);
   future_t *future;
@@ -250,22 +229,14 @@ virtodbc__SQLCancel (
 
 
 SQLRETURN SQL_API
-SQLCancel (
-    SQLHSTMT hstmt)
+SQLCancel (SQLHSTMT hstmt)
 {
   return virtodbc__SQLCancel (hstmt);
 }
 
-
 SQLRETURN SQL_API
-SQLColAttributes (
-	SQLHSTMT hstmt,
-	SQLUSMALLINT icol,
-	SQLUSMALLINT fDescType,
-	SQLPOINTER rgbDesc,
-	SQLSMALLINT cbDescMax,
-	SQLSMALLINT * pcbDesc,
-	SQLLEN * pfDesc)
+SQLColAttributes (SQLHSTMT hstmt,
+    SQLUSMALLINT icol, SQLUSMALLINT fDescType, SQLPOINTER rgbDesc, SQLSMALLINT cbDescMax, SQLSMALLINT * pcbDesc, SQLLEN * pfDesc)
 {
   STMT (stmt, hstmt);
 
@@ -303,8 +274,7 @@ SQLColAttributes (
 }
 
 
-col_desc_t bm_info =
-{
+col_desc_t bm_info = {
   NULL,				/* name */
   DV_LONG_INT,			/* type */
   (caddr_t) (ptrlong) 0,	/* scale */
@@ -316,14 +286,8 @@ col_desc_t bm_info =
 
 
 SQLRETURN SQL_API
-virtodbc__SQLColAttributes (
-	SQLHSTMT hstmt,
-	SQLUSMALLINT icol,
-	SQLUSMALLINT fDescType,
-	SQLPOINTER rgbDesc,
-	SQLSMALLINT cbDescMax,
-	SQLSMALLINT * pcbDesc,
-	SQLLEN * pfDesc)
+virtodbc__SQLColAttributes (SQLHSTMT hstmt,
+    SQLUSMALLINT icol, SQLUSMALLINT fDescType, SQLPOINTER rgbDesc, SQLSMALLINT cbDescMax, SQLSMALLINT * pcbDesc, SQLLEN * pfDesc)
 {
   col_desc_t *cd;
   int n_cols, was_bm_col = (icol == 0);
@@ -338,27 +302,22 @@ virtodbc__SQLColAttributes (
       set_error (&stmt->stmt_error, "S1010", "CL028", "Statement not prepared.");
       return SQL_ERROR;
     }
-
   if (!sc->sc_is_select)
     {
       set_error (&stmt->stmt_error, "07005", "CL029", "Statement does not have output cols.");
       return SQL_ERROR;
     }
-
   if (was_bm_col && !stmt->stmt_opts->so_use_bookmarks)
     {
       set_error (&stmt->stmt_error, "07009", "CL030", "Bookmarks not enabled for statement");
       return SQL_ERROR;
     }
-
   n_cols = BOX_ELEMENTS (stmt->stmt_compilation->sc_columns);
-
   if (!was_bm_col && icol >= n_cols)
     {
       set_error (&stmt->stmt_error, "S1002", "CL031", "Column index too large.");
       return SQL_ERROR;
     }
-
   if (was_bm_col)
     cd = &bm_info;
   else
@@ -375,8 +334,7 @@ virtodbc__SQLColAttributes (
 
 #if ODBCVER >= 0x0300
     case SQL_DESC_BASE_COLUMN_NAME:
-      rc = str_box_to_buffer (
-	  COL_DESC_IS_EXTENDED (cd) && cd->cd_base_column_name ? cd->cd_base_column_name : cd->cd_name,
+      rc = str_box_to_buffer (COL_DESC_IS_EXTENDED (cd) && cd->cd_base_column_name ? cd->cd_base_column_name : cd->cd_name,
 	  (char *) rgbDesc, cbDescMax, pcbDesc, 0, &stmt->stmt_error);
       break;
 #endif
@@ -399,8 +357,7 @@ virtodbc__SQLColAttributes (
 
     case SQL_COLUMN_TYPE_NAME:
       if (rgbDesc)
-	sql_type_to_sql_type_name (dv_to_sql_type ((dtp_t) cd->cd_dtp,
-		use_binary_timestamp), ((char *) rgbDesc), cbDescMax);
+	sql_type_to_sql_type_name (dv_to_sql_type ((dtp_t) cd->cd_dtp, use_binary_timestamp), ((char *) rgbDesc), cbDescMax);
       if (pcbDesc)
 	*pcbDesc = (SQLSMALLINT) strlen ((char *) rgbDesc);
       break;
@@ -411,7 +368,7 @@ virtodbc__SQLColAttributes (
 #endif
     case SQL_COLUMN_LENGTH:
       if (pfDesc)
-        *pfDesc = unbox (cd->cd_precision);
+	*pfDesc = unbox (cd->cd_precision);
       break;
 
 #if ODBCVER >= 0x0300
@@ -419,7 +376,7 @@ virtodbc__SQLColAttributes (
 #endif
     case SQL_COLUMN_PRECISION:
       if (pfDesc)
-        *pfDesc = unbox (cd->cd_precision);
+	*pfDesc = unbox (cd->cd_precision);
       break;
 
 #if ODBCVER >= 0x0300
@@ -445,12 +402,12 @@ virtodbc__SQLColAttributes (
 
     case SQL_COLUMN_UNSIGNED:
       if (pfDesc)
-	*pfDesc = 0;	/* Virtuoso does not support unsigned types */
+	*pfDesc = 0;		/* Virtuoso does not support unsigned types */
       break;
 
     case SQL_COLUMN_MONEY:
       if (pfDesc)
-	*pfDesc = 0;	/* Virtuoso does not support money types */
+	*pfDesc = 0;		/* Virtuoso does not support money types */
       break;
 
     case SQL_COLUMN_UPDATABLE:
@@ -545,7 +502,6 @@ virtodbc__SQLColAttributes (
   return rc;
 }
 
-
 void
 con_set_defaults (cli_connection_t * con, caddr_t * login_res)
 {
@@ -570,7 +526,6 @@ con_set_defaults (cli_connection_t * con, caddr_t * login_res)
       dk_free_tree ((box_t) cdefs);
     }
 }
-
 
 char application_name[60];
 static caddr_t
@@ -630,14 +585,11 @@ getApplicationName (void)
 
 	  if ((len = (size_t) (cp - name)) > sizeof (application_name) - 1)
 	    len = sizeof (application_name) - 1;
-
 	  memcpy (application_name, name, len);
 	  strupr (application_name);
 	  application_name[len] = 0;
-
 	  if (!strcmp (application_name, "KRNL386"))
 	    strcpy_ck (application_name, "WOW");
-
 	  dk_free_box (name_start);
 	}
     }
@@ -652,15 +604,13 @@ getApplicationName (void)
 
 
 static caddr_t *
-fill_login_info_array (cli_connection_t *cli)
+fill_login_info_array (cli_connection_t * cli)
 {
   caddr_t *ret = (caddr_t *) dk_alloc_box (6 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   int i;
-
   memset (ret, 0, 6 * sizeof (caddr_t));
   ret[0] = getApplicationName ();
   ret[1] = box_num (getpid ());
-
 #if defined (WIN32)
   {
     char computerName[MAX_COMPUTERNAME_LENGTH + 1];
@@ -689,28 +639,24 @@ fill_login_info_array (cli_connection_t *cli)
   return ret;
 }
 
-
 caddr_t
 cli_box_server_msg (char *msg)
 {
   size_t msg_len = msg ? strlen (msg) : 0;
   caddr_t msg_box = msg ? dk_alloc_box (VIRT_SERVER_LEN + msg_len + 1, DV_SHORT_STRING) : NULL;
-
   if (msg_box)
     {
       memcpy (msg_box, VIRT_SERVER, VIRT_SERVER_LEN);
       memcpy (msg_box + VIRT_SERVER_LEN, msg, msg_len);
       msg_box[VIRT_SERVER_LEN + msg_len] = 0;
     }
-
   return msg_box;
 }
-
 
 #if defined (_SSL) && !defined (WIN32)
 #define VIRT_PASS_LEN 1024
 static char *
-ssl_get_password (char * name, char *tpass)
+ssl_get_password (char *name, char *tpass)
 {
   char *tmp = NULL;
   char prompt[VIRT_PASS_LEN];
@@ -745,7 +691,6 @@ get_inprocess_client ()
 #endif
 }
 
-
 SQLRETURN
 verify_inprocess_client (cli_connection_t * con)
 {
@@ -760,7 +705,6 @@ verify_inprocess_client (cli_connection_t * con)
 	  return SQL_ERROR;
 	}
     }
-
   return SQL_SUCCESS;
 }
 
@@ -770,14 +714,8 @@ verify_inprocess_client (cli_connection_t * con)
 
 /* This was SQLConnect */
 SQLRETURN
-internal_sql_connect (
-	SQLHDBC hdbc,
-	SQLCHAR * szDSN,
-	SQLSMALLINT cbDSN,
-	SQLCHAR * szUID,
-	SQLSMALLINT cbUID,
-	SQLCHAR * szAuthStr,
-	SQLSMALLINT cbAuthStr)
+internal_sql_connect (SQLHDBC hdbc,
+    SQLCHAR * szDSN, SQLSMALLINT cbDSN, SQLCHAR * szUID, SQLSMALLINT cbUID, SQLCHAR * szAuthStr, SQLSMALLINT cbAuthStr)
 {
   caddr_t pwd_box;
   caddr_t *login_res;
@@ -815,9 +753,9 @@ internal_sql_connect (
   for (tok = cp = addr_lst; *cp != 0 && index_count < MAXPAIRS; cp++)
     if (*cp == ',')
       {
-        *cp = 0;
-        index[index_count++] = tok;
-        tok = cp + 1;
+	*cp = 0;
+	index[index_count++] = tok;
+	tok = cp + 1;
       }
   if (tok < cp && *cp == 0 && index_count < MAXPAIRS)
     index[index_count++] = tok;
@@ -827,7 +765,7 @@ internal_sql_connect (
 #ifdef _SSL
   /* We need to ensure that SSL error stack is clear before peeking a error */
   ERR_clear_error ();
-#if 0 /*!defined (WIN32)*/
+#if !defined (WIN32)
   {
     char *ssl_usage = con->con_encrypt;
     if (ssl_usage && strlen (ssl_usage) > 0 && atoi (ssl_usage) == 0)
@@ -870,59 +808,59 @@ internal_sql_connect (
       srand ((unsigned) time (NULL));
 
       if (index_count > 1 && useRoundRobin)
-        startIndex = hostIndex = (rand () % index_count);
+	startIndex = hostIndex = (rand () % index_count);
 
-      while(1)
-        {
-          if (index_count == 0)
-            strncpy (addr, index[0], (sizeof (addr) - 1));
-          else
-            strncpy (addr, index[hostIndex], (sizeof (addr) - 1));
+      while (1)
+	{
+	  if (index_count == 0)
+	    strncpy (addr, index[0], (sizeof (addr) - 1));
+	  else
+	    strncpy (addr, index[hostIndex], (sizeof (addr) - 1));
 
 #if defined(WIN32)
-          if (alldigits (addr))
-            {
-              strcpy_ck (addr, "localhost:");
-              strcat_ck (addr, dsn);
-            }
-          else
+	  if (alldigits (addr))
+	    {
+	      strcpy_ck (addr, "localhost:");
+	      strcat_ck (addr, dsn);
+	    }
+	  else
 #endif
-          if (!alldigits (addr) && !strchr (dsn, ' ') && !strchr (dsn, ':'))
-            {
-              strncpy (addr, dsn, sizeof (addr) - 6);
+	  if (!alldigits (addr) && !strchr (dsn, ' ') && !strchr (dsn, ':'))
+	    {
+	      strncpy (addr, dsn, sizeof (addr) - 6);
 #ifdef _SSL
-              strcat_ck (addr, con->con_encrypt ? ":2111" : ":1111");
+	      strcat_ck (addr, con->con_encrypt ? ":2111" : ":1111");
 #else
-              strcat_ck (addr, ":1111");
+	      strcat_ck (addr, ":1111");
 #endif
-            }
+	    }
 
-          ses = PrpcConnect1 (addr, SESCLASS_TCPIP, con->con_encrypt, szPasswd, con->con_ca_list);
+	  ses = PrpcConnect1 (addr, SESCLASS_TCPIP, con->con_encrypt, szPasswd, con->con_ca_list);
 
-          if (!DKSESSTAT_ISSET (ses, SST_OK))
-            {
-              hostIndex++;
-              if (useRoundRobin)
-                {
-                  if (index_count == hostIndex)
-                    hostIndex = 0;
-                  if (hostIndex == startIndex)
-                    break; /* FAIL */
-                }
-              else if (index_count == hostIndex)
-                {
-                  break; /*FAIL*/
-                }
-              else
-                {
-                  PrpcDisconnect (ses);
-                  PrpcSessionFree (ses);
-                  /*TRY NEXT HOST FROM LIST*/
-                }
-            }
-          else
-            break; /*OK CONNECTED*/
-        }
+	  if (!DKSESSTAT_ISSET (ses, SST_OK))
+	    {
+	      hostIndex++;
+	      if (useRoundRobin)
+		{
+		  if (index_count == hostIndex)
+		    hostIndex = 0;
+		  if (hostIndex == startIndex)
+		    break;	/* FAIL */
+		}
+	      else if (index_count == hostIndex)
+		{
+		  break;
+		/*FAIL*/}
+	      else
+		{
+		  PrpcDisconnect (ses);
+		  PrpcSessionFree (ses);
+		  /*TRY NEXT HOST FROM LIST */
+		}
+	    }
+	  else
+	    break;		/*OK CONNECTED */
+	}
     }
 
 
@@ -930,7 +868,6 @@ internal_sql_connect (
     {
       PrpcDisconnect (ses);
       PrpcSessionFree (ses);
-
 #ifdef _SSL
       if (ERR_peek_error ())
 	cli_ssl_get_error_string (err, sizeof (err));
@@ -956,7 +893,6 @@ internal_sql_connect (
 	      PrpcSessionFree (ses);
 	      set_error (&con->con_error, "S2801", "CL083", x509_error);
 	      dk_free_box (x509_error);
-
 	      return SQL_ERROR;
 	    }
 	  else
@@ -1012,11 +948,9 @@ internal_sql_connect (
 
   con->con_session = ses;
   con->con_user = (SQLCHAR *) user;
-
   if (IS_BOX_POINTER (login_res))
     {
       int flag = (int) unbox (login_res[0]);
-
       if (QA_ERROR == flag)
 	{
 	  caddr_t srv_msg = cli_box_server_msg (login_res[2]);
@@ -1026,14 +960,11 @@ internal_sql_connect (
 	  PrpcDisconnect (ses);
 	  PrpcSessionFree (ses);
 	  con->con_session = NULL;
-
 	  return SQL_ERROR;
 	}
-
       con->con_qualifier = (SQLCHAR *) login_res[LG_QUALIFIER];
       con->con_db_ver = (SQLCHAR *) login_res[LG_DB_VER];
       con->con_db_gen = ODBC_DRV_VER_G_NO ((char *) con->con_db_ver);
-
       if (con->con_db_gen < 2303)
 	{
 	  dk_free_tree ((caddr_t) login_res);
@@ -1041,7 +972,6 @@ internal_sql_connect (
 	  PrpcDisconnect (ses);
 	  PrpcSessionFree (ses);
 	  con->con_session = NULL;
-
 	  return SQL_ERROR;
 	}
 
@@ -1078,7 +1008,6 @@ internal_sql_connect (
 
       if (con->con_charset_name)
 	dk_free_box (con->con_charset_name);
-
       con->con_charset_name = NULL;
       dk_free_box ((box_t) login_res);
     }
@@ -1088,7 +1017,6 @@ internal_sql_connect (
       PrpcDisconnect (ses);
       PrpcSessionFree (ses);
       con->con_session = NULL;
-
       return SQL_ERROR;
     }
 
@@ -1096,30 +1024,21 @@ internal_sql_connect (
 
   con->con_dsn = (SQLCHAR *) dsn;
   dk_free_box (passwd);
-
   return rc;
 }
 
-
 SQLRETURN SQL_API
-virtodbc__SQLDescribeCol (
-	SQLHSTMT hstmt,
-	SQLUSMALLINT icol,
-	SQLCHAR * szColName,
-	SQLSMALLINT cbColNameMax,
-	SQLSMALLINT * pcbColName,
-	SQLSMALLINT * pfSqlType,
-	SQLULEN * pcbColDef,
-	SQLSMALLINT * pibScale,
-	SQLSMALLINT * pfNullable)
+virtodbc__SQLDescribeCol (SQLHSTMT hstmt,
+    SQLUSMALLINT icol,
+    SQLCHAR * szColName,
+    SQLSMALLINT cbColNameMax,
+    SQLSMALLINT * pcbColName, SQLSMALLINT * pfSqlType, SQLULEN * pcbColDef, SQLSMALLINT * pibScale, SQLSMALLINT * pfNullable)
 {
   col_desc_t *cd;
   int n_cols, was_bm_col = (icol == 0);
   STMT (stmt, hstmt);
   stmt_compilation_t *sc = stmt->stmt_compilation;
-
   icol--;
-
   if (!sc)
     {
       set_error (&stmt->stmt_error, "S1010", "CL037", "Statement not prepared.");
@@ -1139,13 +1058,11 @@ virtodbc__SQLDescribeCol (
     }
 
   n_cols = BOX_ELEMENTS (stmt->stmt_compilation->sc_columns);
-
   if (!was_bm_col && icol >= n_cols)
     {
       set_error (&stmt->stmt_error, "S1002", "CL040", "Column index too large.");
       return SQL_ERROR;
     }
-
   if (was_bm_col)
     cd = &bm_info;
   else
@@ -1202,16 +1119,11 @@ virtodbc__SQLDescribeCol (
 
 
 SQLRETURN SQL_API
-SQLDescribeCol (
-	SQLHSTMT hstmt,
-	SQLUSMALLINT icol,
-	SQLCHAR * wszColName,
-	SQLSMALLINT cbColName,
-	SQLSMALLINT * pcbColName,
-	SQLSMALLINT * pfSqlType,
-	SQLULEN * pcbColDef,
-	SQLSMALLINT * pibScale,
-	SQLSMALLINT * pfNullable)
+SQLDescribeCol (SQLHSTMT hstmt,
+    SQLUSMALLINT icol,
+    SQLCHAR * wszColName,
+    SQLSMALLINT cbColName,
+    SQLSMALLINT * pcbColName, SQLSMALLINT * pfSqlType, SQLULEN * pcbColDef, SQLSMALLINT * pibScale, SQLSMALLINT * pfNullable)
 {
   SQLRETURN rc;
   STMT (stmt, hstmt);
@@ -1237,17 +1149,11 @@ SQLDisconnect (SQLHDBC hdbc)
   return SQL_SUCCESS;
 }
 
-
 SQLRETURN SQL_API
-SQLError (
-	SQLHENV henv,
-	SQLHDBC hdbc,
-	SQLHSTMT hstmt,
-	SQLCHAR * wszSqlState,
-	SQLINTEGER * pfNativeError,
-	SQLCHAR * wszErrorMsg,
-	SQLSMALLINT cbErrorMsg,
-	SQLSMALLINT * pcbErrorMsg)
+SQLError (SQLHENV henv,
+    SQLHDBC hdbc,
+    SQLHSTMT hstmt,
+    SQLCHAR * wszSqlState, SQLINTEGER * pfNativeError, SQLCHAR * wszErrorMsg, SQLSMALLINT cbErrorMsg, SQLSMALLINT * pcbErrorMsg)
 {
   STMT (stmt, hstmt);
   CON (con, hdbc);
@@ -1274,22 +1180,16 @@ SQLError (
 
   if (wszSqlState)
     memcpy (wszSqlState, szSqlState, 6);
-
   return rc;
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLError (
-	SQLHENV henv,
-	SQLHDBC hdbc,
-	SQLHSTMT hstmt,
-	SQLCHAR * szSqlState,
-	SQLINTEGER * pfNativeError,
-	SQLCHAR * szErrorMsg,
-	SQLSMALLINT cbErrorMsgMax,
-	SQLSMALLINT * pcbErrorMsg,
-	int bClearState)
+virtodbc__SQLError (SQLHENV henv,
+    SQLHDBC hdbc,
+    SQLHSTMT hstmt,
+    SQLCHAR * szSqlState,
+    SQLINTEGER * pfNativeError, SQLCHAR * szErrorMsg, SQLSMALLINT cbErrorMsgMax, SQLSMALLINT * pcbErrorMsg, int bClearState)
 {
   STMT (stmt, hstmt);
   CON (con, hdbc);
@@ -1339,16 +1239,11 @@ stmt_free_current_rows (cli_stmt_t * stmt)
     {
       dk_free_tree ((box_t) stmt->stmt_current_row);
     }
-
   stmt->stmt_current_row = NULL;
 }
 
-
 SQLRETURN SQL_API
-virtodbc__SQLExecDirect (
-	SQLHSTMT hstmt,
-	SQLCHAR * szSqlStr,
-	SDWORD cbSqlStr)
+virtodbc__SQLExecDirect (SQLHSTMT hstmt, SQLCHAR * szSqlStr, SDWORD cbSqlStr)
 {
   int rc;
   ptrlong old_concur;
@@ -1380,9 +1275,7 @@ virtodbc__SQLExecDirect (
 	  dk_free_tree ((box_t) stmt->stmt_compilation);
 	  stmt->stmt_compilation = NULL;
 	}
-
       params = stmt_collect_parms (stmt);
-
 #ifndef MAP_DIRECT_BIN_CHAR
       if (stmt->stmt_error.err_queue && stmt->stmt_error.err_rc == SQL_ERROR)
 	{
@@ -1390,9 +1283,7 @@ virtodbc__SQLExecDirect (
 	  return SQL_ERROR;
 	}
 #endif
-
       string = szSqlStr ? box_n_string (szSqlStr, cbSqlStr) : NULL;
-
       if (stmt->stmt_dae)
 	{
 	  stmt->stmt_param_array = params;
@@ -1405,7 +1296,6 @@ virtodbc__SQLExecDirect (
   else
     {
       string = stmt->stmt_pending.pex_text;
-
       if (string)
 	{
 	  dk_free_tree ((box_t) stmt->stmt_compilation);
@@ -1414,7 +1304,6 @@ virtodbc__SQLExecDirect (
     }
 
   stmt->stmt_param_array = NULL;
-
   if (stmt->stmt_param_status)
     {
       int n;
@@ -1431,16 +1320,13 @@ virtodbc__SQLExecDirect (
 	    return stmt_seq_error (stmt);
 	}
     }
-
   dk_alloc_assert (stmt);
-
 #ifdef INPROCESS_CLIENT
   if (SESSION_IS_INPROCESS (stmt->stmt_connection->con_session))
     stmt->stmt_opts->so_autocommit = 0;
   else
 #endif
     stmt->stmt_opts->so_autocommit = stmt->stmt_connection->con_autocommit;
-
   stmt->stmt_opts->so_isolation = stmt->stmt_connection->con_isolation;
   stmt->stmt_current_of = -1;
   stmt->stmt_fetch_current_of = -1;
@@ -1470,7 +1356,6 @@ virtodbc__SQLExecDirect (
       if (stmt->stmt_compilation->sc_cursors_used)
 	current_ofs = con_make_current_ofs (stmt->stmt_connection, stmt);
     }
-
   if (stmt->stmt_future)
     PrpcFutureFree (stmt->stmt_future);
 
@@ -1512,7 +1397,7 @@ virtodbc__SQLExecDirect (
   if (stmt->stmt_opts->so_rpc_timeout)
     PrpcFutureSetTimeout (stmt->stmt_future, (long) stmt->stmt_opts->so_rpc_timeout);
   else
-    PrpcFutureSetTimeout (stmt->stmt_future, 2000000000L); /* infinite, 2M s = 23 days  */
+    PrpcFutureSetTimeout (stmt->stmt_future, 2000000000L);	/* infinite, 2M s = 23 days  */
 
   stmt->stmt_opts->so_concurrency = old_concur;
   cli_dbg_printf (("RPC sent.\n"));
@@ -1541,10 +1426,7 @@ virtodbc__SQLExecDirect (
 
 
 SQLRETURN SQL_API
-SQLExecDirect (
-	SQLHSTMT hstmt,
-	SQLCHAR * wszSqlStr,
-	SQLINTEGER cbSqlStr)
+SQLExecDirect (SQLHSTMT hstmt, SQLCHAR * wszSqlStr, SQLINTEGER cbSqlStr)
 {
   SQLRETURN rc;
   size_t len;
@@ -1562,16 +1444,14 @@ SQLExecDirect (
 
 
 SQLRETURN SQL_API
-SQLExecute (
-	SQLHSTMT hstmt)
+SQLExecute (SQLHSTMT hstmt)
 {
   return virtodbc__SQLExecDirect (hstmt, NULL, 0);
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLFetch (
-	SQLHSTMT hstmt, int preserve_rowset_at_end)
+virtodbc__SQLFetch (SQLHSTMT hstmt, int preserve_rowset_at_end)
 {
   STMT (stmt, hstmt);
   int err;
@@ -1579,24 +1459,18 @@ virtodbc__SQLFetch (
   cli_dbg_printf (("SQLFetch (%lx)\n", stmt));
 
   dk_alloc_assert (stmt);
-
   if (stmt->stmt_opts->so_cursor_type != SQL_CURSOR_FORWARD_ONLY)
     return (sql_fetch_scrollable (stmt));
-
   set_error (&stmt->stmt_error, NULL, NULL, NULL);
-
   VERIFY_INPROCESS_CLIENT (stmt->stmt_connection);
-
   while (1)
     {
       if (stmt->stmt_at_end)
 	{
 	  if (!preserve_rowset_at_end)
 	    stmt_free_current_rows (stmt);
-
 	  return SQL_NO_DATA_FOUND;
 	}
-
       if (stmt->stmt_prefetch_row)
 	{
 	  stmt->stmt_current_of++;
@@ -1620,25 +1494,20 @@ virtodbc__SQLFetch (
 	  if (stmt->stmt_opts->so_rpc_timeout)
 	    PrpcFutureSetTimeout (stmt->stmt_future, (long) stmt->stmt_opts->so_rpc_timeout);
 	  else
-	    PrpcFutureSetTimeout (stmt->stmt_future, 2000000000L); /* infinite, 2M s = 23 days  */
+	    PrpcFutureSetTimeout (stmt->stmt_future, 2000000000L);	/* infinite, 2M s = 23 days  */
 
 	  stmt->stmt_current_of = -1;
 	}
-
       if (stmt->stmt_opts->so_is_async)
 	{
 	  if (!FUTURE_IS_NEXT_RESULT (stmt->stmt_future))
 	    PROCESS_ALLOW_SCHEDULE ();
-
 	  if (!FUTURE_IS_NEXT_RESULT (stmt->stmt_future))
 	    return SQL_STILL_EXECUTING;
 	}
-
       err = stmt_process_result (stmt, 1);
-
       if (stmt->stmt_opts->so_rpc_timeout)
 	PrpcSessionResetTimeout (stmt->stmt_connection->con_session);
-
       if (err == SQL_ERROR || err == SQL_NO_DATA_FOUND)
 	return err;
     }
@@ -1769,41 +1638,33 @@ virtodbc__SQLFreeStmt (SQLHSTMT hstmt, SQLUSMALLINT fOption)
 
       if (!stmt->stmt_at_end)
 	virtodbc__SQLCancel (hstmt);
-
       if (stmt->stmt_future)
 	PrpcFutureFree (stmt->stmt_future);
-
       stmt->stmt_future = NULL;
-
       break;
 
     case SQL_RESET_PARAMS:
       {
 	parm_binding_t *pb = stmt->stmt_parms;
-
 	while (pb)
 	  {
 	    parm_binding_t *next = pb->pb_next;
 	    dk_free ((caddr_t) pb, sizeof (parm_binding_t));
 	    pb = next;
 	  }
-
 	stmt->stmt_parms = NULL;
 	stmt->stmt_n_parms = 0;
-
 	if (stmt->stmt_return)
 	  {
 	    dk_free ((caddr_t) stmt->stmt_return, sizeof (parm_binding_t));
 	    stmt->stmt_return = NULL;
 	  }
-
 	break;
       }
 
     case SQL_UNBIND:
       {
 	col_binding_t *pb = stmt->stmt_cols;
-
 	while (pb)
 	  {
 	    col_binding_t *next = pb->cb_next;
@@ -1826,17 +1687,14 @@ virtodbc__SQLFreeStmt (SQLHSTMT hstmt, SQLUSMALLINT fOption)
     case SQL_DROP:
       virtodbc__SQLFreeStmt (hstmt, SQL_UNBIND);
       virtodbc__SQLFreeStmt (hstmt, SQL_RESET_PARAMS);
-
       if (stmt->stmt_set_pos_stmt)
 	virtodbc__SQLFreeStmt ((SQLHSTMT) stmt->stmt_set_pos_stmt, SQL_DROP);
 
       {
 #ifdef INPROCESS_CLIENT
 	SQLRETURN rc = SQL_SUCCESS;
-
 	if (SESSION_IS_INPROCESS (stmt->stmt_connection->con_session))
 	  rc = verify_inprocess_client (stmt->stmt_connection);
-
 	if (rc == SQL_SUCCESS)
 #endif
 	  {
@@ -1869,13 +1727,11 @@ virtodbc__SQLFreeStmt (SQLHSTMT hstmt, SQLUSMALLINT fOption)
       stmt->stmt_id = NULL;
       dk_free_box ((caddr_t) stmt->stmt_opts);
       stmt->stmt_opts = NULL;
-
       if (stmt->stmt_dae)
 	{
 	  dk_free_tree ((box_t) dk_set_to_array (stmt->stmt_dae));
 	  dk_set_free (stmt->stmt_dae);
 	}
-
       stmt->stmt_dae = NULL;
       dk_free_box ((caddr_t) stmt->stmt_current_dae);
       stmt->stmt_current_dae = NULL;
@@ -1911,16 +1767,11 @@ SQLFreeStmt (SQLHSTMT hstmt, SQLUSMALLINT fOption)
 
 
 SQLRETURN SQL_API
-virtodbc__SQLGetCursorName (
-	SQLHSTMT hstmt,
-	SQLCHAR * szCursor,
-	SQLSMALLINT cbCursorMax,
-	SQLSMALLINT * pcbCursor)
+virtodbc__SQLGetCursorName (SQLHSTMT hstmt, SQLCHAR * szCursor, SQLSMALLINT cbCursorMax, SQLSMALLINT * pcbCursor)
 {
   STMT (stmt, hstmt);
   char *cr_name = stmt->stmt_cursor_name;
   int len;
-
   if (!cr_name)
     {
       cr_name = stmt->stmt_id;
@@ -1929,9 +1780,7 @@ virtodbc__SQLGetCursorName (
       return SQL_ERROR;
 #endif
     }
-
   str_box_to_place (cr_name, (char *) szCursor, cbCursorMax, &len);
-
   if (pcbCursor)
     *pcbCursor = len;
 
@@ -1940,11 +1789,7 @@ virtodbc__SQLGetCursorName (
 
 
 SQLRETURN SQL_API
-SQLGetCursorName (
-	SQLHSTMT hstmt,
-	SQLCHAR * wszCursor,
-	SQLSMALLINT cbCursor,
-	SQLSMALLINT * pcbCursor)
+SQLGetCursorName (SQLHSTMT hstmt, SQLCHAR * wszCursor, SQLSMALLINT cbCursor, SQLSMALLINT * pcbCursor)
 {
   SQLRETURN rc;
   STMT (stmt, hstmt);
@@ -1968,36 +1813,28 @@ SQLNumResultCols (SQLHSTMT hstmt, SQLSMALLINT * pccol)
 
 
 SQLRETURN SQL_API
-virtodbc__SQLNumResultCols (
-      SQLHSTMT hstmt,
-      SQLSMALLINT * pccol)
+virtodbc__SQLNumResultCols (SQLHSTMT hstmt, SQLSMALLINT * pccol)
 {
   STMT (stmt, hstmt);
   stmt_compilation_t *sc = stmt->stmt_compilation;
-
   if (!sc)
     {
       set_error (&stmt->stmt_error, "HY010", "CL042", "Statement not prepared.");
       return SQL_ERROR;
     }
-
   if (sc->sc_is_select == QT_PROC_CALL)
     {
       if (sc->sc_columns)
 	*pccol = (SQLSMALLINT) BOX_ELEMENTS ((caddr_t) sc->sc_columns);
       else
 	*pccol = 0;
-
       return SQL_SUCCESS;
     }
-
   if (sc->sc_is_select != QT_SELECT)
     {
       *pccol = 0;
-
       return SQL_SUCCESS;
     }
-
   *pccol = (SQLSMALLINT) (box_length ((caddr_t) sc->sc_columns) / sizeof (caddr_t));
 
   return SQL_SUCCESS;
@@ -2005,10 +1842,7 @@ virtodbc__SQLNumResultCols (
 
 
 SQLRETURN SQL_API
-virtodbc__SQLPrepare (
-	SQLHSTMT hstmt,
-	SQLCHAR * szSqlStr,
-	SQLINTEGER cbSqlStr)
+virtodbc__SQLPrepare (SQLHSTMT hstmt, SQLCHAR * szSqlStr, SQLINTEGER cbSqlStr)
 {
   caddr_t local_copy, text;
   STMT (stmt, hstmt);
@@ -2032,12 +1866,8 @@ virtodbc__SQLPrepare (
   return (stmt_process_result (stmt, 0));
 }
 
-
 SQLRETURN SQL_API
-SQLPrepare (
-	SQLHSTMT hstmt,
-	SQLCHAR * wszSqlStr,
-	SQLINTEGER cbSqlStr)
+SQLPrepare (SQLHSTMT hstmt, SQLCHAR * wszSqlStr, SQLINTEGER cbSqlStr)
 {
   size_t len;
   SQLRETURN rc;
@@ -2066,17 +1896,12 @@ SQLRowCount (SQLHSTMT hstmt, SQLLEN * pcrow)
 
 
 SQLRETURN SQL_API
-virtodbc__SQLSetCursorName (
-      SQLHSTMT hstmt,
-      SQLCHAR * szCursor,
-      SQLSMALLINT cbCursor)
+virtodbc__SQLSetCursorName (SQLHSTMT hstmt, SQLCHAR * szCursor, SQLSMALLINT cbCursor)
 {
   STMT (stmt, hstmt);
   caddr_t name = box_n_string (szCursor, cbCursor);
-
   if (stmt->stmt_cursor_name)
     dk_free_box (stmt->stmt_cursor_name);
-
   stmt->stmt_cursor_name = name;
 
   return SQL_SUCCESS;
@@ -2084,10 +1909,7 @@ virtodbc__SQLSetCursorName (
 
 
 SQLRETURN SQL_API
-SQLSetCursorName (
-      SQLHSTMT hstmt,
-      SQLCHAR * wszCursor,
-      SQLSMALLINT _cbCursor)
+SQLSetCursorName (SQLHSTMT hstmt, SQLCHAR * wszCursor, SQLSMALLINT _cbCursor)
 {
   STMT (stmt, hstmt);
   SQLRETURN rc;
@@ -2105,15 +1927,9 @@ SQLSetCursorName (
 
 
 SQLRETURN SQL_API
-virtodbc__SQLSetParam (
-      SQLHSTMT hstmt,
-      SQLUSMALLINT ipar,
-      SQLSMALLINT fCType,
-      SQLSMALLINT fSqlType,
-      SQLULEN cbColDef,
-      SQLSMALLINT ibScale,
-      SQLPOINTER rgbValue,
-      SQLLEN * pcbValue)
+virtodbc__SQLSetParam (SQLHSTMT hstmt,
+    SQLUSMALLINT ipar,
+    SQLSMALLINT fCType, SQLSMALLINT fSqlType, SQLULEN cbColDef, SQLSMALLINT ibScale, SQLPOINTER rgbValue, SQLLEN * pcbValue)
 {
   STMT (stmt, hstmt);
   parm_binding_t *pb = stmt_nth_parm (stmt, ipar);
@@ -2133,36 +1949,23 @@ virtodbc__SQLSetParam (
 
 
 SQLRETURN SQL_API
-SQLSetParam (
-      SQLHSTMT hstmt,
-      SQLUSMALLINT ipar,
-      SQLSMALLINT fCType,
-      SQLSMALLINT fSqlType,
-      SQLULEN cbColDef,
-      SQLSMALLINT ibScale,
-      SQLPOINTER rgbValue,
-      SQLLEN * pcbValue)
+SQLSetParam (SQLHSTMT hstmt,
+    SQLUSMALLINT ipar,
+    SQLSMALLINT fCType, SQLSMALLINT fSqlType, SQLULEN cbColDef, SQLSMALLINT ibScale, SQLPOINTER rgbValue, SQLLEN * pcbValue)
 {
   return virtodbc__SQLSetParam (hstmt, ipar, fCType, fSqlType, cbColDef, ibScale, rgbValue, pcbValue);
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLBindParameter (
-	SQLHSTMT hstmt,
-	SQLUSMALLINT ipar,
-	SQLSMALLINT fParamType,
-	SQLSMALLINT fCType,
-	SQLSMALLINT fSqlType,
-	SQLULEN cbColDef,
-	SQLSMALLINT ibScale,
-	SQLPOINTER rgbValue,
-	SQLLEN cbValueMax,
-	SQLLEN * pcbValue)
+virtodbc__SQLBindParameter (SQLHSTMT hstmt,
+    SQLUSMALLINT ipar,
+    SQLSMALLINT fParamType,
+    SQLSMALLINT fCType,
+    SQLSMALLINT fSqlType, SQLULEN cbColDef, SQLSMALLINT ibScale, SQLPOINTER rgbValue, SQLLEN cbValueMax, SQLLEN * pcbValue)
 {
   STMT (stmt, hstmt);
   parm_binding_t *pb;
-
   if (fParamType == SQL_RETURN_VALUE)
     {
       pb = (parm_binding_t *) dk_alloc (sizeof (parm_binding_t));
@@ -2192,39 +1995,26 @@ virtodbc__SQLBindParameter (
   return SQL_SUCCESS;
 }
 
-
 SQLRETURN SQL_API
-SQLBindParameter (
-    SQLHSTMT hstmt,
+SQLBindParameter (SQLHSTMT hstmt,
     SQLUSMALLINT ipar,
     SQLSMALLINT fParamType,
     SQLSMALLINT fCType,
-    SQLSMALLINT fSqlType,
-    SQLULEN cbColDef,
-    SQLSMALLINT ibScale,
-    SQLPOINTER rgbValue,
-    SQLLEN cbValueMax,
-    SQLLEN * pcbValue)
+    SQLSMALLINT fSqlType, SQLULEN cbColDef, SQLSMALLINT ibScale, SQLPOINTER rgbValue, SQLLEN cbValueMax, SQLLEN * pcbValue)
 {
   return virtodbc__SQLBindParameter (hstmt, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale, rgbValue, cbValueMax, pcbValue);
 }
 
 
 SQLRETURN SQL_API
-SQLTransact (
-      SQLHENV henv,
-      SQLHDBC hdbc,
-      SQLUSMALLINT fType)
+SQLTransact (SQLHENV henv, SQLHDBC hdbc, SQLUSMALLINT fType)
 {
   return virtodbc__SQLTransact (henv, hdbc, fType);
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLTransact (
-      SQLHENV henv,
-      SQLHDBC hdbc,
-      SQLUSMALLINT fType)
+virtodbc__SQLTransact (SQLHENV henv, SQLHDBC hdbc, SQLUSMALLINT fType)
 {
   cli_dbg_printf ((stderr, "virtodbc__SQLTransact (henv=%p, hdbc=%p, fType=%u)\n", (void *) henv, (void *) hdbc, (unsigned) fType));
 
@@ -2320,9 +2110,7 @@ SQLCheckpoint (SQLHDBC hdbc, char *new_log)
 {
   CON (dbc, hdbc);
   caddr_t box = new_log ? box_string (new_log) : NULL;
-
   VERIFY_INPROCESS_CLIENT (dbc);
-
   PrpcSync (PrpcFuture (dbc->con_session, &s_ds_makecp, box));
 
   return SQL_SUCCESS;
@@ -2344,21 +2132,16 @@ SQLStatus (SQLHDBC hdbc, char *buffer, int max)
 	{
 	  int inx;
 	  int point = 0;
-
 	  for (inx = 0; inx < BOX_ELEMENTS (sta); inx++)
 	    {
 	      int len = box_length (sta[inx]);
-
 	      if (point + len > max - 1)
 		break;
-
 	      memcpy (buffer + point, sta[inx], len - 1);
 	      point += len - 1;
 	    }
-
 	  buffer[point] = 0;
 	  dk_free_tree (sta);
-
 	  return SQL_SUCCESS;
 	}
       else

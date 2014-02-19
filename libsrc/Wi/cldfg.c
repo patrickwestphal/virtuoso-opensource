@@ -25,6 +25,7 @@
  *
  */
 
+
 #include "sqlnode.h"
 #include "sqlbif.h"
 #include "arith.h"

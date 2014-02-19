@@ -42,14 +42,14 @@
 #endif
 
 cl_listener_t local_cll;
-du_thread_t * cl_listener_thr;
+du_thread_t *cl_listener_thr;
 int32 cl_stage;
 int32 cl_max_hosts = 100;
-cl_host_t * cl_master;
+cl_host_t *cl_master;
 dk_set_t cluster_hosts;
-resource_t * cluster_threads;
+resource_t *cluster_threads;
 resource_t *cl_strses_rc;	/* strses structs used for receiving and sending cluster messages */
-dk_mutex_t * cluster_thread_mtx;
+dk_mutex_t *cluster_thread_mtx;
 int64 cl_cum_messages, cl_cum_bytes, cl_cum_txn_messages;
 int64 cll_entered;
 int64 cll_lines[1000];
@@ -57,27 +57,27 @@ int cll_counts[1000];
 resource_t *cl_buf_rc;
 resource_t *cll_rbuf_rc;
 int64 cl_cum_wait, cl_cum_wait_msec;
-char * c_cluster_listen;
+char *c_cluster_listen;
 int32 c_cluster_threads;
 int32 cl_keep_alive_interval = 3000;
 int32 cl_max_keep_alives_missed = 4;
 int32 cl_batches_per_rpc;
-int32 cl_req_batch_size; /* no of request clo's per message */
+int32 cl_req_batch_size;	/* no of request clo's per message */
 int32 cl_dfg_batch_bytes = 10000000;
 int32 cl_mt_read_min_bytes = 10000000;	/* if more than this much, read the stuff on the worker thread, not the dispatch thread */
 uint32 cl_send_high_water;
-int32  cl_res_buffer_bytes; /* no of bytes before sending to client */
+int32 cl_res_buffer_bytes;	/* no of bytes before sending to client */
 int c_cl_no_unix_domain;
-char * c_cluster_local;
-char * c_cluster_master;
+char *c_cluster_local;
+char *c_cluster_master;
 caddr_t cl_map_file_name;
 int cluster_enable = 0;
 int32 cl_n_hosts;
-cluster_map_t * clm_replicated;
-cluster_map_t * clm_all;
-cl_thread_t * listen_clt;
+cluster_map_t *clm_replicated;
+cluster_map_t *clm_all;
+cl_thread_t *listen_clt;
 int cl_n_clt_running, cl_n_clt_start, clt_n_late_cancel;
-int32 cl_wait_query_delay = 20000; /* wait 20s before requesting forced sync of cluster wait graph */
+int32 cl_wait_query_delay = 20000;	/* wait 20s before requesting forced sync of cluster wait graph */
 int32 cl_non_logged_write_mode;
 int32 cl_batch_bytes = 10 * PAGE_SZ;
 rbuf_t cll_undelivered;
@@ -163,7 +163,10 @@ cll_try_enter ()
 dk_session_t *
 cl_strses_allocate ()
 {
-  dk_session_t *ses = strses_allocate ();
+  dk_session_t *ses;
+  /* the head and 1st buffer of strses come from common, the extension will come from the user thread */
+  WITH_TLSF (dk_base_tlsf) ses = strses_allocate ();
+  END_WITH_TLSF;
   ses->dks_cluster_flags = DKS_TO_CLUSTER;
   return ses;
 }
@@ -184,7 +187,7 @@ null_serialize (caddr_t x, dk_session_t * ses)
 
 
 cl_host_t *
-cl_name_to_host (char * name)
+cl_name_to_host (char *name)
 {
   return NULL;
 }

@@ -114,11 +114,11 @@ caddr_t f##_w p \
 
 #  define CLI_ENTER \
   if (!cli->cli_inprocess) \
-    {mutex_enter (cli->cli_test_mtx); cli->cli_cl_start_ts = rdtsc (); }
+    {mutex_enter (cli->cli_test_mtx); cli->cli_cl_start_ts = rdtsc (); thr_set_tlsf (THREAD_CURRENT_THREAD, cli->cli_tlsf);}
 
 #  define CLI_LEAVE \
   if (!cli->cli_inprocess) \
-    { CLI_THREAD_TIME (cli); mutex_leave (cli->cli_test_mtx); }
+    { CLI_THREAD_TIME (cli); thr_set_tlsf (THREAD_CURRENT_THREAD, NULL); mutex_leave (cli->cli_test_mtx); }
 
 # else
 
@@ -144,8 +144,8 @@ caddr_t f##_w p \
 
 du_thread_t *the_main_thread = NULL;
 semaphore_t *background_sem = NULL;
-int main_thread_ready = 0; /* true if main thread is waiting for wakeup for cpt or schedule round. */
-dk_mutex_t * db_schema_mtx;
+int main_thread_ready = 0;	/* true if main thread is waiting for wakeup for cpt or schedule round. */
+dk_mutex_t *db_schema_mtx;
 
 unsigned long log_stat = 0;
 
@@ -153,13 +153,12 @@ void cli_clear_globals (client_connection_t * cli);
 
 #if 0
 caddr_t
-n_srv_make_error (const char* code, size_t buf_len, const char *msg, ...)
+n_srv_make_error (const char *code, size_t buf_len, const char *msg, ...)
 {
   size_t _n;
   va_list list;
-  char* temp;
-  caddr_t *box = (caddr_t *)
-    dk_alloc_box (3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+  char *temp;
+  caddr_t *box = (caddr_t *) dk_alloc_box (3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   box[0] = (caddr_t) QA_ERROR;
   box[1] = box_dv_short_string (code);
 
@@ -175,7 +174,7 @@ n_srv_make_error (const char* code, size_t buf_len, const char *msg, ...)
   memcpy (box[2], temp, _n);
   box[2][_n] = 0;
   dk_free (temp, buf_len);
-  return (caddr_t)box;
+  return (caddr_t) box;
 }
 
 caddr_t
@@ -204,12 +203,12 @@ n_srv_make_new_error (const char *code, const char *virt_code, size_t buf_len, c
       memcpy (box[2], virt_code, code_len);
       memcpy (box[2] + code_len, ": ", 2);
       memcpy (box[2] + code_len + 2, temp, msg_len);
-      box[2][code_len+msg_len+2] = 0;
+      box[2][code_len + msg_len + 2] = 0;
     }
   else
     box[2] = box_dv_short_string (temp);
 #ifndef NDEBUG
-  err_log = fopen("srv_errors.txt","at");
+  err_log = fopen ("srv_errors.txt", "at");
   if (NULL != err_log)
     {
       fprintf (err_log, "%s | %s\n", box[1], box[2]);
@@ -217,7 +216,7 @@ n_srv_make_new_error (const char *code, const char *virt_code, size_t buf_len, c
     }
 #endif
 
-  if (DO_LOG(LOG_SRV_ERROR))
+  if (DO_LOG (LOG_SRV_ERROR))
     {
       log_info ("ERRS_0 %s %.*s", box[1], LOG_PRINT_STR_L, box[2]);
     }
@@ -230,9 +229,10 @@ n_srv_make_new_error (const char *code, const char *virt_code, size_t buf_len, c
 
 
 #ifdef WIN32
-int change_thread_user (user_t * user)
+int
+change_thread_user (user_t * user)
 {
-  du_thread_t * self = THREAD_CURRENT_THREAD;
+  du_thread_t *self = THREAD_CURRENT_THREAD;
   PHANDLE old_thr_token = self->thr_sec_token;
   PHANDLE user_token = (user->usr_sec_token ? user->usr_sec_token : server_imp_token);
 
@@ -243,7 +243,7 @@ int change_thread_user (user_t * user)
 	{
 	  LPVOID lpMsgBuf;
 	  FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-	      NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(LPTSTR) &lpMsgBuf, 0, NULL);
+	      NULL, GetLastError (), MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);
 	  srv_make_new_error ("22000", "SR377", "Can't Set Thread Token %s", lpMsgBuf);
 	  return 0;
 	}
@@ -258,7 +258,8 @@ int change_thread_user (user_t * user)
   return 1;
 }
 
-int init_os_users (user_t * user, caddr_t u_sys_name, caddr_t u_sys_pwd)
+int
+init_os_users (user_t * user, caddr_t u_sys_name, caddr_t u_sys_pwd)
 {
   HANDLE token;
 
@@ -267,12 +268,11 @@ int init_os_users (user_t * user, caddr_t u_sys_name, caddr_t u_sys_pwd)
   if (!user || !u_sys_name || !u_sys_pwd)
     return 0;
 
-  if (!LogonUser (u_sys_name, "localhost", u_sys_pwd,
-	LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT, &token))
+  if (!LogonUser (u_sys_name, "localhost", u_sys_pwd, LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT, &token))
     {
       LPVOID lpMsgBuf;
       FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-	  	     NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(LPTSTR) &lpMsgBuf, 0, NULL);
+	  NULL, GetLastError (), MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);
       if (!in_srv_global_init)
 	log_info ("Can't login system user %s. %s", u_sys_name, lpMsgBuf);
 
@@ -284,16 +284,16 @@ int init_os_users (user_t * user, caddr_t u_sys_name, caddr_t u_sys_pwd)
   return 1;
 }
 
-int check_os_user (caddr_t u_sys_name, caddr_t u_sys_pwd)
+int
+check_os_user (caddr_t u_sys_name, caddr_t u_sys_pwd)
 {
   HANDLE token = NULL;
 
-  if (!LogonUser (u_sys_name, "localhost", u_sys_pwd,
-	LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT, &token))
+  if (!LogonUser (u_sys_name, "localhost", u_sys_pwd, LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT, &token))
     {
       LPVOID lpMsgBuf;
       FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-	  	     NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(LPTSTR) &lpMsgBuf, 0, NULL);
+	  NULL, GetLastError (), MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);
       log_info ("Can't login system user %s. %s", u_sys_name, lpMsgBuf);
 
       return 0;
@@ -331,11 +331,11 @@ lt_leave (lock_trx_t * lt)
   /* the below assertion is incorrect because a txn can be in a queue after cursors that wait
    * in non-acquiring mode and hence never hold the lock. Wait edges remaining from such waits can exist to live transactions from a running transaction */
   DO_SET (lock_trx_t *, wait, &lt->lt_waits_for)
-    {
-      if (wait->lt_status != LT_CLOSING)
-	GPF_T1 ("single thread txn leaving while this txn waiting for live txns");
-    }
-  END_DO_SET();
+  {
+    if (wait->lt_status != LT_CLOSING)
+      GPF_T1 ("single thread txn leaving while this txn waiting for live txns");
+  }
+  END_DO_SET ();
 #endif
   CHECK_DK_MEM_RESERVE (lt);
   if (LT_FREEZE == lt->lt_status)
@@ -344,13 +344,11 @@ lt_leave (lock_trx_t * lt)
       lt_ack_freeze_inner (lt);
       rc = LTE_OK;
     }
-  else if (LT_BLOWN_OFF_C == lt->lt_status
-      || LT_CLOSING == lt->lt_status
-      || LT_COMMITTED == lt->lt_status
+  else if (LT_BLOWN_OFF_C == lt->lt_status || LT_CLOSING == lt->lt_status || LT_COMMITTED == lt->lt_status
 #ifdef VIRTTP
       || LT_PREPARE_PENDING == lt->lt_status
 #endif
-    )
+      )
     {
       rdbg_printf (("Trx T=%ld close ack in lt_leave\n", TRX_NO (lt)));
       lt_ack_close (lt);
@@ -381,8 +379,7 @@ lt_close (lock_trx_t * lt, int fcommit)
 
 
 void
-cli_scrap_cursors (client_connection_t * cli, query_instance_t * exceptions,
-    lock_trx_t * this_trx_only)
+cli_scrap_cursors (client_connection_t * cli, query_instance_t * exceptions, lock_trx_t * this_trx_only)
 {
   /* Kill cursors of this client except the one <except.
    * If this_trx_only is non-NULL, only kill cursors of that transaction */
@@ -415,7 +412,7 @@ cli_scrap_cursors (client_connection_t * cli, query_instance_t * exceptions,
 	  ASSERT_IN_MTX (cli->cli_mtx);
 	  rc = id_hash_remove (cli->cli_cursors, (caddr_t) kp);
 	  IN_TXN;
-          lt_threads_set_inner (qi->qi_trx, 1);
+	  lt_threads_set_inner (qi->qi_trx, 1);
 	  LEAVE_TXN;
 	  qi_enter (qi);
 	  dbg_cli_printf (("cli_scrap_cursors - killing %s %d\n", *kp, rc));
@@ -433,14 +430,16 @@ cli_scrap_cursors (client_connection_t * cli, query_instance_t * exceptions,
 client_connection_t *
 client_connection_create (void)
 {
+  du_thread_t *self = THREAD_CURRENT_THREAD;
+  struct TLSF_struct *save_tlsf = self->thr_tlsf;
   B_NEW_VARZ (client_connection_t, cli);
+  thr_set_tlsf (self, dk_base_tlsf);
   cli->cli_statements = id_str_hash_create (31);
   cli->cli_cursors = id_str_hash_create (13);
   cli->cli_mtx = mutex_allocate ();
   cli->cli_text_to_query = id_str_hash_create (301);
   if (wi_inst.wi_master)
-    cli->cli_replicate =
-      wi_inst.wi_master->dbs_log_name ? REPL_LOG : REPL_NO_LOG;
+    cli->cli_replicate = wi_inst.wi_master->dbs_log_name ? REPL_LOG : REPL_NO_LOG;
   else
     cli->cli_replicate = REPL_NO_LOG;
   cli->cli_qualifier = box_string ("DB");
@@ -453,7 +452,7 @@ client_connection_create (void)
   cli->cli_globals = id_str_hash_create (11);
   id_hash_set_rehash_pct (cli->cli_globals, 300);
   cli->cli_charset = default_charset;
-  /*cli->cli_sqlo_enable = sqlo_enable;*/
+  /*cli->cli_sqlo_enable = sqlo_enable; */
 #ifdef PLDBG
   cli->cli_pldbg = (pldbg_t *) dk_alloc (sizeof (pldbg_t));
   memset (cli->cli_pldbg, 0, sizeof (pldbg_t));
@@ -461,6 +460,7 @@ client_connection_create (void)
 #endif
   cli->cli_user_info = NULL;
   cli->cli_slice = QI_NO_SLICE;
+  thr_set_tlsf (self, save_tlsf);
   return cli;
 }
 
@@ -480,7 +480,7 @@ cli_scrap_cached_statements (client_connection_t * cli)
   IN_CLIENT (cli);
   while (hit_next (&it, (caddr_t *) & text, (caddr_t *) & stmt))
     {
-      srv_stmt_t * sst = *stmt;
+      srv_stmt_t *sst = *stmt;
       if (sst->sst_query)
 	{
 	  IN_CLL;
@@ -491,11 +491,11 @@ cli_scrap_cached_statements (client_connection_t * cli)
 	  LEAVE_CLL;
 	}
       if (client_trace_flag)
-       {
-	 if (79 < box_length (*text))
-	   (* text)[79] = 0;
-	 logit (L_DEBUG, "%s", *text);
-       }
+	{
+	  if (79 < box_length (*text))
+	    (*text)[79] = 0;
+	  logit (L_DEBUG, "%s", *text);
+	}
 
       if ((*stmt)->sst_cursor_state)
 	stmt_scroll_close (*stmt);
@@ -509,11 +509,11 @@ cli_scrap_cached_statements (client_connection_t * cli)
     {
 
       if (client_trace_flag)
-       {
-	 if (79 < box_length(*text))
-	   (* text)[79] = 0;
-	 logit (L_DEBUG, "%s", *text);
-       }
+	{
+	  if (79 < box_length (*text))
+	    (*text)[79] = 0;
+	  logit (L_DEBUG, "%s", *text);
+	}
 
       qr_free (*qr);
 
@@ -521,7 +521,7 @@ cli_scrap_cached_statements (client_connection_t * cli)
 }
 
 lock_trx_t *
-cli_set_new_trx (client_connection_t *cli)
+cli_set_new_trx (client_connection_t * cli)
 {
   if (!cli->cli_trx)
     cli_set_trx (cli, lt_start ());
@@ -531,7 +531,7 @@ cli_set_new_trx (client_connection_t *cli)
 }
 
 lock_trx_t *
-cli_set_new_trx_no_wait_cpt (client_connection_t *cli)
+cli_set_new_trx_no_wait_cpt (client_connection_t * cli)
 {
   if (!cli->cli_trx)
     cli_set_trx (cli, lt_start_inner (0));
@@ -553,18 +553,18 @@ cli_set_trx (client_connection_t * cli, lock_trx_t * trx)
   if (cli->cli_trx && cli->cli_trx != trx)
     {
       GPF_T1 ("cli_trx in cli_set_trx");
-      LT_THREADS_REPORT(cli->cli_trx, "LT_COMMIT/RESOURCE_STORE");
+      LT_THREADS_REPORT (cli->cli_trx, "LT_COMMIT/RESOURCE_STORE");
       lt_done (cli->cli_trx);
     }
 
   cli->cli_trx = trx;
   trx->lt_client = cli;
   trx->lt_replicate = (caddr_t *) box_copy_tree ((caddr_t) cli->cli_replicate);
-   if (DO_LOG(LOG_TRANSACT))
-     {
-       LOG_GET;
-       log_info ("LTRS_0 %s %s %s Begin transact %p", user, from, peer, trx);
-     }
+  if (DO_LOG (LOG_TRANSACT))
+    {
+      LOG_GET;
+      log_info ("LTRS_0 %s %s %s Begin transact %p", user, from, peer, trx);
+    }
 }
 
 
@@ -579,7 +579,7 @@ client_connection_set_reset_hook (client_connection_reset_hook_type new_hook)
 }
 
 void
-client_connection_set_worker_ses (client_connection_t *cli, dk_session_t *ses)
+client_connection_set_worker_ses (client_connection_t * cli, dk_session_t * ses)
 {
   cli->cli_outp_worker = ses;
 }
@@ -587,23 +587,22 @@ client_connection_set_worker_ses (client_connection_t *cli, dk_session_t *ses)
 void
 client_connection_free (client_connection_t * cli)
 {
-  if (DO_LOG_INT(LOG_VUSER))
+  if (DO_LOG_INT (LOG_VUSER))
     {
       LOG_GET
 #if 0
-      if (cli->cli_saved_user)
-	log_info ("USER_0 %li (%li) logout from %s", cli->cli_user->usr_id,
-	    cli->cli_saved_user->usr_id, from);
+	  if (cli->cli_saved_user)
+	log_info ("USER_0 %li (%li) logout from %s", cli->cli_user->usr_id, cli->cli_saved_user->usr_id, from);
       else
 #endif
-	if (cli->cli_user)
-	  log_info ("USER_0 %s %s %s logout", user, from, peer);
+      if (cli->cli_user)
+	log_info ("USER_0 %s %s %s logout", user, from, peer);
     }
 
   if (cli->cli_tp_data)
     {
       lt_log_debug (("client_connection_free cli=%p type=%d, enlisted=%d lt=%p: deferred",
-	  cli, cli->cli_tp_data->cli_trx_type, cli->cli_tp_data->cli_tp_enlisted, cli->cli_trx));
+	      cli, cli->cli_tp_data->cli_trx_type, cli->cli_tp_data->cli_tp_enlisted, cli->cli_trx));
 #ifndef NDEBUG
       if (cli->cli_tp_data->cli_tp_enlisted)
 	GPF_T1 ("enlisted cli in client_connection_free");
@@ -631,7 +630,7 @@ client_connection_free (client_connection_t * cli)
   cli_clear_globals (cli);
   mutex_free (cli->cli_mtx);
 #ifdef PLDBG
-  if (cli->cli_pldbg) /* if it's debugged session */
+  if (cli->cli_pldbg)		/* if it's debugged session */
     {
       if (cli->cli_pldbg->pd_session)
 	DKS_DB_DATA (cli->cli_pldbg->pd_session) = NULL;
@@ -660,7 +659,7 @@ client_connection_free (client_connection_t * cli)
     {
       lock_trx_t *lt = cli->cli_trx;
       cli->cli_trx = NULL;
-      LT_THREADS_REPORT(lt, "LT_COMMIT/RESOURCE_STORE");
+      LT_THREADS_REPORT (lt, "LT_COMMIT/RESOURCE_STORE");
       lt_done (lt);
     }
   LEAVE_TXN;
@@ -672,7 +671,7 @@ client_connection_free (client_connection_t * cli)
       dk_free (cli->cli_ns_2dict, sizeof (xml_ns_2dict_t));
       cli->cli_ns_2dict = NULL;
     }
-  dk_free_box ((caddr_t)cli->cli_ql_strses);
+  dk_free_box ((caddr_t) cli->cli_ql_strses);
   dk_free ((caddr_t) cli, sizeof (client_connection_t));
 }
 
@@ -722,9 +721,7 @@ itc_flush_client (it_cursor_t * itc)
     {
       cli = itc->itc_ltrx->lt_client;
       if (cli_is_interactive (cli)
-	  && !cli->cli_ws
-	  && cli->cli_session
-	  && (!cli->cli_tp_data || !cli->cli_tp_data->cli_free_after_unenlist))
+	  && !cli->cli_ws && cli->cli_session && (!cli->cli_tp_data || !cli->cli_tp_data->cli_free_after_unenlist))
 	/* cli can be inside server, e.g. bootstrap or repl cli, w/ no session */
 	session_flush (cli->cli_session);
     }
@@ -737,8 +734,8 @@ void
 dbev_disconnect (client_connection_t * cli)
 {
   caddr_t err;
-  caddr_t * params;
-  query_t * proc;
+  caddr_t *params;
+  query_t *proc;
   if (!dbev_enable)
     return;
   proc = sch_proc_exact_def (wi_inst.wi_schema, "DB.DBA.DBEV_DISCONNECT");
@@ -748,8 +745,7 @@ dbev_disconnect (client_connection_t * cli)
     proc = qr_recompile (proc, NULL);
   params = (caddr_t *) list (0);
   lt_enter_anyway (cli->cli_trx);
-  err = qr_exec (cli, proc, CALLER_LOCAL, NULL, NULL, NULL,
-		 params, NULL, 0);
+  err = qr_exec (cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   IN_TXN;
   lt_commit (cli->cli_trx, TRX_CONT);
@@ -764,12 +760,12 @@ void
 cli_clear_globals (client_connection_t * cli)
 {
   id_hash_iterator_t it;
-  caddr_t * k;
-  caddr_t * d;
+  caddr_t *k;
+  caddr_t *d;
   if (!cli->cli_globals)
     return;
   id_hash_iterator (&it, cli->cli_globals);
-  while (hit_next (&it, (caddr_t *) &k, (caddr_t *) &d))
+  while (hit_next (&it, (caddr_t *) & k, (caddr_t *) & d))
     {
       dk_free_tree (*d);
       dk_free_tree (*k);
@@ -814,7 +810,7 @@ logins_list_initialize (void)
 
 
 static void
-srv_delete_login (client_connection_t *cli)
+srv_delete_login (client_connection_t * cli)
 {
 #ifndef NDEBUG
   volatile int res;
@@ -833,7 +829,7 @@ srv_delete_login (client_connection_t *cli)
 
 
 static void
-srv_add_login (client_connection_t *cli)
+srv_add_login (client_connection_t * cli)
 {
   uint32 nlogons;
 
@@ -881,7 +877,7 @@ srv_get_logons ()
 
 
 void
-srv_client_connection_died (client_connection_t *cli)
+srv_client_connection_died (client_connection_t * cli)
 {
   lock_trx_t *lt;
 
@@ -893,16 +889,13 @@ srv_client_connection_died (client_connection_t *cli)
   if (cli->cli_tp_data)
     {
       if (lt && lt->lt_2pc._2pc_type != cli->cli_tp_data->cli_trx_type)
-        {
+	{
 	  lt_log_debug (("srv_client_connection_died diff trx_type cli=%p cli_trx_type=%d, 2pc_type=%d, enlisted=%d",
-	    cli, cli->cli_tp_data->cli_trx_type,
-	    lt->lt_2pc._2pc_type,
-	    cli->cli_tp_data->cli_tp_enlisted));
+		  cli, cli->cli_tp_data->cli_trx_type, lt->lt_2pc._2pc_type, cli->cli_tp_data->cli_tp_enlisted));
 	}
 
       lt_log_debug (("srv_client_connection_died no lt cli=%p type=%d, enlisted=%d",
-	  cli, cli->cli_tp_data->cli_trx_type,
-	  cli->cli_tp_data->cli_tp_enlisted));
+	      cli, cli->cli_tp_data->cli_trx_type, cli->cli_tp_data->cli_tp_enlisted));
 
       /* xa or mts transaction is prepared, keep it live */
       if ((cli->cli_tp_data->cli_trx_type == TP_XA_TYPE && lt->lt_2pc._2pc_wait_commit) ||
@@ -947,17 +940,17 @@ srv_client_connection_died (client_connection_t *cli)
   if (lt)
     {
       lt->lt_threads = 1;
-      LT_THREADS_REPORT(lt, "set to 1");
+      LT_THREADS_REPORT (lt, "set to 1");
       LT_ENTER_SAVE (lt);
       lt_log_debug (("src_client_connection_died : lt_client=NULL lt=%p", lt));
-      lt->lt_client = NULL; /* cli already is free */
+      lt->lt_client = NULL;	/* cli already is free */
       lt_resume_waiting_end (lt);
       lt_leave (lt);
 #ifdef CHECK_LT_THREADS
       if (lt->lt_wait_end)
 	GPF_T1 ("resource store with threads");
 #endif
-      LT_THREADS_REPORT(lt, "SRV_CLIENT_CONNECTION_DIED/RESOURCE_STORE");
+      LT_THREADS_REPORT (lt, "SRV_CLIENT_CONNECTION_DIED/RESOURCE_STORE");
       lt_done (lt);
     }
   LEAVE_TXN;
@@ -981,8 +974,8 @@ dbev_connect (client_connection_t * cli)
 {
   caddr_t err;
   /*DELME: stmt_options_t * opts; */
-  caddr_t * params;
-  query_t * proc;
+  caddr_t *params;
+  query_t *proc;
   if (!dbev_enable)
     return;
   proc = sch_proc_exact_def (wi_inst.wi_schema, "DB.DBA.DBEV_CONNECT");
@@ -992,8 +985,7 @@ dbev_connect (client_connection_t * cli)
     proc = qr_recompile (proc, NULL);
   params = (caddr_t *) list (0);
   lt_enter_anyway (cli->cli_trx);
-  err = qr_exec (cli, proc, CALLER_LOCAL, NULL, NULL, NULL,
-		 params, NULL, 0);
+  err = qr_exec (cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   IN_TXN;
   lt_commit (cli->cli_trx, TRX_CONT);
@@ -1008,7 +1000,7 @@ dbev_connect (client_connection_t * cli)
 }
 
 caddr_t *
-make_login_answer (client_connection_t *cli)
+make_login_answer (client_connection_t * cli)
 {
   caddr_t *ret = (caddr_t *) dk_alloc_box (QA_LOGIN_FIELDS * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   ret[0] = (caddr_t) QA_LOGIN;
@@ -1019,18 +1011,17 @@ make_login_answer (client_connection_t *cli)
   ret[LG_CHARSET] = !cli->cli_charset ?
       box_num (0) :
       list (2,
-	  box_string (cli->cli_charset->chrs_name),
-	  box_wide_char_string ( (caddr_t) &(cli->cli_charset->chrs_table[1]),
-	    sizeof (cli->cli_charset->chrs_table) - sizeof (wchar_t), DV_WIDE));
+      box_string (cli->cli_charset->chrs_name),
+      box_wide_char_string ((caddr_t) & (cli->cli_charset->chrs_table[1]),
+	  sizeof (cli->cli_charset->chrs_table) - sizeof (wchar_t), DV_WIDE));
   return ret;
 }
 
-int
-virtuoso_server_initialized = 0; /* DBMS online */
+int virtuoso_server_initialized = 0;	/* DBMS online */
 int prpc_forced_fixed_thread = 0;
 
 caddr_t *
-sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
+sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t * info)
 {
   caddr_t *ret;
   dk_session_t *client = IMMEDIATE_CLIENT;
@@ -1048,7 +1039,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
 #endif
 
   while (!virtuoso_server_initialized)
-    { /* suspend thread right here if the server isn't up */
+    {				/* suspend thread right here if the server isn't up */
       virtuoso_sleep (0, 100);
     }
   if (failed_login_to_disconnect (client))
@@ -1061,7 +1052,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
     }
 
   /* check if the client is of the right version */
-  if (cli_ver && ODBC_DRV_VER_G_NO (cli_ver) < 2303) /* was 3104 */
+  if (cli_ver && ODBC_DRV_VER_G_NO (cli_ver) < 2303)	/* was 3104 */
     {
       if (cli_ver && ODBC_DRV_VER_G_NO (cli_ver) >= 1619)
 	{
@@ -1080,8 +1071,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
       return 0;
     }
 
-  if (lockdown_mode &&
-      (!dks_is_localhost (client) || srv_get_n_logons () > 0))
+  if (lockdown_mode && (!dks_is_localhost (client) || srv_get_n_logons () > 0))
     {
       caddr_t err = srv_make_new_error ("08004", "SR462",
 	  "The server is in maintenance mode. Please try again later");
@@ -1126,7 +1116,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
   dk_free_box (username);
   dk_free_box (password);
 
-  CHANGE_THREAD_USER(user);
+  CHANGE_THREAD_USER (user);
 
   if (to_shutdown)
     {
@@ -1137,11 +1127,9 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
       if (!user || !sec_user_has_group (0, user->usr_g_id))
 	{
 	  if (!user)
-	    err = srv_make_new_error ("28000", "SR311",
-		"Bad login");
+	    err = srv_make_new_error ("28000", "SR311", "Bad login");
 	  else
-	    err = srv_make_new_error ("08004", "SR311",
-		"Shutting down the server permitted only to DBA group");
+	    err = srv_make_new_error ("08004", "SR311", "Shutting down the server permitted only to DBA group");
 	  DKST_RPC_DONE (client);
 	  PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, FINAL, 1);
 	  dk_free_tree (err);
@@ -1179,8 +1167,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
 	  dk_free_box (cli_ver);
 	  PrpcDisconnect (client);
 
-	  log_error ("Application access not licensed for %s@%s.%s",
-		user->usr_name, info[LGID_MACHINE], info[LGID_APP_NAME]);
+	  log_error ("Application access not licensed for %s@%s.%s", user->usr_name, info[LGID_MACHINE], info[LGID_APP_NAME]);
 	  client_connection_free (cli);
 	  DKS_DB_DATA (client) = NULL;
 	  return 0;
@@ -1228,10 +1215,9 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
 
   ret = make_login_answer (cli);
 
-  if (DO_LOG_INT(LOG_VUSER))
+  if (DO_LOG_INT (LOG_VUSER))
     {
-      LOG_GET
-      log_info ("USER_1 %s %s %s login", user, from, peer);
+      LOG_GET log_info ("USER_1 %s %s %s login", user, from, peer);
     }
 
   thrs_printf ((thrs_fo, "ses %p thr:%p in connect2\n", IMMEDIATE_CLIENT, THREAD_CURRENT_THREAD));
@@ -1246,7 +1232,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t *info)
 
 
 void
-qr_send_compilation (query_t * qr, client_connection_t *cli)
+qr_send_compilation (query_t * qr, client_connection_t * cli)
 {
   caddr_t *box = (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t),
       DV_ARRAY_OF_POINTER);
@@ -1272,18 +1258,16 @@ long qr_cache_entries = 100;
 void
 cli_qr_remove_from_stmt_cache (client_connection_t * cli, query_t * qr)
 {
-  id_hash_remove (cli->cli_text_to_query, (caddr_t) &qr->qr_text);
+  id_hash_remove (cli->cli_text_to_query, (caddr_t) & qr->qr_text);
 }
 
 
 void
 cli_drop_old_query (client_connection_t * cli)
 {
-  int cli_n_stmts =
-      cli->cli_statements->ht_inserts - cli->cli_statements->ht_deletes;
+  int cli_n_stmts = cli->cli_statements->ht_inserts - cli->cli_statements->ht_deletes;
 
-  if (cli->cli_text_to_query->ht_inserts - cli->cli_text_to_query->ht_deletes
-      > qr_cache_entries + cli_n_stmts)
+  if (cli->cli_text_to_query->ht_inserts - cli->cli_text_to_query->ht_deletes > qr_cache_entries + cli_n_stmts)
     {
       query_t *last = cli->cli_last_query;
       while (last)
@@ -1310,8 +1294,7 @@ cli_drop_old_query (client_connection_t * cli)
   (cr_type == (qr)->qr_cursor_type)
 
 caddr_t
-stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text,
-		stmt_options_t * opts)
+stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text, stmt_options_t * opts)
 {
   int cr_type = (int) SO_CURSOR_TYPE (opts);
   int unique_rows = (int) SO_UNIQUE_ROWS (opts);
@@ -1320,12 +1303,10 @@ stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text,
   query_t *qr = NULL;
   place = (query_t **) id_hash_get (cli->cli_text_to_query, (caddr_t) & text);
 
-  if (DO_LOG_INT(LOG_CLIENT_SQL))
+  if (DO_LOG_INT (LOG_CLIENT_SQL))
     {
       char temp[LOG_PRINT_STR_L];
-      LOG_GET
-
-      strncpy (temp, text, LOG_PRINT_STR_L - 1);
+      LOG_GET strncpy (temp, text, LOG_PRINT_STR_L - 1);
       temp[LOG_PRINT_STR_L - 1] = 0;
       log_info ("CSLQ_0 %s %s %s %s %.*s", user, from, peer, stmt->sst_id, LOG_PRINT_STR_L, temp);
     }
@@ -1334,8 +1315,7 @@ stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text,
     cr_type = SQLC_UNIQUE_ROWS;
 
   ASSERT_IN_MTX (cli->cli_mtx);
-  if (place && CORRECT_QUAL (*place, cli)
-      && CORRECT_CR_TYPE ((*place), cr_type))
+  if (place && CORRECT_QUAL (*place, cli) && CORRECT_CR_TYPE ((*place), cr_type))
     {
       qr_cache_hits++;
       dk_free_box (text);
@@ -1356,7 +1336,7 @@ stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text,
 	  dk_free_tree (err);
 	  return (caddr_t) SQL_ERROR;
 	}
-      id_hash_set (cli->cli_text_to_query, (caddr_t) &qr->qr_text, (caddr_t) &qr);
+      id_hash_set (cli->cli_text_to_query, (caddr_t) & qr->qr_text, (caddr_t) & qr);
       L2_DELETE (cli->cli_first_query, cli->cli_last_query, old_qr, qr_);
       cli_drop_old_query (cli);
       L2_PUSH (cli->cli_first_query, cli->cli_last_query, qr, qr_);
@@ -1395,17 +1375,17 @@ stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text,
   if (!cli->cli_http_ses && !cli->cli_is_log)
     {
       CATCH (CATCH_LISP_ERROR)
-	{
-	  qr_send_compilation (qr, cli);
-	}
+      {
+	qr_send_compilation (qr, cli);
+      }
       THROW_CODE
-	{
-	  caddr_t  cc_error = (caddr_t) THR_ATTR (THREAD_CURRENT_THREAD, TA_SQLC_ERROR);
-	  POP_CATCH;
-	  PrpcAddAnswer (cc_error, DV_ARRAY_OF_POINTER, 1, 1);
-	  dk_free_tree (cc_error);
-	  return (caddr_t) SQL_ERROR;
-	}
+      {
+	caddr_t cc_error = (caddr_t) THR_ATTR (THREAD_CURRENT_THREAD, TA_SQLC_ERROR);
+	POP_CATCH;
+	PrpcAddAnswer (cc_error, DV_ARRAY_OF_POINTER, 1, 1);
+	dk_free_tree (cc_error);
+	return (caddr_t) SQL_ERROR;
+      }
       END_CATCH;
     }
 
@@ -1464,7 +1444,7 @@ cli_get_stmt_access (client_connection_t * cli, caddr_t id, int mode, caddr_t * 
 
 
 query_t *
-cli_cached_sql_compile (caddr_t query_text, client_connection_t *cli, caddr_t *err_ret, const char *stmt_id_name)
+cli_cached_sql_compile (caddr_t query_text, client_connection_t * cli, caddr_t * err_ret, const char *stmt_id_name)
 {
   srv_stmt_t *sst;
   int old_log_val;
@@ -1488,8 +1468,7 @@ cli_cached_sql_compile (caddr_t query_text, client_connection_t *cli, caddr_t *e
 
 
 void
-sf_stmt_prepare (caddr_t stmt_id, char *text, long explain,
-     stmt_options_t * opts)
+sf_stmt_prepare (caddr_t stmt_id, char *text, long explain, stmt_options_t * opts)
 {
   dk_session_t *client = IMMEDIATE_CLIENT;
   client_connection_t *cli = DKS_DB_DATA (client);
@@ -1504,7 +1483,7 @@ sf_stmt_prepare (caddr_t stmt_id, char *text, long explain,
     {
       /* There's an instance. can't do it */
       err = srv_make_new_error ("S1010", "SR209", "Statement active");
-report_error:
+    report_error:
       mutex_leave (cli->cli_mtx);
       PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
       dk_free_tree (err);
@@ -1542,15 +1521,10 @@ report_error:
 
 
 #ifdef SERIAL_CLI
-CLI_WRAPPER (sf_stmt_prepare,
-	(caddr_t stmt_id, char *text, long explain, stmt_options_t * opts),
-	(stmt_id, text, explain, opts))
+CLI_WRAPPER (sf_stmt_prepare, (caddr_t stmt_id, char *text, long explain, stmt_options_t * opts), (stmt_id, text, explain, opts))
 #define sf_stmt_prepare sf_stmt_prepare_w
 #endif
-
-
-void
-cli_set_current_ofs (client_connection_t * cli, caddr_t * current_ofs)
+     void cli_set_current_ofs (client_connection_t * cli, caddr_t * current_ofs)
 {
   int inx;
   if (!current_ofs)
@@ -1563,7 +1537,7 @@ cli_set_current_ofs (client_connection_t * cli, caddr_t * current_ofs)
       if (current_ofs[inx])
 	{
 	  caddr_t place = id_hash_get (cli->cli_cursors,
-	      (caddr_t) &current_ofs[inx]);
+	      (caddr_t) & current_ofs[inx]);
 	  if (place)
 	    {
 	      query_instance_t *qi = *(query_instance_t **) place;
@@ -1608,10 +1582,9 @@ sf_sql_execute_check_params (caddr_t stmt_id, char *text, char *cursor_name,
   dk_session_t *client = IMMEDIATE_CLIENT;
 
   if ((DV_TYPE_OF (options) != DV_ARRAY_OF_POINTER &&
-	DV_TYPE_OF (options) != DV_ARRAY_OF_LONG &&
-	DV_TYPE_OF (options) != DV_ARRAY_OF_LONG_PACKED
-      ) ||
-      box_length (options) < (ptrlong) & (((stmt_options_t*)0)->so_rpc_timeout))
+	  DV_TYPE_OF (options) != DV_ARRAY_OF_LONG &&
+	  DV_TYPE_OF (options) != DV_ARRAY_OF_LONG_PACKED) ||
+      box_length (options) < (ptrlong) & (((stmt_options_t *) 0)->so_rpc_timeout))
     {
       sr_report_future_error (client, "EXEC", "Illformed options parameter");
       return 0;
@@ -1624,15 +1597,15 @@ sf_sql_execute_check_params (caddr_t stmt_id, char *text, char *cursor_name,
       sr_report_future_error (client, "EXEC", "Illformed current_ofs parameter");
       return 0;
 #if 0
-      DO_BOX (caddr_t, elt, inx, ((caddr_t *)params))
-	{
-	  dtp_t text_dtp = DV_TYPE_OF (elt);
-	  if (!IS_STRING_DTP (text_dtp) && text_dtp != DV_C_STRING)
-	    {
-	      sr_report_future_error (client, "EXEC", "Illformed current_ofs parameter");
-	      return 0;
-	    }
-	}
+      DO_BOX (caddr_t, elt, inx, ((caddr_t *) params))
+      {
+	dtp_t text_dtp = DV_TYPE_OF (elt);
+	if (!IS_STRING_DTP (text_dtp) && text_dtp != DV_C_STRING)
+	  {
+	    sr_report_future_error (client, "EXEC", "Illformed current_ofs parameter");
+	    return 0;
+	  }
+      }
       END_DO_BOX;
 #endif
     }
@@ -1657,14 +1630,14 @@ sf_sql_execute_check_params (caddr_t stmt_id, char *text, char *cursor_name,
   if (params)
     {
       int inx;
-      DO_BOX (caddr_t, elt, inx, ((caddr_t *)params))
-	{
-	  if (DV_TYPE_OF (elt) != DV_ARRAY_OF_POINTER)
-	    {
-	      sr_report_future_error (client, "EXEC", "Illformed parameters parameter");
-	      return 0;
-	    }
-	}
+      DO_BOX (caddr_t, elt, inx, ((caddr_t *) params))
+      {
+	if (DV_TYPE_OF (elt) != DV_ARRAY_OF_POINTER)
+	  {
+	    sr_report_future_error (client, "EXEC", "Illformed parameters parameter");
+	    return 0;
+	  }
+      }
       END_DO_BOX;
     }
   return 1;
@@ -1675,7 +1648,7 @@ void
 cli_set_start_times (client_connection_t * cli)
 {
   if (prof_on)
-    dt_now ((caddr_t)&cli->cli_start_dt);
+    dt_now ((caddr_t) & cli->cli_start_dt);
   cli->cli_start_time = get_msec_real_time ();
   cli->cli_cl_start_ts = rdtsc ();
   cli->cli_activity.da_thread_time = 0;
@@ -1683,8 +1656,7 @@ cli_set_start_times (client_connection_t * cli)
 
 
 void
-sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name,
-    caddr_t * params, caddr_t * current_ofs, stmt_options_t * options)
+sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name, caddr_t * params, caddr_t * current_ofs, stmt_options_t * options)
 {
   long msecs = prof_on ? get_msec_real_time () : 0;
   query_instance_t *qi;
@@ -1694,10 +1666,9 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name,
   client_connection_t *cli = DKS_DB_DATA (client);
   srv_stmt_t *stmt;
 
-  CHANGE_THREAD_USER(cli->cli_user);
+  CHANGE_THREAD_USER (cli->cli_user);
 
-  if (!sf_sql_execute_check_params (stmt_id, text,
-	cursor_name, params, current_ofs, options))
+  if (!sf_sql_execute_check_params (stmt_id, text, cursor_name, params, current_ofs, options))
     {
       err = srv_make_new_error ("41000", "SR344", "Malformed RPC");
       goto report_rpc_format_error;
@@ -1709,13 +1680,13 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name,
   if (prof_on)
     {
       cli->cli_log_qi_stats = 1;
-      dt_now ((caddr_t)&cli->cli_start_dt);
+      dt_now ((caddr_t) & cli->cli_start_dt);
     }
   if (params)
     n_params = BOX_ELEMENTS (params);
 
 #ifdef DEBUG
-  if (DO_LOG(LOG_EXEC))
+  if (DO_LOG (LOG_EXEC))
     {
       LOG_GET;
       log_info ("EXEC_I %s %s %s %s Exec %d time(s) %.*s", user, from, peer, stmt->sst_id,
@@ -1729,7 +1700,7 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name,
     {
       /* Busy */
       err = srv_make_new_error ("S1010", "SR210", "Async exec busy");
-report_error:
+    report_error:
       mutex_leave (cli->cli_mtx);
     report_rpc_format_error:
       PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
@@ -1757,10 +1728,10 @@ report_error:
 #ifdef VIRTTP
   if (cli->cli_tp_data && (cli->cli_tp_data->cli_trx_type != TP_XA_TYPE))
     {
-      dbg_printf(("execute %s\n",text));
+      dbg_printf (("execute %s\n", text));
       if (!cli->cli_tp_data->tpd_last_act)
 	{
-	  dbg_printf(("setting %p\n", (void *)(cli->cli_trx)));
+	  dbg_printf (("setting %p\n", (void *) (cli->cli_trx)));
 	  cli->cli_tp_data->cli_tp_lt = cli->cli_trx;
 	}
       else if (TP_ABORT == cli->cli_tp_data->tpd_last_act)
@@ -1863,14 +1834,13 @@ report_error:
 
   cli_set_current_ofs (cli, current_ofs);
   if (stmt->sst_query->qr_select_node
-      && n_params > 1 && options &&
-      (box_length ((caddr_t) options) > (ptrlong) & (((stmt_options_t*)0)->so_prefetch)))
+      && n_params > 1 && options && (box_length ((caddr_t) options) > (ptrlong) & (((stmt_options_t *) 0)->so_prefetch)))
     {
       options->so_prefetch = PREFETCH_ALL;
     }
 
 #ifdef DEBUG
-  if (options && box_length ((caddr_t) options) > (ptrlong) & (((stmt_options_t*)0)->so_autocommit))
+  if (options && box_length ((caddr_t) options) > (ptrlong) & (((stmt_options_t *) 0)->so_autocommit))
     {
       cli->cli_autocommit = options->so_autocommit;
     }
@@ -1878,17 +1848,16 @@ report_error:
     cli->cli_autocommit = 0;
 #endif
 
-  if (stmt->sst_query->qr_select_node
-      && SO_CURSOR_TYPE (options) > _SQL_CURSOR_FORWARD_ONLY)
+  if (stmt->sst_query->qr_select_node && SO_CURSOR_TYPE (options) > _SQL_CURSOR_FORWARD_ONLY)
     {
-      if (DO_LOG(LOG_EXEC))
+      if (DO_LOG (LOG_EXEC))
 	{
 	  LOG_GET;
 	  log_info ("EXEC_0 %s %s %s Exec cursor %s %*.*s", user, from, peer, stmt->sst_id,
-	      LOG_PRINT_STR_L, LOG_PRINT_STR_L, stmt->sst_query->qr_text ? stmt->sst_query->qr_text:"");
+	      LOG_PRINT_STR_L, LOG_PRINT_STR_L, stmt->sst_query->qr_text ? stmt->sst_query->qr_text : "");
 	}
 
-      stmt_start_scroll (cli, stmt, (caddr_t **)params, cursor_name, options);
+      stmt_start_scroll (cli, stmt, (caddr_t **) params, cursor_name, options);
       if (params)
 	{
 	  params[0] = NULL;
@@ -1905,17 +1874,17 @@ report_error:
       return;
     }
 
-  if (DO_LOG(LOG_EXEC))
+  if (DO_LOG (LOG_EXEC))
     {
       LOG_GET;
       log_info ("EXEC_1 %s %s %s %s Exec %d time(s) %.*s", user, from, peer, stmt->sst_id,
-	  n_params, LOG_PRINT_STR_L, stmt->sst_query->qr_text ? ((stmt->sst_query->qr_text[0] == -35) ? "" : stmt->sst_query->qr_text) :"");
+	  n_params, LOG_PRINT_STR_L,
+	  stmt->sst_query->qr_text ? ((stmt->sst_query->qr_text[0] == -35) ? "" : stmt->sst_query->qr_text) : "");
     }
   if (!stmt->sst_query->qr_select_node && !stmt->sst_query->qr_is_call)
     {
       err = qr_dml_array_exec (cli, stmt->sst_query, CALLER_CLIENT,
-			       cursor_name ? box_string (cursor_name) : NULL,
-			       stmt, (caddr_t**)params, options);
+	  cursor_name ? box_string (cursor_name) : NULL, stmt, (caddr_t **) params, options);
       dk_free_tree (err);
     }
   else
@@ -1931,8 +1900,7 @@ report_error:
 	    }
 	  first_set = 0;
 	  err = qr_exec (cli, stmt->sst_query, CALLER_CLIENT,
-			 cursor_name ? box_string (cursor_name) : NULL,
-			 stmt, NULL, par, options, 0);
+	      cursor_name ? box_string (cursor_name) : NULL, stmt, NULL, par, options, 0);
 	  dk_free_box ((caddr_t) par);
 	  ASSERT_OUTSIDE_MTX (cli->cli_mtx);
 	  if (err != (caddr_t) SQL_SUCCESS)
@@ -1940,8 +1908,8 @@ report_error:
 	      dk_free_tree (err);
 	      break;
 	    }
-      else
-	sql_warnings_send_to_cli ();
+	  else
+	    sql_warnings_send_to_cli ();
 	  stmt->sst_parms_processed = inx;
 	}
       if (!cli->cli_keep_csl)
@@ -1954,8 +1922,7 @@ report_error:
   DKST_RPC_DONE (client);
   session_flush (client);
   if (msecs && prof_on)
-    prof_exec (stmt->sst_query, NULL, get_msec_real_time () - msecs,
-	       PROF_EXEC | (err != NULL ? PROF_ERROR : 0));
+    prof_exec (stmt->sst_query, NULL, get_msec_real_time () - msecs, PROF_EXEC | (err != NULL ? PROF_ERROR : 0));
 
   ASSERT_OUTSIDE_TXN;
   dk_free_tree (cursor_name);
@@ -1974,20 +1941,19 @@ report_error:
 
 #ifdef SERIAL_CLI
 CLI_WRAPPER (sf_sql_execute,
-	(caddr_t stmt_id, char *text, char *cursor_name,
-	 caddr_t * params, caddr_t * current_ofs, stmt_options_t * options),
-	(stmt_id, text, cursor_name, params,  current_ofs, options))
+    (caddr_t stmt_id, char *text, char *cursor_name,
+	caddr_t * params, caddr_t * current_ofs, stmt_options_t * options),
+    (stmt_id, text, cursor_name, params, current_ofs, options))
 #define sf_sql_execute sf_sql_execute_w
 #endif
-
 #ifdef VIRTTP
-void sf_sql_tp_transact(short op, char* xid_str)
+     void sf_sql_tp_transact (short op, char *xid_str)
 {
   dk_session_t *client = IMMEDIATE_CLIENT;
   client_connection_t *cli = DKS_DB_DATA (client);
   caddr_t err;
 
-  _2pc_printf(("sf_sql_tp_transact %x\n",op));
+  _2pc_printf (("sf_sql_tp_transact %x\n", op));
   if (((SQL_TP_ABORT == op) || (SQL_TP_COMMIT == op)) && !cli->cli_tp_data)
     {
       err = srv_make_new_error ("TP105", "XA001", "Unexpected operation in tp transact code: %d", op);
@@ -1998,44 +1964,45 @@ void sf_sql_tp_transact(short op, char* xid_str)
       return;
     }
 
-  _2pc_printf(("got a tp massage=%x cli %p, lt_threads: %d\n", op, cli, cli->cli_trx ? cli->cli_trx->lt_threads : -1));
+  _2pc_printf (("got a tp massage=%x cli %p, lt_threads: %d\n", op, cli, cli->cli_trx ? cli->cli_trx->lt_threads : -1));
   switch (op)
     {
     case SQL_TP_UNENLIST:
       {
-	tp_wait_commit(cli);
-      } break;
+	tp_wait_commit (cli);
+      }
+      break;
     case SQL_TP_PREPARE:
     case SQL_TP_COMMIT:
       {
-	NEW_VAR(tp_future_t,future);
-	tp_message_t * msg;
+	NEW_VAR (tp_future_t, future);
+	tp_message_t *msg;
 
-
-	msg = mq_create_message (op ^ SQL_TP_UNENLIST ,future,cli);
+	msg = mq_create_message (op ^ SQL_TP_UNENLIST, future, cli);
 	future->ft_result = SQL_ERROR;
-	future->ft_sem = semaphore_allocate(0);
-	_2pc_printf(("tp pre/comm 0 =%x cli %p lt %p %d\n",op,cli,cli->cli_trx, cli->cli_trx->lt_status));
-	mq_add_message(tp_main_queue,msg);
-	_2pc_printf(("tp pre/comm 1 =%x cli %p\n",op,cli));
-	semaphore_enter(future->ft_sem);
-	_2pc_printf(("tp pre/comm 2 =%x cli %p\n",op,cli));
-        DKST_RPC_DONE (client);
-	PrpcAddAnswer ((caddr_t)future->ft_result, DV_ARRAY_OF_POINTER, 1, 1);
-	_2pc_printf(("tp pre/comm 3 =%x cli %p\n",op,cli));
+	future->ft_sem = semaphore_allocate (0);
+	_2pc_printf (("tp pre/comm 0 =%x cli %p lt %p %d\n", op, cli, cli->cli_trx, cli->cli_trx->lt_status));
+	mq_add_message (tp_main_queue, msg);
+	_2pc_printf (("tp pre/comm 1 =%x cli %p\n", op, cli));
+	semaphore_enter (future->ft_sem);
+	_2pc_printf (("tp pre/comm 2 =%x cli %p\n", op, cli));
+	DKST_RPC_DONE (client);
+	PrpcAddAnswer ((caddr_t) future->ft_result, DV_ARRAY_OF_POINTER, 1, 1);
+	_2pc_printf (("tp pre/comm 3 =%x cli %p\n", op, cli));
 
-	semaphore_free(future->ft_sem);
-	dk_free(future,sizeof(tp_future_t));
-	_2pc_printf(("tp pre/comm 4 =%x cli %p\n",op,cli));
+	semaphore_free (future->ft_sem);
+	dk_free (future, sizeof (tp_future_t));
+	_2pc_printf (("tp pre/comm 4 =%x cli %p\n", op, cli));
 
       }
       dk_free_tree (xid_str);
       return;
     case SQL_TP_ABORT:
       {
-	tp_message_t* msg = mq_create_message (TP_ABORT,0,cli);
-	mq_add_message(tp_main_queue,msg);
-      } break;
+	tp_message_t *msg = mq_create_message (TP_ABORT, 0, cli);
+	mq_add_message (tp_main_queue, msg);
+      }
+      break;
     case SQL_XA_JOIN:
       {
 	err = srv_make_new_error ("TP107", "XA002", "XA join is not supported");
@@ -2047,8 +2014,8 @@ void sf_sql_tp_transact(short op, char* xid_str)
       }
     case SQL_XA_ENLIST:
       {
-	void * xid;
-	tp_data_t * tpd;
+	void *xid;
+	tp_data_t *tpd;
 	int rc;
 
 	xid = xid_bin_decode (xid_str);
@@ -2062,7 +2029,7 @@ void sf_sql_tp_transact(short op, char* xid_str)
 	    return;
 	  }
 
-	tpd = (tp_data_t*)dk_alloc (sizeof (tp_data_t));
+	tpd = (tp_data_t *) dk_alloc (sizeof (tp_data_t));
 	memset (tpd, 0, sizeof (tp_data_t));
 	cli->cli_tp_data = tpd;
 
@@ -2101,12 +2068,12 @@ void sf_sql_tp_transact(short op, char* xid_str)
 	cli->cli_tp_data = tpd;
 	tpd->cli_trx_type = cli->cli_trx->lt_2pc._2pc_type = TP_XA_TYPE;
 	_2pc_printf (("xa enlist lt %x cli %x tpdata %p", cli->cli_trx, cli, cli->cli_tp_data));
-
-      } break;
+      }
+      break;
     case SQL_XA_RESUME:
       {
-	void * xid;
-	tp_data_t * tpd;
+	void *xid;
+	tp_data_t *tpd;
 
 	xid = xid_bin_decode (xid_str);
 	if (!xid)
@@ -2122,23 +2089,24 @@ void sf_sql_tp_transact(short op, char* xid_str)
 	  {
 	    err = srv_make_new_error ("TP109", "XA006", "XID identifier can not be decoded");
 	    DKST_RPC_DONE (client);
-	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1,1);
+	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 	    dk_free_tree (err);
 	    dk_free_tree (xid_str);
 	    return;
 	  }
-      } break;
+      }
+      break;
     case SQL_XA_ENLIST_END:
     case SQL_XA_SUSPEND:
       {
-	struct tp_data_s * tpd;
-	void * xid = virt_xa_id (xid_str);
+	struct tp_data_s *tpd;
+	void *xid = virt_xa_id (xid_str);
 
 	if (virt_xa_client (xid, cli, &tpd, op) == -1)
 	  {
 	    err = srv_make_new_error ("TP109", "XA007", "XID identifier can not be decoded");
 	    DKST_RPC_DONE (client);
-	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1,1);
+	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 	    dk_free_box (xid);
 	    dk_free_tree (err);
 	    dk_free_tree (xid_str);
@@ -2155,44 +2123,42 @@ void sf_sql_tp_transact(short op, char* xid_str)
 	cli_set_new_trx (cli);
 	LEAVE_TXN;
 	dk_free_box (xid);
-      } break;
+      }
+      break;
     case SQL_XA_PREPARE:
     case SQL_XA_COMMIT:
       {
-	struct tp_data_s * tpd;
-	void * xid = virt_xa_id (xid_str);
-	_2pc_printf(("tp pre/comm 0 =%x cli %p\n",op,cli));
+	struct tp_data_s *tpd;
+	void *xid = virt_xa_id (xid_str);
+	_2pc_printf (("tp pre/comm 0 =%x cli %p\n", op, cli));
 	if (virt_xa_client (xid, cli, &tpd, op) == -1)
 	  {
 	    caddr_t trx = virt_xa_xid_in_log (xid);
 	    if (0 && trx)
 	      {
-		_2pc_printf(("tp pre/comm 1 =%x cli %p\n",op,cli));
+		_2pc_printf (("tp pre/comm 1 =%x cli %p\n", op, cli));
 		if (virt_xa_replay_trx (xid, trx, cli) != LTE_OK)
 		  {
-		    err = srv_make_new_error ("TP104", "XA008",
-			"Could not commit transaction [%s] at recovery stage",
-			xid_str);
+		    err = srv_make_new_error ("TP104", "XA008", "Could not commit transaction [%s] at recovery stage", xid_str);
 		    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 		    dk_free_tree (err);
 		  }
 		else
 		  PrpcAddAnswer ((caddr_t) SQL_SUCCESS, DV_ARRAY_OF_POINTER, 1, 1);
-		_2pc_printf(("tp pre/comm 2 =%x cli %p\n",op,cli));
+		_2pc_printf (("tp pre/comm 2 =%x cli %p\n", op, cli));
 	      }
 	    else
-	       {
-		err = srv_make_new_error ("TP101", "XA009",
-			"Unknown global transaction identifier [%s]", xid_str);
+	      {
+		err = srv_make_new_error ("TP101", "XA009", "Unknown global transaction identifier [%s]", xid_str);
 		PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 		dk_free_tree (err);
-	       }
+	      }
 	  }
 	else
 	  {
-	    NEW_VAR(tp_future_t,future);
-	    tp_message_t * msg;
-	    lock_trx_t * curr_lt;
+	    NEW_VAR (tp_future_t, future);
+	    tp_message_t *msg;
+	    lock_trx_t *curr_lt;
 
 	    if (!tpd)
 	      GPF_T;
@@ -2215,17 +2181,17 @@ void sf_sql_tp_transact(short op, char* xid_str)
 
 	    if ((op == SQL_XA_COMMIT) && (curr_lt->lt_status == LT_PENDING))
 	      {
-	    	_2pc_printf(("unprepared lt %p cli %p st %d\n",curr_lt, cli, curr_lt->lt_status));
+		_2pc_printf (("unprepared lt %p cli %p st %d\n", curr_lt, cli, curr_lt->lt_status));
 		msg = mq_create_message (TP_PREPARE, future, cli);
 		future->ft_result = SQL_ERROR;
-		future->ft_sem = semaphore_allocate(0);
-		mq_add_message(tp_main_queue,msg);
-		semaphore_enter(future->ft_sem);
-		semaphore_free(future->ft_sem);
+		future->ft_sem = semaphore_allocate (0);
+		mq_add_message (tp_main_queue, msg);
+		semaphore_enter (future->ft_sem);
+		semaphore_free (future->ft_sem);
 		if (future->ft_result != LTE_OK)
 		  {
 		    MAKE_TRX_ERROR (future->ft_result, err, LT_ERROR_DETAIL (curr_lt));
-		    dk_free(future,sizeof(tp_future_t));
+		    dk_free (future, sizeof (tp_future_t));
 		    DKST_RPC_DONE (client);
 		    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 		    dk_free_tree (err);
@@ -2235,16 +2201,16 @@ void sf_sql_tp_transact(short op, char* xid_str)
 		  }
 	      }
 
-	    _2pc_printf(("tp pre/comm 3 =%x cli %p %d\n",op,cli,curr_lt->lt_status));
-	    msg = mq_create_xa_message (op ^ SQL_XA_UNENLIST ,future,tpd);
+	    _2pc_printf (("tp pre/comm 3 =%x cli %p %d\n", op, cli, curr_lt->lt_status));
+	    msg = mq_create_xa_message (op ^ SQL_XA_UNENLIST, future, tpd);
 	    future->ft_result = SQL_ERROR;
-	    future->ft_sem = semaphore_allocate(0);
-	    _2pc_printf(("tp pre/comm 4 =%x cli %p\n",op,cli));
-	    mq_add_message(tp_main_queue,msg);
-	    semaphore_enter(future->ft_sem);
-	    PrpcAddAnswer ((caddr_t)future->ft_result, DV_ARRAY_OF_POINTER, 1, 1);
-	    _2pc_printf(("tp pre/comm 5 =%x cli %p\n",op,cli));
-	    if ( (op == SQL_XA_PREPARE) && (future->ft_result != LTE_OK))
+	    future->ft_sem = semaphore_allocate (0);
+	    _2pc_printf (("tp pre/comm 4 =%x cli %p\n", op, cli));
+	    mq_add_message (tp_main_queue, msg);
+	    semaphore_enter (future->ft_sem);
+	    PrpcAddAnswer ((caddr_t) future->ft_result, DV_ARRAY_OF_POINTER, 1, 1);
+	    _2pc_printf (("tp pre/comm 5 =%x cli %p\n", op, cli));
+	    if ((op == SQL_XA_PREPARE) && (future->ft_result != LTE_OK))
 	      {
 		lt_enter_anyway (cli->cli_trx);
 		IN_TXN;
@@ -2253,7 +2219,7 @@ void sf_sql_tp_transact(short op, char* xid_str)
 		LEAVE_TXN;
 		virt_xa_remove_xid (xid);
 		MAKE_TRX_ERROR (future->ft_result, err, NULL);
-		dk_free(future,sizeof(tp_future_t));
+		dk_free (future, sizeof (tp_future_t));
 		DKST_RPC_DONE (client);
 		PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 		dk_free_tree (err);
@@ -2261,14 +2227,13 @@ void sf_sql_tp_transact(short op, char* xid_str)
 		dk_free_tree (xid_str);
 		return;
 	      }
-	    if (op==SQL_XA_COMMIT)
+	    if (op == SQL_XA_COMMIT)
 	      {
 		txa_remove_entry (xid, 1);
 	      }
-	    semaphore_free(future->ft_sem);
-	    dk_free(future,sizeof(tp_future_t));
-	    _2pc_printf(("tp pre/comm 6 =%x cli %p\n",op,cli));
-
+	    semaphore_free (future->ft_sem);
+	    dk_free (future, sizeof (tp_future_t));
+	    _2pc_printf (("tp pre/comm 6 =%x cli %p\n", op, cli));
 	  }
 	dk_free_box ((box_t) xid);
 	DKST_RPC_DONE (client);
@@ -2277,29 +2242,30 @@ void sf_sql_tp_transact(short op, char* xid_str)
       }
     case SQL_XA_ROLLBACK:
       {
-	void * xid = virt_xa_id (xid_str);
-	struct tp_data_s * tpd;
+	void *xid = virt_xa_id (xid_str);
+	struct tp_data_s *tpd;
 	if (virt_xa_client (xid, cli, &tpd, op) != -1)
 	  {
-	    NEW_VAR(tp_future_t,future);
-	    tp_message_t* msg;
-	    future->ft_sem = semaphore_allocate(0);
-	    future->ft_release = 1; /* will not wait tp thread to finish, so mark it to release once done */
-	    msg = mq_create_xa_message (TP_ABORT,future,tpd);
-	    mq_add_message(tp_main_queue,msg);
+	    NEW_VAR (tp_future_t, future);
+	    tp_message_t *msg;
+	    future->ft_sem = semaphore_allocate (0);
+	    future->ft_release = 1;	/* will not wait tp thread to finish, so mark it to release once done */
+	    msg = mq_create_xa_message (TP_ABORT, future, tpd);
+	    mq_add_message (tp_main_queue, msg);
 	  }
 	txa_remove_entry (xid, 0);
 	dk_free_box ((box_t) xid);
-      } break;
+      }
+      break;
     case SQL_XA_WAIT:
       {
-	void * xid = xid_bin_decode (xid_str);
-	tp_data_t * tpd;
+	void *xid = xid_bin_decode (xid_str);
+	tp_data_t *tpd;
 	if (virt_xa_client (xid, cli, &tpd, SQL_XA_WAIT) == -1)
 	  {
 	    err = srv_make_new_error ("TP109", "XA011", "XID identifier can not be decoded");
 	    DKST_RPC_DONE (client);
-	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1,1);
+	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 	    dk_free_tree (err);
 	    dk_free_box (xid);
 	    dk_free_tree (xid_str);
@@ -2309,7 +2275,8 @@ void sf_sql_tp_transact(short op, char* xid_str)
 	virt_xa_remove_xid (xid);
 	dk_free_box (xid);
 	cli->cli_tp_data = NULL;
-      } break;
+      }
+      break;
     }
   DKST_RPC_DONE (client);
   PrpcAddAnswer (SQL_SUCCESS, DV_ARRAY_OF_POINTER, 1, 1);
@@ -2317,17 +2284,11 @@ void sf_sql_tp_transact(short op, char* xid_str)
 }
 
 #ifdef SERIAL_CLI
-CLI_WRAPPER (sf_sql_tp_transact,(short op, char* xid_str),(op,xid_str))
+CLI_WRAPPER (sf_sql_tp_transact, (short op, char *xid_str), (op, xid_str))
 #define sf_sql_tp_transact sf_sql_tp_transact_w
 #endif
-
 #endif /* VIRTTP */
-
-
-
-
-void
-sf_sql_fetch (caddr_t stmt_id, long cond_no)
+     void sf_sql_fetch (caddr_t stmt_id, long cond_no)
 {
   long start = prof_on ? get_msec_real_time () : 0;
   dk_session_t *client = IMMEDIATE_CLIENT;
@@ -2335,7 +2296,7 @@ sf_sql_fetch (caddr_t stmt_id, long cond_no)
   client_connection_t *cli = DKS_DB_DATA (client);
   srv_stmt_t *stmt = cli_get_stmt_access (cli, stmt_id, GET_EXCLUSIVE, NULL);
 
-  CHANGE_THREAD_USER(cli->cli_user);
+  CHANGE_THREAD_USER (cli->cli_user);
 
   if (!stmt || !stmt->sst_inst)
     {
@@ -2359,35 +2320,26 @@ sf_sql_fetch (caddr_t stmt_id, long cond_no)
   DKST_RPC_DONE (IMMEDIATE_CLIENT);
   session_flush (client);
   if (start && prof_on)
-    prof_exec (stmt->sst_query, NULL, get_msec_real_time () - start,
-	       PROF_FETCH | (err != NULL ? PROF_ERROR : 0));
+    prof_exec (stmt->sst_query, NULL, get_msec_real_time () - start, PROF_FETCH | (err != NULL ? PROF_ERROR : 0));
   dk_free_tree (err);
 }
 
 #ifdef SERIAL_CLI
-CLI_WRAPPER (sf_sql_fetch,
-	(caddr_t stmt_id, long cond_no),
-	(stmt_id, cond_no))
+CLI_WRAPPER (sf_sql_fetch, (caddr_t stmt_id, long cond_no), (stmt_id, cond_no))
 #define sf_sql_fetch sf_sql_fetch_w
 #endif
-
-
 #ifdef SERIAL_CLI
-CLI_WRAPPER (sf_sql_extended_fetch,
-	(caddr_t stmt_id, long type, long irow, long n_rows,
-	 long is_autocommit, caddr_t bookmark),
-	(stmt_id, type, irow, n_rows, is_autocommit, bookmark))
+    CLI_WRAPPER (sf_sql_extended_fetch,
+    (caddr_t stmt_id, long type, long irow, long n_rows,
+	long is_autocommit, caddr_t bookmark), (stmt_id, type, irow, n_rows, is_autocommit, bookmark))
 #define sf_sql_extended_fetch sf_sql_extended_fetch_w
 #endif
-
-
-long sf_sql_set_cursor_name (caddr_t stmt_id, char *name);
+     long sf_sql_set_cursor_name (caddr_t stmt_id, char *name);
 
 #define SQL_DROP	       1
 
 
-long
-sf_sql_free_stmt (caddr_t stmt_id, int op)
+     long sf_sql_free_stmt (caddr_t stmt_id, int op)
 {
   query_instance_t *qi = NULL;
   dk_session_t *client = IMMEDIATE_CLIENT;
@@ -2454,9 +2406,8 @@ sf_sql_free_stmt (caddr_t stmt_id, int op)
 CLI_WRAPPER (sf_sql_free_stmt, (caddr_t stmt_id, int op), (stmt_id, op))
 #define sf_sql_free_stmt sf_sql_free_stmt_w
 #endif
-
 /* in case of rollback don't report txn error as txn is already rolledback */
-caddr_t
+    caddr_t
 cli_transact (client_connection_t * cli, int op, caddr_t * replicate)
 {
   int err = LTE_OK;
@@ -2471,7 +2422,6 @@ cli_transact (client_connection_t * cli, int op, caddr_t * replicate)
   lt_wait_checkpoint ();
 
   lt_threads_inc_inner (lt);
-
   LEAVE_CLIENT (cli);
   rc = lt_close (lt, op);
   /* lt_close leaves the txn mtx */
@@ -2547,10 +2497,7 @@ sf_sql_transact (long op, caddr_t * replicate)
 CLI_WRAPPER (sf_sql_transact, (long op, caddr_t * replicate), (op, replicate))
 #define sf_sql_transact sf_sql_transact_w
 #endif
-
-
-int
-sp_lt_check_error (client_connection_t * cli)
+     int sp_lt_check_error (client_connection_t * cli)
 {
   /* Check and report trx error in local procedures
      use after qr_quick_exec. */
@@ -2577,7 +2524,7 @@ long log_audit_trail = 0;
    Return value : if it shouldn't change the log file's name, then it returns NULL
  */
 caddr_t
-sf_make_new_log_name(dbe_storage_t * dbs)
+sf_make_new_log_name (dbe_storage_t * dbs)
 {
   char *szExt, szNewName[255], szTS[15];
   caddr_t new_name = NULL, now;
@@ -2589,38 +2536,36 @@ sf_make_new_log_name(dbe_storage_t * dbs)
   if (!log_audit_trail || !dbs->dbs_log_name)
     goto end;
 
-  now = bif_curdatetime(NULL, NULL, NULL);
-  dt_to_timestamp_struct(now, &ts);
-  snprintf(szTS, sizeof (szTS), "%04d%02d%02d%02d%02d%02d",
-	ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second);
-  dk_free_box(now);
+  now = bif_curdatetime (NULL, NULL, NULL);
+  dt_to_timestamp_struct (now, &ts);
+  snprintf (szTS, sizeof (szTS), "%04d%02d%02d%02d%02d%02d", ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second);
+  dk_free_box (now);
 
-  szExt = strrchr(dbs->dbs_log_name, '.');
+  szExt = strrchr (dbs->dbs_log_name, '.');
 
-  name_len = (int) (ptrlong) szExt ? (int) (ptrlong) (szExt - dbs->dbs_log_name)
-      : (int) (ptrlong) strlen(dbs->dbs_log_name);
+  name_len = (int) (ptrlong) szExt ? (int) (ptrlong) (szExt - dbs->dbs_log_name) : (int) (ptrlong) strlen (dbs->dbs_log_name);
 
   if (name_len >= 14)
-  {
-    for (n = 0; n < 14; n++)
-      if (!isdigit(dbs->dbs_log_name[name_len - n - 1]))
-	break;
-    if (n == 14)
-      name_len -= 14;
-  }
+    {
+      for (n = 0; n < 14; n++)
+	if (!isdigit (dbs->dbs_log_name[name_len - n - 1]))
+	  break;
+      if (n == 14)
+	name_len -= 14;
+    }
 
   if (name_len > 0)
     {
-      strncpy(szNewName, dbs->dbs_log_name, name_len);
+      strncpy (szNewName, dbs->dbs_log_name, name_len);
       szNewName[name_len] = 0;
     }
   else
     szNewName[0] = 0;
-  strcat_ck(szNewName, szTS);
+  strcat_ck (szNewName, szTS);
   if (szExt)
-    strcat_ck(szNewName, szExt);
+    strcat_ck (szNewName, szExt);
 
-  new_name = box_string(szNewName);
+  new_name = box_string (szNewName);
 
 end:
   LEAVE_TXN;
@@ -2628,37 +2573,37 @@ end:
 }
 
 caddr_t
-log_new_name(char * log_name)
+log_new_name (char *log_name)
 {
   char *szExt, szNewName[255], szTS[21];
   caddr_t now;
   int n = 0, name_len;
   TIMESTAMP_STRUCT ts;
   timeout_t tu;
-  now = bif_curdatetime(NULL, NULL, NULL);
-  dt_to_timestamp_struct(now, &ts);
+  now = bif_curdatetime (NULL, NULL, NULL);
+  dt_to_timestamp_struct (now, &ts);
   get_real_time (&tu);
 do_again:
-  snprintf(szTS, sizeof (szTS), "%04d%02d%02d%02d%02d%02d%06ld",
-	ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second, (long)(tu.to_usec));
+  snprintf (szTS, sizeof (szTS), "%04d%02d%02d%02d%02d%02d%06ld",
+      ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second, (long) (tu.to_usec));
 
-  szExt = strrchr(log_name, '.');
+  szExt = strrchr (log_name, '.');
 
-  name_len = (int) (ptrlong) szExt ? (int) (ptrlong) (szExt - log_name) : (int) (ptrlong) strlen(log_name);
+  name_len = (int) (ptrlong) szExt ? (int) (ptrlong) (szExt - log_name) : (int) (ptrlong) strlen (log_name);
 
   if (name_len >= 14)
-  {
-    for (n = 0; n < 14; n++)
-      if (!isdigit(log_name[name_len - n - 1]))
-	break;
-    if (n == 14)
-      name_len -= 14;
-  }
+    {
+      for (n = 0; n < 14; n++)
+	if (!isdigit (log_name[name_len - n - 1]))
+	  break;
+      if (n == 14)
+	name_len -= 14;
+    }
 
-  if (name_len >= 6 && n == 14) /* for compatibility if name of the log contains a useconds */
+  if (name_len >= 6 && n == 14)	/* for compatibility if name of the log contains a useconds */
     {
       for (n = 0; n < 6; n++)
-	if (!isdigit(log_name[name_len - n - 1]))
+	if (!isdigit (log_name[name_len - n - 1]))
 	  break;
       if (n == 6)
 	name_len -= 6;
@@ -2666,52 +2611,51 @@ do_again:
 
   if (name_len > 0)
     {
-      strncpy(szNewName, log_name, name_len);
+      strncpy (szNewName, log_name, name_len);
       szNewName[name_len] = 0;
     }
   else
     szNewName[0] = 0;
-  strcat_ck(szNewName, szTS);
+  strcat_ck (szNewName, szTS);
   if (szExt)
-    strcat_ck(szNewName, szExt);
+    strcat_ck (szNewName, szExt);
 
-  if (!strcmp (szNewName,log_name))
+  if (!strcmp (szNewName, log_name))
     {
-      tu.to_usec++; /* we count that in one second the usec's cannot be equal */
+      tu.to_usec++;		/* we count that in one second the usec's cannot be equal */
       goto do_again;
     }
 
-  dk_free_box(now);
-  return (box_string(szNewName));
+  dk_free_box (now);
+  return (box_string (szNewName));
 }
 
 
 caddr_t
-sf_make_new_main_log_name(void)
+sf_make_new_main_log_name (void)
 {
-  return sf_make_new_log_name(wi_inst.wi_master);
+  return sf_make_new_log_name (wi_inst.wi_master);
 }
 
 unsigned long min_checkpoint_size = 2048 * 1024;
 unsigned long autocheckpoint_log_size = 0;
 
 void
-sf_make_auto_cp(void)
+sf_make_auto_cp (void)
 {
   int make_cp = 0;
   IN_TXN;
   make_cp = (wi_inst.wi_master->dbs_log_length >= min_checkpoint_size ||
-	     wi_inst.wi_master->dbs_log_length >= autocheckpoint_log_size)
-    ? 1 : 0;
+      wi_inst.wi_master->dbs_log_length >= autocheckpoint_log_size) ? 1 : 0;
   if (server_lock.sl_owner || local_cll.cll_atomic_trx_id)
     make_cp = 0;
   LEAVE_TXN;
   if (make_cp)
     {
       long now;
-      sf_makecp (sf_make_new_log_name(wi_inst.wi_master), NULL, 1, CPT_NORMAL);
+      sf_makecp (sf_make_new_log_name (wi_inst.wi_master), NULL, 1, CPT_NORMAL);
       now = approx_msec_real_time ();
-      checkpointed_last_time = (unsigned long int) now; /* the main thread still running so set last time auto cpt finished */
+      checkpointed_last_time = (unsigned long int) now;	/* the main thread still running so set last time auto cpt finished */
     }
 }
 
@@ -2720,9 +2664,9 @@ long c_checkpoint_vdb_abort = 0;
 client_connection_t *autocheckpoint_cli;
 
 void
-sf_makecp (char *log_name, lock_trx_t *trx, int fail_on_vdb, int shutdown)
+sf_makecp (char *log_name, lock_trx_t * trx, int fail_on_vdb, int shutdown)
 {
-  int need_mtx = !srv_have_global_lock(THREAD_CURRENT_THREAD);
+  int need_mtx = !srv_have_global_lock (THREAD_CURRENT_THREAD);
   if (in_log_replay)
     {
       log_info ("Host %d: Checkpoint invoked during log replay, ignoring.", local_cll.cll_this_host);
@@ -2737,10 +2681,10 @@ sf_makecp (char *log_name, lock_trx_t *trx, int fail_on_vdb, int shutdown)
       LEAVE_TXN;
     }
 
-  if (c_checkpoint_interval == -1 && THREAD_CURRENT_THREAD  == the_main_thread)
+  if (c_checkpoint_interval == -1 && THREAD_CURRENT_THREAD == the_main_thread)
     {
       if (need_mtx)
-        LEAVE_CPT(trx);
+	LEAVE_CPT (trx);
       else if (trx)
 	{
 	  IN_TXN;
@@ -2756,7 +2700,7 @@ sf_makecp (char *log_name, lock_trx_t *trx, int fail_on_vdb, int shutdown)
   dbs_checkpoint (log_name, shutdown);
   LEAVE_TXN;
   if (need_mtx && !shutdown)
-    LEAVE_CPT(trx);
+    LEAVE_CPT (trx);
   else if (trx && !shutdown)
     {
       IN_TXN;
@@ -2774,8 +2718,8 @@ static void
 cov_store (void)
 {
   caddr_t err;
-  caddr_t * params;
-  query_t * proc;
+  caddr_t *params;
+  query_t *proc;
   if (!(pl_debug_all & 2) || !pl_debug_cov_file)
     return;
   proc = sch_proc_def (wi_inst.wi_schema, "DB.DBA.COV_STORE");
@@ -2790,9 +2734,8 @@ cov_store (void)
   LEAVE_TXN;
   if (proc->qr_to_recompile)
     proc = qr_recompile (proc, NULL);
-  params = (caddr_t *) list (2, box_dv_short_string (pl_debug_cov_file), box_num(0));
-  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL,
-		 params, NULL, 0);
+  params = (caddr_t *) list (2, box_dv_short_string (pl_debug_cov_file), box_num (0));
+  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   local_commit (bootstrap_cli);
   IN_TXN;
@@ -2807,8 +2750,8 @@ void
 dbev_shutdown (void)
 {
   caddr_t err;
-  caddr_t * params;
-  query_t * proc;
+  caddr_t *params;
+  query_t *proc;
   proc = sch_proc_exact_def (wi_inst.wi_schema, "DB.DBA.DBEV_SHUTDOWN");
   if (!proc)
     return;
@@ -2820,8 +2763,7 @@ dbev_shutdown (void)
   lt_rollback (bootstrap_cli->cli_trx, TRX_CONT);
   LEAVE_TXN;
   params = (caddr_t *) list (0);
-  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL,
-		 params, NULL, 0);
+  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   local_commit (bootstrap_cli);
   IN_TXN;
@@ -2843,15 +2785,15 @@ sf_fastdown (lock_trx_t * trx)
 #endif
   if (ena)
     dbev_shutdown ();
-  IN_CPT(trx);
+  IN_CPT (trx);
   IN_TXN;
   PrpcLeave ();
   DO_SET (dbe_storage_t *, dbs, &wi_inst.wi_storage)
-    {
-      /*dbs_close (wi_inst.wi_master);*/
-      dbs_close (dbs);
-    }
-  END_DO_SET();
+  {
+    /*dbs_close (wi_inst.wi_master); */
+    dbs_close (dbs);
+  }
+  END_DO_SET ();
   if (db_exit_hook)
     (*db_exit_hook) ();
   call_exit (0);
@@ -2895,11 +2837,12 @@ sf_shutdown (char *log_name, lock_trx_t * trx)
 #endif
 
 #ifdef MALLOC_DEBUG
-   dbg_dump_mem ();
+  dbg_dump_mem ();
 #endif
 
   if (db_exit_hook)
     (*db_exit_hook) ();
+
   call_exit (0);
 }
 
@@ -2915,8 +2858,7 @@ sf_sql_get_data_trx_error (int code, caddr_t err_detail)
 
 
 void
-sf_sql_get_data (caddr_t stmt_id, long current_of, long nth_col,
-    long how_much, long starting_at)
+sf_sql_get_data (caddr_t stmt_id, long current_of, long nth_col, long how_much, long starting_at)
 {
   int is_timeout;
   dk_session_t *client = IMMEDIATE_CLIENT_OR_NULL;
@@ -2970,20 +2912,15 @@ sf_sql_get_data (caddr_t stmt_id, long current_of, long nth_col,
 
 #ifdef SERIAL_CLI
 CLI_WRAPPER (sf_sql_get_data,
-	(caddr_t stmt_id, long current_of, long nth_col,
-	 long how_much, long starting_at),
-	(stmt_id, current_of,  nth_col, how_much, starting_at))
+    (caddr_t stmt_id, long current_of, long nth_col,
+	long how_much, long starting_at), (stmt_id, current_of, nth_col, how_much, starting_at))
 #define sf_sql_get_data sf_sql_get_data_w
 #endif
-
-
-
-
-int
+     int
 #ifdef CHECK_LT_THREADS
-lt_enter_real (lock_trx_t * lt)
+      lt_enter_real (lock_trx_t * lt)
 #else
-lt_enter (lock_trx_t * lt)
+      lt_enter (lock_trx_t * lt)
 #endif
 {
   int rc;
@@ -3000,9 +2937,9 @@ lt_enter (lock_trx_t * lt)
 	}
     }
   else
-  {
-    rc = lt->lt_error == LTE_OK ? LTE_DEADLOCK : lt->lt_error;
-  }
+    {
+      rc = lt->lt_error == LTE_OK ? LTE_DEADLOCK : lt->lt_error;
+    }
   LEAVE_TXN;
   return rc;
 }
@@ -3033,25 +2970,26 @@ lt_enter_anyway (lock_trx_t * lt)
 	}
     }
   else
-  {
-    rc = lt->lt_error == LTE_OK ? LTE_DEADLOCK : lt->lt_error;
-    lt->lt_threads++;
-    lt_rollback (lt, TRX_CONT);
-  }
+    {
+      rc = lt->lt_error == LTE_OK ? LTE_DEADLOCK : lt->lt_error;
+      lt->lt_threads++;
+      lt_rollback (lt, TRX_CONT);
+    }
   LEAVE_TXN;
   return rc;
 }
 
 
 void
-sf_sql_get_data_ac (long dp_from, long how_much, long starting_at, long bh_key_id, long bh_frag_no, long page_dir, caddr_t page_array, long is_wide, long timestamp)
+sf_sql_get_data_ac (long dp_from, long how_much, long starting_at, long bh_key_id, long bh_frag_no, long page_dir,
+    caddr_t page_array, long is_wide, long timestamp)
 {
   int is_timeout;
   dk_session_t *client = IMMEDIATE_CLIENT_OR_NULL;
   client_connection_t *cli = DKS_DB_DATA (client);
   lock_trx_t *trx;
   dtp_t bh_tag = is_wide ? DV_BLOB_WIDE_HANDLE : DV_BLOB_HANDLE;
-  blob_handle_t * bh = bh_alloc (bh_tag);
+  blob_handle_t *bh = bh_alloc (bh_tag);
   dbe_key_t *key;
 
   if (KI_TEMP == bh_key_id)
@@ -3070,8 +3008,7 @@ sf_sql_get_data_ac (long dp_from, long how_much, long starting_at, long bh_key_i
   bh->bh_current_page = dp_from;
   bh->bh_dir_page = page_dir;
   bh->bh_pages = (dp_addr_t *) page_array;
-  if (box_length ((caddr_t) page_array) / sizeof (dp_addr_t) > BL_DPS_ON_ROW
-      && 0 == bh->bh_pages[BL_DPS_ON_ROW])
+  if (box_length ((caddr_t) page_array) / sizeof (dp_addr_t) > BL_DPS_ON_ROW && 0 == bh->bh_pages[BL_DPS_ON_ROW])
     bh->bh_page_dir_complete = 0;
   else
     bh->bh_page_dir_complete = 1;
@@ -3111,16 +3048,16 @@ sf_sql_get_data_ac (long dp_from, long how_much, long starting_at, long bh_key_i
 
 #ifdef SERIAL_CLI
 CLI_WRAPPER (sf_sql_get_data_ac,
-	(long dp_from, long how_much, long starting_at, long bh_key_id, long bh_frag_no, long page_dir, caddr_t page_array, long is_wide, long timestamp),
-	(dp_from, how_much, starting_at, bh_key_id, bh_frag_no, page_dir, page_array, is_wide, timestamp))
+    (long dp_from, long how_much, long starting_at, long bh_key_id, long bh_frag_no, long page_dir, caddr_t page_array,
+	long is_wide, long timestamp), (dp_from, how_much, starting_at, bh_key_id, bh_frag_no, page_dir, page_array, is_wide,
+	timestamp))
 #define sf_sql_get_data_ac sf_sql_get_data_ac_w
 #endif
+    SERVICE_1 (s_sql_no_threads, ssqlnth, "no_threads", DA_FUTURE_REQUEST, DV_SEND_NO_ANSWER, DV_LONG_INT, 1);
 
-SERVICE_1 (s_sql_no_threads, ssqlnth, "no_threads", DA_FUTURE_REQUEST, DV_SEND_NO_ANSWER, DV_LONG_INT, 1);
+#define NO_THREADS_REPORT_PERIOD   10 * 60	/* 10 min */
 
-#define NO_THREADS_REPORT_PERIOD   10 * 60 /* 10 min */
-
-uint32 n_total_no_threads = 0;
+     uint32 n_total_no_threads = 0;
 
 caddr_t
 sf_sql_no_threads_reply (void)
@@ -3137,8 +3074,8 @@ sf_sql_no_threads_reply (void)
     {
       mutex_enter (thread_mtx);
       DKST_RPC_DONE_NO_MTX (client);
-      n_total_no_threads ++;
-      n_hits_per_period ++;
+      n_total_no_threads++;
+      n_hits_per_period++;
 
       time_now = approx_msec_real_time ();
       if (!last_checked_time)
@@ -3166,8 +3103,9 @@ void
 frq_no_thread_reply (future_request_t * frq)
 {
 #if 0
-  dk_thread_t * self = DK_CURRENT_THREAD;
-  caddr_t err = srv_make_new_error ("40001", "XXX", "Out of server threads. Server temporarily unavailable. Transaction rolled back.");
+  dk_thread_t *self = DK_CURRENT_THREAD;
+  caddr_t err =
+      srv_make_new_error ("40001", "XXX", "Out of server threads. Server temporarily unavailable. Transaction rolled back.");
   self->dkt_request_count = 1;
   self->dkt_requests[0] = frq;
   PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
@@ -3176,7 +3114,7 @@ frq_no_thread_reply (future_request_t * frq)
   dk_free_tree (err);
 #else
   dk_free_tree ((caddr_t) frq->rq_arguments);
-  frq->rq_arguments = (long**) list (01, 0);
+  frq->rq_arguments = (long **) list (01, 0);
   frq->rq_service = find_service ("no_threads");
 #endif
 }
@@ -3185,8 +3123,8 @@ frq_no_thread_reply (future_request_t * frq)
 void
 sf_overflow (future_request_t * frq)
 {
-  client_connection_t * cli = DKS_DB_DATA (frq->rq_client);
-  lock_trx_t * lt;
+  client_connection_t *cli = DKS_DB_DATA (frq->rq_client);
+  lock_trx_t *lt;
   IN_TXN;
   lt = cli->cli_trx;
   if (0 == lt->lt_threads)
@@ -3219,21 +3157,19 @@ sf_overflow (future_request_t * frq)
 int
 sf_no_threads (future_request_t * frq)
 {
-  service_t * sv = frq->rq_service;
+  service_t *sv = frq->rq_service;
   if (NULL != sv && (server_func) sf_sql_execute == sv->sr_func)
     {
-      stmt_options_t * so = (stmt_options_t *) frq->rq_arguments[5];
+      stmt_options_t *so = (stmt_options_t *) frq->rq_arguments[5];
       if (0 && so->so_autocommit)
 	return 1;
       sf_overflow (frq);
       return 1;
     }
   if (NULL != sv && ((server_func) sf_sql_fetch == sv->sr_func
-      ||  (server_func) sf_sql_extended_fetch == sv->sr_func
-      ||  (server_func) sf_sql_transact == sv->sr_func
-      ||  (server_func) sf_sql_free_stmt == sv->sr_func
-      ||  (server_func) sf_sql_get_data_ac == sv->sr_func
-      ))
+	  || (server_func) sf_sql_extended_fetch == sv->sr_func
+	  || (server_func) sf_sql_transact == sv->sr_func
+	  || (server_func) sf_sql_free_stmt == sv->sr_func || (server_func) sf_sql_get_data_ac == sv->sr_func))
     {
       sf_overflow (frq);
       return 1;
@@ -3280,19 +3216,21 @@ void
 int64_serialize_client (caddr_t n1, dk_session_t * session)
 {
   client_connection_t *cli = DKS_DB_DATA (session);
-  boxint n = *(boxint*)n1;
-  union {
+  boxint n = *(boxint *) n1;
+  union
+  {
     int64 n64;
-    struct {
+    struct
+    {
       int32 n1;
       int32 n2;
     } n32;
   } num;
   if (cli && cli->cli_version < 3016)
     {
-      NUMERIC_VAR(tnum);
-      numeric_from_int64 ((numeric_t)&tnum, n);
-      numeric_serialize_client ((caddr_t)&tnum, session);
+      NUMERIC_VAR (tnum);
+      numeric_from_int64 ((numeric_t) & tnum, n);
+      numeric_serialize_client ((caddr_t) & tnum, session);
     }
   else
     {
@@ -3335,7 +3273,7 @@ bh_is_remote (blob_handle_t * bh)
 
 
 void
-bh_serialize_to_client (blob_handle_t *bh, dk_session_t *ses)
+bh_serialize_to_client (blob_handle_t * bh, dk_session_t * ses)
 {
   client_connection_t *cli = DKS_DB_DATA (ses);
   int is_utf8 = DV_TYPE_OF (bh) == DV_BLOB_WIDE_HANDLE ? 1 : 0;
@@ -3346,7 +3284,7 @@ bh_serialize_to_client (blob_handle_t *bh, dk_session_t *ses)
       return;
     }
   if (!cli && BLOB_NULL_RECEIVED != bh->bh_all_received && !bh->bh_ask_from_client)
-    { /* serialize as string when not on the ODBC connection */
+    {				/* serialize as string when not on the ODBC connection */
       caddr_t obj;
       cli = sqlc_client ();
       if ((DKS_TO_CLUSTER & ses->dks_cluster_flags) && (bh->bh_diskbytes > dbf_cl_blob_autosend_limit || bh_is_remote (bh)))
@@ -3375,11 +3313,11 @@ bh_serialize_to_client (blob_handle_t *bh, dk_session_t *ses)
 
 
 void
-bh_serialize_xper_to_client (blob_handle_t *bh, dk_session_t *ses)
+bh_serialize_xper_to_client (blob_handle_t * bh, dk_session_t * ses)
 {
   client_connection_t *cli = DKS_DB_DATA (ses);
   if (!cli && BLOB_NULL_RECEIVED != bh->bh_all_received && !bh->bh_ask_from_client)
-    { /* it's an error to serialize a xper when not on the ODBC connection */
+    {				/* it's an error to serialize a xper when not on the ODBC connection */
       SESSTAT_CLR (ses->dks_session, SST_OK);
       SESSTAT_SET (ses->dks_session, SST_DISK_ERROR);
       longjmp_splice (&SESSION_SCH_DATA (ses)->sio_write_broken_context, 1);
@@ -3417,8 +3355,8 @@ void
 dbev_startup (void)
 {
   caddr_t err;
-  caddr_t * params;
-  query_t * proc;
+  caddr_t *params;
+  query_t *proc;
   if (!dbev_enable)
     return;
   proc = sch_proc_exact_def (wi_inst.wi_schema, "DB.DBA.DBEV_STARTUP");
@@ -3427,8 +3365,7 @@ dbev_startup (void)
   if (proc->qr_to_recompile)
     proc = qr_recompile (proc, NULL);
   params = (caddr_t *) list (0);
-  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL,
-		 params, NULL, 0);
+  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   local_commit (bootstrap_cli);
   if (IS_BOX_POINTER (err))
@@ -3440,8 +3377,8 @@ void
 cov_load (void)
 {
   caddr_t err;
-  caddr_t * params;
-  query_t * proc;
+  caddr_t *params;
+  query_t *proc;
   if (!(pl_debug_all & 2) || !pl_debug_cov_file)
     return;
   proc = sch_proc_def (wi_inst.wi_schema, "DB.DBA.COV_LOAD");
@@ -3450,8 +3387,7 @@ cov_load (void)
   if (proc->qr_to_recompile)
     proc = qr_recompile (proc, NULL);
   params = (caddr_t *) list (1, box_dv_short_string (pl_debug_cov_file));
-  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL,
-		 params, NULL, 0);
+  err = qr_exec (bootstrap_cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   local_commit (bootstrap_cli);
   if (IS_BOX_POINTER (err))
@@ -3459,24 +3395,19 @@ cov_load (void)
 }
 #endif
 
-char * bpel_check_proc =
-"create procedure RESTART_ALL_BPEL_INSTANCES ()\n"
-"{\n"
-"  declare pkgs any;\n"
-"  pkgs := \"VAD\".\"DBA\".\"VAD_GET_PACKAGES\" ();\n"
-"  if (pkgs is not null)\n"
-"    {\n"
-"      declare idx int;\n"
-"      while (idx < length (pkgs))\n"
-"        {\n"
-"          if (pkgs[idx][1] = 'bpel4ws')\n"
-"            {\n"
-"              BPEL..restart_all_instances();\n"
-"            }\n"
-"          idx := idx + 1;\n"
-"        }\n"
-"    }\n"
-"}\n";
+char *bpel_check_proc =
+    "create procedure RESTART_ALL_BPEL_INSTANCES ()\n"
+    "{\n"
+    "  declare pkgs any;\n"
+    "  pkgs := \"VAD\".\"DBA\".\"VAD_GET_PACKAGES\" ();\n"
+    "  if (pkgs is not null)\n"
+    "    {\n"
+    "      declare idx int;\n"
+    "      while (idx < length (pkgs))\n"
+    "        {\n"
+    "          if (pkgs[idx][1] = 'bpel4ws')\n"
+    "            {\n"
+    "              BPEL..restart_all_instances();\n" "            }\n" "          idx := idx + 1;\n" "        }\n" "    }\n" "}\n";
 
 #define NO_LITE(f) if (!lite_mode) f ();
 extern int cl_no_init;
@@ -3489,9 +3420,11 @@ sql_code_global_init ()
   if (0 && cluster_enable && cl_no_init)
     return;
   if (c_query_log)
-    ddl_ensure_table ("do this always",  "prof_enable (1)");
+    ddl_ensure_table ("do this always", "prof_enable (1)");
   sqls_define_sys ();
   sqls_define ();
+
+
   sqls_define_sparql ();
   if (CL_RUN_LOCAL == cl_run_local_only)
     sas_ensure ();
@@ -3500,7 +3433,7 @@ sql_code_global_init ()
   NO_LITE (sqls_define_ws);
   NO_LITE (sqls_define_dav);
   sqls_define_1 ();
-  cache_resources();
+  cache_resources ();
   NO_LITE (sqls_define_2pc);
   NO_LITE (sqls_define_pldbg);
   NO_LITE (sqls_define_adm);
@@ -3518,7 +3451,8 @@ sql_code_global_init ()
   ddl_sel_for_effect ("select USER_KEYS_INIT (U_NAME, U_OPTS) from DB.DBA.SYS_USERS where U_IS_ROLE = 0 and U_OPTS is not null");
 #endif
 
-  qr_dotnet_get_assembly_real = sql_compile ("SELECT VAC_REAL_NAME from DB.DBA.CLR_VAC where VAC_INTERNAL_NAME=?", bootstrap_cli, NULL, 0);
+  qr_dotnet_get_assembly_real =
+      sql_compile ("SELECT VAC_REAL_NAME from DB.DBA.CLR_VAC where VAC_INTERNAL_NAME=?", bootstrap_cli, NULL, 0);
 
 }
 
@@ -3526,7 +3460,7 @@ sql_code_global_init ()
 void
 sql_code_arfw_global_init ()
 {
-  int was_col  = enable_col_by_default;
+  int was_col = enable_col_by_default;
   enable_col_by_default = 0;
 /*
   ddl_scheduler_arfw_init ();
@@ -3557,18 +3491,17 @@ static srv_req_hook_func before_cancel_hook = NULL;
 
 
 static void
-lt_kill_waiting_trx (lock_trx_t *lt, int lt_error)
+lt_kill_waiting_trx (lock_trx_t * lt, int lt_error)
 {
   ASSERT_IN_TXN;
-  if (lt->lt_threads > 0 &&
-      (lt->lt_lw_threads > 0 || lt->lt_vdb_threads > 0))
+  if (lt->lt_threads > 0 && (lt->lt_lw_threads > 0 || lt->lt_vdb_threads > 0))
     {
 #ifdef CHECK_LT_THREADS
-      int			lt_threads;
-      int			lt_lw_threads;
-      int			lt_close_ack_threads;
-      int			lt_vdb_threads;
-      int 			lt_status;
+      int lt_threads;
+      int lt_lw_threads;
+      int lt_close_ack_threads;
+      int lt_vdb_threads;
+      int lt_status;
 
       lt_status = lt->lt_status;
       lt_vdb_threads = lt->lt_vdb_threads;
@@ -3578,7 +3511,7 @@ lt_kill_waiting_trx (lock_trx_t *lt, int lt_error)
 #endif
 
       lt_log_debug (("killing other trx %p (status %d) because of %d on thread %p",
-	  lt, lt->lt_status, lt_error, THREAD_CURRENT_THREAD));
+	      lt, lt->lt_status, lt_error, THREAD_CURRENT_THREAD));
       lt->lt_error = lt_error;
       if (LT_DELTA_ROLLED_BACK != lt->lt_status)
 	lt_kill_other_trx (lt, NULL, NULL, LT_KILL_ROLLBACK);
@@ -3587,11 +3520,10 @@ lt_kill_waiting_trx (lock_trx_t *lt, int lt_error)
 
 
 static caddr_t
-sf_sql_cancel_hook (dk_session_t* session, caddr_t _request)
+sf_sql_cancel_hook (dk_session_t * session, caddr_t _request)
 {
-  ptrlong *request  = (ptrlong *) _request;
-  if (session && IS_FRQ (request) &&
-      !strcmp ((char *) request[FRQ_SERVICE_NAME], "CANCEL"))
+  ptrlong *request = (ptrlong *) _request;
+  if (session && IS_FRQ (request) && !strcmp ((char *) request[FRQ_SERVICE_NAME], "CANCEL"))
     {
       client_connection_t *cli = DKS_DB_DATA (session);
       if (cli)
@@ -3614,7 +3546,7 @@ sf_sql_cancel_hook (dk_session_t* session, caddr_t _request)
 long msec_session_space_clear;
 
 static void
-futures_object_space_clear (caddr_t b, future_request_t *f)
+futures_object_space_clear (caddr_t b, future_request_t * f)
 {
   client_connection_t *cli;
   /* OBJECT_SPACE_CLEAR; This is wrong if DV_REFERENCE is not actually copied by box_copy */
@@ -3635,7 +3567,7 @@ PrpcRegisterServiceDesc1 (service_desc_t * desc, server_func f)
   PrpcRegisterService (desc->sd_name, f, NULL, desc->sd_return_type, futures_object_space_clear);
 }
 
-typedef void (*ddl_init_hook_t) (client_connection_t *cli);
+typedef void (*ddl_init_hook_t) (client_connection_t * cli);
 ddl_init_hook_t ddl_init_hook = NULL;
 
 ddl_init_hook_t
@@ -3655,17 +3587,17 @@ srv_plugins_init (void)
   langfunc_plugin_init ();
   hosting_plugin_init ();
   /* init for common type plugin */
-  plugin_loader_init();
+  plugin_loader_init ();
 }
 
 
 #ifdef INPROCESS_CLIENT
 
 static void *
-sql_inprocess_enter (dk_session_t *inpses)
+sql_inprocess_enter (dk_session_t * inpses)
 {
-  client_connection_t * cli = GET_IMMEDIATE_CLIENT_OR_NULL;
-  void ** data = (void **) dk_alloc (2 * sizeof (void *));
+  client_connection_t *cli = GET_IMMEDIATE_CLIENT_OR_NULL;
+  void **data = (void **) dk_alloc (2 * sizeof (void *));
 
   data[0] = cli->cli_http_ses;
   data[1] = cli->cli_ws;
@@ -3678,10 +3610,10 @@ sql_inprocess_enter (dk_session_t *inpses)
 }
 
 static void
-sql_inprocess_leave (void * vp)
+sql_inprocess_leave (void *vp)
 {
-  client_connection_t * cli = GET_IMMEDIATE_CLIENT_OR_NULL;
-  void ** data = (void **) vp;
+  client_connection_t *cli = GET_IMMEDIATE_CLIENT_OR_NULL;
+  void **data = (void **) vp;
 
   cli->cli_http_ses = (dk_session_t *) data[0];
   cli->cli_ws = (struct ws_connection_s *) data[1];
@@ -3713,33 +3645,34 @@ static void
 srv_global_init_drop ()
 {
   id_hash_iterator_t hit;
-  char ** tn;
-  caddr_t * piter;id_hash_iterator (&hit, wi_inst.wi_schema->sc_name_to_object[sc_to_table]);
-  while (hit_next (&hit, (caddr_t*)&tn, (caddr_t*)&piter))
+  char **tn;
+  caddr_t *piter;
+  id_hash_iterator (&hit, wi_inst.wi_schema->sc_name_to_object[sc_to_table]);
+  while (hit_next (&hit, (caddr_t *) & tn, (caddr_t *) & piter))
     {
-      id_casemode_entry_llist_t *iter = *(id_casemode_entry_llist_t **)piter;
+      id_casemode_entry_llist_t *iter = *(id_casemode_entry_llist_t **) piter;
       for (iter = iter; iter; iter = iter->next)
 	{
-	  dbe_table_t * tb = (dbe_table_t*)iter->data;
+	  dbe_table_t *tb = (dbe_table_t *) iter->data;
 	  if (tb->tb_primary_key->key_id <= KI_UDT)
 	    continue;
 	  tb_mark_affected (tb->tb_name);
 	  DO_SET (dbe_key_t *, key, &tb->tb_keys)
-	    {
-	      it_cursor_t itc_auto;
-	      it_cursor_t * itc = &itc_auto;
-	      ITC_INIT (itc, NULL, bootstrap_cli->cli_trx);
-	      itc_drop_index (itc, key);
-	      itc_free (itc);
-	      key_dropped (key);
-	    }
-	  END_DO_SET();
+	  {
+	    it_cursor_t itc_auto;
+	    it_cursor_t *itc = &itc_auto;
+	    ITC_INIT (itc, NULL, bootstrap_cli->cli_trx);
+	    itc_drop_index (itc, key);
+	    itc_free (itc);
+	    key_dropped (key);
+	  }
+	  END_DO_SET ();
 	}
     }
 }
 
 static void
-srv_session_disconnect_action (dk_session_t *ses)
+srv_session_disconnect_action (dk_session_t * ses)
 {
   client_connection_t *cli = DKS_DB_DATA (ses);
   if (cli && ses->dks_to_close)
@@ -3747,12 +3680,12 @@ srv_session_disconnect_action (dk_session_t *ses)
       cli->cli_terminate_requested = CLI_TERMINATE;
       IN_TXN;
       if (cli->cli_trx)
-        lt_kill_waiting_trx (cli->cli_trx, LTE_REMOTE_DISCONNECT);
+	lt_kill_waiting_trx (cli->cli_trx, LTE_REMOTE_DISCONNECT);
       LEAVE_TXN;
     }
 }
 
-void   rdf_key_comp_init ();
+void rdf_key_comp_init ();
 extern int enable_col_by_default, c_col_by_default;
 long get_total_sys_mem ();
 
@@ -3761,14 +3694,21 @@ srv_global_init (char *mode)
 {
 /* Sanity check for list, to detect errors like errors catched by AMD Opteron port */
 #ifdef DEBUG
-  caddr_t *probe = list (7, NULL, 1, 2, 3L, 4L, box_dv_short_string("5"), box_dv_short_string("6"));
-  if (probe[0] != NULL) GPF_T1("list probe 0");
-  if (probe[1] != 1) GPF_T1("list probe 1");
-  if (probe[2] != 2) GPF_T1("list probe 2");
-  if (probe[3] != 3) GPF_T1("list probe 3");
-  if (probe[4] != 4) GPF_T1("list probe 4");
-  if (probe[5][0] != '5') GPF_T1("list probe 5");
-  if (probe[6][0] != '6') GPF_T1("list probe 6");
+  caddr_t *probe = list (7, NULL, 1, 2, 3L, 4L, box_dv_short_string ("5"), box_dv_short_string ("6"));
+  if (probe[0] != NULL)
+    GPF_T1 ("list probe 0");
+  if (probe[1] != 1)
+    GPF_T1 ("list probe 1");
+  if (probe[2] != 2)
+    GPF_T1 ("list probe 2");
+  if (probe[3] != 3)
+    GPF_T1 ("list probe 3");
+  if (probe[4] != 4)
+    GPF_T1 ("list probe 4");
+  if (probe[5][0] != '5')
+    GPF_T1 ("list probe 5");
+  if (probe[6][0] != '6')
+    GPF_T1 ("list probe 6");
 #endif
 
   db_read_cfg (NULL, mode);
@@ -3777,8 +3717,7 @@ srv_global_init (char *mode)
 
   logins_list_initialize ();
   log_info ("%s", DBMS_SRV_NAME);
-  log_info ("Version " DBMS_SRV_VER "%s for %s as of %s",
-      build_thread_model, build_opsys_id, build_date);
+  log_info ("Version " DBMS_SRV_VER "%s for %s as of %s", build_thread_model, build_opsys_id, build_date);
 
   log_info ("uses parts of OpenSSL, PCRE, Html Tidy");
 
@@ -3791,6 +3730,10 @@ srv_global_init (char *mode)
       mode_pass_change = 1;
     }
 
+  if (!mode_pass_change)
+    {
+    }
+
   srv_pid = getpid ();
   init_server_cwd ();
 #ifdef UNIX
@@ -3799,18 +3742,18 @@ srv_global_init (char *mode)
 
 #ifdef WIN32
 
-  if (!OpenThreadToken (GetCurrentThread(), TOKEN_QUERY, FALSE, &server_imp_token))
+  if (!OpenThreadToken (GetCurrentThread (), TOKEN_QUERY, FALSE, &server_imp_token))
     {
-      if ( GetLastError() == ERROR_NO_TOKEN)
+      if (GetLastError () == ERROR_NO_TOKEN)
 	{
 	  HANDLE acess_token = NULL;
 	  LPVOID lpMsgBuf;
 
-	  if (!OpenProcessToken (GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_IMPERSONATE, &acess_token))
+	  if (!OpenProcessToken (GetCurrentProcess (), TOKEN_DUPLICATE | TOKEN_IMPERSONATE, &acess_token))
 	    {
 	      FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-		  FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(),
-		  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(LPTSTR) &lpMsgBuf, 0, NULL);
+		  FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError (),
+		  MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);
 	      log_info ("Can't get server access token %s ", lpMsgBuf);
 	      call_exit (-1);
 	    }
@@ -3818,8 +3761,8 @@ srv_global_init (char *mode)
 	  if (!DuplicateToken (acess_token, 2, &server_imp_token))
 	    {
 	      FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-		  FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(),
-		  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),(LPTSTR) &lpMsgBuf, 0, NULL);
+		  FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError (),
+		  MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) & lpMsgBuf, 0, NULL);
 	      log_info ("Can't get server impersonate token %s ", lpMsgBuf);
 	      call_exit (-1);
 	    }
@@ -3843,7 +3786,7 @@ srv_global_init (char *mode)
       if (restore_from_files (recover_file_prefix) == -1)
 	{
 	  call_exit (1);
- 	}
+	}
       return;
     }
   uname_const_decl_init ();
@@ -3865,19 +3808,19 @@ srv_global_init (char *mode)
 
 #ifdef VIRTTP
   if (!lite_mode)
-    tp_main_queue_init();
+    tp_main_queue_init ();
 #endif
   sqlc_set_client (bootstrap_cli);
-  /*if (sqlo_enable)*/
+  /*if (sqlo_enable) */
+  {
+    if (sqlo_max_layouts)
+      log_info ("SQL Optimizer enabled (max %d layouts)", sqlo_max_layouts);
+    else
+      log_info ("SQL Optimizer enabled (unlimited layouts)");
+  }
+  if (strchr (mode, 'o') || strchr (mode, 'D'))
     {
-      if (sqlo_max_layouts)
-	log_info ("SQL Optimizer enabled (max %d layouts)", sqlo_max_layouts);
-      else
-	log_info ("SQL Optimizer enabled (unlimited layouts)");
-    }
-    if (strchr (mode, 'o') || strchr (mode, 'D') )
-    {
-      ddl_init_schema();
+      ddl_init_schema ();
       return;
     }
   ddl_init_schema ();
@@ -3890,7 +3833,8 @@ srv_global_init (char *mode)
 #endif /* BYTE_ORDER_REV_SUPPORT */
 
   remote_init (0);
-  srv_compatibility_init ();  /* AFTER remote_init */
+  file_init ();
+  srv_compatibility_init ();	/* AFTER remote_init */
   registry_exec ();
   if (!strchr (mode, 'n'))
     {
@@ -3903,8 +3847,7 @@ srv_global_init (char *mode)
   the_main_thread = current_process;	/* Used by the_grim_lock_reaper */
 
   sec_init ();
-  PrpcRegisterService ("SCON", (server_func) sf_sql_connect, NULL,
-      DV_ARRAY_OF_POINTER, (post_func) dk_free_tree);
+  PrpcRegisterService ("SCON", (server_func) sf_sql_connect, NULL, DV_ARRAY_OF_POINTER, (post_func) dk_free_tree);
   PrpcRegisterServiceDesc1 (&s_sql_prepare, (server_func) sf_stmt_prepare);
   PrpcRegisterServiceDesc1 (&s_sql_execute, (server_func) sf_sql_execute);
   PrpcRegisterServiceDesc1 (&s_sql_fetch, (server_func) sf_sql_fetch);
@@ -3953,7 +3896,7 @@ srv_global_init (char *mode)
       log_init (wi_inst.wi_master);
       local_commit (bootstrap_cli);
       c_checkpoint_interval = 0;
-      sf_makecp (sf_make_new_log_name(wi_inst.wi_master), bootstrap_cli->cli_trx, 1, CPT_NORMAL);
+      sf_makecp (sf_make_new_log_name (wi_inst.wi_master), bootstrap_cli->cli_trx, 1, CPT_NORMAL);
       IN_TXN;
       lt_leave (bootstrap_cli->cli_trx);
       LEAVE_TXN;
@@ -3990,7 +3933,7 @@ srv_global_init (char *mode)
 /*      sqls_define_sparql_init ();*/
       read_proc_and_trigger_tables (1);
       read_proc_and_trigger_tables (0);
-      sec_read_grants (NULL, NULL, NULL, 1); /* call second time to do read of execute grants */
+      sec_read_grants (NULL, NULL, NULL, 1);	/* call second time to do read of execute grants */
       ddl_standard_procs ();
     }
 /*  else if (!in_crash_dump)
@@ -4014,7 +3957,7 @@ srv_global_init (char *mode)
       /* if brand new, flush out the basic state so that can reopen without gpf reading the page sets */
       bootstrap_cli->cli_trx->lt_threads = 0;
       IN_TXN;
-      dbs_checkpoint ((char *)-1, 0);
+      dbs_checkpoint ((char *) -1, 0);
       LEAVE_TXN;
       bootstrap_cli->cli_trx->lt_threads = 1;
     }
@@ -4027,7 +3970,7 @@ srv_global_init (char *mode)
   sqlc_set_client (bootstrap_cli);
   if (!in_crash_dump && cl_run_local_only == CL_RUN_LOCAL)
     {
-      sql_code_arfw_global_init();
+      sql_code_arfw_global_init ();
     }
   local_commit (bootstrap_cli);
 #ifdef PLDBG
@@ -4045,43 +3988,41 @@ srv_global_init (char *mode)
   if (init_trace)
     set_ini_trace_option ();
 
-  log_thread_initialize();
+  log_thread_initialize ();
 
   if (mode_pass_change)
     {
-	  caddr_t err = NULL;
-	  query_t *qr;
-	  char e_text [200];
+      caddr_t err = NULL;
+      query_t *qr;
+      char e_text[200];
 
-	  snprintf (e_text, sizeof (e_text),
-	      "USER_CHANGE_PASSWORD ('dba', '%.20s', '%.20s')", f_old_dba_pass, f_new_dba_pass);
+      snprintf (e_text, sizeof (e_text), "USER_CHANGE_PASSWORD ('dba', '%.20s', '%.20s')", f_old_dba_pass, f_new_dba_pass);
 
-	  qr = sql_compile (e_text, bootstrap_cli, &err, SQLC_DEFAULT);
-	  if (!err)
-	    {
-	      err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 0);
-	      qr_free (qr);
-	    }
+      qr = sql_compile (e_text, bootstrap_cli, &err, SQLC_DEFAULT);
+      if (!err)
+	{
+	  err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 0);
+	  qr_free (qr);
+	}
 
-	  log_info ("The DBA password is changed.");
-	  snprintf (e_text, sizeof (e_text),
-	      "USER_CHANGE_PASSWORD ('dav', 'dav', '%.20s')", f_new_dav_pass);
+      log_info ("The DBA password is changed.");
+      snprintf (e_text, sizeof (e_text), "USER_CHANGE_PASSWORD ('dav', 'dav', '%.20s')", f_new_dav_pass);
 
-	  qr = sql_compile (e_text , bootstrap_cli, &err, SQLC_DEFAULT);
-	  if (!err)
-	    {
-	      err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 0);
-	      qr_free (qr);
-	    }
+      qr = sql_compile (e_text, bootstrap_cli, &err, SQLC_DEFAULT);
+      if (!err)
+	{
+	  err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 0);
+	  qr_free (qr);
+	}
 
-	  log_info ("The DAV password is changed.");
+      log_info ("The DAV password is changed.");
 
-	  local_commit (bootstrap_cli);
-	  sf_shutdown (sf_make_new_log_name (wi_inst.wi_master), bootstrap_cli->cli_trx);
+      local_commit (bootstrap_cli);
+      sf_shutdown (sf_make_new_log_name (wi_inst.wi_master), bootstrap_cli->cli_trx);
     }
   ddl_redo_undefined_triggers ();
   IN_TXN;
-  lt_leave(bootstrap_cli->cli_trx);
+  lt_leave (bootstrap_cli->cli_trx);
   LEAVE_TXN;
 #ifdef DBSE_TREES_DEBUG
   dbg_it_print_trees ();
@@ -4129,7 +4070,7 @@ srv_make_new_error (const char *code, const char *virt_code, const char *msg, ..
   {
     if ('S' == code[0] || '4' == code[0])
       {
-        at_printf (("Host %d make err %s %s in %s\n", local_cll.cll_this_host, code, temp, cl_thr_stat ()));
+	at_printf (("Host %d make err %s %s in %s\n", local_cll.cll_this_host, code, temp, cl_thr_stat ()));
       }
   }
   box[0] = (caddr_t) QA_ERROR;
@@ -4140,12 +4081,12 @@ srv_make_new_error (const char *code, const char *virt_code, const char *msg, ..
       memcpy (box[2], virt_code, code_len);
       memcpy (box[2] + code_len, ": ", 2);
       memcpy (box[2] + code_len + 2, temp, msg_len);
-      box[2][code_len+msg_len+2] = 0;
+      box[2][code_len + msg_len + 2] = 0;
     }
   else
     box[2] = box_dv_short_string (temp);
 #ifdef DEBUG
-  err_log = fopen("srv_errors.txt","at");
+  err_log = fopen ("srv_errors.txt", "at");
   if (NULL != err_log)
     {
       fprintf (err_log, "%s | %s\n", box[1], box[2]);
@@ -4153,7 +4094,7 @@ srv_make_new_error (const char *code, const char *virt_code, const char *msg, ..
     }
 #endif
 
-  if (DO_LOG(LOG_SRV_ERROR))
+  if (DO_LOG (LOG_SRV_ERROR))
     {
       log_info ("ERRS_0 %s %s %s", code, virt_code, temp);
     }
@@ -4168,96 +4109,79 @@ srv_make_trx_error (int code, caddr_t detail)
   caddr_t err = NULL;
   switch (code)
     {
-      case LTE_TIMEOUT:
-	  err = srv_make_new_error ("S1T00", "SR171",
-	      "Transaction timed out%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_DEADLOCK:
-	  err = srv_make_new_error ("40001", "SR172",
-	      "Transaction deadlocked%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_NO_DISK:
-	  err = srv_make_new_error ("40003", "SR173",
-	      "Transaction out of disk%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_LOG_FAILED:
-	  err = srv_make_new_error ("40004", "SR174",
-	      "Log out of disk%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_UNIQ:
-	  err = srv_make_new_error ("23000", "SR175",
-	      "Uniqueness violation%s%s. Transaction killed.",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_SQL_ERROR:
-        {
-          du_thread_t *self = THREAD_CURRENT_THREAD;
-          caddr_t *probable_err = (caddr_t *)thr_get_error_code (self);
-          if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (probable_err))
-            probable_err = NULL;
-          if (NULL == probable_err)
-            {
-	      err = srv_make_new_error ("4000X", "SR176",
-	        "Transaction rolled back due to previous SQL error%s%s",
-	        detail ? " : " : "", detail ? detail : "");
-	      break;
-            }
-          else
-            {
-	      err = srv_make_new_error ("4000X", "SR176",
-	        "Transaction rolled back due to previous SQL error %s (((\n%s\n)))%s%s",
-					probable_err[1], probable_err[2], detail ? " : " : "", detail ? detail : "");
-	      break;
-            }
-        }
-      case LTE_REMOTE_DISCONNECT:
-	  err = srv_make_new_error ("08U01", "SR324",
-	      "Remote server has disconnected making the transaction "
-	      "uncommittable. Transaction has been rolled back%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_CHECKPOINT:
-	  err = srv_make_new_error ("40001", "SR325",
-	      "Transaction aborted due to a database checkpoint or "
-	      "database-wide atomic operation. Please retry transaction%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_LOG_IMAGE:
-	  err = srv_make_new_error ("40005", "SR325",
-	      "Transaction aborted because it's log after image size "
-	      "went above the limit%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
-      case LTE_OUT_OF_MEM:
-	  err = srv_make_new_error ("40006", "SR337",
-	      "Transaction aborted because the server is out of memory%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
+    case LTE_TIMEOUT:
+      err = srv_make_new_error ("S1T00", "SR171", "Transaction timed out%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_DEADLOCK:
+      err = srv_make_new_error ("40001", "SR172", "Transaction deadlocked%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_NO_DISK:
+      err = srv_make_new_error ("40003", "SR173", "Transaction out of disk%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_LOG_FAILED:
+      err = srv_make_new_error ("40004", "SR174", "Log out of disk%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_UNIQ:
+      err = srv_make_new_error ("23000", "SR175",
+	  "Uniqueness violation%s%s. Transaction killed.", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_SQL_ERROR:
+      {
+	du_thread_t *self = THREAD_CURRENT_THREAD;
+	caddr_t *probable_err = (caddr_t *) thr_get_error_code (self);
+	if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (probable_err))
+	  probable_err = NULL;
+	if (NULL == probable_err)
+	  {
+	    err = srv_make_new_error ("4000X", "SR176",
+		"Transaction rolled back due to previous SQL error%s%s", detail ? " : " : "", detail ? detail : "");
+	    break;
+	  }
+	else
+	  {
+	    err = srv_make_new_error ("4000X", "SR176",
+		"Transaction rolled back due to previous SQL error %s (((\n%s\n)))%s%s",
+		probable_err[1], probable_err[2], detail ? " : " : "", detail ? detail : "");
+	    break;
+	  }
+      }
+    case LTE_REMOTE_DISCONNECT:
+      err = srv_make_new_error ("08U01", "SR324",
+	  "Remote server has disconnected making the transaction "
+	  "uncommittable. Transaction has been rolled back%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_CHECKPOINT:
+      err = srv_make_new_error ("40001", "SR325",
+	  "Transaction aborted due to a database checkpoint or "
+	  "database-wide atomic operation. Please retry transaction%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_LOG_IMAGE:
+      err = srv_make_new_error ("40005", "SR325",
+	  "Transaction aborted because it's log after image size "
+	  "went above the limit%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
+    case LTE_OUT_OF_MEM:
+      err = srv_make_new_error ("40006", "SR337",
+	  "Transaction aborted because the server is out of memory%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
     case LTE_CLUSTER:
-	  err = srv_make_new_error ("08C02", "SR337",
-				    "Transaction aborted due to cluster connection failure");
-	  break;
+      err = srv_make_new_error ("08C02", "SR337", "Transaction aborted due to cluster connection failure");
+      break;
     case LTE_CANCEL:
-	  err = srv_make_new_error ("40001", "SR337",
-				    "Transaction aborted due to async rollback in cluster");
-	  break;
+      err = srv_make_new_error ("40001", "SR337", "Transaction aborted due to async rollback in cluster");
+      break;
     case LTE_CLUSTER_SYNC:
-	  err = srv_make_new_error ("40007", "CLTSY",
-				    "Transaction not committable because async update branch not synced before commit.  Commit has overtaken the branch message or the branch message was lost by the network");
-	  break;
+      err = srv_make_new_error ("40007", "CLTSY",
+	  "Transaction not committable because async update branch not synced before commit.  Commit has overtaken the branch message or the branch message was lost by the network");
+      break;
     case LTE_PREPARED_NOT_COMMITTED:
-	  err = srv_make_new_error ("40007", "CLPNC",
-				    "Transaction prepared but not committed.  Probably dropped commit message.  The branch will automatically query coordinator for the final status.  The situation will reset itself in a few seconds");
-	  break;
+      err = srv_make_new_error ("40007", "CLPNC",
+	  "Transaction prepared but not committed.  Probably dropped commit message.  The branch will automatically query coordinator for the final status.  The situation will reset itself in a few seconds");
+      break;
 
     default:
-	  err = srv_make_new_error ("4000X", "SR177", "Misc Transaction Error%s%s",
-	      detail ? " : " : "", detail ? detail : "");
-	  break;
+      err = srv_make_new_error ("4000X", "SR177", "Misc Transaction Error%s%s", detail ? " : " : "", detail ? detail : "");
+      break;
     }
   return err;
 }

@@ -102,12 +102,12 @@ typedef unsigned short geo_srid_t;	/*!< Type for Spatial Reference system ID */
 typedef unsigned short geo_srcode_t;	/*!< Type for internal code of SRID and its internal details. So far, srcode of a SRID is equal to SRID itself but scrode may get additional bit flags in the future */
 typedef unsigned short geo_flags_t;	/*!< Type for flags of a shape (type + serialization details */
 
-#define GEO_ARG_NULLABLE	0x40000000				/*!< Special value for use in bif_geo_arg to indicate that the argument can be NULL. It does not fit into \c geo_flags_t shortint! */
-#define GEO_ARG_NONNULL		0x10000000				/*!< Special value for use in bif_geo_arg to indicate that the argument can be NULL. It does not fit into \c geo_flags_t shortint! */
-#define GEO_ARG_CHECK_ZM	0x20000000				/*!< Special value for use in bif_geo_arg to indicate that the argument should have Z and/or M dimensions specified by the argument. It does not fit into \c geo_flags_t shortint! */
+#define GEO_ARG_NULLABLE	0x40000000	/*!< Special value for use in bif_geo_arg to indicate that the argument can be NULL. It does not fit into \c geo_flags_t shortint! */
+#define GEO_ARG_NONNULL		0x10000000	/*!< Special value for use in bif_geo_arg to indicate that the argument can be NULL. It does not fit into \c geo_flags_t shortint! */
+#define GEO_ARG_CHECK_ZM	0x20000000	/*!< Special value for use in bif_geo_arg to indicate that the argument should have Z and/or M dimensions specified by the argument. It does not fit into \c geo_flags_t shortint! */
 #define GEO_ARG_ANY_NULLABLE	(GEO_ARG_NULLABLE | GEO_UNDEFTYPE)	/*!< Special value for use in bif_geo_arg to indicate that the argument can be of any shapetype or a NULL. It does not fit into \c geo_flags_t shortint! */
 #define GEO_ARG_ANY_NONNULL	(GEO_ARG_NONNULL | GEO_UNDEFTYPE)	/*!< Special value for use in bif_geo_arg to indicate that the argument can be of any shapetype but not NULL. It does not fit into \c geo_flags_t shortint! */
-#define GEO_ARG_MASK		0x70000000				/*!< Mask for GEO_ARG_xxx values. It does not fit into \c geo_flags_t shortint! */
+#define GEO_ARG_MASK		0x70000000	/*!< Mask for GEO_ARG_xxx values. It does not fit into \c geo_flags_t shortint! */
 
 typedef double geoc;		/*!< Type of geographical coordinate */
 typedef double geo_measure_t;	/*!< Type of M coordinate */
@@ -123,17 +123,17 @@ typedef double geo_measure_t;	/*!< Type of M coordinate */
 /*! Point on a plane or on a latlong grid */
 typedef struct geo_point_s
 {
-  geoc	p_X;	/*!< Horisontal or left-to-right or longitude (_usually_ -180.0 to +180.0 and _always_ -270.0-geoc_EPSILON to +610.0+geoc_EPSILON for WGS84) */
-  geoc	p_Y;	/*!< Height or behind-to-ahead or latitude (_always_ -90.0-geoc_EPSILON to +90.0+geoc_EPSILON for WGS84) */
+  geoc p_X;			/*!< Horisontal or left-to-right or longitude (_usually_ -180.0 to +180.0 and _always_ -270.0-geoc_EPSILON to +610.0+geoc_EPSILON for WGS84) */
+  geoc p_Y;			/*!< Height or behind-to-ahead or latitude (_always_ -90.0-geoc_EPSILON to +90.0+geoc_EPSILON for WGS84) */
 } geo_point_t;
 
 /*! A canonical rectlinear bounding box for X+Y or long+lat. It may be stretched by geoc_EPSILON from "mathematical" bounding box or not, depending on its use. */
 typedef struct geo_XYbox_s
 {
-  geoc	Xmin; /*!< West side of bounding box */
-  geoc 	Xmax; /*!< East side of bounding box */
-  geoc 	Ymin; /*!< South side of bounding box */
-  geoc 	Ymax; /*!< Northern side of bounding box */
+  geoc Xmin;			/*!< West side of bounding box */
+  geoc Xmax;			/*!< East side of bounding box */
+  geoc Ymin;			/*!< South side of bounding box */
+  geoc Ymax;			/*!< Northern side of bounding box */
 } geo_XYbox_t;
 
 /*! Set the box to twisted actual infinity. Stretching it by any real point will set it to that point so it's a good initialisation value for any stretching aggregate */
@@ -199,38 +199,42 @@ typedef struct geo_chainbox_s
 
 typedef struct geo_s
 {
-  geo_flags_t	geo_flags;
-  geo_srcode_t	geo_srcode;
-  int		geo_fill;
-  geo_XYbox_t	XYbox;
-  struct {
-    struct {
+  geo_flags_t geo_flags;
+  geo_srcode_t geo_srcode;
+  int geo_fill;
+  geo_XYbox_t XYbox;
+  struct
+  {
+    struct
+    {
 /* There's no special data for GEO_POINT and GEO_BOX, it's defined by its bbox */
 #define Xkey(p) ((p)->XYbox.Xmin + 0)
 #define Ykey(p) ((p)->XYbox.Ymin + 0)
 #define Zkey(p) ((p)->_.point.point_ZMbox.Zmin + 0)
 #define Mkey(p) ((p)->_.point.point_ZMbox.Mmin + 0)
-      geo_ZMbox_t	point_ZMbox;
-      int		point_gs_op;
-      int		point_gs_precision;
+      geo_ZMbox_t point_ZMbox;
+      int point_gs_op;
+      int point_gs_precision;
     } point;
 /*! Multipoint, single ring of polygon */
-    struct {
-      int	len;	/*!< Number of points */
-      geoc *	Xs;	/*!< X coords of points */
-      geoc *	Ys;	/*!< Y coords of points */
+    struct
+    {
+      int len;			/*!< Number of points */
+      geoc *Xs;			/*!< X coords of points */
+      geoc *Ys;			/*!< Y coords of points */
       geo_chainbox_t *pline_gcb;	/*!< Pointer to chainbox, allocated if pline is long enough for its type */
-      geoc *	Zs;	/*!< Z coords of points (if geo_flags & GEO_A_Z) */
-      geo_ZMbox_t	pline_ZMbox;
-      geo_measure_t *	Ms;	/*!< Measures at points (if geo_flags & GEO_A_M) */
+      geoc *Zs;			/*!< Z coords of points (if geo_flags & GEO_A_Z) */
+      geo_ZMbox_t pline_ZMbox;
+      geo_measure_t *Ms;	/*!< Measures at points (if geo_flags & GEO_A_M) */
     } pline;
 /*! Multilinestring, polygon, multipolygon, collection */
-    struct {
-      int len;		/*!< Number of items */
+    struct
+    {
+      int len;			/*!< Number of items */
       int serialization_length;	/*!< Length of serialization of this box if it's top-level, minus length of serialization of this length */
       struct geo_s **items;	/*!< Items (parts of multilinestring, rings of polygon, polygons of multipolygon, items of collecetion etc. */
       geo_chainbox_t *parts_gcb;	/*!< Pointer to chainbox, allocated if pline is long enough for its type */
-      geo_ZMbox_t	parts_ZMbox;
+      geo_ZMbox_t parts_ZMbox;
     } parts;
   } _;
 } geo_t;
@@ -249,7 +253,7 @@ typedef struct geo_s
 #define GEO_GCB_OR_NULL(g) ((! ((g)->geo_flags & GEO_IS_CHAINBOXED)) ? NULL : \
     (GEO_TYPE_HAS_PARTS ((g)->geo_flags) ? (g)->_.parts.parts_gcb : (g)->_.pline.pline_gcb) )
 
-#define SRID_WGS84	4326		/*!< I know one mapmaker who had chosen these four digits as last digits of his business phone */
+#define SRID_WGS84	4326	/*!< I know one mapmaker who had chosen these four digits as last digits of his business phone */
 #define SRID_DEFAULT	SRID_WGS84
 
 #define GEO_SRID(srcode) (srcode)
@@ -272,7 +276,7 @@ extern double geo_distance (geo_srcode_t srcode, double x1, double y1, double x2
 
 extern int geo_pred (geo_t * g1, geo_t * g2, int op, double prec);
 struct dbe_table_s;
-extern int64 geo_estimate (struct dbe_table_s * tb, geo_t * g, int op, double prec, slice_id_t slice);
+extern int64 geo_estimate (struct dbe_table_s *tb, geo_t * g, int op, double prec, slice_id_t slice);
 
 #define DEG_TO_RAD (M_PI / 180)
 #define KM_TO_DEG (360 / (EARTH_RADIUS_GEOM_MEAN_KM * 2 * M_PI))
@@ -284,14 +288,14 @@ EXE_EXPORT (geo_t *, geo_alloc, (geo_flags_t geo_flags, int geo_len, int srid));
 EXE_EXPORT (geo_t *, geo_point, (geoc X, geoc Y));
 EXE_EXPORT (geo_t *, geo_bbox, (geoc Xmin, geoc Ymin, geoc Xmax, geoc Ymax));
 
-EXE_EXPORT (geo_t *, geo_copy, (geo_t *g));
-EXE_EXPORT (geo_t *, mp_geo_copy, (mem_pool_t * mp, geo_t *g));
-EXE_EXPORT (int, geo_destroy, (geo_t *g));
+EXE_EXPORT (geo_t *, geo_copy, (geo_t * g));
+EXE_EXPORT (geo_t *, mp_geo_copy, (mem_pool_t * mp, geo_t * g));
+EXE_EXPORT (int, geo_destroy, (geo_t * g));
 
 EXE_EXPORT (void, geo_serialize, (geo_t * g, dk_session_t * ses));
 EXE_EXPORT (caddr_t, geo_deserialize, (dk_session_t * ses));
 
-EXE_EXPORT (void, geo_print_as_dxf_entity, (geo_t *g, caddr_t *attrs, dk_session_t * ses));
+EXE_EXPORT (void, geo_print_as_dxf_entity, (geo_t * g, caddr_t * attrs, dk_session_t * ses));
 
 /* EWKT Reader */
 
@@ -307,19 +311,19 @@ EXE_EXPORT (void, geo_print_as_dxf_entity, (geo_t *g, caddr_t *attrs, dk_session
 
 typedef struct ewkt_kwd_metas_s
 {
-  const char *	kwd_name;
-  int		kwd_dictserial;
-  int		kwd_type;
-  int		kwd_subtype;
-  int		kwd_parens_after;
-  int		kwd_min_nums;
-  int		kwd_max_nums;
-  int		kwd_is_alias;
+  const char *kwd_name;
+  int kwd_dictserial;
+  int kwd_type;
+  int kwd_subtype;
+  int kwd_parens_after;
+  int kwd_min_nums;
+  int kwd_max_nums;
+  int kwd_is_alias;
 } ewkt_kwd_metas_t;
 
 EXE_EXPORT (ewkt_kwd_metas_t *, ewkt_find_metas_by_geotype, (int geotype));
-EXE_EXPORT (geo_t *, ewkt_parse, (const char *strg, caddr_t *err_ret));
-EXE_EXPORT (void, ewkt_print_sf12, (geo_t *g, dk_session_t *ses));
+EXE_EXPORT (geo_t *, ewkt_parse, (const char *strg, caddr_t * err_ret));
+EXE_EXPORT (void, ewkt_print_sf12, (geo_t * g, dk_session_t * ses));
 
 EXE_EXPORT (geo_t *, bif_geo_arg, (caddr_t * qst, struct state_slot_s ** args, int inx, const char *fname, int geotype));
 
@@ -339,11 +343,11 @@ EXE_EXPORT (void, geo_get_bounding_XYbox, (geo_t * g, geo_t * box, double prec_x
 EXE_EXPORT (geo_ZMbox_t *, geo_get_ZMbox_field, (geo_t * g));
 extern geo_t *geo_parse_ewkt (const char *text);
 extern geo_t *geo_parse_ewkt_sub (const char *text, int expected_type);
-extern void dks_print_ewkt (dk_session_t *ses, geo_t *sg);
+extern void dks_print_ewkt (dk_session_t * ses, geo_t * sg);
 
-EXE_EXPORT (double, geo_ccw_flat_area, (geo_t *g));
-EXE_EXPORT (void, geo_inverse_point_order, (geo_t *g));
-EXE_EXPORT (int, geo_XYbbox_inside, (geo_XYbox_t *inner, geo_XYbox_t *outer));
+EXE_EXPORT (double, geo_ccw_flat_area, (geo_t * g));
+EXE_EXPORT (void, geo_inverse_point_order, (geo_t * g));
+EXE_EXPORT (int, geo_XYbbox_inside, (geo_XYbox_t * inner, geo_XYbox_t * outer));
 
 #define GEO_INOUTSIDE_OUT	0x01	/*!< Flags that the point is strictly outside the (nondirectional) ring */
 #define GEO_INOUTSIDE_BORDER	0x02	/*!< Flags that the point is at the border of the region surrounded by (nondirectional) ring */
@@ -351,26 +355,27 @@ EXE_EXPORT (int, geo_XYbbox_inside, (geo_XYbox_t *inner, geo_XYbox_t *outer));
 #define GEO_INOUTSIDE_CLOCKWISE	0x20	/*!< Flags that the ring is oriented clockwise */
 #define GEO_INOUTSIDE_ERROR	0x80	/*!< Flags that the ring is weird enough to trigger an error. No error does not guarantee that the ring is not weird */
 
-EXE_EXPORT (int, geo_XY_inoutside_ring, (geoc pX, geoc pY, geo_t *ring));
-EXE_EXPORT (int, geo_XY_inoutside_polygon, (geoc pX, geoc pY, geo_t *g));
-EXE_EXPORT (void, geo_modify_by_translate, (geo_t *g, geoc dX, geoc dY, geoc dZ));
-EXE_EXPORT (void, geo_modify_by_transscale, (geo_t *g, geoc dX, geoc dY, geoc Xfactor, geoc Yfactor));
-EXE_EXPORT (void, geo_modify_by_affine2d, (geo_t *g, geoc XXa, geoc XYb, geoc YXd, geoc YYe, geoc Xoff, geoc Yoff));
+EXE_EXPORT (int, geo_XY_inoutside_ring, (geoc pX, geoc pY, geo_t * ring));
+EXE_EXPORT (int, geo_XY_inoutside_polygon, (geoc pX, geoc pY, geo_t * g));
+EXE_EXPORT (void, geo_modify_by_translate, (geo_t * g, geoc dX, geoc dY, geoc dZ));
+EXE_EXPORT (void, geo_modify_by_transscale, (geo_t * g, geoc dX, geoc dY, geoc Xfactor, geoc Yfactor));
+EXE_EXPORT (void, geo_modify_by_affine2d, (geo_t * g, geoc XXa, geoc XYb, geoc YXd, geoc YYe, geoc Xoff, geoc Yoff));
 
 /*! Map projection callback that gets pointer to projection, longitude and latitude of a point, fills in X and Y of corresponding point on map and returns NULL on success or error message otherwise. */
 typedef const char *geo_proj_point_cbk_t (void *geo_proj, geoc longP, geoc latP, double *retX, double *retY);
 
 /*! Map projection */
-typedef struct geo_proj_s {
+typedef struct geo_proj_s
+{
   geo_proj_point_cbk_t *gp_point_cbk;	/*!< Callback to project a single point */
-  geo_srcode_t gp_input_srcode;		/*!< Internal code of SRS of projection argument */
+  geo_srcode_t gp_input_srcode;	/*!< Internal code of SRS of projection argument */
   geo_srcode_t gp_result_srcode;	/*!< Internal code of SRS of projection result */
   double gp_placeholder_1[10];
   geoc gp_placeholder_2[10];
   void *gp_placeholder_3[5];
 } geo_proj_t;
 
-EXE_EXPORT (const char *, geo_modify_by_projection, (geo_t *g, void *geo_proj));
+EXE_EXPORT (const char *, geo_modify_by_projection, (geo_t * g, void *geo_proj));
 
 
 /* We have two sorts of DE9IM data.
@@ -428,7 +433,7 @@ typedef uint64 geo_de9im_matrix_t;	/*!< An encoded DE9IM value or suboperation m
 #define GEO_DE9IM_BE		2
 #define GEO_DE9IM_EI		1
 #define GEO_DE9IM_EB		0
-#define GEO_DE9IM_EE		-1 /* EE is always GEO_DE9IM_HAS_AREA so there's no need to store it */
+#define GEO_DE9IM_EE		-1	/* EE is always GEO_DE9IM_HAS_AREA so there's no need to store it */
 #define GEO_DE9IM_TOTALBITS	64
 
 /* Hex notation of a mask code is readed left to right, two hex digits per cell.
@@ -467,32 +472,32 @@ Note that "0", "1", "2" and "F" are NOT encoded as 0x0, 0x1, 0x2 and 0xF. */
 
 /*!< Suboperation with conditions and hints */
 typedef struct geo_de9im_subop_s
-  {
-    geo_de9im_matrix_t	gds_m;		/*!< Matrix of predicates */
-    int			gds_first;	/*!< Index of most selective predicate in matrix, calculate it first */
-    int			gds_second;	/*!< Index of next most selective predicate in matrix, calculate it second */
-    int			gds_dim_rule;	/*!< Code of the dimension rule to apply the subop, zero for dim-insensitive operations, nonzero for subops of "crosses" and "overlaps" */
-  } geo_de9im_subop_t;
+{
+  geo_de9im_matrix_t gds_m;	/*!< Matrix of predicates */
+  int gds_first;		/*!< Index of most selective predicate in matrix, calculate it first */
+  int gds_second;		/*!< Index of next most selective predicate in matrix, calculate it second */
+  int gds_dim_rule;		/*!< Code of the dimension rule to apply the subop, zero for dim-insensitive operations, nonzero for subops of "crosses" and "overlaps" */
+} geo_de9im_subop_t;
 
 #define GEO_DE9IM_SUBOP_FILLER	{ 0x0L, 0, 0, GEO_DE9IM_DIM_SIGNAL }
 
 /*!< Full description of de9im operation */
 typedef struct geo_de9im_op_s
-  {
-    int			gdo_subop_count;	/*!< Count of suboperations in the operation. */
-    geo_de9im_subop_t	gdo_subs[5];		/*!< Suboperations of the operation. First \c gdo_subop_count items are used, the rest should be \c GEO_DE9IM_SUBOP_FILLER . Standard operations require at most 4 suboperation, custom may get 5 */
-  } geo_de9im_op_t;
+{
+  int gdo_subop_count;		/*!< Count of suboperations in the operation. */
+  geo_de9im_subop_t gdo_subs[5];	/*!< Suboperations of the operation. First \c gdo_subop_count items are used, the rest should be \c GEO_DE9IM_SUBOP_FILLER . Standard operations require at most 4 suboperation, custom may get 5 */
+} geo_de9im_op_t;
 
-extern geo_de9im_op_t	geo_de9im_op_Equals;
-extern geo_de9im_op_t	geo_de9im_op_Disjoint;
-extern geo_de9im_op_t	geo_de9im_op_Touches;
-extern geo_de9im_op_t	geo_de9im_op_Contains;
-extern geo_de9im_op_t	geo_de9im_op_Covers;
-extern geo_de9im_op_t	geo_de9im_op_Intersects;
-extern geo_de9im_op_t	geo_de9im_op_Within;
-extern geo_de9im_op_t	geo_de9im_op_CoveredBy;
-extern geo_de9im_op_t	geo_de9im_op_Crosses;
-extern geo_de9im_op_t	geo_de9im_op_Overlaps;
+extern geo_de9im_op_t geo_de9im_op_Equals;
+extern geo_de9im_op_t geo_de9im_op_Disjoint;
+extern geo_de9im_op_t geo_de9im_op_Touches;
+extern geo_de9im_op_t geo_de9im_op_Contains;
+extern geo_de9im_op_t geo_de9im_op_Covers;
+extern geo_de9im_op_t geo_de9im_op_Intersects;
+extern geo_de9im_op_t geo_de9im_op_Within;
+extern geo_de9im_op_t geo_de9im_op_CoveredBy;
+extern geo_de9im_op_t geo_de9im_op_Crosses;
+extern geo_de9im_op_t geo_de9im_op_Overlaps;
 
 /* For any pair of geometries, we cache any partial (e.g., bbox-related) calculation of relation */
 

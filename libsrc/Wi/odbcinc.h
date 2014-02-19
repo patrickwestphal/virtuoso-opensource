@@ -68,15 +68,15 @@
 # endif
 
 #else /* unix */
-# define ERR_STRING	"[Virtuoso Driver]"
+# define ERR_STRING	"VD "
 # include <sql.h>
 # include <sqlext.h>
 # include <iodbcext.h>
 # ifndef NO_UDBC_SDK
-typedef SQLCHAR SQLTCHAR;
+//typedef SQLCHAR SQLTCHAR;
 #  if !defined (__ODBC3_DEFINES) && (ODBCVER < 0x0300)
 #   define __ODBC3_DEFINES 1
-typedef void * SQLHANDLE;
+typedef void *SQLHANDLE;
 #   define SQL_TYPE_DATE 91
 #   define SQL_TYPE_TIME 92
 #   define SQL_TYPE_TIMESTAMP 93
@@ -86,7 +86,7 @@ typedef void * SQLHANDLE;
 #   define SQL_PARAM_UNUSED	7
 
 #  endif /* __ODBC3_DEFINES */
-# endif /* NO_UDBC_SDK */
+# endif	/* NO_UDBC_SDK */
 #endif /* UNIX */
 
 /* these are from sqlucode.h */
@@ -138,8 +138,7 @@ typedef void * SQLHANDLE;
 		   strstr (rds_get_info (rds, SQL_DBMS_NAME), "S Q L   S e r v e r") \
 		  ) && \
 		  !(strstr (rds_get_info (rds, SQL_DBMS_NAME), "Microsoft") || \
-		   strstr (rds_get_info (rds, SQL_DBMS_NAME), "M i c r o s o f t") || \
-		   strstr (rds_get_info (rds, SQL_DBMS_NAME), "MS SQL Server") \
+		   strstr (rds_get_info (rds, SQL_DBMS_NAME), "M i c r o s o f t") \
 		  ) \
 		)
 #define IS_VIRTUOSO_RDS(rds) (strstr (rds_get_info (rds, SQL_DBMS_NAME), "Virtuoso") != NULL)

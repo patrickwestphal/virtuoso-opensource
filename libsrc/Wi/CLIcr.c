@@ -34,7 +34,6 @@
 #define SQL_ROW_ADDED			4
 #define SQL_ROW_ERROR			5
 
-
 int
 qa_to_row_stat (int rstat)
 {
@@ -43,23 +42,18 @@ qa_to_row_stat (int rstat)
     case QA_ROW:
       rstat = SQL_ROW_SUCCESS;
       break;
-
     case QA_ROW_ADDED:
       rstat = SQL_ROW_ADDED;
       break;
-
     case QA_ROW_UPDATED:
       rstat = SQL_ROW_UPDATED;
       break;
-
     case QA_ROW_DELETED:
       rstat = SQL_ROW_DELETED;
       break;
     }
-
   return rstat;
 }
-
 
 long
 stmt_row_bookmark (cli_stmt_t * stmt, caddr_t * row)
@@ -72,18 +66,14 @@ stmt_row_bookmark (cli_stmt_t * stmt, caddr_t * row)
 
   if (!stmt->stmt_opts->so_use_bookmarks)
     return 0;
-
   IN_CON (con);
-
   if (!con->con_bookmarks)
     con->con_bookmarks = hash_table_allocate (101);
-
   if (!stmt->stmt_bookmarks)
     {
       stmt->stmt_bookmarks = hash_table_allocate (101);
       stmt->stmt_bookmarks_rev = id_tree_hash_create (101);
     }
-
   con->con_last_bookmark++;
   len = BOX_ELEMENTS (row);
   bm = row[len - 2];
@@ -107,27 +97,23 @@ stmt_row_bookmark (cli_stmt_t * stmt, caddr_t * row)
 }
 
 
+
 void
 stmt_free_bookmarks (cli_stmt_t * stmt)
 {
   caddr_t k, id;
   dk_hash_iterator_t hit;
-
   if (!stmt->stmt_bookmarks)
     return;
-
   IN_CON (stmt->stmt_connection);
-
   dk_hash_iterator (&hit, stmt->stmt_bookmarks);
   while (dk_hit_next (&hit, (void **) &k, (void **) &id))
     {
       remhash ((void *) k, stmt->stmt_connection->con_bookmarks);
       dk_free_tree (id);
     }
-
   hash_table_free (stmt->stmt_bookmarks);
   id_hash_free (stmt->stmt_bookmarks_rev);
-
   LEAVE_CON (stmt->stmt_connection);
 }
 
@@ -150,37 +136,29 @@ stmt_process_rowset (cli_stmt_t * stmt, int ftype, SQLULEN * pcrow)
   for (nth = 0; nth < rssz; nth++)
     {
       rc = stmt_process_result (stmt, 1);
-
       if (SQL_ERROR == rc)
 	{
 	  is_error = 1;
 	  break;
 	}
-
       if (stmt->stmt_at_end)
 	break;
-
       stmt->stmt_rowset[nth] = (caddr_t *) stmt->stmt_prefetch_row;
       stmt->stmt_prefetch_row = NULL;
     }
-
   for (inx = 0; inx < nth; inx++)
     {
       int rstat = qa_to_row_stat ((int) (ptrlong) stmt->stmt_rowset[inx][0]);
 
       stmt_set_columns (stmt, stmt->stmt_rowset[inx], inx);
-
       if (stmt->stmt_row_status)
 	stmt->stmt_row_status[inx] = (SQLUSMALLINT) rstat;
     }
-
   if (pcrow)
     *pcrow = nth;
-
   if (stmt->stmt_row_status)
     for (inx = nth; inx < rssz; inx++)
       stmt->stmt_row_status[inx] = SQL_ROW_NOROW;
-
   if (nth > 0)
     {
       stmt->stmt_current_row = stmt->stmt_rowset[0];
@@ -191,15 +169,11 @@ stmt_process_rowset (cli_stmt_t * stmt, int ftype, SQLULEN * pcrow)
       stmt->stmt_current_row = NULL;
       stmt->stmt_current_of = -1;
     }
-
   stmt->stmt_rowset_fill = nth;
-
   if (is_error)
     return SQL_ERROR;
-
   if (nth == 0)
     return SQL_NO_DATA_FOUND;
-
   return SQL_SUCCESS;
 }
 
@@ -225,25 +199,19 @@ sql_ext_fetch_fwd (SQLHSTMT hstmt, SQLULEN * pcrow, SQLUSMALLINT * rgfRowStatus)
       rc = virtodbc__SQLFetch (hstmt, 1);
       stmt->stmt_fetch_current_of = stmt->stmt_current_of;
       stmt->stmt_fwd_fetch_irow = 0;
-
       if (rc == SQL_ERROR)
 	break;
-
       if (rc == SQL_NO_DATA_FOUND)
 	break;
-
       row_count++;
       stmt->stmt_rowset[inx] = stmt->stmt_current_row;
       stmt->stmt_current_row = NULL;
-
       if (rgfRowStatus)
 	rgfRowStatus[inx] = SQL_ROW_SUCCESS;
     }
-
   if (rgfRowStatus)
     for (inx = inx; inx < rssz; inx++)
       rgfRowStatus[inx] = SQL_ROW_NOROW;
-
   if (row_count)
     {
       stmt_reset_getdata_status (stmt, stmt->stmt_rowset[0]);
@@ -264,7 +232,6 @@ sql_ext_fetch_fwd (SQLHSTMT hstmt, SQLULEN * pcrow, SQLUSMALLINT * rgfRowStatus)
   return rc;
 }
 
-
 int
 sql_fetch_scrollable (cli_stmt_t * stmt)
 {
@@ -277,38 +244,27 @@ sql_fetch_scrollable (cli_stmt_t * stmt)
       col_binding_t *old_cb = stmt->stmt_cols;
       rc = virtodbc__SQLExtendedFetch ((SQLHSTMT) stmt, SQL_FETCH_NEXT, 0, &c, 0, 0);
       stmt->stmt_cols = old_cb;
-
       if (SQL_ERROR == rc)
 	return rc;
-
       if (SQL_NO_DATA_FOUND == rc)
 	return rc;
-
       stmt->stmt_current_of = 0;
     }
   else
     stmt->stmt_current_of++;
-
   set_error (&stmt->stmt_error, NULL, NULL, NULL);
   co = stmt->stmt_current_of;
   stmt->stmt_current_row = stmt->stmt_rowset[co];
   stmt_set_columns (stmt, stmt->stmt_current_row, 0);
-
   if (stmt->stmt_error.err_queue)
     return SQL_SUCCESS_WITH_INFO;
-
   return SQL_SUCCESS;
 }
 
 
 RETCODE SQL_API
-virtodbc__SQLExtendedFetch (
-		     SQLHSTMT hstmt,
-		     SQLUSMALLINT fFetchType,
-		     SQLLEN irow,
-		     SQLULEN * pcrow,
-		     SQLUSMALLINT * rgfRowStatus,
-		     SQLLEN bookmark_offset)
+virtodbc__SQLExtendedFetch (SQLHSTMT hstmt,
+    SQLUSMALLINT fFetchType, SQLLEN irow, SQLULEN * pcrow, SQLUSMALLINT * rgfRowStatus, SQLLEN bookmark_offset)
 {
   caddr_t bookmark = NULL;
   int rc, rc2;
@@ -354,9 +310,7 @@ virtodbc__SQLExtendedFetch (
 #endif
 
   VERIFY_INPROCESS_CLIENT (con);
-
   set_error (&stmt->stmt_error, NULL, NULL, NULL);
-
   if (!stmt->stmt_compilation)
     {
       set_error (&stmt->stmt_error, "HY010", "CL002", "Unprepared statement in SQLExtendedFetch");
@@ -369,15 +323,11 @@ virtodbc__SQLExtendedFetch (
       if (fFetchType != SQL_FETCH_NEXT)
 	{
 	  set_error (&stmt->stmt_error, "HY106", "CL003", "Bad fetch type for forward only cursor");
-
 	  return SQL_ERROR;
 	}
-
       stmt->stmt_opts->so_cursor_type = SQL_CURSOR_FORWARD_ONLY;
-
       return (sql_ext_fetch_fwd (hstmt, pcrow, rgfRowStatus));
     }
-
   if (so->so_keyset_size && ((UDWORD) so->so_keyset_size) < stmt->stmt_rowset_size)
     {
       set_error (&stmt->stmt_error, "HY107", "CL004", "Specified keyset size must be >= the rowset size");
@@ -397,15 +347,13 @@ virtodbc__SQLExtendedFetch (
       IN_CON (con);
       bookmark = (caddr_t) gethash ((void *) irow, con->con_bookmarks);
       LEAVE_CON (con);
-
       irow = bookmark_offset;
-
       if (!bookmark)
 	{
 	  set_error (&stmt->stmt_error, "HY111", "CL006", "Bad bookmark for SQLExtendedFetch");
-
 	  return SQL_ERROR;
 	}
+
     }
 
   if (stmt->stmt_future)
@@ -419,11 +367,10 @@ virtodbc__SQLExtendedFetch (
   if (stmt->stmt_opts->so_rpc_timeout)
     PrpcFutureSetTimeout (stmt->stmt_future, (long) stmt->stmt_opts->so_rpc_timeout);
   else
-    PrpcFutureSetTimeout (stmt->stmt_future, 2000000000L); /* infinite, 2M s = 23 days  */
+    PrpcFutureSetTimeout (stmt->stmt_future, 2000000000L);	/* infinite, 2M s = 23 days  */
 
   stmt->stmt_row_status = rgfRowStatus;
   rc = stmt_process_rowset (stmt, fFetchType, pcrow);
-
   if (rc != SQL_ERROR)
     if (stmt->stmt_opts->so_autocommit)
       {
@@ -431,14 +378,11 @@ virtodbc__SQLExtendedFetch (
 	if (rc2 == SQL_ERROR)
 	  rc = SQL_ERROR;
       }
-
   stmt->stmt_at_end = 0;
   stmt->stmt_on_first_row = 1;
-
   /* AC return sets at end. Besides, a dynamic cr may get new data even if at end. Always ask server whether still at end */
   if (stmt->stmt_opts->so_rpc_timeout)
     PrpcSessionResetTimeout (stmt->stmt_connection->con_session);
-
   return rc;
 }
 
@@ -474,7 +418,9 @@ set_pos_param_row (cli_stmt_t * stmt, int nth)
 	    row[iparam] = (dk_alloc_box (0, DV_IGNORE));
 	  else
 	    {
-	      caddr_t v = buffer_to_dv (place, length, c_type, c_type, BHID (nth, iparam + 1), NULL, CON_IS_INPROCESS (stmt->stmt_connection));
+	      caddr_t v =
+		  buffer_to_dv (place, length, c_type, c_type, BHID (nth, iparam + 1), NULL,
+		  CON_IS_INPROCESS (stmt->stmt_connection));
 	      row[iparam] = v;
 
 	      if (IS_BOX_POINTER (v) && DV_DAE == box_tag (v))
@@ -484,32 +430,22 @@ set_pos_param_row (cli_stmt_t * stmt, int nth)
 	}
       else
 	row[iparam] = dk_alloc_box (0, DV_IGNORE);
-
       if (cb)
 	cb = cb->cb_next;
     }
-
   return row;
 }
 
 
 SQLRETURN SQL_API
-SQLSetPos (
-    SQLHSTMT		hstmt,
-    SQLSETPOSIROW	irow,
-    SQLUSMALLINT	fOption,
-    SQLUSMALLINT	fLock)
+SQLSetPos (SQLHSTMT hstmt, SQLSETPOSIROW irow, SQLUSMALLINT fOption, SQLUSMALLINT fLock)
 {
   return virtodbc__SQLSetPos (hstmt, irow, fOption, fLock);
 }
 
 
 SQLRETURN SQL_API
-virtodbc__SQLSetPos (
-    SQLHSTMT		hstmt,
-    SQLSETPOSIROW	_irow,
-    SQLUSMALLINT	fOption,
-    SQLUSMALLINT	fLock)
+virtodbc__SQLSetPos (SQLHSTMT hstmt, SQLSETPOSIROW _irow, SQLUSMALLINT fOption, SQLUSMALLINT fLock)
 {
   sql_error_rec_t *err_queue = NULL;
   int irow = (int) _irow;
@@ -542,27 +478,22 @@ virtodbc__SQLSetPos (
   if (co >= stmt->stmt_rowset_fill && op != SQL_ADD)
     {
       set_error (&stmt->stmt_error, "HY092", "CL008", "SQLSetPos irow out of range");
-
       return SQL_ERROR;
     }
-
   if (fOption != SQL_REFRESH)
     {
       stmt->stmt_current_of = co;
       stmt_reset_getdata_status (stmt, stmt->stmt_rowset[co]);
       stmt->stmt_current_row = stmt->stmt_rowset[co];
     }
-
   if (fOption == SQL_POSITION)
     return SQL_SUCCESS;
 
   if (stmt->stmt_opts->so_cursor_type == SQL_CURSOR_FORWARD_ONLY)
     {
       set_error (&stmt->stmt_error, "HY109", "CL009", "Only SQL_POSITION SQLSetPos option supported for forward cursors");
-
       return SQL_ERROR;
     }
-
   if (!stmt->stmt_set_pos_stmt)
     {
       virtodbc__SQLAllocStmt ((SQLHDBC) stmt->stmt_connection, (SQLHSTMT *) & stmt->stmt_set_pos_stmt);
@@ -574,14 +505,11 @@ virtodbc__SQLSetPos (
   if (fOption == SQL_POSITION)
     {
       stmt->stmt_current_of = irow;
-
       return SQL_SUCCESS;
     }
-
   if (SQL_UPDATE == fOption || SQL_ADD == fOption)
     {
       params = stmt->stmt_param_array;
-
       if (!params)
 	{
 	  if (0 == irow)
@@ -603,21 +531,17 @@ virtodbc__SQLSetPos (
 	    {
 	      stmt->stmt_status = STS_LOCAL_DAE;
 	      stmt->stmt_param_array = params;
-
 	      return SQL_NEED_DATA;
 	    }
 	}
-
       stmt->stmt_param_array = NULL;
     }
-
   memset (&stmt->stmt_pending, 0, sizeof (pending_call_t));
 
   virtodbc__SQLSetParam ((SQLHSTMT) sps, 1, SQL_C_CHAR, SQL_VARCHAR, 0, 0, stmt->stmt_id, NULL);
   virtodbc__SQLSetParam ((SQLHSTMT) sps, 2, SQL_C_LONG, SQL_INTEGER, 0, 0, &op, NULL);
   virtodbc__SQLSetParam ((SQLHSTMT) sps, 3, SQL_C_LONG, SQL_INTEGER, 0, 0, &row_no, NULL);
   virtodbc__SQLSetParam ((SQLHSTMT) sps, 4, SQL_C_BOX, SQL_VARCHAR, 0, 0, &params, NULL);
-
   stmt->stmt_status = STS_SERVER_DAE;
   rc = virtodbc__SQLExecDirect ((SQLHSTMT) sps, NULL, 0);
   dk_free_tree ((caddr_t) params);
@@ -637,28 +561,22 @@ virtodbc__SQLSetPos (
       firstinx = irow - 1;
       lastinx = irow;
     }
-
   for (inx = firstinx; inx < lastinx; inx++)
     {
       rc = stmt_process_result ((cli_stmt_t *) sps, 1);
-
       if (SQL_ERROR == rc)
 	{
 	  sql_error_rec_t *err1 = cli_make_error ("01S01", "CL082", "Error in row in SQLSetPos", 0);
-
 	  if (stmt->stmt_row_status)
 	    stmt->stmt_row_status[inx] = SQL_ROW_ERROR;
-
 	  err_queue_append (&err_queue, &err1);
 	  err_queue_append (&err_queue, &sps->stmt_error.err_queue);
 	}
       else if (rc == SQL_SUCCESS && sps->stmt_prefetch_row)
 	{
 	  long stat = (long) unbox (((caddr_t *) sps->stmt_prefetch_row)[0]);
-
 	  if (stmt->stmt_row_status)
 	    stmt->stmt_row_status[inx] = qa_to_row_stat (stat);
-
 	  stmt_set_columns (stmt, (caddr_t *) sps->stmt_prefetch_row, inx);
 	  dk_free_tree ((caddr_t) stmt->stmt_rowset[inx]);
 	  stmt->stmt_rowset[inx] = (caddr_t *) sps->stmt_prefetch_row;
@@ -668,23 +586,19 @@ virtodbc__SQLSetPos (
       else
 	{
 	  int stat = SQL_ROW_SUCCESS;
-
 	  all_errors = 0;
 	  switch (op)
 	    {
 	    case SQL_UPDATE:
 	      stat = SQL_ROW_UPDATED;
 	      break;
-
 	    case SQL_DELETE:
 	      stat = SQL_ROW_DELETED;
 	      break;
-
 	    case SQL_ADD:
 	      stat = SQL_ROW_ADDED;
 	      break;
 	    }
-
 	  if (stmt->stmt_row_status)
 	    stmt->stmt_row_status[inx] = stat;
 	}
@@ -709,10 +623,8 @@ virtodbc__SQLSetPos (
       else
 	rc = SQL_SUCCESS_WITH_INFO;
     }
-
   set_error (&stmt->stmt_error, NULL, NULL, NULL);
   stmt->stmt_error.err_queue = err_queue;
   stmt->stmt_error.err_queue_head = err_queue;
-
   return (rc);
 }

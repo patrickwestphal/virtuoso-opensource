@@ -27,7 +27,6 @@
 
 #include "Dk.h"
 #include "numeric.h"
-
 /* activates code for divmod, modulo, powmod, pow, sqr */
 #define NUMERIC_EXTS	1
 
@@ -41,12 +40,13 @@
 /* 8 - sizeof (numeric_s without n_value) */
 
 /* special numbers		   len sc i sgn   data */
-static struct numeric_s _num_0	= { 0, 0, 0, 0, { 0	}};	/* 0 */
-static struct numeric_s _num_1	= { 1, 0, 0, 0, { 1	}};	/* 1 */
+static struct numeric_s _num_0 = { 0, 0, 0, 0, {0} };	/* 0 */
+static struct numeric_s _num_1 = { 1, 0, 0, 0, {1} };	/* 1 */
+
 #ifdef NUMERIC_EXTS
-static struct numeric_s _num_pt5= { 1, 1, 0, 0, { 0, 5	}};	/* 0.5 */
-static struct numeric_s _num_2	= { 1, 0, 0, 0, { 2	}};	/* 2 */
-static struct numeric_s _num_10	= { 2, 0, 0, 0, { 1, 0	}};	/* 10 */
+static struct numeric_s _num_pt5 = { 1, 1, 0, 0, {0, 5} };	/* 0.5 */
+static struct numeric_s _num_2 = { 1, 0, 0, 0, {2} };	/* 2 */
+static struct numeric_s _num_10 = { 2, 0, 0, 0, {1, 0} };	/* 10 */
 #endif
 
 #define NUM_SET_0(n)		*(int64*)n = 0
@@ -218,7 +218,7 @@ _num_normalize (numeric_t num)
   if (num->n_value[0] == 0)
     {
       /* The first "digit" is 0, find the first non-zero digit in the second
-	or greater "digit" to the left of the decimal place. */
+         or greater "digit" to the left of the decimal place. */
       bytes = num->n_len;
       src = num->n_value;
       while (bytes > 0 && *src == 0)
@@ -563,7 +563,7 @@ num_add (numeric_t sum, numeric_t n1, numeric_t n2, int scale_min)
 	  NUM_SET_0 (sum);
 	  break;
 	case 1:
-	default: /* keep cc happy */
+	default:		/* keep cc happy */
 	  /* n2 is less than n1, subtract n2 from n1. */
 	  _num_subtract_int (sum, n1, n2, scale_min);
 	  sum->n_neg = n1sign;
@@ -608,7 +608,7 @@ num_subtract (numeric_t diff, numeric_t n1, numeric_t n2, int scale_min)
 	  NUM_SET_0 (diff);
 	  break;
 	case 1:
-	default: /* keep cc happy */
+	default:		/* keep cc happy */
 	  /* n2 is less than n1, subtract n2 from n1. */
 	  _num_subtract_int (diff, n1, n2, scale_min);
 	  diff->n_neg = n1sign;
@@ -625,7 +625,7 @@ num_subtract (numeric_t diff, numeric_t n1, numeric_t n2, int scale_min)
 void
 num_multiply (numeric_t result, numeric_t n1, numeric_t n2, int scale)
 {
-  numeric_t pval;			/* For the working storage. */
+  numeric_t pval;		/* For the working storage. */
   char *n1ptr, *n2ptr, *pvptr;	/* Work pointers. */
   char *n1end, *n2end;		/* To the end of n1 and n2. */
   int indx;
@@ -798,15 +798,11 @@ num_divide (numeric_t result, numeric_t n1, numeric_t n2, int scale)
 	    qguess = (num1[qdig] * 10 + num1[qdig + 1]) / *n2ptr;
 
 	  /* Test qguess. */
-	  if (n2ptr[1] * qguess >
-	      (num1[qdig] * 10 + num1[qdig + 1] - *n2ptr * qguess) * 10
-	      + num1[qdig + 2])
+	  if (n2ptr[1] * qguess > (num1[qdig] * 10 + num1[qdig + 1] - *n2ptr * qguess) * 10 + num1[qdig + 2])
 	    {
 	      qguess--;
 	      /* And again. */
-	      if (n2ptr[1] * qguess >
-		  (num1[qdig] * 10 + num1[qdig + 1] - *n2ptr * qguess) * 10
-		  + num1[qdig + 2])
+	      if (n2ptr[1] * qguess > (num1[qdig] * 10 + num1[qdig + 1] - *n2ptr * qguess) * 10 + num1[qdig + 2])
 		qguess--;
 	    }
 
@@ -1162,8 +1158,7 @@ _numeric_rc_allocate (void *ignore)
 {
   numeric_t n;
 
-  n = (numeric_t) dk_alloc_box (sizeof (struct numeric_s)
-      + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
+  n = (numeric_t) dk_alloc_box (sizeof (struct numeric_s) + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
 
   NUM_SET_0 (n);
 
@@ -1199,8 +1194,7 @@ numeric_hash_cmp (ccaddr_t n1, ccaddr_t n2)
 int
 numeric_init (void)
 {
-  _numeric_rc = resource_allocate (200,
-      _numeric_rc_allocate, _numeric_rc_free, _numeric_rc_clear, 0);
+  _numeric_rc = resource_allocate (200, _numeric_rc_allocate, _numeric_rc_free, _numeric_rc_clear, 0);
   dk_dtp_register_hash (DV_NUMERIC, (box_hash_func_t) numeric_hash, numeric_hash_cmp, numeric_hash_cmp);
   return NUMERIC_STS_SUCCESS;
 }
@@ -1215,8 +1209,7 @@ numeric_rc_clear (void)
 /*
  *  Constructor for new numbers
  */
-numeric_t
-DBG_NAME(numeric_allocate) (DBG_PARAMS_0)
+numeric_t DBG_NAME (numeric_allocate) (DBG_PARAMS_0)
 {
 #ifdef NUM_RC
   /* with thread level dk_alloc cache dk_alloc is faster because of no mtx */
@@ -1224,7 +1217,7 @@ DBG_NAME(numeric_allocate) (DBG_PARAMS_0)
 #else
   numeric_t n;
 
-  n = (numeric_t) DBG_NAME(dk_alloc_box) (DBG_ARGS sizeof (struct numeric_s)
+  n = (numeric_t) DBG_NAME (dk_alloc_box) (DBG_ARGS sizeof (struct numeric_s)
       + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
 
   NUM_SET_0 (n);
@@ -1234,8 +1227,7 @@ DBG_NAME(numeric_allocate) (DBG_PARAMS_0)
 }
 
 
-numeric_t
-DBG_NAME(t_numeric_allocate) (DBG_PARAMS_0)
+numeric_t DBG_NAME (t_numeric_allocate) (DBG_PARAMS_0)
 {
 #ifdef NUM_RC
   /* with thread level dk_alloc cache dk_alloc is faster because of no mtx */
@@ -1243,8 +1235,7 @@ DBG_NAME(t_numeric_allocate) (DBG_PARAMS_0)
 #else
   numeric_t n;
 
-  n = (numeric_t) DBG_NAME(t_alloc_box) (sizeof (struct numeric_s)
-      + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
+  n = (numeric_t) DBG_NAME (t_alloc_box) (sizeof (struct numeric_s) + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
   memset (n, 0, sizeof (struct numeric_s));
 
   NUM_SET_0 (n);
@@ -1257,8 +1248,7 @@ DBG_NAME(t_numeric_allocate) (DBG_PARAMS_0)
 numeric_t
 mp_numeric_allocate (mem_pool_t * mp)
 {
-  return (numeric_t) mp_alloc_box (mp, sizeof (struct numeric_s)
-				    + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
+  return (numeric_t) mp_alloc_box (mp, sizeof (struct numeric_s) + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING, DV_NUMERIC);
 }
 
 
@@ -1283,8 +1273,7 @@ numeric_free (numeric_t n)
 numeric_t
 numeric_init_static (numeric_t n, size_t size)
 {
-  assert (size >= sizeof (struct numeric_s)
-      + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING);
+  assert (size >= sizeof (struct numeric_s) + NUMERIC_MAX_DATA_BYTES - NUMERIC_PADDING);
 
   NUM_SET_0 (n);
 
@@ -1376,8 +1365,8 @@ _numeric_normalize (numeric_t n)
     {
       scale = n->n_scale;
       first_frac = n->n_value + n->n_len;
-	src = n->n_value + n->n_len + scale - 1;
-      while (src >= first_frac  && *src == 0)
+      src = n->n_value + n->n_len + scale - 1;
+      while (src >= first_frac && *src == 0)
 	src--;
       n->n_scale = (src - first_frac) + 1;
 /* IvAn/MinusZeroNormalization/000109 If n is negative, n_len is zero,
@@ -1406,20 +1395,20 @@ numeric_copy (numeric_t result, numeric_t n)
   if (result != n)
     {
       int value_bytes = n->n_len + n->n_scale;
-      *(int64*)result = *(int64*)n;
+      *(int64 *) result = *(int64 *) n;
       if (value_bytes > 4)
 	{
-	  ((int64*)result)[1] = ((int64*)n)[1];
+	  ((int64 *) result)[1] = ((int64 *) n)[1];
 	  if (value_bytes > 12)
 	    {
-	      ((int64*)result)[2] = ((int64*)n)[2];
+	      ((int64 *) result)[2] = ((int64 *) n)[2];
 	      if (value_bytes > 20)
 		{
-		  ((int64*)result)[3] = ((int64*)n)[3];
-		  ((int64*)result)[4] = ((int64*)n)[4];
-		  ((int64*)result)[5] = ((int64*)n)[5];
+		  ((int64 *) result)[3] = ((int64 *) n)[3];
+		  ((int64 *) result)[4] = ((int64 *) n)[4];
+		  ((int64 *) result)[5] = ((int64 *) n)[5];
 		  if (value_bytes > 44)
-		    memcpy (((char *)result) + 48, ((char *)n) + 48, value_bytes - 44);
+		    memcpy (((char *) result) + 48, ((char *) n) + 48, value_bytes - 44);
 		}
 	    }
 	}
@@ -1443,8 +1432,8 @@ numeric_error (int code, char *sqlstate, int state_len, char *sqlerror, int erro
       state = "S0000";
       error = "Success";
       break;
-    case NUMERIC_STS_OVERFLOW:		/* +Inf */
-    case NUMERIC_STS_UNDERFLOW:		/* -Inf */
+    case NUMERIC_STS_OVERFLOW:	/* +Inf */
+    case NUMERIC_STS_UNDERFLOW:	/* -Inf */
     case NUMERIC_STS_INVALID_NUM:	/* NaN */
       state = "22003";
       error = "Numeric value out of range";
@@ -1486,7 +1475,7 @@ numeric_error (int code, char *sqlstate, int state_len, char *sqlerror, int erro
 int
 numeric_from_string (numeric_t n, const char *s)
 {
-  const char *cp=s;
+  const char *cp = s;
   const char *dot;
   char *dp;
   int error;
@@ -1497,11 +1486,13 @@ numeric_from_string (numeric_t n, const char *s)
   int rc;
 
   /* strip leading whitespace */
-  while (isspace (*cp)) cp++;
+  while (isspace (*cp))
+    cp++;
   if ('$' == *cp)
     {
       cp++;
-      while (isspace (*cp)) cp++;
+      while (isspace (*cp))
+	cp++;
     }
 
   /* get sign */
@@ -1624,7 +1615,7 @@ numeric_from_string (numeric_t n, const char *s)
 		}
 	    }
 	}
-      else /* exp < 0 */
+      else			/* exp < 0 */
 	{
 	  exp = -exp;
 	  if (n->n_len >= exp)
@@ -1648,7 +1639,6 @@ numeric_from_string (numeric_t n, const char *s)
 	    }
 	}
     }
-
   return (error == NUMERIC_STS_SUCCESS) ? rc : error;
 }
 
@@ -1663,15 +1653,17 @@ numeric_from_string_is_ok (const char *s)
   const char *first_significant_char;
   int plain_digits = 0;
   /* strip leading whitespace */
-  while (isspace (cp[0])) cp++;
+  while (isspace (cp[0]))
+    cp++;
   if ('$' == cp[0])
     {
       cp++;
-      while (isspace (cp[0])) cp++;
+      while (isspace (cp[0]))
+	cp++;
     }
   first_significant_char = cp;
   /* get sign */
-  if ((cp[0] == '-')|| (cp[0] == '+'))
+  if ((cp[0] == '-') || (cp[0] == '+'))
     cp++;
   /* accept space between the sign & the digits - as M$ SQL does */
   while (isspace (cp[0]))
@@ -1679,11 +1671,19 @@ numeric_from_string_is_ok (const char *s)
   /* handles cases for numeric_from_double */
   if (!isdigit (cp[0]) && (!strcmp (cp, "Inf") || !strcmp (cp, "Infinity") || !strcmp (cp, "NaN")))
     return first_significant_char;
-  while (isdigit (cp[0])) { plain_digits++; cp++; }
+  while (isdigit (cp[0]))
+    {
+      plain_digits++;
+      cp++;
+    }
   if (cp[0] == '.')
     {
       cp++;
-      while (isdigit (cp[0])) { plain_digits++; cp++; }
+      while (isdigit (cp[0]))
+	{
+	  plain_digits++;
+	  cp++;
+	}
     }
   if (0 == plain_digits)
     return NULL;
@@ -1691,13 +1691,18 @@ numeric_from_string_is_ok (const char *s)
     {
       int exp_digits = 0;
       cp++;
-      if ((cp[0] == '-')|| (cp[0] == '+'))
-        cp++;
-      while (isdigit (cp[0])) { exp_digits++; cp++; }
+      if ((cp[0] == '-') || (cp[0] == '+'))
+	cp++;
+      while (isdigit (cp[0]))
+	{
+	  exp_digits++;
+	  cp++;
+	}
       if (!exp_digits)
-        return NULL;
+	return NULL;
     }
-  while (isspace (cp[0])) cp++;
+  while (isspace (cp[0]))
+    cp++;
   if (cp[0])
     return NULL;
   return first_significant_char;
@@ -1726,9 +1731,9 @@ numeric_from_int32 (numeric_t num, int32 val)
     case 1:
       NUM_SET_1 (num);
       return NUMERIC_STS_SUCCESS;
-    case ((-INT32_MAX) - 1): /* Cannot change the sign to process! */
-      numeric_from_int32 (num, val+1);
-      num->n_value[num->n_len-1] += 1;
+    case ((-INT32_MAX) - 1):	/* Cannot change the sign to process! */
+      numeric_from_int32 (num, val + 1);
+      num->n_value[num->n_len - 1] += 1;
       return NUMERIC_STS_SUCCESS;
     default:
       break;
@@ -1789,9 +1794,9 @@ numeric_from_int64 (numeric_t num, int64 val)
     case 1:
       NUM_SET_1 (num);
       return NUMERIC_STS_SUCCESS;
-    case ((-INT64_MAX) - 1): /* Cannot change the sign to process! */
-      numeric_from_int64 (num, val+1);
-      num->n_value[num->n_len-1] += 1;
+    case ((-INT64_MAX) - 1):	/* Cannot change the sign to process! */
+      numeric_from_int64 (num, val + 1);
+      num->n_value[num->n_len - 1] += 1;
       return NUMERIC_STS_SUCCESS;
     default:
       break;
@@ -1855,7 +1860,7 @@ numeric_from_double (numeric_t n, double d)
  *  Assign a marshalled value to a number
  */
 int
-numeric_from_dv (numeric_t n, dtp_t *buf, int n_bytes)
+numeric_from_dv (numeric_t n, dtp_t * buf, int n_bytes)
 {
   dtp_t *rp, *ep;
   char *dp;
@@ -1893,7 +1898,7 @@ numeric_from_dv (numeric_t n, dtp_t *buf, int n_bytes)
 
 
 int
-numeric_from_buf (numeric_t n, dtp_t *buf)
+numeric_from_buf (numeric_t n, dtp_t * buf)
 {
   dtp_t *rp, *ep;
   char *dp;
@@ -1958,9 +1963,8 @@ _numeric_to_string (numeric_t n, char *str, size_t max_str, int new_prec, int ne
   if (new_prec)
     {
       NUMERIC_INIT (buf);
-      temp = (numeric_t)buf;
-      if (numeric_rescale (temp, n, NUMERIC_MAX_PRECISION,
-	  NUMERIC_MAX_SCALE) != NUMERIC_STS_SUCCESS)
+      temp = (numeric_t) buf;
+      if (numeric_rescale (temp, n, NUMERIC_MAX_PRECISION, NUMERIC_MAX_SCALE) != NUMERIC_STS_SUCCESS)
 	{
 	  goto failed;
 	}
@@ -1969,7 +1973,7 @@ _numeric_to_string (numeric_t n, char *str, size_t max_str, int new_prec, int ne
 
   /* The negative sign if needed. */
   cp = str;
-  if (((size_t)(cp - str)) < max_str - 1)
+  if (((size_t) (cp - str)) < max_str - 1)
     {
       if (n->n_neg)
 	*cp++ = '-';
@@ -2003,7 +2007,7 @@ _numeric_to_string (numeric_t n, char *str, size_t max_str, int new_prec, int ne
 	}
     }
 
-  if (((size_t)(cp - str)) < max_str - 1)
+  if (((size_t) (cp - str)) < max_str - 1)
     *cp = 0;
 
   return NUMERIC_STS_SUCCESS;
@@ -2016,8 +2020,7 @@ _numeric_to_string (numeric_t n, char *str, size_t max_str, int new_prec, int ne
 int
 numeric_to_string (numeric_t n, char *pvalue, size_t max_pvalue)
 {
-  return _numeric_to_string (n, pvalue, max_pvalue,
-      NUMERIC_MAX_PRECISION, NUMERIC_MAX_SCALE);
+  return _numeric_to_string (n, pvalue, max_pvalue, NUMERIC_MAX_PRECISION, NUMERIC_MAX_SCALE);
 }
 
 
@@ -2028,7 +2031,7 @@ numeric_to_string (numeric_t n, char *pvalue, size_t max_pvalue)
  *  returns a zero.
  */
 int
-numeric_to_int32 (numeric_t n, int32 *pvalue)
+numeric_to_int32 (numeric_t n, int32 * pvalue)
 {
   char *nptr;
   int index;
@@ -2046,7 +2049,7 @@ numeric_to_int32 (numeric_t n, int32 *pvalue)
       *pvalue = 0;
       return NUMERIC_STS_MARSHALLING;
     }
-  else if (val == (- INT32_MAX - 1) )
+  else if (val == (-INT32_MAX - 1))
     val = -val;
   else if (val < 0)
     {
@@ -2062,7 +2065,7 @@ numeric_to_int32 (numeric_t n, int32 *pvalue)
 
 
 int
-numeric_to_int64 (numeric_t n, int64 *pvalue)
+numeric_to_int64 (numeric_t n, int64 * pvalue)
 {
   char *nptr;
   int index;
@@ -2080,7 +2083,7 @@ numeric_to_int64 (numeric_t n, int64 *pvalue)
       *pvalue = 0;
       return NUMERIC_STS_MARSHALLING;
     }
-  else if (val == (- INT64_MAX - 1) )
+  else if (val == (-INT64_MAX - 1))
     val = -val;
   else if (val < 0)
     {
@@ -2116,7 +2119,7 @@ numeric_to_double (numeric_t n, double *pvalue)
       else if ('-' == res[0] && 'I' == res[1])
 	*pvalue = -1e200 * 1e200;
       else
-    *pvalue = 0.0;
+	*pvalue = 0.0;
     }
 
   return rc;
@@ -2137,7 +2140,7 @@ numeric_dv_len (numeric_t n)
 
 
 int
-numeric_to_dv (numeric_t n, dtp_t *res, size_t reslength)
+numeric_to_dv (numeric_t n, dtp_t * res, size_t reslength)
 {
   int n1, n2, x1;
   char *cp, *ep;
@@ -2153,11 +2156,7 @@ numeric_to_dv (numeric_t n, dtp_t *res, size_t reslength)
   res[NDV_TAG] = DV_NUMERIC;
 
   /* FLAGS (Lead padding | Trail padding | Sign) */
-  res[NDV_FLAGS] =
-      (n->n_neg ? NDF_NEG : 0) |
-      ((n1 & 1) ? NDF_LEAD0 : 0) |
-      ((n2 & 1) ? NDF_TRAIL0 : 0) |
-      n->n_invalid;	/* can contain NDF_NAN or NDF_INF */
+  res[NDV_FLAGS] = (n->n_neg ? NDF_NEG : 0) | ((n1 & 1) ? NDF_LEAD0 : 0) | ((n2 & 1) ? NDF_TRAIL0 : 0) | n->n_invalid;	/* can contain NDF_NAN or NDF_INF */
 
   /* L (# bytes encoding digits before decimal point)
    * Note that #leading digits = 2 * L (-1 if FLAGS.L is set)
@@ -2218,7 +2217,7 @@ numeric_rescale_noround (numeric_t n, numeric_t x, int new_prec, int new_scale)
     return _numeric_inf (n, x->n_neg);
 
   /* adjust scale if not enough digits available */
-  if (x->n_len + new_scale > new_prec + ((1 == x->n_len && 0 == x->n_value[0])?1:0))
+  if (x->n_len + new_scale > new_prec + ((1 == x->n_len && 0 == x->n_value[0]) ? 1 : 0))
     new_scale = new_prec - x->n_len;
 
   /* too much fraction? */
@@ -2228,11 +2227,11 @@ numeric_rescale_noround (numeric_t n, numeric_t x, int new_prec, int new_scale)
       n->n_scale = new_scale;
       /* Check if we have to remove trailing zeroes. */
       if (n->n_scale)
-        {
-          src = n->n_value + n->n_len + n->n_scale;
-          while (n->n_scale > 0 && *--src == 0)
-            n->n_scale--;
-        }
+	{
+	  src = n->n_value + n->n_len + n->n_scale;
+	  while (n->n_scale > 0 && *--src == 0)
+	    n->n_scale--;
+	}
     }
   else
     numeric_copy (n, x);
@@ -2265,7 +2264,7 @@ numeric_rescale (numeric_t n, numeric_t x, int new_prec, int new_scale)
     return _numeric_inf (n, x->n_neg);
 
   /* adjust scale if not enough digits available */
-  if (x->n_len + new_scale > new_prec + ((1 == x->n_len && 0 == x->n_value[0])?1:0))
+  if (x->n_len + new_scale > new_prec + ((1 == x->n_len && 0 == x->n_value[0]) ? 1 : 0))
     new_scale = new_prec - x->n_len;
 
   /* too much fraction? */
@@ -2277,7 +2276,7 @@ numeric_rescale (numeric_t n, numeric_t x, int new_prec, int new_scale)
 	  NUMERIC_VAR (buf);
 	  numeric_t temp;
 	  NUMERIC_INIT (buf);
-	  temp = (numeric_t)buf;
+	  temp = (numeric_t) buf;
 	  memset (temp->n_value, 0, new_scale);
 	  temp->n_value[new_scale] = 5;
 	  temp->n_scale = new_scale + 1;
@@ -2512,8 +2511,7 @@ numeric_negate (numeric_t y, numeric_t x)
 int
 numeric_modulo (numeric_t z, numeric_t x, numeric_t y)
 {
-  if (num_is_invalid (x) || num_is_invalid (y) ||
-      num_modulo (z, x, y, NUMERIC_MAX_SCALE_INT) == -1)
+  if (num_is_invalid (x) || num_is_invalid (y) || num_modulo (z, x, y, NUMERIC_MAX_SCALE_INT) == -1)
     {
       _numeric_nan (z);
       return NUMERIC_STS_DIVIDE_ZERO;
@@ -2544,7 +2542,7 @@ numeric_sqr (numeric_t z, numeric_t x)
  *  Marshalls a number to an XDR stream
  */
 int
-numeric_serialize (numeric_t n, dk_session_t *session)
+numeric_serialize (numeric_t n, dk_session_t * session)
 {
   dtp_t res[258];
 
@@ -2564,7 +2562,7 @@ numeric_serialize (numeric_t n, dk_session_t *session)
  *  Unmarshalls a number from an XDR stream
  */
 void *
-numeric_deserialize (dk_session_t *session, dtp_t macro)
+numeric_deserialize (dk_session_t * session, dtp_t macro)
 {
   dtp_t res[258];
   numeric_t n;
@@ -2585,7 +2583,7 @@ numeric_deserialize (dk_session_t *session, dtp_t macro)
  *  Compares two marshalled numbers
  */
 int
-numeric_dv_compare (dtp_t *x, dtp_t *y)
+numeric_dv_compare (dtp_t * x, dtp_t * y)
 {
   dtp_t *n1, *n2;
   size_t f1, f2;
@@ -2607,8 +2605,8 @@ numeric_dv_compare (dtp_t *x, dtp_t *y)
     }
 
   /* compare digits before decimal point */
-  n1 = x + 3;	/* @ L */
-  n2 = y + 3;	/* @ L */
+  n1 = x + 3;			/* @ L */
+  n2 = y + 3;			/* @ L */
   if ((i = memcmp (n1, n2, 1 + MIN (*n1, *n2))) != 0)
     return (i > 0) ? +1 : -1;
 
@@ -2617,8 +2615,8 @@ numeric_dv_compare (dtp_t *x, dtp_t *y)
   n2 += 1 + *n2;
 
   /* compare fraction */
-  f1 = x + 2 + x[1] /* LENGTH */ - n1;
-  f2 = y + 2 + y[1] /* LENGTH */ - n2;
+  f1 = x + 2 + x[1] /* LENGTH */  - n1;
+  f2 = y + 2 + y[1] /* LENGTH */  - n2;
   if ((i = memcmp (n1, n2, MIN (f1, f2))) != 0)
     return (i > 0) ? +1 : -1;
 
@@ -2659,7 +2657,7 @@ numeric_scale (numeric_t n)
  *  Print a number
  */
 void
-numeric_print (FILE *fd, char *name, numeric_t n)
+numeric_print (FILE * fd, char *name, numeric_t n)
 {
   char res[NUMERIC_MAX_STRING_BYTES];
 
@@ -2675,7 +2673,7 @@ numeric_print (FILE *fd, char *name, numeric_t n)
  *  Print a number with the full internal precision/scale
  */
 void
-numeric_debug (FILE *fd, char *name, numeric_t n)
+numeric_debug (FILE * fd, char *name, numeric_t n)
 {
   char res[NUMERIC_MAX_STRING_BYTES];
 
@@ -2683,8 +2681,7 @@ numeric_debug (FILE *fd, char *name, numeric_t n)
     fprintf (fd, "%s: ", name);
 
   _numeric_to_string (n, res, 0, 0);
-  fprintf (fd, "%s {%d.%d} %s\n", res, n->n_len, n->n_scale,
-      num_is_invalid (n) ? "NaN" : "");
+  fprintf (fd, "%s {%d.%d} %s\n", res, n->n_len, n->n_scale, num_is_invalid (n) ? "NaN" : "");
 }
 
 
@@ -2692,7 +2689,7 @@ numeric_debug (FILE *fd, char *name, numeric_t n)
  *  Print a marshalled number
  */
 void
-numeric_dv_debug (FILE *fd, char *name, dtp_t *res)
+numeric_dv_debug (FILE * fd, char *name, dtp_t * res)
 {
   dtp_t *r, *ep;
 
@@ -2723,10 +2720,10 @@ numeric_hash (numeric_t n)
   int value_bytes = n->n_len + n->n_scale;
   int inx;
   uint32 code = 0xa3e2731b;
-    for (inx = 0; inx < value_bytes; inx++)
-      {
-	uint32 b = n->n_value[inx];
-	code = (code * (b + 3 + inx)) ^ (code >> 24);
+  for (inx = 0; inx < value_bytes; inx++)
+    {
+      uint32 b = n->n_value[inx];
+      code = (code * (b + 3 + inx)) ^ (code >> 24);
     }
   return code;
 }
@@ -2739,7 +2736,7 @@ numeric_sign (numeric_t n)
 }
 
 int
-numeric_to_hex_array (numeric_t n, unsigned char * arr)
+numeric_to_hex_array (numeric_t n, unsigned char *arr)
 {
   numeric_t cnt = NULL;
   numeric_t div256 = NULL;
@@ -2764,13 +2761,13 @@ numeric_to_hex_array (numeric_t n, unsigned char * arr)
       if (-1 == numeric_compare (cnt, div256))
 	{
 	  numeric_to_int32 (cnt, &ires);
-	  arr [i] = (unsigned char) ires;
+	  arr[i] = (unsigned char) ires;
 	  i++;
 	  break;
 	}
       num_modulo (res, cnt, div256, 0);
       numeric_to_int32 (res, &ires);
-      arr [i] = (unsigned char) ires;
+      arr[i] = (unsigned char) ires;
       i++;
       num_divide (res, cnt, div256, 0);
       numeric_copy (cnt, res);
@@ -2782,8 +2779,7 @@ numeric_to_hex_array (numeric_t n, unsigned char * arr)
 }
 
 void
-numeric_from_hex_array (numeric_t n, char len, char scale, char sign,
-    unsigned char * arr, int a_len)
+numeric_from_hex_array (numeric_t n, char len, char scale, char sign, unsigned char *arr, int a_len)
 {
   int i;
   numeric_t mul = numeric_allocate ();
@@ -2811,4 +2807,3 @@ numeric_from_hex_array (numeric_t n, char len, char scale, char sign,
   n->n_scale = scale;
   n->n_neg = sign;
 }
-

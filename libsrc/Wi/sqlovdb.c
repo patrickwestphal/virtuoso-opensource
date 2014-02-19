@@ -43,19 +43,18 @@
 
 int enable_rts_qp = 1;
 
-void sqlg_dt_text (sqlo_t * so, df_elt_t * dt_dfe, remote_table_source_t * top_rts,
-    char * text, size_t tlen, int * fill);
+void sqlg_dt_text (sqlo_t * so, df_elt_t * dt_dfe, remote_table_source_t * top_rts, char *text, size_t tlen, int *fill);
 
 
 int
 sqlo_depends_on_locus (df_elt_t * dfe, locus_t * loc)
 {
   DO_SET (op_table_t *, dep, &dfe->dfe_tables)
-    {
-      if (dep->ot_is_group_dummy || dk_set_member (loc->loc_ots, (void*) dep))
-	return 1;
-    }
-  END_DO_SET();
+  {
+    if (dep->ot_is_group_dummy || dk_set_member (loc->loc_ots, (void *) dep))
+      return 1;
+  }
+  END_DO_SET ();
   return 0;
 }
 
@@ -115,14 +114,16 @@ sqlo_new_locus (sqlo_t * so, remote_ds_t * rds)
 #define NO_VDB GPF_T1 ("This build does not include virtual database support.")
 
 void
-sqlo_table_new_locus (sqlo_t * so, df_elt_t * tb_dfe, remote_ds_t * rds, dk_set_t col_preds, dk_set_t * after_test, dk_set_t after_join_test, dk_set_t * vdb_join_test)
+sqlo_table_new_locus (sqlo_t * so, df_elt_t * tb_dfe, remote_ds_t * rds, dk_set_t col_preds, dk_set_t * after_test,
+    dk_set_t after_join_test, dk_set_t * vdb_join_test)
 {
   NO_VDB;
 }
 
 
 void
-sqlo_table_locus (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t col_preds, dk_set_t * after_test, dk_set_t after_join_test, dk_set_t * vdb_join_test)
+sqlo_table_locus (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t col_preds, dk_set_t * after_test, dk_set_t after_join_test,
+    dk_set_t * vdb_join_test)
 {
   tb_dfe->dfe_locus = LOC_LOCAL;
 }
@@ -165,8 +166,6 @@ sqlo_remote_hash_filler (sqlo_t * so, df_elt_t * filler, df_elt_t * tb_dfe)
 }
 
 
-
-
 locus_t *
 sqlo_dfe_preferred_locus (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 {
@@ -178,14 +177,11 @@ sqlo_dfe_preferred_locus (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 #define SQLO_VDB_RESTORE
 
 
-
 void
 sqlg_non_local (sqlo_t * so, df_elt_t * dfe)
 {
   NO_VDB;
 }
-
-
 
 
 
@@ -199,7 +195,7 @@ sqlg_locus_rts (sqlo_t * so, df_elt_t * first_dfe, dk_set_t pre_code)
 
 
 int
-sqlo_is_contains_vdb_tb (sqlo_t *so, op_table_t *ot, char ctype, ST **args)
+sqlo_is_contains_vdb_tb (sqlo_t * so, op_table_t * ot, char ctype, ST ** args)
 {
   return 0;
 }

@@ -1,7 +1,7 @@
 /*
  *  ceintd.c
  *
- *  $Id$
+  *  $Id$
  *
  *  Column Compression
  *
@@ -29,8 +29,8 @@
 int
 CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
 {
-  it_cursor_t * itc = cpo->cpo_itc;
-  data_col_t * dc = cpo->cpo_dc;
+  it_cursor_t *itc = cpo->cpo_itc;
+  data_col_t *dc = cpo->cpo_dc;
   int64 base, base_1, first;
   uint32 date_base = 0;
   db_buf_t ce = cpo->cpo_ce;
@@ -40,7 +40,7 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   uint32 d, run, run1;
   dtp_t flags = *cpo->cpo_ce;
   int last_row = cpo->cpo_ce_row_no;
-  int64 lower = -1, upper = 0x1ffffffff; /* above 32 bit range */
+  int64 lower = -1, upper = 0x1ffffffff;	/* above 32 bit range */
   db_buf_t body;
   CED_VARS
 #ifdef CEINTD_RANGE
@@ -48,10 +48,10 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
 #else
   int target, last_of_ce = last_row + n_values;
 #endif
- CE_FIRST;
- CED_CHECK;
- if (!enable_intd_range)
-   return 0;
+  CE_FIRST;
+  CED_CHECK;
+  if (!enable_intd_range)
+    return 0;
   if (!CE_INTLIKE (flags))
     {
       if (DV_DATE == any_ce_dtp (ce_first_val))
@@ -63,7 +63,7 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
       else
 	{
 	  base_1 = 0;
-	  run1 = run = (dtp_t)ce_first[-1];
+	  run1 = run = (dtp_t) ce_first[-1];
 	}
     }
   else
@@ -93,10 +93,11 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
 	    {
 	      uint64 n = SHORT_REF_CA (ce_first + 2 * inx);
 #ifdef IS_INTD_ANY
-	      n -= run1; /* the 1st run length is the last byte of the base val so compensate */
+	      n -= run1;	/* the 1st run length is the last byte of the base val so compensate */
 #endif
 	    repeating_place:
 	      CE_OUT (ce_first_val, first_len, base + n);
+
 
 #ifdef CEINTD_RANGE
 	      last_row++;
@@ -113,7 +114,7 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
 	      last_row++;
 	      if (target > last_row)
 		{
-		  if ( target - last_row < last - inx)
+		  if (target - last_row < last - inx)
 		    {
 		      int fwd = target - last_row;
 		      inx += fwd;

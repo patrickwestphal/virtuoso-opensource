@@ -285,10 +285,10 @@ create procedure DB.DBA.USER_CREATE (in _name varchar, in passwd varchar, in opt
     {
       _disabled := 1;
     }
-      DB.DBA.SECURITY_CL_EXEC_AND_LOG ('sec_set_user_struct (?,?,?,?,?,?,?)', vector (
-	  _name, passwd, _u_id, _prim_group_id, concat ('Q ', _login_qual), 0, _u_sys_name, _u_sys_pass ) );
-      if (_disabled = 1)
-        {
+  DB.DBA.SECURITY_CL_EXEC_AND_LOG ('sec_set_user_struct (?,?,?,?,?,?,?)', vector (
+	  _name, passwd, _u_id, _prim_group_id, concat ('Q ', _login_qual), 0, _u_sys_name, _u_sys_pass ));
+  if (_disabled = 1)
+    {
       DB.DBA.SECURITY_CL_EXEC_AND_LOG ('sec_user_enable (?, ?)', vector (_name, 0));
     }
 
@@ -660,8 +660,8 @@ USER_SET_OPTION (in _name varchar, in opt varchar, in value any)
     {
       _disabled := 1;
     }
-      select pwd_magic_calc (U_NAME, U_PASSWORD, 1) into passwd from SYS_USERS where U_NAME = _name;
-      DB.DBA.SECURITY_CL_EXEC_AND_LOG ('sec_set_user_struct (?,?,?,?,?)',
+  select pwd_magic_calc (U_NAME, U_PASSWORD, 1) into passwd from SYS_USERS where U_NAME = _name;
+  DB.DBA.SECURITY_CL_EXEC_AND_LOG ('sec_set_user_struct (?,?,?,?,?)',
       vector (_name, passwd, _u_id, _u_group_id,
 	case when length (_login_qual) then concat ('Q ', _login_qual) else NULL end));
   DB.DBA.SECURITY_CL_EXEC_AND_LOG ('sec_user_enable (?, ?)', vector (_name, case when _disabled = 0 then 1 else 0 end));
@@ -1081,11 +1081,11 @@ normal_auth:
     {
       rc := "DB"."DBA"."DBEV_LOGIN" (user_name, digest, session_random);
     }
-  else if (rc <= 0) -- only if not authenticated 
+  else if (rc <= 0) -- only if not authenticated
     {
       rc := DB.DBA.FOAF_SSL_LOGIN (user_name, digest, session_random);
       if (rc = 0)
-        rc := DB.DBA.LDAP_LOGIN (user_name, digest, session_random);
+	rc := DB.DBA.LDAP_LOGIN (user_name, digest, session_random);
     }
   return rc;
 }
@@ -1400,15 +1400,15 @@ DB.DBA.FOAF_SSL_LOGIN (inout user_name varchar, in digest varchar, in session_ra
 	{
 	  if (_row[0] = cast (info[1] as varchar) and
 	      lower (regexp_replace (_row[1], '[^A-Z0-9a-f]', '', 1, null)) = bin2hex (info[2]))
-    {
-      declare uname varchar;
-      uname := (select UW_U_NAME from SYS_USER_WEBID where UW_WEBID = agent);
-      if (length (uname))
-	{
-	  user_name := uname;
-          rc := 1;
-	}
-    }
+	    {
+	      declare uname varchar;
+	      uname := (select UW_U_NAME from SYS_USER_WEBID where UW_WEBID = agent);
+	      if (length (uname))
+		{
+		  user_name := uname;
+		  rc := 1;
+		}
+	    }
 	}
     }
   err_ret:

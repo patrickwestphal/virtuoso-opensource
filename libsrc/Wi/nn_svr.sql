@@ -1974,8 +1974,8 @@ create procedure nntp_update_org_path_header ()
 {
   declare _org, _from varchar;
 
-  _org := virtuoso_ini_item_value ('HTTPServer', 'NNTPOrganizationHeader');
-  _from := virtuoso_ini_item_value ('HTTPServer', 'NNTPFromHeader');
+  _org := cfg_item_value(virtuoso_ini_path(), 'HTTPServer', 'NNTPOrganizationHeader');
+  _from := cfg_item_value(virtuoso_ini_path(), 'HTTPServer', 'NNTPFromHeader');
 
   if (_org is NULL)
    _org := '';
@@ -2024,3 +2024,4 @@ ns_cancel_message (in _id varchar, in _all any)
   ns_delete_message (_id, cast (_all as varchar));
 }
 ;
+

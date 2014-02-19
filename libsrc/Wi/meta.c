@@ -63,17 +63,15 @@ char *default_collation_name = NULL;
 collation_t *default_collation = NULL;
 
 dbe_schema_t *
-dbe_schema_create (dbe_schema_t *old_sc)
+dbe_schema_create (dbe_schema_t * old_sc)
 {
   NEW_VARZ (dbe_schema_t, sc);
-  sc->sc_name_to_object[sc_to_table] = id_casemode_hash_create (
-      old_sc ? old_sc->sc_name_to_object[sc_to_table]->ht_buckets : 199);
+  sc->sc_name_to_object[sc_to_table] = id_casemode_hash_create (old_sc ? old_sc->sc_name_to_object[sc_to_table]->ht_buckets : 199);
   id_hash_set_rehash_pct (sc->sc_name_to_object[sc_to_table], 120);
   sc->sc_id_to_key = hash_table_allocate (199);
   sc->sc_key_subkey = hash_table_allocate (1117);
   sc->sc_id_to_col = hash_table_allocate (199);
-  sc->sc_name_to_object[sc_to_type] = id_casemode_hash_create (
-      old_sc ? old_sc->sc_name_to_object[sc_to_type]->ht_buckets : 199);
+  sc->sc_name_to_object[sc_to_type] = id_casemode_hash_create (old_sc ? old_sc->sc_name_to_object[sc_to_type]->ht_buckets : 199);
   id_hash_set_rehash_pct (sc->sc_name_to_object[sc_to_type], 120);
   sc->sc_id_to_type = hash_table_allocate (199);
 
@@ -194,20 +192,20 @@ wi_free_old_qrs ()
       while (global_old_triggers)
 	{
 	  query_t *qr = (query_t *) dk_set_pop (&global_old_triggers);
-	  /*log_debug ("freeing trigger %.50s", qr->qr_proc_name);*/
+	  /*log_debug ("freeing trigger %.50s", qr->qr_proc_name); */
 	  qr_free (qr);
 	}
       while (global_old_procs)
 	{
 	  query_t *qr = (query_t *) dk_set_pop (&global_old_procs);
-	  /*log_debug ("freeing proc %.50s", qr->qr_proc_name);*/
+	  /*log_debug ("freeing proc %.50s", qr->qr_proc_name); */
 	  gpf_if_found (isp_schema (NULL)->sc_name_to_object[sc_to_proc], qr);
 	  qr_free (qr);
 	}
       while (global_old_modules)
 	{
 	  query_t *qr = (query_t *) dk_set_pop (&global_old_modules);
-	  /*log_debug ("freeing module %.50s", qr->qr_proc_name);*/
+	  /*log_debug ("freeing module %.50s", qr->qr_proc_name); */
 	  gpf_if_found (isp_schema (NULL)->sc_name_to_object[sc_to_module], qr);
 	  qr_free (qr);
 	}
@@ -302,7 +300,7 @@ sch_split_name_len (const char *q_default, const char *name, char *q, int max_q,
   if (c1)
     {
       strncpy (q, name, MIN (c1, (max_q - 1)));
-      q[MIN(c1, (max_q - 1))] = 0;
+      q[MIN (c1, (max_q - 1))] = 0;
       if (c2 - c1 > 1)
 	{
 	  strncpy (o, name + c1 + 1, MIN ((c2 - c1), max_o) - 1);
@@ -339,6 +337,7 @@ sch_split_name (const char *q_default, const char *name, char *q, char *o, char 
 {
   sch_split_name_len (q_default, name, q, MAX_NAME_LEN, o, MAX_NAME_LEN, n, MAX_NAME_LEN);
 }
+
 /* stricmp from util */
 
 void
@@ -358,8 +357,7 @@ sch_normalize_new_table_case (dbe_schema_t * sc, char *q, size_t max_q, char *ow
   if (!q_normalized || !own_normalized)
     id_casemode_hash_iterator (&it, sc->sc_name_to_object[sc_to_table]);
 
-  while ((!q_normalized || !own_normalized) &&
-      id_casemode_hit_next (&it, (caddr_t *) & ptb))
+  while ((!q_normalized || !own_normalized) && id_casemode_hit_next (&it, (caddr_t *) & ptb))
     {
       dbe_table_t *tb = *ptb;
       if (!q_normalized && !CASEMODESTRCMP (tb->tb_qualifier, q))
@@ -373,12 +371,10 @@ sch_normalize_new_table_case (dbe_schema_t * sc, char *q, size_t max_q, char *ow
 	  strcpy_size_ck (own, tb->tb_owner, max_own);
 	}
     }
-  if (q_normalized  && own_normalized)
+  if (q_normalized && own_normalized)
     return;
   if (sc->sc_prev)
-    sch_normalize_new_table_case (sc->sc_prev,
-	q_normalized ? NULL : q, max_q,
-	own_normalized ? NULL : own, max_own);
+    sch_normalize_new_table_case (sc->sc_prev, q_normalized ? NULL : q, max_q, own_normalized ? NULL : own, max_own);
 }
 
 
@@ -400,7 +396,7 @@ sch_name_to_collation_1 (char *o_default, char *q, char *o, char *n)
     {
       /* if this changed to strncmp CaSE MODE 2 */
       collation_t *coll = *pcoll;
-      sch_split_name(NULL, coll->co_name, cq, co, cn);
+      sch_split_name (NULL, coll->co_name, cq, co, cn);
 
       if (0 != CASEMODESTRCMP (cq, q))
 	continue;
@@ -425,7 +421,7 @@ sch_name_to_collation_1 (char *o_default, char *q, char *o, char *n)
   if (coll_found)
     {
       if (n_found > 1)
-	return ((collation_t *) -1L);
+	return ((collation_t *) - 1L);
       return coll_found;
     }
 
@@ -488,7 +484,7 @@ sch_name_to_collation (char *name)
   n[0] = 0;
   sch_split_name (cli_qual (cli), name, q, o, n);
   coll = sch_name_to_collation_1 (o_default, q, o, n);
-  if ((collation_t *) -1L == coll)
+  if ((collation_t *) - 1L == coll)
     return NULL;
   return coll;
 }
@@ -523,8 +519,7 @@ dbe_table_create (dbe_schema_t * sc, const char *name)
       tb->tb_qualifier_name = box_string (qn);
     }
   tb->tb_owner = box_string (o);
-  id_casemode_hash_set (sc->sc_name_to_object[sc_to_table],
-      tb->tb_qualifier_name, tb->tb_owner, (caddr_t) & tb);
+  id_casemode_hash_set (sc->sc_name_to_object[sc_to_table], tb->tb_qualifier_name, tb->tb_owner, (caddr_t) & tb);
   tb->tb_name_to_col = id_str_hash_create (11);
   tb->tb_name = n2;
   tb->tb_name_only = &tb->tb_name[strlen (tb->tb_name) - strlen (n)];
@@ -557,11 +552,11 @@ dbe_key_t *
 tb_find_key (dbe_table_t * tb, caddr_t name, int err)
 {
   DO_SET (dbe_key_t *, key, &tb->tb_keys)
-    {
-      if (0 == CASEMODESTRCMP (key->key_name, name))
-	return key;
-    }
-  END_DO_SET();
+  {
+    if (0 == CASEMODESTRCMP (key->key_name, name))
+      return key;
+  }
+  END_DO_SET ();
   if (err)
     sqlr_new_error ("42000", "CL...", "Table %s has no key %s ", tb->tb_name, name);
   return NULL;
@@ -569,18 +564,18 @@ tb_find_key (dbe_table_t * tb, caddr_t name, int err)
 
 
 dbe_key_t *
-tb_text_key (dbe_table_t *tb)
+tb_text_key (dbe_table_t * tb)
 {
   dbe_key_t *text_key = tb->tb__text_key;
   if (!text_key && recursive_ft_usage)
     {
       DO_SET (dbe_key_t *, key, &tb->tb_primary_key->key_supers)
-	{
-	  if (!key->key_migrate_to && key->key_table)
-	    text_key = tb_text_key (key->key_table);
-	  if (text_key != NULL)
-	    break;
-	}
+      {
+	if (!key->key_migrate_to && key->key_table)
+	  text_key = tb_text_key (key->key_table);
+	if (text_key != NULL)
+	  break;
+      }
       END_DO_SET ();
     }
   return text_key;
@@ -595,8 +590,7 @@ dbe_column_add (dbe_table_t * tb, const char *name, oid_t id, dtp_t dtp)
   if (tb->tb_schema->sc_free_since)
     GPF_T1 ("Can't add col to table not if the latest schema");
 #if 0
-  col = (dbe_column_t *) gethash ((void *) id,
-				  tb->tb_schema->sc_id_to_col);
+  col = (dbe_column_t *) gethash ((void *) id, tb->tb_schema->sc_id_to_col);
 #endif
   if (!col)
     {
@@ -619,11 +613,10 @@ dbe_column_add (dbe_table_t * tb, const char *name, oid_t id, dtp_t dtp)
 #define OPT_ERR_BAD_COLLATION -1
 
 int
-dtp_parse_options (char *ck, sql_type_t *psqt, caddr_t *opts)
+dtp_parse_options (char *ck, sql_type_t * psqt, caddr_t * opts)
 {
   int inx;
-  if (IS_BOX_POINTER (ck)
-      && (DV_SHORT_STRING == box_tag (ck) || DV_LONG_STRING == box_tag (ck)))
+  if (IS_BOX_POINTER (ck) && (DV_SHORT_STRING == box_tag (ck) || DV_LONG_STRING == box_tag (ck)))
     {
       if (IS_STRING_DTP (psqt->sqt_dtp) && *ck != 0)
 	{
@@ -653,15 +646,12 @@ dbe_column_parse_options (dbe_column_t * col)
 {
   char *ck = col->col_check;
   int ret;
-  if (IS_BOX_POINTER (ck)
-      && (DV_SHORT_STRING == box_tag (ck) || DV_LONG_STRING == box_tag (ck)))
+  if (IS_BOX_POINTER (ck) && (DV_SHORT_STRING == box_tag (ck) || DV_LONG_STRING == box_tag (ck)))
     {
-      char *i_inx = strchr (ck, 'I'),
-	 *u_inx = strstr (ck, " U ");
+      char *i_inx = strchr (ck, 'I'), *u_inx = strstr (ck, " U ");
 
-      if (i_inx && DV_LONG_INT == dtp_canonical[col->col_sqt.sqt_dtp]
-	  && (!u_inx || i_inx < u_inx))
-	  col->col_is_autoincrement = 1;
+      if (i_inx && DV_LONG_INT == dtp_canonical[col->col_sqt.sqt_dtp] && (!u_inx || i_inx < u_inx))
+	col->col_is_autoincrement = 1;
       if (u_inx)
 	{
 	  char *char_end = strchr (u_inx + 3, ' ');
@@ -676,12 +666,11 @@ dbe_column_parse_options (dbe_column_t * col)
   ret = dtp_parse_options (ck, &col->col_sqt, col->col_options);
   if (ret == OPT_ERR_BAD_COLLATION)
     {
-      log_error("Unknown collation %s for column %s of the table %s",
-	  ck, col->col_name, col->col_defined_in->tb_name);
+      log_error ("Unknown collation %s for column %s of the table %s", ck, col->col_name, col->col_defined_in->tb_name);
     }
   if (col->col_options)
     {
-      caddr_t * opts = col->col_options;
+      caddr_t *opts = col->col_options;
       int inx;
       for (inx = 0; inx < BOX_ELEMENTS (col->col_options); inx += 2)
 	{
@@ -710,7 +699,7 @@ tb_name_to_column (dbe_table_t * tb, const char *name)
       while (hit_next (&it, (caddr_t *) & pk, (caddr_t *) & ptc))
 	{
 	  dbe_column_t *column = *ptc;
-	  if (0 == stricmp(column->col_name, name))
+	  if (0 == stricmp (column->col_name, name))
 	    return (column);
 	}
       return NULL;
@@ -725,19 +714,19 @@ dbe_col_loc_array (dk_set_t cls, int off)
 {
   int fill = 0;
   int n = dk_set_length (cls);
-  dbe_col_loc_t * cl = (dbe_col_loc_t *) dk_alloc_box ((n + 1) * sizeof (dbe_col_loc_t), DV_BIN);
+  dbe_col_loc_t *cl = (dbe_col_loc_t *) dk_alloc_box ((n + 1) * sizeof (dbe_col_loc_t), DV_BIN);
   DO_SET (dbe_col_loc_t *, cl1, &cls)
-    {
-      if (cl1->cl_fixed_len > 0)
-	cl1->cl_pos[0] += off;
-      else if (CL_FIRST_VAR == cl1->cl_pos[0])
-	;
-      else
-	cl1->cl_pos[0] = - (-cl1->cl_pos[0] + off);
-      cl[fill++] = * cl1;
-      dk_free ((caddr_t) cl1, sizeof (dbe_col_loc_t));
-    }
-  END_DO_SET();
+  {
+    if (cl1->cl_fixed_len > 0)
+      cl1->cl_pos[0] += off;
+    else if (CL_FIRST_VAR == cl1->cl_pos[0])
+      ;
+    else
+      cl1->cl_pos[0] = -(-cl1->cl_pos[0] + off);
+    cl[fill++] = *cl1;
+    dk_free ((caddr_t) cl1, sizeof (dbe_col_loc_t));
+  }
+  END_DO_SET ();
   dk_set_free (cls);
   memset (&cl[n], 0, sizeof (dbe_col_loc_t));
   return cl;
@@ -774,20 +763,18 @@ sqt_fixed_length (sql_type_t * sqt)
 }
 
 
-dtp_t fixed_dtps[] =
-  {DV_COMP_OFFSET, DV_LONG_INT, DV_INT64, DV_DOUBLE_FLOAT, DV_SINGLE_FLOAT, DV_IRI_ID, DV_IRI_ID_8,
- DV_SHORT_INT, DV_DATETIME, DV_TIMESTAMP, DV_DATE, DV_TIME,
- DV_NUMERIC, 0};
+dtp_t fixed_dtps[] = { DV_COMP_OFFSET, DV_LONG_INT, DV_INT64, DV_DOUBLE_FLOAT, DV_SINGLE_FLOAT, DV_IRI_ID, DV_IRI_ID_8,
+  DV_SHORT_INT, DV_DATETIME, DV_TIMESTAMP, DV_DATE, DV_TIME,
+  DV_NUMERIC, 0
+};
 
-dtp_t var_dtps[] =
-{ DV_STRING, DV_BLOB, DV_WIDE, DV_BIN, DV_BLOB_WIDE, DV_BLOB_BIN, DV_ANY, DV_OBJECT, 0};
+dtp_t var_dtps[] = { DV_STRING, DV_BLOB, DV_WIDE, DV_BIN, DV_BLOB_WIDE, DV_BLOB_BIN, DV_ANY, DV_OBJECT, 0 };
 
 
 /* do not offset compress these by default in dependent parts to get better update speed */
-dtp_t often_updated_dtps[] = {DV_LONG_INT, DV_INT64};
+dtp_t often_updated_dtps[] = { DV_LONG_INT, DV_INT64 };
 
-dtp_t pref_compressible_dtps[] =
-  {DV_STRING, DV_BIN, 0};
+dtp_t pref_compressible_dtps[] = { DV_STRING, DV_BIN, 0 };
 
 int
 dtp_is_fixed (dtp_t dtp)
@@ -803,8 +790,7 @@ dtp_is_var (dtp_t dtp)
 }
 
 
-dtp_t offset_comp_dtps[] =
-  { DV_LONG_INT, DV_INT64, DV_IRI_ID, DV_IRI_ID_8, DV_STRING, DV_BIN, DV_ANY };
+dtp_t offset_comp_dtps[] = { DV_LONG_INT, DV_INT64, DV_IRI_ID, DV_IRI_ID_8, DV_STRING, DV_BIN, DV_ANY };
 
 int
 dtp_is_offset_comp (dtp_t dtp)
@@ -852,79 +838,79 @@ dtp_is_placed_with (dtp_t col_dtp, dtp_t placing_dtp)
 
 
 void
-key_place_fixed_1 (dbe_key_t * key, int * fill, int * null_fill, dk_set_t * cls, dk_set_t parts, dtp_t dtp)
+key_place_fixed_1 (dbe_key_t * key, int *fill, int *null_fill, dk_set_t * cls, dk_set_t parts, dtp_t dtp)
 {
   DO_SET (dbe_column_t *, col, &parts)
-    {
-      if (dtp_is_placed_with (col->col_sqt.sqt_dtp, dtp))
-	{
-	  int len = sqt_fixed_length (&col->col_sqt);
-	  NEW_VARZ (dbe_col_loc_t, cl);
-	  if (len < 0)
-	    GPF_T1 ("not a fixed length data type");
-	  cl->cl_col_id = col->col_id;
-	  cl->cl_sqt = col->col_sqt;
-	  cl->cl_compression = col->col_compression;
-	  cl->cl_fixed_len = len;
-	  cl->cl_pos[0] = *fill;
-	  (*fill) += len;
-	  if (-1 != *null_fill && !col->col_sqt.sqt_non_null)
-	    {
-	      cl->cl_null_mask[0] = 1 << (*null_fill % 8);
-	      cl->cl_null_flag[0] = (*null_fill) / 8;
-	      (*null_fill)++;
-	    }
-	  dk_set_push (cls, (void*) cl);
-	}
-    }
-  END_DO_SET();
+  {
+    if (dtp_is_placed_with (col->col_sqt.sqt_dtp, dtp))
+      {
+	int len = sqt_fixed_length (&col->col_sqt);
+	NEW_VARZ (dbe_col_loc_t, cl);
+	if (len < 0)
+	  GPF_T1 ("not a fixed length data type");
+	cl->cl_col_id = col->col_id;
+	cl->cl_sqt = col->col_sqt;
+	cl->cl_compression = col->col_compression;
+	cl->cl_fixed_len = len;
+	cl->cl_pos[0] = *fill;
+	(*fill) += len;
+	if (-1 != *null_fill && !col->col_sqt.sqt_non_null)
+	  {
+	    cl->cl_null_mask[0] = 1 << (*null_fill % 8);
+	    cl->cl_null_flag[0] = (*null_fill) / 8;
+	    (*null_fill)++;
+	  }
+	dk_set_push (cls, (void *) cl);
+      }
+  }
+  END_DO_SET ();
 }
 
 
 void
-key_place_var (dbe_key_t * key, int * fill, int * null_fill, dk_set_t * cls, dk_set_t parts)
+key_place_var (dbe_key_t * key, int *fill, int *null_fill, dk_set_t * cls, dk_set_t parts)
 {
   DO_SET (dbe_column_t *, col, &parts)
-    {
-      int inx;
-      for (inx = 0; var_dtps[inx]; inx++)
-	{
-	  if (!col->col_sqt.sqt_dtp || var_dtps[inx] == col->col_sqt.sqt_dtp)
-	    {
-	      NEW_VARZ (dbe_col_loc_t, cl);
-	      cl->cl_col_id = col->col_id;
-	      cl->cl_sqt = col->col_sqt;
-	      cl->cl_compression = col->col_compression;
-	      if (!*fill)
-		{
-		  cl->cl_fixed_len = CL_FIRST_VAR;
-		  cl->cl_pos[0] = CL_FIRST_VAR;
-		  *fill += 2;
-		}
-	      else
-		{
-		  cl->cl_fixed_len = 0;
-		  cl->cl_pos[0] = - (*fill - 2);
-		  *fill += 2;
-		}
-	      if (-1 != *null_fill && !col->col_sqt.sqt_non_null)
-		{
-		  cl->cl_null_mask[0] = 1 << (*null_fill % 8);
-		  cl->cl_null_flag[0] = (*null_fill) / 8;
-		  (*null_fill)++;
-		}
-	      dk_set_push (cls, (void*) cl);
-	    }
-	}
-    }
-  END_DO_SET();
+  {
+    int inx;
+    for (inx = 0; var_dtps[inx]; inx++)
+      {
+	if (!col->col_sqt.sqt_dtp || var_dtps[inx] == col->col_sqt.sqt_dtp)
+	  {
+	    NEW_VARZ (dbe_col_loc_t, cl);
+	    cl->cl_col_id = col->col_id;
+	    cl->cl_sqt = col->col_sqt;
+	    cl->cl_compression = col->col_compression;
+	    if (!*fill)
+	      {
+		cl->cl_fixed_len = CL_FIRST_VAR;
+		cl->cl_pos[0] = CL_FIRST_VAR;
+		*fill += 2;
+	      }
+	    else
+	      {
+		cl->cl_fixed_len = 0;
+		cl->cl_pos[0] = -(*fill - 2);
+		*fill += 2;
+	      }
+	    if (-1 != *null_fill && !col->col_sqt.sqt_non_null)
+	      {
+		cl->cl_null_mask[0] = 1 << (*null_fill % 8);
+		cl->cl_null_flag[0] = (*null_fill) / 8;
+		(*null_fill)++;
+	      }
+	    dk_set_push (cls, (void *) cl);
+	  }
+      }
+  }
+  END_DO_SET ();
   *cls = dk_set_nreverse (*cls);
 }
 
 
 
 void
-key_place_fixed (dbe_key_t * key, int * fill, int * null_fill, dk_set_t * cls, dk_set_t parts)
+key_place_fixed (dbe_key_t * key, int *fill, int *null_fill, dk_set_t * cls, dk_set_t parts)
 {
   int inx;
   for (inx = 0; fixed_dtps[inx]; inx++)
@@ -947,11 +933,11 @@ key_count_nullable (dk_set_t keys)
 {
   int ct = 0;
   DO_SET (dbe_column_t *, col, &keys)
-    {
-      if (!col->col_sqt.sqt_non_null)
-	ct++;
-    }
-  END_DO_SET();
+  {
+    if (!col->col_sqt.sqt_non_null)
+      ct++;
+  }
+  END_DO_SET ();
   return ct;
 }
 
@@ -961,11 +947,11 @@ key_count_compressed (dk_set_t cols)
 {
   int c = 0;
   DO_SET (dbe_column_t *, col, &cols)
-    {
-      if (col->col_sqt.sqt_dtp == DV_COMP_OFFSET)
-	c++;
-    }
-  END_DO_SET();
+  {
+    if (col->col_sqt.sqt_dtp == DV_COMP_OFFSET)
+      c++;
+  }
+  END_DO_SET ();
   return c;
 }
 
@@ -974,16 +960,14 @@ void
 col_forced_settings (dbe_key_t * key, dbe_column_t * col)
 {
   /* for text inx word strings, compression must be off */
-  if (0 == stricmp (col->col_name, "VT_DATA")
-      || 0 == stricmp (col->col_name, "VT_D_ID_2")
-      || col->col_sqt.sqt_collation)
+  if (0 == stricmp (col->col_name, "VT_DATA") || 0 == stricmp (col->col_name, "VT_D_ID_2") || col->col_sqt.sqt_collation)
     col->col_compression = CC_NONE;
   if (!dtp_is_offset_comp (col->col_sqt.sqt_dtp) && !dtp_is_pref_comp (col->col_sqt.sqt_dtp))
     col->col_compression = CC_NONE;
 }
 
 
-dbe_column_t * bitmap_col_desc;  /* same col added at the end of all bitmap inx leaf row layouts */
+dbe_column_t *bitmap_col_desc;	/* same col added at the end of all bitmap inx leaf row layouts */
 
 
 void
@@ -993,12 +977,12 @@ key_fill_part_cls (dbe_key_t * key)
   dk_set_t res = NULL;
   int nth = 0;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      dk_set_push (&res, (void*) key_find_cl (key, col->col_id));
-      if (++nth == key->key_n_significant)
-	break;
-    }
-  END_DO_SET();
+  {
+    dk_set_push (&res, (void *) key_find_cl (key, col->col_id));
+    if (++nth == key->key_n_significant)
+      break;
+  }
+  END_DO_SET ();
   key->key_part_cls = (dbe_col_loc_t **) list_to_array (dk_set_nreverse (res));
 }
 
@@ -1010,34 +994,34 @@ key_col_alter (dbe_key_t * key, dk_set_t * prev)
   dk_set_t alters = NULL;
   int nth = 0;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      dk_set_push (&keys, (void*)col);
-      if (++nth == key->key_n_significant)
-	break;
-    }
-  END_DO_SET();
+  {
+    dk_set_push (&keys, (void *) col);
+    if (++nth == key->key_n_significant)
+      break;
+  }
+  END_DO_SET ();
   *prev = key->key_parts;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      NEW_VARZ(dbe_column_t, alt);
-      dk_set_push (&alters, (void*)alt);
-      memcpy (alt, col, sizeof (dbe_column_t));
-      memset (&alt->col_sqt, 0, sizeof (sql_type_t));
-      alt->col_compression = CC_NONE;
-      if (DV_COMP_OFFSET == col->col_sqt.sqt_dtp)
-	alt->col_sqt.sqt_col_dtp = col->col_sqt.sqt_col_dtp;
-      else
-	{
+  {
+    NEW_VARZ (dbe_column_t, alt);
+    dk_set_push (&alters, (void *) alt);
+    memcpy (alt, col, sizeof (dbe_column_t));
+    memset (&alt->col_sqt, 0, sizeof (sql_type_t));
+    alt->col_compression = CC_NONE;
+    if (DV_COMP_OFFSET == col->col_sqt.sqt_dtp)
+      alt->col_sqt.sqt_col_dtp = col->col_sqt.sqt_col_dtp;
+    else
+      {
 	alt->col_sqt.sqt_col_dtp = col->col_sqt.sqt_dtp;
-	  alt->col_sqt.sqt_scale = col->col_sqt.sqt_scale;
-	  alt->col_sqt.sqt_precision = col->col_sqt.sqt_precision;
-	  alt->col_sqt.sqt_is_xml = col->col_sqt.sqt_is_xml;
-	  alt->col_sqt.sqt_class = col->col_sqt.sqt_class;
-	}
-      alt->col_sqt.sqt_dtp = DV_STRING;
-      alt->col_sqt.sqt_non_null = 1;
-    }
-  END_DO_SET();
+	alt->col_sqt.sqt_scale = col->col_sqt.sqt_scale;
+	alt->col_sqt.sqt_precision = col->col_sqt.sqt_precision;
+	alt->col_sqt.sqt_is_xml = col->col_sqt.sqt_is_xml;
+	alt->col_sqt.sqt_class = col->col_sqt.sqt_class;
+      }
+    alt->col_sqt.sqt_dtp = DV_STRING;
+    alt->col_sqt.sqt_non_null = 1;
+  }
+  END_DO_SET ();
   alters = dk_set_nreverse (alters);
   keys = dk_set_nreverse (keys);
   key->key_parts = keys;
@@ -1050,11 +1034,11 @@ key_col_restore (dbe_key_t * key, dk_set_t prev)
 {
   int nth = 0;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      if (++nth > key->key_n_significant)
-	dk_free ((caddr_t)col, sizeof (dbe_column_t));
-    }
-  END_DO_SET();
+  {
+    if (++nth > key->key_n_significant)
+      dk_free ((caddr_t) col, sizeof (dbe_column_t));
+  }
+  END_DO_SET ();
   dk_set_free (key->key_parts);
   key->key_parts = prev;
 }
@@ -1073,51 +1057,46 @@ dbe_key_layout_1 (dbe_key_t * key)
 #ifdef DEBUG
   int n_placed = 0;
 #endif
-  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options)
-				   && inx_opt_flag (key->key_options, "bitmap"))
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options) && inx_opt_flag (key->key_options, "bitmap"))
     key->key_is_bitmap = 1;
-  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options)
-      && inx_opt_flag (key->key_options, "no_pk"))
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options) && inx_opt_flag (key->key_options, "no_pk"))
     key->key_no_pk_ref = 1;
-  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options)
-      && inx_opt_flag (key->key_options, "distinct"))
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options) && inx_opt_flag (key->key_options, "distinct"))
     key->key_distinct = 1;
-  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options)
-      && inx_opt_flag (key->key_options, "not_null"))
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options) && inx_opt_flag (key->key_options, "not_null"))
     key->key_not_null = 1;
-  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options)
-      && inx_opt_flag (key->key_options, "column"))
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (key->key_options) && inx_opt_flag (key->key_options, "column"))
     {
       int ctr = 0;
-    key->key_is_col = 1;
-  DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-	  /* if there are nullabble parts, the key ghets a non null flag so that entries with nulls in a key do not get made.  col-wise collation does not deal with nulls */
-	  if (!col->col_sqt.sqt_non_null)
-	    key->key_not_null = 1;
-	  if (++ctr >= key->key_n_significant)
-	    break;
-	}
-      END_DO_SET();
+      key->key_is_col = 1;
+      DO_SET (dbe_column_t *, col, &key->key_parts)
+      {
+	/* if there are nullabble parts, the key ghets a non null flag so that entries with nulls in a key do not get made.  col-wise collation does not deal with nulls */
+	if (!col->col_sqt.sqt_non_null)
+	  key->key_not_null = 1;
+	if (++ctr >= key->key_n_significant)
+	  break;
+      }
+      END_DO_SET ();
       key_col_alter (key, &prev_parts);
     }
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      if (inx >= key->key_n_significant)
-	break; /* can be 0 key parts in cube grand total temp */
-      dk_set_push (&keys, (void*) col);
-      inx++;
-    }
-  END_DO_SET();
+  {
+    if (inx >= key->key_n_significant)
+      break;			/* can be 0 key parts in cube grand total temp */
+    dk_set_push (&keys, (void *) col);
+    inx++;
+  }
+  END_DO_SET ();
   keys = dk_set_nreverse (keys);
   if (key->key_is_primary)
     {
       /* pk parts will always be non-null */
       DO_SET (dbe_column_t *, col, &keys)
-	{
-	  col->col_sqt.sqt_non_null = 1;
-	}
-      END_DO_SET();
+      {
+	col->col_sqt.sqt_non_null = 1;
+      }
+      END_DO_SET ();
     }
   key->key_n_parts = dk_set_length (key->key_parts);
   deps = key->key_parts;
@@ -1132,7 +1111,7 @@ dbe_key_layout_1 (dbe_key_t * key)
     }
   if (key->key_is_primary)
     {
-      null_fill = -1; /* not nullable if key part */
+      null_fill = -1;		/* not nullable if key part */
       key_nullables = 0;
     }
   else
@@ -1144,7 +1123,7 @@ dbe_key_layout_1 (dbe_key_t * key)
     {
       if (deps)
 	log_error ("Bitmap inx should not have dependent parts in schema");
-      deps = dk_set_cons ((void*) bitmap_col_desc, NULL);
+      deps = dk_set_cons ((void *) bitmap_col_desc, NULL);
     }
   key_place_fixed (key, &kf_fill, &null_fill, &key_fixed, keys);
 #ifdef DEBUG
@@ -1172,7 +1151,7 @@ dbe_key_layout_1 (dbe_key_t * key)
     }
   key->key_key_leaf[0] = kf_fill + kv_fill;
   key->key_key_var_start[0] = kf_fill + kv_fill + 4;
-  null_fill = 0; /* dependent part starts, allow null flags */
+  null_fill = 0;		/* dependent part starts, allow null flags */
   key_place_var (key, &kv_fill, &null_fill, &row_var, deps);
 #ifdef DEBUG
   n_placed += dk_set_length (row_var);
@@ -1197,11 +1176,11 @@ dbe_key_layout_1 (dbe_key_t * key)
   key->key_null_flag_bytes[0] = null_bytes;
   key->key_row_var_start[0] = rf_fill + null_bytes;
   if (kv_fill_key)
-    key->key_key_len[0] = - (key->key_length_area[0] + kv_fill_key - 2);
+    key->key_key_len[0] = -(key->key_length_area[0] + kv_fill_key - 2);
   else
-    key->key_key_len[0] = 4 + kf_fill;  /* const includes the key ids and leaf ptr */
+    key->key_key_len[0] = 4 + kf_fill;	/* const includes the key ids and leaf ptr */
   if (kv_fill)
-    key->key_row_len[0] = - (key->key_length_area[0] + kv_fill - 2);
+    key->key_row_len[0] = -(key->key_length_area[0] + kv_fill - 2);
   else
     key->key_row_len[0] = rf_fill + null_bytes;
   dk_set_free (keys);
@@ -1222,82 +1201,82 @@ dbe_key_version_layout (dbe_key_t * key, row_ver_t rv, dk_set_t parts)
   kv->key_parts = parts;
   dbe_key_layout_1 (kv);
 
-  key->key_length_area[rv] =   kv->key_length_area[0];
+  key->key_length_area[rv] = kv->key_length_area[0];
   key->key_key_leaf[rv] = kv->key_key_leaf[0];
   key->key_key_leaf[rv] = kv->key_key_leaf[0];
   key->key_row_compressed_start[rv] = kv->key_row_compressed_start[0];
-  key->key_key_var_start[rv] =   kv->key_key_var_start[0];
-  key->key_row_var_start[rv] =   kv->key_row_var_start[0];
-  key->key_null_flag_start[rv] =   kv->key_null_flag_start[0];
-  key->key_null_flag_bytes[rv] =   kv->key_null_flag_bytes[0];
-  key->key_key_len[rv] =   kv->key_key_len[0];
-  key->key_row_len[rv] =   kv->key_row_len[0];
+  key->key_key_var_start[rv] = kv->key_key_var_start[0];
+  key->key_row_var_start[rv] = kv->key_row_var_start[0];
+  key->key_null_flag_start[rv] = kv->key_null_flag_start[0];
+  key->key_null_flag_bytes[rv] = kv->key_null_flag_bytes[0];
+  key->key_key_len[rv] = kv->key_key_len[0];
+  key->key_row_len[rv] = kv->key_row_len[0];
 
   DO_CL (cl, kv->key_key_fixed)
-    {
-      dbe_col_loc_t * kcl = key_find_cl (key, cl->cl_col_id);
-      kcl->cl_pos[rv] = cl->cl_pos[0];
-      kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
-      kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
-    }
+  {
+    dbe_col_loc_t *kcl = key_find_cl (key, cl->cl_col_id);
+    kcl->cl_pos[rv] = cl->cl_pos[0];
+    kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
+    kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
+  }
   END_DO_CL;
   DO_CL (cl, kv->key_key_var)
-    {
-      dbe_col_loc_t * kcl = key_find_cl (key, cl->cl_col_id);
-      kcl->cl_pos[rv] = cl->cl_pos[0];
-      kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
-      kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
-    }
+  {
+    dbe_col_loc_t *kcl = key_find_cl (key, cl->cl_col_id);
+    kcl->cl_pos[rv] = cl->cl_pos[0];
+    kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
+    kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
+  }
   END_DO_CL;
   DO_CL (cl, kv->key_row_fixed)
-    {
-      dbe_col_loc_t * kcl = key_find_cl (key, cl->cl_col_id);
-      kcl->cl_pos[rv] = cl->cl_pos[0];
-      kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
-      kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
-    }
+  {
+    dbe_col_loc_t *kcl = key_find_cl (key, cl->cl_col_id);
+    kcl->cl_pos[rv] = cl->cl_pos[0];
+    kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
+    kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
+  }
   END_DO_CL;
   DO_CL (cl, kv->key_row_var)
-    {
-      dbe_col_loc_t * kcl = cl_list_find (key->key_row_var, cl->cl_col_id);
-      kcl->cl_pos[rv] = cl->cl_pos[0];
-      kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
-      kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
-    }
+  {
+    dbe_col_loc_t *kcl = cl_list_find (key->key_row_var, cl->cl_col_id);
+    kcl->cl_pos[rv] = cl->cl_pos[0];
+    kcl->cl_null_mask[rv] = cl->cl_null_mask[0];
+    kcl->cl_null_flag[rv] = cl->cl_null_flag[0];
+  }
   END_DO_CL;
-  dk_free_box ((caddr_t)kv->key_key_fixed);
-  dk_free_box ((caddr_t)kv->key_key_var);
-  dk_free_box ((caddr_t)kv->key_row_fixed);
-  dk_free_box ((caddr_t)kv->key_row_var);
-  dk_free ((caddr_t)kv, sizeof (*kv));
+  dk_free_box ((caddr_t) kv->key_key_fixed);
+  dk_free_box ((caddr_t) kv->key_key_var);
+  dk_free_box ((caddr_t) kv->key_row_fixed);
+  dk_free_box ((caddr_t) kv->key_row_var);
+  dk_free ((caddr_t) kv, sizeof (*kv));
 }
 
 
-dk_hash_t * key_super_id_to_versions;
+dk_hash_t *key_super_id_to_versions;
 
 void
 key_set_version (dbe_key_t * key)
 {
-  static dk_mutex_t * mtx = NULL;
+  static dk_mutex_t *mtx = NULL;
   key_id_t super_id = key->key_super_id;
-  dbe_key_t ** kv;
+  dbe_key_t **kv;
   if (!mtx)
     mtx = mutex_allocate ();
   mutex_enter (mtx);
   if (!key_super_id_to_versions)
     key_super_id_to_versions = hash_table_allocate (201);
-  kv = (dbe_key_t **) gethash ((void*)(ptrlong)super_id, key_super_id_to_versions);
+  kv = (dbe_key_t **) gethash ((void *) (ptrlong) super_id, key_super_id_to_versions);
   if (!kv)
     {
       kv = (dbe_key_t **) dk_alloc_box_zero (sizeof (caddr_t) * KEY_MAX_VERSIONS, DV_BIN);
-      sethash ((void*)(ptrlong)super_id, key_super_id_to_versions, (void*)kv);
+      sethash ((void *) (ptrlong) super_id, key_super_id_to_versions, (void *) kv);
     }
   key->key_versions = kv;
   if (1 == key->key_version)
     kv[0] = key;
 
   if (key->key_version >= KEY_MAX_VERSIONS || key->key_version <= 0)
-    GPF_T1("key_version outside of array");
+    GPF_T1 ("key_version outside of array");
   kv[key->key_version] = key;
   mutex_leave (mtx);
 }
@@ -1306,60 +1285,58 @@ key_set_version (dbe_key_t * key)
 void
 key_part_in_layout_order (dbe_key_t * key)
 {
-  short * arr = key->key_part_in_layout_order = dk_alloc_box (sizeof (short) * key->key_n_significant, DV_BIN);
+  short *arr = key->key_part_in_layout_order = dk_alloc_box (sizeof (short) * key->key_n_significant, DV_BIN);
   int inx = 0;
   int key_n_fixed = 0;
   DO_CL_0 (cl, key->key_key_fixed)
-    {
-      key_n_fixed++;
-    }
+  {
+    key_n_fixed++;
+  }
   END_DO_CL;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      dbe_col_loc_t * cl = key_find_cl (key, col->col_id);
-      if (!key->key_n_significant)
-	break;
-	if (dtp_is_fixed (col->col_sqt.sqt_dtp))
-	  arr[inx] = cl - key->key_key_fixed;
-	else
-	  arr[inx] = key_n_fixed + (cl - key->key_key_var);
-      if (++inx == key->key_n_significant)
-	break;
-    }
-  END_DO_SET();
+  {
+    dbe_col_loc_t *cl = key_find_cl (key, col->col_id);
+    if (!key->key_n_significant)
+      break;
+    if (dtp_is_fixed (col->col_sqt.sqt_dtp))
+      arr[inx] = cl - key->key_key_fixed;
+    else
+      arr[inx] = key_n_fixed + (cl - key->key_key_var);
+    if (++inx == key->key_n_significant)
+      break;
+  }
+  END_DO_SET ();
   inx = 0;
   DO_ALL_CL (cl, key)
-    {
-      cl->cl_nth = inx++;
-    }
+  {
+    cl->cl_nth = inx++;
+  }
   END_DO_ALL_CL;
 }
 
 
-void dk_set_set_nth (dk_set_t set, int nth, void * elt);
+void dk_set_set_nth (dk_set_t set, int nth, void *elt);
 
 
 void
 dbe_key_list_pref_compressible (dbe_key_t * key)
 {
   DO_CL (cl, key->key_key_var)
-    {
-      if (memchr (pref_compressible_dtps, cl->cl_sqt.sqt_dtp, sizeof (pref_compressible_dtps))
-	  && CC_NONE != cl->cl_compression)
-	{
-	  dk_set_push (&key->key_key_pref_compressibles, (void*)cl);
-	  dk_set_push (&key->key_row_pref_compressibles, (void*)cl);
-	}
-    }
+  {
+    if (memchr (pref_compressible_dtps, cl->cl_sqt.sqt_dtp, sizeof (pref_compressible_dtps)) && CC_NONE != cl->cl_compression)
+      {
+	dk_set_push (&key->key_key_pref_compressibles, (void *) cl);
+	dk_set_push (&key->key_row_pref_compressibles, (void *) cl);
+      }
+  }
   END_DO_CL;
   DO_CL (cl, key->key_row_var)
-    {
-      if (memchr (pref_compressible_dtps, cl->cl_sqt.sqt_dtp, sizeof (pref_compressible_dtps))
-	  && CC_NONE != cl->cl_compression)
-	{
-	  dk_set_push (&key->key_row_pref_compressibles, (void*)cl);
-	}
-    }
+  {
+    if (memchr (pref_compressible_dtps, cl->cl_sqt.sqt_dtp, sizeof (pref_compressible_dtps)) && CC_NONE != cl->cl_compression)
+      {
+	dk_set_push (&key->key_row_pref_compressibles, (void *) cl);
+      }
+  }
   END_DO_CL;
 }
 
@@ -1371,66 +1348,65 @@ dbe_key_compression (dbe_key_t * key)
   dk_set_t parts_copy;
   int c_fill = 0, nth_col = 0, c_inx, nth_part = 0;
   dbe_column_t c_cols[N_COMPRESS_OFFSETS];
-  int c_nth_col [N_COMPRESS_OFFSETS];
+  int c_nth_col[N_COMPRESS_OFFSETS];
   row_ver_t rv;
   memset (&c_cols, 0, sizeof (c_cols));
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      if (key->key_is_col && nth_part++ == key->key_n_significant)
-	break; /* for column store, dependents will never be offset comp.  Key parts can be since they have 2 cl's, one for the key and the other for the col string, the latter is not compressed. For dependents, there is only the col string which must not be compressed */
-      if (dtp_is_offset_comp (col->col_sqt.sqt_dtp)
-	  && CC_NONE != col->col_compression && CC_PREFIX != col->col_compression)
-	{
-	  c_cols[c_fill].col_id = col->col_id;
-	  c_cols[c_fill].col_sqt.sqt_dtp = DV_COMP_OFFSET;
-	  c_cols[c_fill].col_non_null = col->col_non_null;
-	  c_nth_col[c_fill] = nth_col;
-	      c_fill++;
-	      if (c_fill == N_COMPRESS_OFFSETS)
-		break;
-	}
-      nth_col++;
-    }
-  END_DO_SET();
+  {
+    if (key->key_is_col && nth_part++ == key->key_n_significant)
+      break;			/* for column store, dependents will never be offset comp.  Key parts can be since they have 2 cl's, one for the key and the other for the col string, the latter is not compressed. For dependents, there is only the col string which must not be compressed */
+    if (dtp_is_offset_comp (col->col_sqt.sqt_dtp) && CC_NONE != col->col_compression && CC_PREFIX != col->col_compression)
+      {
+	c_cols[c_fill].col_id = col->col_id;
+	c_cols[c_fill].col_sqt.sqt_dtp = DV_COMP_OFFSET;
+	c_cols[c_fill].col_non_null = col->col_non_null;
+	c_nth_col[c_fill] = nth_col;
+	c_fill++;
+	if (c_fill == N_COMPRESS_OFFSETS)
+	  break;
+      }
+    nth_col++;
+  }
+  END_DO_SET ();
   for (c_inx = 0; c_inx < c_fill; c_inx++)
     {
-      dbe_col_loc_t * cl = key_find_cl (key, c_cols[c_inx].col_id);
+      dbe_col_loc_t *cl = key_find_cl (key, c_cols[c_inx].col_id);
       cl->cl_row_version_mask = 1 << c_inx;
       cl->cl_compression = CC_OFFSET;
     }
   DO_CL (cl, key->key_key_fixed)
-    {
-      if (cl->cl_row_version_mask)
-	{
-	  dk_set_append_1 (&key->key_key_compressibles, (void*) cl);
-	  dk_set_append_1 (&key->key_row_compressibles, (void*) cl);
-	}
-    }
+  {
+    if (cl->cl_row_version_mask)
+      {
+	dk_set_append_1 (&key->key_key_compressibles, (void *) cl);
+	dk_set_append_1 (&key->key_row_compressibles, (void *) cl);
+      }
+  }
   END_DO_CL;
   DO_CL (cl, key->key_key_var)
-    {
-      if (cl->cl_row_version_mask)
-	{
-	  dk_set_append_1 (&key->key_key_compressibles, (void*) cl);
-	  dk_set_append_1 (&key->key_row_compressibles, (void*) cl);
-	}
-    }
+  {
+    if (cl->cl_row_version_mask)
+      {
+	dk_set_append_1 (&key->key_key_compressibles, (void *) cl);
+	dk_set_append_1 (&key->key_row_compressibles, (void *) cl);
+      }
+  }
   END_DO_CL;
   DO_CL (cl, key->key_row_fixed)
-    {
-      if (cl->cl_row_version_mask)
-	{
-	  dk_set_append_1 (&key->key_row_compressibles, (void*) cl);
-	}
-    }
+  {
+    if (cl->cl_row_version_mask)
+      {
+	dk_set_append_1 (&key->key_row_compressibles, (void *) cl);
+      }
+  }
   END_DO_CL;
   DO_CL (cl, key->key_row_var)
-    {
-      if (cl->cl_row_version_mask)
-	{
-	  dk_set_append_1 (&key->key_row_compressibles, (void*) cl);
-	}
-    }
+  {
+    if (cl->cl_row_version_mask)
+      {
+	dk_set_append_1 (&key->key_row_compressibles, (void *) cl);
+      }
+  }
   END_DO_CL;
 
   key_part_in_layout_order (key);
@@ -1451,17 +1427,17 @@ dbe_key_compression (dbe_key_t * key)
 
 void
 key_set_simple_compression (dbe_key_t * c_key)
-    {
-      int inx;
+{
+  int inx;
   int no_comp = 1, simple_comp = 1;
   int max = KI_TEMP == c_key->key_id ? 2 : KEY_MAX_VERSIONS;
   for (inx = 0; inx < max; inx++)
-	{
-      dbe_key_t * ver = c_key->key_versions[inx];
+    {
+      dbe_key_t *ver = c_key->key_versions[inx];
       if (!ver)
 	continue;
-      ver->key_n_key_compressibles  = dk_set_length (ver->key_key_compressibles);
-      ver->key_n_row_compressibles  = dk_set_length (ver->key_row_compressibles);
+      ver->key_n_key_compressibles = dk_set_length (ver->key_key_compressibles);
+      ver->key_n_row_compressibles = dk_set_length (ver->key_row_compressibles);
       if (!ver->key_n_row_compressibles && !ver->key_n_key_compressibles)
 	;
       else
@@ -1473,9 +1449,9 @@ key_set_simple_compression (dbe_key_t * c_key)
 	simple_comp = 0;
     }
   for (inx = 0; inx < max; inx++)
-	{
-      dbe_key_t * ver = c_key->key_versions[inx];
-	  if (ver)
+    {
+      dbe_key_t *ver = c_key->key_versions[inx];
+      if (ver)
 	{
 	  ver->key_no_compression = no_comp;
 	  ver->key_simple_compress = simple_comp;
@@ -1490,19 +1466,18 @@ dbe_key_layout (dbe_key_t * key, dbe_schema_t * sc)
   dk_set_t no_comp = NULL;
   int nth_col = 0;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      col_forced_settings (key, col);
-      if (nth_col >= key->key_n_significant
-	  && dtp_no_comp_if_dep (col->col_sqt.sqt_dtp) && CC_UNDEFD == col->col_compression)
-	{
-	  col->col_compression = CC_NONE;
-	  dk_set_push (&no_comp, (void*) col);
-	}
-      nth_col++;
-    }
-  END_DO_SET();
+  {
+    col_forced_settings (key, col);
+    if (nth_col >= key->key_n_significant && dtp_no_comp_if_dep (col->col_sqt.sqt_dtp) && CC_UNDEFD == col->col_compression)
+      {
+	col->col_compression = CC_NONE;
+	dk_set_push (&no_comp, (void *) col);
+      }
+    nth_col++;
+  }
+  END_DO_SET ();
 
-  if (!dbe_key_layout_1 (key)) /* incomplete key, should not continue */
+  if (!dbe_key_layout_1 (key))	/* incomplete key, should not continue */
     return;
   dbe_key_compression (key);
   dbe_key_list_pref_compressible (key);
@@ -1521,15 +1496,14 @@ dbe_key_layout (dbe_key_t * key, dbe_schema_t * sc)
       key_make_bm_specs (key);
       key->key_bm_cl = key_find_cl (key, CI_BITMAP);
       key->key_bm_cl->cl_compression = CC_NONE;
-      key->key_bit_cl = key_find_cl (key,
-				    ((dbe_column_t *)dk_set_nth (key->key_parts, key->key_n_significant - 1))->col_id);
+      key->key_bit_cl = key_find_cl (key, ((dbe_column_t *) dk_set_nth (key->key_parts, key->key_n_significant - 1))->col_id);
       /* one is the col where the bits are, the other the last key part, i.e. the beginning offset of the nbitmap */
     }
   DO_SET (dbe_column_t *, col, &no_comp)
-    {
-      col->col_compression = CC_UNDEFD;
-    }
-  END_DO_SET();
+  {
+    col->col_compression = CC_UNDEFD;
+  }
+  END_DO_SET ();
   key_set_simple_compression (key);
   dk_set_free (no_comp);
 }
@@ -1537,9 +1511,7 @@ dbe_key_layout (dbe_key_t * key, dbe_schema_t * sc)
 
 dbe_key_t *
 dbe_key_create (dbe_schema_t * sc, dbe_table_t * tb,
-    const char *name, key_id_t id,
-    int n_significant, int cluster_on_id,
-    int is_main, key_id_t migrate_to, key_id_t super_id)
+    const char *name, key_id_t id, int n_significant, int cluster_on_id, int is_main, key_id_t migrate_to, key_id_t super_id)
 {
   NEW_VARZ (dbe_key_t, key);
   if (is_main && !migrate_to)
@@ -1557,7 +1529,7 @@ dbe_key_create (dbe_schema_t * sc, dbe_table_t * tb,
   sethash ((void *) (ptrlong) id, sc->sc_id_to_key, (void *) key);
   key->key_migrate_to = migrate_to;
   key->key_super_id = super_id;
-  key->key_version = 1; /* set later based on sys_keys table if needed */
+  key->key_version = 1;		/* set later based on sys_keys table if needed */
   return key;
 }
 
@@ -1565,16 +1537,16 @@ dbe_key_create (dbe_schema_t * sc, dbe_table_t * tb,
 void
 dbe_key_free (dbe_key_t * key)
 {
-  search_spec_t * sp = key->key_insert_spec.ksp_spec_array;
+  search_spec_t *sp = key->key_insert_spec.ksp_spec_array;
   DO_SET (dbe_column_t *, col, &key->key_parts)
-    {
-      dk_free_box (col->col_name);
-      dk_free ((caddr_t) col, sizeof (dbe_column_t));
-    }
+  {
+    dk_free_box (col->col_name);
+    dk_free ((caddr_t) col, sizeof (dbe_column_t));
+  }
   END_DO_SET ();
   while (sp)
     {
-      search_spec_t * tmp = sp;
+      search_spec_t *tmp = sp;
       sp = sp->sp_next;
       dk_free (tmp, sizeof (search_spec_t));
     }
@@ -1589,7 +1561,7 @@ dbe_key_free (dbe_key_t * key)
   dk_free_box (key->key_name);
   dk_free_tree ((box_t) key->key_options);
   dk_free_box ((box_t) key->key_part_cls);
- dk_free ((caddr_t) key, sizeof (dbe_key_t));
+  dk_free ((caddr_t) key, sizeof (dbe_key_t));
 }
 
 
@@ -1600,8 +1572,7 @@ key_add_part (dbe_key_t * key, oid_t col_id)
       key->key_table->tb_schema->sc_id_to_col);
   if (dk_set_length (key->key_parts) < (uint32) key->key_n_significant)
     col->col_is_key_part = (1 == key->key_n_significant && (key->key_is_primary || key->key_is_unique)) ? COL_KP_UNQ : 1;
-  key->key_parts = dk_set_conc (key->key_parts,
-      dk_set_cons ((caddr_t) col, NULL));
+  key->key_parts = dk_set_conc (key->key_parts, dk_set_cons ((caddr_t) col, NULL));
   if (IS_BLOB_DTP (col->col_sqt.sqt_dtp))
     key->key_table->tb_any_blobs = 1;
   if (col->col_sqt.sqt_dtp == DV_OWNER)
@@ -1617,8 +1588,8 @@ tb_name_to_key (dbe_table_t * tb, const char *name, int non_primary)
 
   DO_SET (dbe_key_t *, key, &tb->tb_keys)
   {
-    if (! (key->key_is_primary && non_primary))
-	if (0 == CASEMODESTRCMP (key->key_name, name))
+    if (!(key->key_is_primary && non_primary))
+      if (0 == CASEMODESTRCMP (key->key_name, name))
 	return key;
   }
   END_DO_SET ();
@@ -1641,8 +1612,8 @@ proc_name_hash_f (char *strp)
 {
   char *str = *(char **) strp;
   id_hashed_key_t h;
-  str = &((proc_name_t *)str)->pn_name[0];
- NTS_BUFFER_HASH (h, str);
+  str = &((proc_name_t *) str)->pn_name[0];
+  NTS_BUFFER_HASH (h, str);
   return (h & ID_HASHED_KEY_MASK);
 }
 
@@ -1650,20 +1621,20 @@ proc_name_hash_f (char *strp)
 int
 proc_name_cmp (char *x, char *y)
 {
-  return 0 == strcmp (&(*(proc_name_t**)x)->pn_name[0], &(*(proc_name_t**)y)->pn_name[0]);
+  return 0 == strcmp (&(*(proc_name_t **) x)->pn_name[0], &(*(proc_name_t **) y)->pn_name[0]);
 }
 
-dk_mutex_t * proc_name_mtx;
-id_hash_t * proc_name_hash;
+dk_mutex_t *proc_name_mtx;
+id_hash_t *proc_name_hash;
 
 #define PN_HEADER  ((ptrlong)(&((proc_name_t*)0)->pn_name))
 
 proc_name_t *
-proc_name (char * name)
+proc_name (char *name)
 {
-  proc_name_t ** place;
+  proc_name_t **place;
   int len = strlen (name);
-  proc_name_t * pn = (proc_name_t *) dk_alloc (PN_HEADER +len + 1);
+  proc_name_t *pn = (proc_name_t *) dk_alloc (PN_HEADER + len + 1);
   if (!proc_name_mtx)
     {
       proc_name_mtx = mutex_allocate ();
@@ -1674,16 +1645,16 @@ proc_name (char * name)
   strcpy (&pn->pn_name[0], name);
   pn->pn_name[len] = 0;
   mutex_enter (proc_name_mtx);
-  place = (proc_name_t **) id_hash_get (proc_name_hash, (caddr_t) &pn);
+  place = (proc_name_t **) id_hash_get (proc_name_hash, (caddr_t) & pn);
   if (place)
     {
-      proc_name_t * found = *place;
+      proc_name_t *found = *place;
       found->pn_ref_count++;
       mutex_leave (proc_name_mtx);
       dk_free (pn, -1);
       return found;
     }
-  id_hash_set (proc_name_hash, (caddr_t)&pn, (caddr_t)&pn);
+  id_hash_set (proc_name_hash, (caddr_t) & pn, (caddr_t) & pn);
   mutex_leave (proc_name_mtx);
   return pn;
 }
@@ -1707,20 +1678,20 @@ proc_name_free (proc_name_t * pn)
   pn->pn_ref_count--;
   if (!pn->pn_ref_count)
     {
-      id_hash_remove (proc_name_hash, (caddr_t)&pn);
+      id_hash_remove (proc_name_hash, (caddr_t) & pn);
       mutex_leave (proc_name_mtx);
-      dk_free ((caddr_t)pn, -1);
+      dk_free ((caddr_t) pn, -1);
       return;
     }
   mutex_leave (proc_name_mtx);
 }
 
 
-dk_mutex_t * old_qr_mtx;
+dk_mutex_t *old_qr_mtx;
 
 
 void
-sch_set_procmod_def (dbe_schema_t * sc, caddr_t name, query_t *proc, sc_object_type o_type)
+sch_set_procmod_def (dbe_schema_t * sc, caddr_t name, query_t * proc, sc_object_type o_type)
 {
   query_t **data;
   char q[MAX_NAME_LEN];
@@ -1764,7 +1735,7 @@ sch_set_procmod_def (dbe_schema_t * sc, caddr_t name, query_t *proc, sc_object_t
 	}
       else
 	{
-	  proc_name_t * pn = proc_name (name);
+	  proc_name_t *pn = proc_name (name);
 	  pn->pn_query = NULL;
 	  proc_name_free (pn);
 	}
@@ -1773,21 +1744,21 @@ sch_set_procmod_def (dbe_schema_t * sc, caddr_t name, query_t *proc, sc_object_t
 
 
 void
-sch_set_proc_def (dbe_schema_t * sc, caddr_t name, query_t *proc)
+sch_set_proc_def (dbe_schema_t * sc, caddr_t name, query_t * proc)
 {
   sch_set_procmod_def (sc, name, proc, sc_to_proc);
 }
 
 
 void
-sch_set_module_def (dbe_schema_t * sc, caddr_t name, query_t *proc)
+sch_set_module_def (dbe_schema_t * sc, caddr_t name, query_t * proc)
 {
   sch_set_procmod_def (sc, name, proc, sc_to_module);
 }
 
 
 void
-sch_drop_module_def (dbe_schema_t *sc, query_t *mod_qr)
+sch_drop_module_def (dbe_schema_t * sc, query_t * mod_qr)
 {
   id_casemode_hash_iterator_t it;
   query_t **pproc;
@@ -1809,7 +1780,7 @@ sch_full_module_name (dbe_schema_t * sc, char *ref_name, char *q_def, char *o_de
   query_t *proc;
 
   proc = (query_t *) sch_name_to_object (sc, sc_to_module, ref_name, q_def, o_def, 1);
-  if (proc == (query_t *) -1 || !proc)
+  if (proc == (query_t *) - 1 || !proc)
     return NULL;
   return proc->qr_proc_name;
 }
@@ -1859,7 +1830,7 @@ sch_full_proc_name_1 (dbe_schema_t * sc, const char *ref_name, char *q_def, char
     snprintf (qn, sizeof (qn), "%s.%s.%s", q, m, n);
 
   proc = (query_t *) sch_name_to_object_sc (sc, sc_to_proc, o_def, o, qn, 1);
-  if (proc && proc != (query_t *) -1)
+  if (proc && proc != (query_t *) - 1)
     return proc->qr_proc_name;
 
   if (no_q && o[0] != 0 && !m_def)
@@ -1868,7 +1839,7 @@ sch_full_proc_name_1 (dbe_schema_t * sc, const char *ref_name, char *q_def, char
 
       o[0] = 0;
       proc = (query_t *) sch_name_to_object_sc (sc, sc_to_proc, o_def, o, qn, 1);
-      if (proc && proc != (query_t *) -1)
+      if (proc && proc != (query_t *) - 1)
 	return proc->qr_proc_name;
     }
   return NULL;
@@ -1883,7 +1854,7 @@ sch_full_proc_name (dbe_schema_t * sc, const char *ref_name, char *q_def, char *
 
 
 query_t *
-sch_proc_def (dbe_schema_t * sc, const char * name)
+sch_proc_def (dbe_schema_t * sc, const char *name)
 {
   if (!sc)
     GPF_T;
@@ -1901,14 +1872,14 @@ sch_partial_proc_def (dbe_schema_t * sc, caddr_t name, char *q_def, char *o_def)
 
 
 query_t *
-sch_proc_exact_def (dbe_schema_t * sc, const char * name)
+sch_proc_exact_def (dbe_schema_t * sc, const char *name)
 {
   return sch_proc_def (sc, name);
 }
 
 
 query_t *
-sch_module_def (dbe_schema_t * sc, const char * name)
+sch_module_def (dbe_schema_t * sc, const char *name)
 {
   if (!sc)
     GPF_T;
@@ -1936,7 +1907,7 @@ dbe_key_open_ap (dbe_key_t * k, dbe_schema_t * prev_sc)
   k->key_storage = wi_ctx_db ()->wd_primary_dbs;
   if (prev_sc)
     {
-      dbe_key_t * prev = sch_id_to_key (prev_sc, k->key_id);
+      dbe_key_t *prev = sch_id_to_key (prev_sc, k->key_id);
       k->key_fragments = prev->key_fragments;
     }
   else
@@ -2003,13 +1974,10 @@ sch_create_meta_seed (dbe_schema_t * sc, dbe_schema_t * prev_sc)
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_TBL, CI_KEYS_TBL, DV_SHORT_STRING));
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_KEY, CI_KEYS_KEY, DV_SHORT_STRING));
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_ID, CI_KEYS_ID, DV_LONG_INT));
-  DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_SIGNIFICANT, CI_KEYS_SIGNIFICANT,
-      DV_SHORT_INT));
-  DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_CLUSTER_ON_ID ,CI_KEYS_CLUSTER_ON_ID,
-      DV_SHORT_INT));
+  DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_SIGNIFICANT, CI_KEYS_SIGNIFICANT, DV_SHORT_INT));
+  DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_CLUSTER_ON_ID, CI_KEYS_CLUSTER_ON_ID, DV_SHORT_INT));
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_IS_MAIN, CI_KEYS_IS_MAIN, DV_SHORT_INT));
-  DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_IS_OBJECT_ID, CI_KEYS_IS_OBJECT_ID,
-      DV_SHORT_INT));
+  DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_IS_OBJECT_ID, CI_KEYS_IS_OBJECT_ID, DV_SHORT_INT));
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_IS_UNIQUE, CI_KEYS_IS_UNIQUE, DV_SHORT_INT));
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_MIGRATE_TO, CI_KEYS_MIGRATE_TO, DV_LONG_INT));
   DEFAULT_NULL (dbe_column_add (tb_keys, CN_KEYS_SUPER_ID, CI_KEYS_SUPER_ID, DV_LONG_INT));
@@ -2020,8 +1988,7 @@ sch_create_meta_seed (dbe_schema_t * sc, dbe_schema_t * prev_sc)
 
   DEFAULT_NULL (dbe_column_add (tb_key_parts, CN_KPARTS_ID, CI_KPARTS_ID, DV_LONG_INT));
   DEFAULT_NULL (dbe_column_add (tb_key_parts, CN_KPARTS_N, CI_KPARTS_N, DV_SHORT_INT));
-  DEFAULT_NULL (dbe_column_add (tb_key_parts, CN_KPARTS_COL_ID, CI_KPARTS_COL_ID,
-      DV_LONG_INT));
+  DEFAULT_NULL (dbe_column_add (tb_key_parts, CN_KPARTS_COL_ID, CI_KPARTS_COL_ID, DV_LONG_INT));
 
   DEFAULT_NULL (dbe_column_add (tb_collations, CN_COLLATIONS_NAME, CI_COLLATIONS_NAME, DV_SHORT_STRING));
   DEFAULT_NULL (dbe_column_add (tb_collations, CN_COLLATIONS_WIDE, CI_COLLATIONS_WIDE, DV_SHORT_INT));
@@ -2041,12 +2008,12 @@ sch_create_meta_seed (dbe_schema_t * sc, dbe_schema_t * prev_sc)
   DEFAULT_NULL (dbe_column_add (tb_frags, CN_FRAGS_STORAGE, CI_FRAGS_STORAGE, DV_STRING));
   DEFAULT_NULL (dbe_column_add (tb_frags, CN_FRAGS_SERVER, CI_FRAGS_SERVER, DV_STRING));
 
-  DEFAULT_NULL (dbe_column_add (tb_udt, CN_UDT_NAME	  , CI_UDT_NAME	      , DV_STRING));
-  DEFAULT_NULL (dbe_column_add (tb_udt, CN_UDT_PARSE_TREE , CI_UDT_PARSE_TREE , DV_BLOB));
-  col = dbe_column_add (tb_udt, CN_UDT_ID	  , CI_UDT_ID	      , DV_LONG_INT);
+  DEFAULT_NULL (dbe_column_add (tb_udt, CN_UDT_NAME, CI_UDT_NAME, DV_STRING));
+  DEFAULT_NULL (dbe_column_add (tb_udt, CN_UDT_PARSE_TREE, CI_UDT_PARSE_TREE, DV_BLOB));
+  col = dbe_column_add (tb_udt, CN_UDT_ID, CI_UDT_ID, DV_LONG_INT);
   DEFAULT_NULL (col);
   col->col_is_autoincrement = 1;
-  DEFAULT_NULL (dbe_column_add (tb_udt, CN_UDT_MIGRATE_TO , CI_UDT_MIGRATE_TO , DV_LONG_INT));
+  DEFAULT_NULL (dbe_column_add (tb_udt, CN_UDT_MIGRATE_TO, CI_UDT_MIGRATE_TO, DV_LONG_INT));
 
   key_add_part (key_cols_id, CI_COLS_COL_ID);
   key_add_part (key_cols_id, CI_COLS_TBL);
@@ -2149,7 +2116,7 @@ sch_create_meta_seed (dbe_schema_t * sc, dbe_schema_t * prev_sc)
 void
 dbe_key_sub_open (dbe_key_t * key)
 {
-  dbe_key_t * sup = key;
+  dbe_key_t *sup = key;
   while (sup->key_supers)
     sup = (dbe_key_t *) sup->key_supers->data;
   key->key_fragments = sup->key_fragments;
@@ -2162,9 +2129,9 @@ wi_open_keys (dbe_schema_t * sc, int is_elastic)
   dk_hash_iterator_t hit;
   ptrlong id, k;
   dk_hash_iterator (&hit, wi_inst.wi_schema->sc_id_to_key);
-  while (dk_hit_next (&hit, (void**) &id, (void**) &k))
+  while (dk_hit_next (&hit, (void **) &id, (void **) &k))
     {
-      dbe_key_t * key = (dbe_key_t *) k;
+      dbe_key_t *key = (dbe_key_t *) k;
       if (!key->key_key_fixed && !key->key_key_var)
 	{
 	  if (!is_elastic)
@@ -2176,9 +2143,9 @@ wi_open_keys (dbe_schema_t * sc, int is_elastic)
 	dbe_key_open (key);
     }
   dk_hash_iterator (&hit, wi_inst.wi_schema->sc_id_to_key);
-  while (dk_hit_next (&hit, (void**) &id, (void**) &k))
+  while (dk_hit_next (&hit, (void **) &id, (void **) &k))
     {
-      dbe_key_t * key = (dbe_key_t *) k;
+      dbe_key_t *key = (dbe_key_t *) k;
       if (key->key_supers && is_elastic == key->key_is_elastic)
 	dbe_key_sub_open (key);
     }
@@ -2189,7 +2156,7 @@ dbe_schema_t *
 isp_read_schema (lock_trx_t * lt)
 {
   caddr_t err;
-  dk_set_t err_tables = NULL; /* list of table names with errors in reading schema. Will be undefd */
+  dk_set_t err_tables = NULL;	/* list of table names with errors in reading schema. Will be undefd */
   buffer_desc_t *buf_cols, *buf_keys, *buf_kparts, *buf_collations, *buf_charsets, *buf_udt;
   dbe_schema_t *sc;
   it_cursor_t *itc_cols = itc_create (NULL, lt);
@@ -2198,7 +2165,7 @@ isp_read_schema (lock_trx_t * lt)
   it_cursor_t *itc_collations = itc_cols;
   it_cursor_t *itc_charsets = itc_cols;
   it_cursor_t *itc_udt = itc_cols;
-  dbe_schema_t * prev_sc = wi_inst.wi_schema;
+  dbe_schema_t *prev_sc = wi_inst.wi_schema;
 
   sc = dbe_schema_create (NULL);
   sch_create_meta_seed (sc, prev_sc);
@@ -2206,7 +2173,6 @@ isp_read_schema (lock_trx_t * lt)
 
   if (strchr (wi_inst.wi_open_mode, 'a'))
     return sc;
-
 #ifdef UDT_HASH_DEBUG
   dbg_udt_print_class_hash (isp_schema (NULL), "before table read", NULL);
 #endif
@@ -2223,8 +2189,7 @@ isp_read_schema (lock_trx_t * lt)
 	caddr_t udt_parse_tree = itc_box_column (itc_udt, buf_udt,
 	    CI_UDT_PARSE_TREE, NULL);
 	long udt_id = itc_long_column (itc_udt, buf_udt, CI_UDT_ID) + 1;
-	caddr_t udt_migrate_to_box =
-	    itc_box_column (itc_udt, buf_udt, CI_UDT_MIGRATE_TO, NULL);
+	caddr_t udt_migrate_to_box = itc_box_column (itc_udt, buf_udt, CI_UDT_MIGRATE_TO, NULL);
 	long udt_migrate_to = 0;
 	caddr_t udt_parse_tree_text = udt_parse_tree;
 	caddr_t udt_parse_tree_box;
@@ -2241,8 +2206,7 @@ isp_read_schema (lock_trx_t * lt)
 	    dk_free_box (udt_parse_tree);
 	    if (err)
 	      {
-		log_error (
-		    "Error reading user defined type %s : %s: %s."
+		log_error ("Error reading user defined type %s : %s: %s."
 		    "It will not be defined. Drop the type and recreate it.", udt_name,
 		    ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING]);
 		dk_free_tree (err);
@@ -2255,21 +2219,18 @@ isp_read_schema (lock_trx_t * lt)
 	udt_parse_tree_box = box_deserialize_string (udt_parse_tree_text, 0, 0);
 	dk_free_box (udt_parse_tree_text);
 	cls = sch_name_to_type (sc, udt_name);
-	new_cls = udt_compile_class_def (sc, udt_parse_tree_box, cls, &err, 1,
-	    lt->lt_client, udt_id, udt_migrate_to);
+	new_cls = udt_compile_class_def (sc, udt_parse_tree_box, cls, &err, 1, lt->lt_client, udt_id, udt_migrate_to);
 	if (new_cls != cls)
 	  {
 	    id_casemode_hash_set (sc->sc_name_to_object[sc_to_type], new_cls->scl_qualifier_name,
-		new_cls->scl_owner,
-		(caddr_t) &new_cls);
+		new_cls->scl_owner, (caddr_t) & new_cls);
 	  }
 	new_cls->scl_id = udt_id;
 	new_cls->scl_migrate_to = udt_migrate_to;
 	dk_free_tree (udt_parse_tree_box);
 	if (err && IS_BOX_POINTER (err))
 	  {
-	    log_error ("Error while compiling the type %.200s: [%s] %.750s", udt_name,
-		ERR_STATE (err), ERR_MESSAGE (err));
+	    log_error ("Error while compiling the type %.200s: [%s] %.750s", udt_name, ERR_STATE (err), ERR_MESSAGE (err));
 	    dk_free_tree (err);
 	    err = NULL;
 	  }
@@ -2282,14 +2243,13 @@ isp_read_schema (lock_trx_t * lt)
       }
     err = NULL;
 #ifdef UDT_HASH_DEBUG
-  dbg_udt_print_class_hash (isp_schema (NULL), "after table read", NULL);
+    dbg_udt_print_class_hash (isp_schema (NULL), "after table read", NULL);
 #endif
     itc_page_leave (itc_udt, buf_udt);
     udt_resolve_instantiable (sc, &err);
     if (err && IS_BOX_POINTER (err))
       {
-	log_error ("Error : [%s] %.100s",
-	    ERR_STATE (err), ERR_MESSAGE (err));
+	log_error ("Error : [%s] %.100s", ERR_STATE (err), ERR_MESSAGE (err));
 	dk_free_tree (err);
 	err = NULL;
       }
@@ -2311,9 +2271,10 @@ isp_read_schema (lock_trx_t * lt)
 	long coll_wide = itc_long_column (itc_collations, buf_collations,
 	    CI_COLLATIONS_WIDE);
 	dtp_t coll_dtp = box_tag (coll_table);
-	NEW_VARZ(collation_t, coll);
+	NEW_VARZ (collation_t, coll);
 	coll->co_name = coll_name;
-	switch (coll_dtp) {
+	switch (coll_dtp)
+	  {
 	  case DV_BLOB_HANDLE:
 	  case DV_BLOB_WIDE_HANDLE:
 	    {
@@ -2321,8 +2282,7 @@ isp_read_schema (lock_trx_t * lt)
 	      coll->co_table = safe_blob_to_string (lt, coll_table, &err);
 	      if (err)
 		{
-		  log_error (
-		      "Error reading collation %s definition : %s: %s."
+		  log_error ("Error reading collation %s definition : %s: %s."
 		      "It will not be defined. Drop the collation and recreate it.", coll_name,
 		      ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING]);
 		  dk_free_tree (err);
@@ -2332,10 +2292,10 @@ isp_read_schema (lock_trx_t * lt)
 	    }
 	  default:
 	    coll->co_table = dk_alloc_box (256, DV_C_STRING);
-	    if (coll_table && box_length(coll_table) >= 255 && coll_wide == 0)
-	      memcpy(coll->co_table, coll_table, 256);
+	    if (coll_table && box_length (coll_table) >= 255 && coll_wide == 0)
+	      memcpy (coll->co_table, coll_table, 256);
 	    break;
-	};
+	  };
 	id_hash_set (global_collations, (caddr_t) & coll_name, (caddr_t) & coll);
 	dk_free_box (coll_table);
       }
@@ -2366,14 +2326,13 @@ isp_read_schema (lock_trx_t * lt)
 	  {
 	    cs_aliases_array = (caddr_t *) box_deserialize_string (cs_aliases, 0, 0);
 	  }
-       else if (IS_BLOB_HANDLE (cs_aliases))
+	else if (IS_BLOB_HANDLE (cs_aliases))
 	  {
 	    caddr_t str, err = NULL;
-            str = safe_blob_to_string (lt, cs_aliases, &err);
+	    str = safe_blob_to_string (lt, cs_aliases, &err);
 	    if (err)
 	      {
-		log_error (
-		    "Error reading charset %s definition: %s: %s."
+		log_error ("Error reading charset %s definition: %s: %s."
 		    "It will not be defined. Drop the charset and recreate it.", cs_name,
 		    ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING]);
 		dk_free_tree (err);
@@ -2389,20 +2348,19 @@ isp_read_schema (lock_trx_t * lt)
 	    cs_aliases_array = (caddr_t *) dk_alloc_box (0, DV_ARRAY_OF_POINTER);
 	  }
 	wcs_table = (wchar_t *) (DV_TYPE_OF (cs_table) == DV_DB_NULL ? NULL : cs_table);
-	wcharset = wide_charset_create (cs_name, wcs_table,
-	    box_length (cs_table) / sizeof (wchar_t) - 1, cs_aliases_array);
+	wcharset = wide_charset_create (cs_name, wcs_table, box_length (cs_table) / sizeof (wchar_t) - 1, cs_aliases_array);
 
 	if (!default_charset && default_charset_name && !strcmp (default_charset_name, cs_name))
 	  default_charset = wcharset;
-	id_hash_set (global_wide_charsets, (caddr_t) &cs_name, (caddr_t) &wcharset);
+	id_hash_set (global_wide_charsets, (caddr_t) & cs_name, (caddr_t) & wcharset);
 
 	DO_BOX (caddr_t, alias_name, inx, cs_aliases_array)
-	  {
-	    if (!default_charset && default_charset_name && !strcmp (default_charset_name, alias_name))
-	      default_charset = wcharset;
-	    alias_name = box_dv_short_string (alias_name);
-	    id_hash_set (global_wide_charsets, (caddr_t) &alias_name, (caddr_t) &wcharset);
-	  }
+	{
+	  if (!default_charset && default_charset_name && !strcmp (default_charset_name, alias_name))
+	    default_charset = wcharset;
+	  alias_name = box_dv_short_string (alias_name);
+	  id_hash_set (global_wide_charsets, (caddr_t) & alias_name, (caddr_t) & wcharset);
+	}
 	END_DO_BOX;
 	dk_free_box (cs_table);
 	dk_free_tree (cs_aliases);
@@ -2413,8 +2371,7 @@ isp_read_schema (lock_trx_t * lt)
     buf_cols = itc_reset (itc_cols);
     while (DVC_MATCH == itc_next (itc_cols, &buf_cols))
       {
-	char *tb_name = sch_complete_table_name (
-	    itc_box_column (itc_cols, buf_cols, CI_COLS_TBL, NULL));
+	char *tb_name = sch_complete_table_name (itc_box_column (itc_cols, buf_cols, CI_COLS_TBL, NULL));
 	char *col_name = itc_box_column (itc_cols, buf_cols,
 	    CI_COLS_COL, NULL);
 	oid_t col_id = itc_long_column (itc_cols, buf_cols, CI_COLS_COL_ID);
@@ -2436,21 +2393,16 @@ isp_read_schema (lock_trx_t * lt)
       {
 	oid_t col_id = itc_long_column (itc_cols, buf_cols, CI_COLS_COL_ID);
 	dtp_t dtp = (dtp_t) itc_long_column (itc_cols, buf_cols, CI_COLS_DTP);
-	dbe_column_t *col = (dbe_column_t *)
-	gethash ((void *) (ptrlong) col_id, sc->sc_id_to_col);
+	dbe_column_t *col = (dbe_column_t *) gethash ((void *) (ptrlong) col_id, sc->sc_id_to_col);
 
 	if (col)
 	  {
 	    caddr_t col_default;
 	    col->col_sqt.sqt_col_dtp = col->col_sqt.sqt_dtp = dtp;
-	    col->col_scale = (char) itc_long_column (itc_cols, buf_cols,
-		CI_COLS_SCALE);
-	    col->col_precision = itc_long_column (itc_cols, buf_cols,
-						  CI_COLS_PREC);
-	    col->col_non_null = (1 == itc_long_column (itc_cols, buf_cols,
-		CI_COLS_NULLABLE));
-	    col_default = itc_box_column (itc_cols, buf_cols,
-		CI_COLS_DEFAULT, NULL);
+	    col->col_scale = (char) itc_long_column (itc_cols, buf_cols, CI_COLS_SCALE);
+	    col->col_precision = itc_long_column (itc_cols, buf_cols, CI_COLS_PREC);
+	    col->col_non_null = (1 == itc_long_column (itc_cols, buf_cols, CI_COLS_NULLABLE));
+	    col_default = itc_box_column (itc_cols, buf_cols, CI_COLS_DEFAULT, NULL);
 	    if (DV_TYPE_OF (col_default) == DV_SHORT_STRING || DV_TYPE_OF (col_default) == DV_LONG_STRING)
 	      {
 		caddr_t def, err_ret = NULL;
@@ -2472,10 +2424,8 @@ isp_read_schema (lock_trx_t * lt)
 	      col->col_default = dk_alloc_box (0, DV_DB_NULL);
 	    dk_free_tree (col_default);
 
-	    col->col_options = (caddr_t *) itc_box_column (itc_cols, buf_cols,
-		CI_COLS_OPTIONS, NULL);
-	    col->col_check = itc_box_column (itc_cols, buf_cols,
-		CI_COLS_CHECK, NULL);
+	    col->col_options = (caddr_t *) itc_box_column (itc_cols, buf_cols, CI_COLS_OPTIONS, NULL);
+	    col->col_check = itc_box_column (itc_cols, buf_cols, CI_COLS_CHECK, NULL);
 	    dbe_column_parse_options (col);
 	  }
       }
@@ -2488,8 +2438,7 @@ isp_read_schema (lock_trx_t * lt)
 
     while (DVC_MATCH == itc_next (itc_keys, &buf_keys))
       {
-	char *tb_name = sch_complete_table_name (
-	    itc_box_column (itc_keys, buf_keys, CI_KEYS_TBL, NULL));
+	char *tb_name = sch_complete_table_name (itc_box_column (itc_keys, buf_keys, CI_KEYS_TBL, NULL));
 	char *key_name = itc_box_column (itc_keys, buf_keys,
 	    CI_KEYS_KEY, NULL);
 	caddr_t key_storage = itc_box_column (itc_keys, buf_keys,
@@ -2509,28 +2458,24 @@ isp_read_schema (lock_trx_t * lt)
 	    CI_KEYS_DECL_PARTS);
 	dbe_key_t *key;
 	dbe_table_t *tb = sch_name_to_table (sc, tb_name);
-	dbe_storage_t * dbs = wd_storage (wi_ctx_db (), key_storage, 1);
+	dbe_storage_t *dbs = wd_storage (wi_ctx_db (), key_storage, 1);
 	if (!dbs)
 	  {
 	    log_error ("Storage unit %s in %s not open.", key_storage, wi_ctx_db ()->wd_qualifier);
-	    dk_set_push (&err_tables, (void*) box_copy (tb_name));
+	    dk_set_push (&err_tables, (void *) box_copy (tb_name));
 	    continue;
 	  }
 	if (!tb)
 	  tb = dbe_table_create (sc, tb_name);
 
-	key = dbe_key_create (sc, tb, key_name, id, n, cluster_on_id, is_main,
-	    migrate_to, super_id);
+	key = dbe_key_create (sc, tb, key_name, id, n, cluster_on_id, is_main, migrate_to, super_id);
 	key->key_storage = dbs;
 	if (DBS_ELASTIC == dbs->dbs_type)
 	  key->key_is_elastic = 1;
-	key->key_is_unique = (int) itc_long_column (itc_keys, buf_keys,
-	    CI_KEYS_IS_UNIQUE);
+	key->key_is_unique = (int) itc_long_column (itc_keys, buf_keys, CI_KEYS_IS_UNIQUE);
 	key->key_decl_parts = d_parts;
-	key->key_options = (caddr_t *) itc_box_column (itc_keys, buf_keys,
-					   CI_KEYS_OPTIONS, NULL);
-	key->key_version =  itc_long_column (itc_keys, buf_keys,
-					   CI_KEYS_VERSION);
+	key->key_options = (caddr_t *) itc_box_column (itc_keys, buf_keys, CI_KEYS_OPTIONS, NULL);
+	key->key_version = itc_long_column (itc_keys, buf_keys, CI_KEYS_VERSION);
 	dk_free_box (tb_name);
 	dk_free_box (key_name);
 	dk_free_box (key_storage);
@@ -2552,16 +2497,13 @@ isp_read_schema (lock_trx_t * lt)
 	    sc->sc_id_to_col);
 #ifndef NO_META_DEBUG
 	dbg_printf (("  %s, %d: %s,  %s\n",
-	    ((NULL == key) ? "<NULL key>" : key->key_name),
-	    key_id,
-	    ((NULL == key) ? "<NULL table>" : key->key_table->tb_name),
-	    ((NULL == col) ? "<NULL column>" : col->col_name)
-	    ));
+		((NULL == key) ? "<NULL key>" : key->key_name),
+		key_id,
+		((NULL == key) ? "<NULL table>" : key->key_table->tb_name), ((NULL == col) ? "<NULL column>" : col->col_name)));
 #endif
 	if (tb && col && key)
 	  {
-	    id_hash_set (tb->tb_name_to_col, (caddr_t) & col->col_name,
-		(caddr_t) & col);
+	    id_hash_set (tb->tb_name_to_col, (caddr_t) & col->col_name, (caddr_t) & col);
 	    key_add_part (key, col_id);
 	  }
       }
@@ -2616,10 +2558,10 @@ unbox_or_null (caddr_t box)
     {
       dtp_t dtp = box_tag (box);
       if (DV_LONG_INT == dtp)
-	return (long)(unbox (box));
+	return (long) (unbox (box));
       return 0;
     }
-  return (long)((ptrlong) box);
+  return (long) ((ptrlong) box);
 }
 
 
@@ -2634,10 +2576,10 @@ sch_drop_table (dbe_schema_t * sc, char *tb_name)
 	{
 	  /* if schema inconsistent, could be there's no PK. check for safety */
 	  DO_SET (dbe_column_t *, col, &tb->tb_primary_key->key_parts)
-	    {
-	      if (col->col_defined_in == tb)
-		remhash ((void *) (ptrlong) col->col_id, sc->sc_id_to_col);
-	    }
+	  {
+	    if (col->col_defined_in == tb)
+	      remhash ((void *) (ptrlong) col->col_id, sc->sc_id_to_col);
+	  }
 	  END_DO_SET ();
 	  tb_mark_affected (tb_name);
 	}
@@ -2666,15 +2608,15 @@ key_upd_frag_keys (dbe_key_t * key)
 {
   int inx;
   DO_BOX (dbe_key_frag_t *, kf, inx, key->key_fragments)
-    {
-      if (kf)
+  {
+    if (kf)
       kf->kf_it->it_key = key;
-    }
+  }
   END_DO_BOX;
 }
 
 
-dk_mutex_t * sch_reread_mtx;
+dk_mutex_t *sch_reread_mtx;
 static query_t *tb_qr;
 static query_t *key_qr;
 static query_t *kp_qr;
@@ -2683,13 +2625,12 @@ static query_t *kp_qr;
 caddr_t
 qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
 {
-  dbe_table_t * defined_table = NULL;
-  local_cursor_t * lc = NULL, * kp_lc = NULL;
-  lock_trx_t * lt = qi->qi_trx;
+  dbe_table_t *defined_table = NULL;
+  local_cursor_t *lc = NULL, *kp_lc = NULL;
+  lock_trx_t *lt = qi->qi_trx;
   caddr_t err;
   sch_drop_table (sc, read_tb);
-  err = qr_rec_exec (tb_qr, qi->qi_client, &lc, qi, NULL, 1,
-      ":0", read_tb, QRP_STR);
+  err = qr_rec_exec (tb_qr, qi->qi_client, &lc, qi, NULL, 1, ":0", read_tb, QRP_STR);
   if (err)
     return err;
   /* make */
@@ -2723,7 +2664,7 @@ qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
 	  dk_free_tree (col->col_default);
 	  if (!err_ret)
 	    col->col_default = def;
-	  else /* cannot cast and too late */
+	  else			/* cannot cast and too late */
 	    {
 	      col->col_default = dk_alloc_box (0, DV_DB_NULL);
 	      dk_free_tree (err_ret);
@@ -2747,8 +2688,8 @@ qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
     {
       char *tb_name = sch_complete_table_name (box_copy (lc_nth_col (lc, 0)));
       char *key_name = lc_nth_col (lc, 1);
-      char * key_storage = lc_nth_col (lc, 11);
-      dbe_storage_t * dbs = wd_storage (wi_ctx_db (), key_storage, 1);
+      char *key_storage = lc_nth_col (lc, 11);
+      dbe_storage_t *dbs = wd_storage (wi_ctx_db (), key_storage, 1);
       key_id_t id = (key_id_t) unbox_or_null (lc_nth_col (lc, 2));
       int n = (int) unbox_or_null (lc_nth_col (lc, 3));
       int cluster_on_id = (int) unbox_or_null (lc_nth_col (lc, 4));
@@ -2769,19 +2710,17 @@ qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
 	  defined_table = tb;
 	}
 
-      key = dbe_key_create (sc, tb, key_name, id, n, cluster_on_id, is_main,
-	  migrate_to, super_id);
+      key = dbe_key_create (sc, tb, key_name, id, n, cluster_on_id, is_main, migrate_to, super_id);
       key->key_is_unique = (int) unbox_or_null (lc_nth_col (lc, 7));
       key->key_decl_parts = d_parts;
-      key->key_options = (caddr_t*) box_copy_tree (lc_nth_col (lc, 12));
+      key->key_options = (caddr_t *) box_copy_tree (lc_nth_col (lc, 12));
       key->key_version = unbox (lc_nth_col (lc, 13));
       key->key_storage = dbs;
       if (DBS_ELASTIC == dbs->dbs_type)
 	key->key_is_elastic = 1;
       dk_free_box (tb_name);
 
-      err = qr_rec_exec (kp_qr, qi->qi_client, &kp_lc, qi, NULL, 1,
-	  ":0", (ptrlong) id, QRP_INT);
+      err = qr_rec_exec (kp_qr, qi->qi_client, &kp_lc, qi, NULL, 1, ":0", (ptrlong) id, QRP_INT);
       if (err)
 	return err;
       while (lc_next (kp_lc))
@@ -2791,16 +2730,14 @@ qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
 	  dbe_column_t *col = (dbe_column_t *) gethash ((void *) (ptrlong) col_id, sc->sc_id_to_col);
 #ifndef NO_META_DEBUG
 	  dbg_printf (("  %s, %d: %s,  %s\n",
-	      ((NULL != key) ? key->key_name : "(NULL->key_name)"),
-	      id,
-	      ((NULL != key) ? key->key_table->tb_name : "(NULL->key_table->tb_name)"),
-	      ((NULL != col) ? col->col_name : "(NULL->col_name)")
-	      ));
+		  ((NULL != key) ? key->key_name : "(NULL->key_name)"),
+		  id,
+		  ((NULL != key) ? key->key_table->tb_name : "(NULL->key_table->tb_name)"),
+		  ((NULL != col) ? col->col_name : "(NULL->col_name)")));
 #endif
 	  if (tb && col && key)
 	    {
-	      id_hash_set (tb->tb_name_to_col, (caddr_t) & col->col_name,
-		  (caddr_t) & col);
+	      id_hash_set (tb->tb_name_to_col, (caddr_t) & col->col_name, (caddr_t) & col);
 	      key_add_part (key, col_id);
 	    }
 	}
@@ -2817,16 +2754,16 @@ qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
   if (err)
     return err;
   if (!defined_table)
-    return NULL; /* in the case of drop table */
+    return NULL;		/* in the case of drop table */
   DO_SET (dbe_key_t *, k, &defined_table->tb_keys)
-    {
-      dbe_key_layout (k, sc);
-    }
+  {
+    dbe_key_layout (k, sc);
+  }
   END_DO_SET ();
   DO_SET (dbe_key_t *, k, &defined_table->tb_old_keys)
-    {
-      dbe_key_layout (k, sc);
-    }
+  {
+    dbe_key_layout (k, sc);
+  }
   END_DO_SET ();
   err = sec_read_grants (qi->qi_client, qi, read_tb, 0);
   if (err)
@@ -2845,65 +2782,65 @@ qi_read_table_schema_1 (query_instance_t * qi, char *read_tb, dbe_schema_t * sc)
 
 
 static void
-qi_read_table_drop_deleted_keys (dbe_table_t *old_table, dbe_table_t *defined_table)
+qi_read_table_drop_deleted_keys (dbe_table_t * old_table, dbe_table_t * defined_table)
 {
   DO_SET (dbe_key_t *, old_key, &old_table->tb_keys)
+  {
+    int old_key_present = 0;
+    DO_SET (dbe_key_t *, new_key, &defined_table->tb_keys)
     {
-      int old_key_present = 0;
-      DO_SET (dbe_key_t *, new_key, &defined_table->tb_keys)
+      if (new_key->key_id == old_key->key_id)
 	{
-	  if (new_key->key_id == old_key->key_id)
-	    {
-	      old_key_present = 1;
-	      break;
-	    }
+	  old_key_present = 1;
+	  break;
 	}
-      END_DO_SET ();
-      DO_SET (dbe_key_t *, new_key, &defined_table->tb_old_keys)
-	{
-	  if (new_key->key_id == old_key->key_id)
-	    {
-	      old_key_present = 1;
-	      break;
-	    }
-	}
-      END_DO_SET ();
-      if (!old_key_present)
-	key_dropped (old_key);
     }
-  END_DO_SET();
+    END_DO_SET ();
+    DO_SET (dbe_key_t *, new_key, &defined_table->tb_old_keys)
+    {
+      if (new_key->key_id == old_key->key_id)
+	{
+	  old_key_present = 1;
+	  break;
+	}
+    }
+    END_DO_SET ();
+    if (!old_key_present)
+      key_dropped (old_key);
+  }
+  END_DO_SET ();
   DO_SET (dbe_key_t *, old_key, &old_table->tb_old_keys)
+  {
+    int old_key_present = 0;
+    DO_SET (dbe_key_t *, new_key, &defined_table->tb_keys)
     {
-      int old_key_present = 0;
-      DO_SET (dbe_key_t *, new_key, &defined_table->tb_keys)
+      if (new_key->key_id == old_key->key_id)
 	{
-	  if (new_key->key_id == old_key->key_id)
-	    {
-	      old_key_present = 1;
-	      break;
-	    }
+	  old_key_present = 1;
+	  break;
 	}
-      END_DO_SET ();
-      DO_SET (dbe_key_t *, new_key, &defined_table->tb_old_keys)
-	{
-	  if (new_key->key_id == old_key->key_id)
-	    {
-	      old_key_present = 1;
-	      break;
-	    }
-	}
-      END_DO_SET ();
-      if (!old_key_present)
-	key_dropped (old_key);
     }
-  END_DO_SET();
+    END_DO_SET ();
+    DO_SET (dbe_key_t *, new_key, &defined_table->tb_old_keys)
+    {
+      if (new_key->key_id == old_key->key_id)
+	{
+	  old_key_present = 1;
+	  break;
+	}
+    }
+    END_DO_SET ();
+    if (!old_key_present)
+      key_dropped (old_key);
+  }
+  END_DO_SET ();
 }
 
 
 void
 qi_read_table_schema_old_keys (query_instance_t * qi, char *read_tb, dk_set_t old_keys)
 {
-  dbe_table_t * defined_table, *old_table;
+  dbe_table_t *defined_table, *old_table;
   caddr_t err;
   lock_trx_t *lt = qi->qi_trx;
   dbe_schema_t *sc = wi_inst.wi_schema;
@@ -2912,17 +2849,14 @@ qi_read_table_schema_old_keys (query_instance_t * qi, char *read_tb, dk_set_t ol
     {
       tb_qr = sql_compile_static (COLS_TEXT, lt->lt_client, NULL, 0);
       key_qr = sql_compile_static (KEYS_TEXT, lt->lt_client, NULL, 0);
-      kp_qr = sql_compile_static (
-	  "select KP_COL from DB.DBA.SYS_KEY_PARTS where KP_KEY_ID = ?",
-	  lt->lt_client, NULL, 0);
+      kp_qr = sql_compile_static ("select KP_COL from DB.DBA.SYS_KEY_PARTS where KP_KEY_ID = ?", lt->lt_client, NULL, 0);
     }
 
   old_table = sch_name_to_table (wi_inst.wi_schema, read_tb);
   lt->lt_pending_schema = dbe_schema_copy (sc);
   err = qi_read_table_schema_1 (qi, read_tb, lt->lt_pending_schema);
 
-  if (!qi->qi_trx->lt_branch_of && !old_keys
-      && !qi->qi_client->cli_in_daq)
+  if (!qi->qi_trx->lt_branch_of && !old_keys && !qi->qi_client->cli_in_daq)
     {
       ddl_commit_trx (qi);
       if (!qi->qi_client->cli_is_log)
@@ -2936,94 +2870,100 @@ qi_read_table_schema_old_keys (query_instance_t * qi, char *read_tb, dk_set_t ol
       if (!old_table)
 	return;
       DO_SET (dbe_key_t *, key, &old_table->tb_keys)
-	{
-	  key_dropped (key);
-	}
-      END_DO_SET();
+      {
+	key_dropped (key);
+      }
+      END_DO_SET ();
       return;
     }
   else if (old_table)
     qi_read_table_drop_deleted_keys (old_table, defined_table);
   DO_SET (dbe_key_t *, k, &defined_table->tb_keys)
-    {
-      if (old_table)
+  {
+    if (old_table)
+      {
+	DO_SET (dbe_key_t *, old_k, &old_table->tb_keys)
 	{
-	  DO_SET (dbe_key_t *, old_k, &old_table->tb_keys)
+	  if (!strcmp (old_k->key_name, k->key_name))
 	    {
-	      if (!strcmp (old_k->key_name, k->key_name))
+	      if (k->key_storage == old_k->key_storage)
 		{
-		  if (k->key_storage == old_k->key_storage)
-		    {
 		  k->key_fragments = old_k->key_fragments;
 		  key_upd_frag_keys (k);
-		    }
-		  else
-		    {
-		      /* alter index from one storage to another, i.e. from default to elastic */
-		      key_dropped (old_k);
-		      dbe_key_open (k);
-		    }
-		  goto next;
 		}
-	    }
-	  END_DO_SET();
-	}
-      if (old_keys)
-	{
-	  s_node_t *iter = old_keys;
-	  while (iter)
-	    {
-	      key_id_t old_k_id = (key_id_t) ((ptrlong) (iter->data));
-	      dbe_key_frag_t **old_kfs = (dbe_key_frag_t **)iter->next->data;
-	      if (old_k_id == k->key_id)
+	      else
 		{
-		  int inx;
-		  k->key_fragments = old_kfs;
-		  DO_BOX (dbe_key_frag_t *, kf, inx, k->key_fragments)
-		    {
-		      char str[MAX_NAME_LEN * 4];
-		      if (!kf)
-			continue; /* array has a kf at the place of slice no if slice hosted here */
-		      IN_TXN;
-		      dbs_registry_set (kf->kf_it->it_storage, kf->kf_name, NULL, 1);
-		      LEAVE_TXN;
-		      snprintf (str, sizeof (str), "__key__%s:%s:%d", k->key_table->tb_name, k->key_name, inx + 1);
-		      dk_free_box (kf->kf_name);
-		      kf->kf_name = box_dv_short_string (str);
-		      kf->kf_it->it_key = k;
-		      it_rename_col_ems (kf->kf_it, k->key_name);
-		      if (kf->kf_it->it_extent_map != kf->kf_it->it_storage->dbs_extent_map)
-			{
-			  snprintf (str, sizeof (str), "__EM:%s", kf->kf_name);
-			  em_rename (kf->kf_it->it_extent_map, str);
-			}
-		    }
-		  END_DO_BOX;
-		  goto next;
+		  /* alter index from one storage to another, i.e. from default to elastic */
+		  key_dropped (old_k);
+		  dbe_key_open (k);
 		}
-	      iter = iter->next->next;
+	      goto next;
 	    }
 	}
-      if (k->key_supers)
-	dbe_key_sub_open (k);
-      else
-	dbe_key_open (k);
-    next: ;
+	END_DO_SET ();
+      }
+    if (old_keys)
+      {
+	s_node_t *iter = old_keys;
+	while (iter)
+	  {
+	    key_id_t old_k_id = (key_id_t) ((ptrlong) (iter->data));
+	    dbe_key_frag_t **old_kfs = (dbe_key_frag_t **) iter->next->data;
+	    if (old_k_id == k->key_id)
+	      {
+		int inx;
+		k->key_fragments = old_kfs;
+		DO_BOX (dbe_key_frag_t *, kf, inx, k->key_fragments)
+		{
+		  char str[MAX_NAME_LEN * 4];
+		  if (!kf)
+		    continue;	/* array has a kf at the place of slice no if slice hosted here */
+		  IN_TXN;
+		  dbs_registry_set (kf->kf_it->it_storage, kf->kf_name, NULL, 1);
+		  LEAVE_TXN;
+		  snprintf (str, sizeof (str), "__key__%s:%s:%d", k->key_table->tb_name, k->key_name, inx + 1);
+		  dk_free_box (kf->kf_name);
+		  kf->kf_name = box_dv_short_string (str);
+		  kf->kf_it->it_key = k;
+		  it_rename_col_ems (kf->kf_it, k->key_name);
+		  if (kf->kf_it->it_extent_map != kf->kf_it->it_storage->dbs_extent_map)
+		    {
+		      snprintf (str, sizeof (str), "__EM:%s", kf->kf_name);
+		      em_rename (kf->kf_it->it_extent_map, str);
+		    }
+		}
+		END_DO_BOX;
+		goto next;
+	      }
+	    iter = iter->next->next;
+	  }
+      }
+    if (k->key_supers)
+      dbe_key_sub_open (k);
+    else
+      dbe_key_open (k);
+  next:;
 
-    }
+  }
   END_DO_SET ();
   DO_SET (dbe_key_t *, k, &defined_table->tb_old_keys)
-    {
-      dbe_key_sub_open (k);
-    }
-  END_DO_SET();
+  {
+    dbe_key_sub_open (k);
+  }
+  END_DO_SET ();
 }
 
 
 void
 qi_read_table_schema (query_instance_t * qi, char *read_tb)
 {
+  caddr_t err;
   qi_read_table_schema_old_keys (qi, read_tb, NULL);
+  err =
+      qi_sel_for_effect (qi,
+      "select  count (ft_file_table (FSt_table, fst_file, fst_options, 1)) from db..sys_file_table where fst_table = ?", 1, ":0",
+      read_tb, QRP_STR);
+  dk_free_tree (err);
 }
 
 
@@ -3036,7 +2976,7 @@ dbe_key_insert_spec (dbe_key_t * key)
 
   for (n = 0; n < key->key_n_significant; n++)
     {
-      dbe_column_t *col = (dbe_column_t *) dk_set_nth(key->key_parts, n);
+      dbe_column_t *col = (dbe_column_t *) dk_set_nth (key->key_parts, n);
       NEW_VARZ (search_spec_t, sp);
 
       sp->sp_min = inx;
@@ -3071,8 +3011,7 @@ key_ensure_visible_parts (dbe_key_t * key)
   {
     if (n_cols >= sizeof (cols) / sizeof (caddr_t))
       break;
-    if (0 != strcmp (col->col_name, "_IDN")
-	)
+    if (0 != strcmp (col->col_name, "_IDN"))
       {
 	cols[n_cols++] = col;
       }
@@ -3143,7 +3082,7 @@ sch_set_view_def (dbe_schema_t * sc, char *name, caddr_t tree)
   if (!sc_name_to_view)
     sc_name_to_view = id_str_hash_create (201);
   else
-    old_tree = (caddr_t *) id_hash_get (sc_name_to_view, (caddr_t) &name);
+    old_tree = (caddr_t *) id_hash_get (sc_name_to_view, (caddr_t) & name);
 
   if (old_tree)
     {
@@ -3160,6 +3099,3 @@ sch_set_view_def (dbe_schema_t * sc, char *name, caddr_t tree)
       id_hash_set (sc_name_to_view, (caddr_t) & name, (caddr_t) & tree);
     }
 }
-
-
-

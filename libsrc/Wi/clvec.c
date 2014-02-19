@@ -384,6 +384,7 @@ void
 dc_append_dre (data_col_t * dc, dc_read_t * dre)
 {
 }
+
 int cl_low_water_default = 1;
 
 
@@ -394,21 +395,21 @@ void
 clib_row_boxes (cll_in_box_t * clib)
 {
   /* Take current row of data from clib put in boxes and increment current */
-  cl_req_group_t * clrg = clib->clib_group;
+  cl_req_group_t *clrg = clib->clib_group;
   caddr_t *inst = clrg->clrg_inst;
-  caddr_t *       row = clib->clib_first._.row.cols;
+  caddr_t *row = clib->clib_first._.row.cols;
   int inx;
   if (local_cll.cll_this_host == clib->clib_host->ch_id)
     {
       cl_op_t *clo = (cl_op_t *) basket_first (&clib->clib_in_parsed);
       row = clo->_.row.cols;
       DO_BOX (state_slot_t *, ssl, inx, clrg->clrg_itcl->itcl_dfg_qf->qf_inner_out_slots)
-	{
+      {
 	data_col_t *dc = (data_col_t *) clo->_.row.local_dcs[inx];
 	caddr_t val = dc_box (dc, clo->_.row.nth_val);
 	dk_free_tree (row[inx]);
-	  row[inx] = val;
-	}
+	row[inx] = val;
+      }
       END_DO_BOX;
       return;
     }

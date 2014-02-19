@@ -49,28 +49,15 @@
 #define UUID_T_DEFINED
 #include "libutil.h"		/* needed by bif_cfg_* functions */
 #include "statuslog.h"
-#include <sys/stat.h>
-
-#ifdef _SSL
-#include <openssl/md5.h>
-#define MD5Init   MD5_Init
-#define MD5Update MD5_Update
-#define MD5Final  MD5_Final
-#else
 #include "util/md5.h"
-#endif /* _SSL */
+#include <sys/stat.h>
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 
-#include <zlib.h>
-#if MAX_MEM_LEVEL >= 8
-#  define DEF_MEM_LEVEL 8
-#else
-#  define DEF_MEM_LEVEL  MAX_MEM_LEVEL
-#endif
-
+#include "zlib.h"
+#include "zutil.h"
 #include "srvmultibyte.h"
 
 #define FS_MAX_STRING	(10L * 1024L * 1024L)	/* allow files up to 10 MB */
@@ -95,13 +82,14 @@
 #include "datesupp.h"
 #include "langfunc.h"
 
+
 int i18n_wide_file_names = 0;
 encoding_handler_t *i18n_volume_encoding = NULL;
 encoding_handler_t *i18n_volume_emergency_encoding = NULL;
 
 
-extern dk_session_t *http_session_arg (caddr_t * qst, state_slot_t ** args, int nth, const char * func);
-extern dk_session_t *http_session_no_catch_arg (caddr_t * qst, state_slot_t ** args, int nth, const char * func);
+extern dk_session_t *http_session_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func);
+extern dk_session_t *http_session_no_catch_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func);
 extern int dks_read_line (dk_session_t * ses, char *buf, int max);
 
 char *temp_ses_dir;		/* For viconfig.c */
@@ -244,7 +232,7 @@ init_file_acl (void)
   char *p_www_abs_path = www_abs_path;
   static char fdb[PATH_MAX + 1], *pfdb = fdb;
   char tmpdir[PATH_MAX + 1];
-  id_hash_t * sys_files = wi_inst.wi_files;
+  id_hash_t *sys_files = wi_inst.wi_files;
   id_hash_iterator_t it;
   caddr_t *sys_name, *sys_file;
 
@@ -253,9 +241,9 @@ init_file_acl (void)
   init_file_acl_set (allowed_dirs, &a_dirs);
 #if 0
   DO_SET (char *, elm, &a_dirs)
-    {
-      fprintf (stderr, "%s\n", elm);
-    }
+  {
+    fprintf (stderr, "%s\n", elm);
+  }
   END_DO_SET ();
 #endif
   init_file_acl_set (denied_dirs, &d_dirs);
@@ -275,14 +263,11 @@ init_file_acl (void)
 	    if ('/' == fname_tail[0])
 	      fname_tail[0] = '\\';
 	  }
-	p_www_abs_path =
-	    rel_to_abs_path (p_www_abs_path, fname_cvt,
-	    sizeof (www_abs_path));
+	p_www_abs_path = rel_to_abs_path (p_www_abs_path, fname_cvt, sizeof (www_abs_path));
 	dk_free (fname_cvt, fname_cvt_len);
       }
 #else
-      p_www_abs_path =
-	  rel_to_abs_path (p_www_abs_path, www_root, sizeof (www_abs_path));
+      p_www_abs_path = rel_to_abs_path (p_www_abs_path, www_root, sizeof (www_abs_path));
 #endif
 
       if (p_www_abs_path)
@@ -298,10 +283,10 @@ init_file_acl (void)
   rel_to_abs_path (pfdb, "virtuoso.lic", sizeof (fdb));	/* license file */
   dk_set_push (&d_db_files, box_dv_short_string (fdb));
   /* log segments */
-  if (sys_files) /* during backup restore, db is not open, therefore we skip this part */
+  if (sys_files)		/* during backup restore, db is not open, therefore we skip this part */
     {
       id_hash_iterator (&it, sys_files);
-      while (hit_next (&it, (char**) &sys_name, (char**) &sys_file))
+      while (hit_next (&it, (char **) &sys_name, (char **) &sys_file))
 	{
 	  dk_set_push (&d_db_files, box_dv_short_string (*sys_name));
 	}
@@ -387,10 +372,10 @@ is_db_file (char *f)
   if (d_db_files)
     {
       DO_SET (caddr_t, line, &d_db_files)
-        {
-          if (STR_EQUAL (f, line))
-            return 1;
-        }
+      {
+	if (STR_EQUAL (f, line))
+	  return 1;
+      }
       END_DO_SET ();
     }
   return 0;
@@ -438,26 +423,26 @@ is_allowed (char *path)
   if (a_dirs)
     {
       DO_SET (caddr_t, line, &a_dirs)
-        {
-          if (BEGIN_WITH (abs_path, line))
-            {
-              rc = 1;
-              break;
-            }
-        }
+      {
+	if (BEGIN_WITH (abs_path, line))
+	  {
+	    rc = 1;
+	    break;
+	  }
+      }
       END_DO_SET ();
     }
   /* check in denied dirs */
   if (d_dirs)
     {
       DO_SET (caddr_t, line, &d_dirs)
-        {
-          if (BEGIN_WITH (abs_path, line))
-            {
-              rc = 0;
-              break;
-            }
-        }
+      {
+	if (BEGIN_WITH (abs_path, line))
+	  {
+	    rc = 0;
+	    break;
+	  }
+      }
       END_DO_SET ();
     }
 ret:
@@ -467,21 +452,19 @@ ret:
 
 
 void
-file_path_assert (caddr_t fname_cvt, caddr_t *err_ret, int free_fname_cvt)
+file_path_assert (caddr_t fname_cvt, caddr_t * err_ret, int free_fname_cvt)
 {
   caddr_t err = NULL;
   if (!DV_STRINGP (fname_cvt))
     sqlr_new_error ("42000", "FS....", "File path not a string");
   if (PATH_MAX < (box_length (fname_cvt) - 1))
     err = srv_make_new_error ("42000", "FA117",
-      "File path '%.200s...' is too long (%ld chars), OS limit is %ld chars",
-      fname_cvt, (long)(box_length (fname_cvt) - 1), (long)PATH_MAX);
+	"File path '%.200s...' is too long (%ld chars), OS limit is %ld chars",
+	fname_cvt, (long) (box_length (fname_cvt) - 1), (long) PATH_MAX);
   else if (!is_allowed (fname_cvt))
-    err = srv_make_new_error ("42000", "FA003",
-      "Access to '%.1000s' is denied due to access control in ini file",
-    fname_cvt );
+    err = srv_make_new_error ("42000", "FA003", "Access to '%.1000s' is denied due to access control in ini file", fname_cvt);
   if (NULL != err_ret)
-    err_ret [0] = err;
+    err_ret[0] = err;
   if (NULL == err)
     return;
   if (free_fname_cvt)
@@ -510,62 +493,53 @@ bif_sys_unlink (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	{
 #ifdef EACCES
 	case EACCES:
-	  err = srv_make_new_error ("42000", "SR426",
-	      "Permission is denied for the file '%.1000s' in sys_unlink()",
-	      fname_cvt );
-          break;
+	  err = srv_make_new_error ("42000", "SR426", "Permission is denied for the file '%.1000s' in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef ENAMETOOLONG
 	case ENAMETOOLONG:
-	  err = srv_make_new_error ("42000", "SR427",
-	      "Path name '%.1000s' too long in sys_unlink()", fname_cvt );
-          break;
+	  err = srv_make_new_error ("42000", "SR427", "Path name '%.1000s' too long in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef ENOENT
 	case ENOENT:
 	  err = srv_make_new_error ("42000", "SR428",
-	      "A directory component in '%.1000s' does not exist or is a dangling symbolic link in sys_unlink()",
-	      fname_cvt );
-          break;
+	      "A directory component in '%.1000s' does not exist or is a dangling symbolic link in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef ENOTDIR
 	case ENOTDIR:
 	  err = srv_make_new_error ("42000", "SR429",
-	      "A component used as a directory in '%.1000s' is not, in fact, a directory in sys_unlink()",
-	      fname_cvt );
-          break;
+	      "A component used as a directory in '%.1000s' is not, in fact, a directory in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef EISDIR
 	case EISDIR:
-	  err = srv_make_new_error ("42000", "SR430",
-	      "'%.1000s' refers to a directory in sys_unlink()", fname_cvt );
-          break;
+	  err = srv_make_new_error ("42000", "SR430", "'%.1000s' refers to a directory in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef ENOMEM
 	case ENOMEM:
 	  err = srv_make_new_error ("42000", "SR431",
-	      "Insufficient kernel memory was available in sys_unlink() to process '%.1000s'", fname_cvt );
-          break;
+	      "Insufficient kernel memory was available in sys_unlink() to process '%.1000s'", fname_cvt);
+	  break;
 #endif
 #ifdef EROFS
 	case EROFS:
 	  err = srv_make_new_error ("42000", "SR432",
-	      "'%.1000s' refers to a file on a read-only filesystem in sys_unlink()",
-	      fname_cvt );
-          break;
+	      "'%.1000s' refers to a file on a read-only filesystem in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef ELOOP
 	case ELOOP:
 	  err = srv_make_new_error ("42000", "SR433",
-	      "Too many symbolic links were encountered in translating '%.1000s' in sys_unlink()",
-	      fname_cvt);
-          break;
+	      "Too many symbolic links were encountered in translating '%.1000s' in sys_unlink()", fname_cvt);
+	  break;
 #endif
 #ifdef EIO
 	case EIO:
-	  err = srv_make_new_error ("42000", "SR434",
-	      " An I/O error occurred in sys_unlink(), resource '%.1000s'", fname_cvt);
-          break;
+	  err = srv_make_new_error ("42000", "SR434", " An I/O error occurred in sys_unlink(), resource '%.1000s'", fname_cvt);
+	  break;
 #endif
 	}
       goto signal_error;
@@ -595,8 +569,7 @@ bif_file_to_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   fd = open (fname_cvt, OPEN_FLAGS_RO);
   if (fd < 0)
     {
-      err = srv_make_new_error ("39000", "FA005", "Can't open file '%.1000s', error %d", fname_cvt,
-	errno);
+      err = srv_make_new_error ("39000", "FA005", "Can't open file '%.1000s', error %d", fname_cvt, errno);
       goto signal_error;
     }
 
@@ -604,8 +577,7 @@ bif_file_to_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   bytes = off;
   if (off == -1)
     {
-      err = srv_make_new_error ("39000", "FA007", "Seek error in file '%.1000s', error %d",
-	  fname_cvt, errno );
+      err = srv_make_new_error ("39000", "FA007", "Seek error in file '%.1000s', error %d", fname_cvt, errno);
       goto signal_error;
     }
   if (BOX_ELEMENTS (args) > 1)
@@ -614,8 +586,8 @@ bif_file_to_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       if (start_pos > off)
 	{
 	  err = srv_make_new_error ("39000", "FA008", "Start offset %ld is out of range in file '%.1000s' of actual length %ld",
-            (long)start_pos, fname_cvt, (long)off );
-          goto signal_error;
+	      (long) start_pos, fname_cvt, (long) off);
+	  goto signal_error;
 	}
     }
 
@@ -631,7 +603,7 @@ bif_file_to_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (bytes > FS_MAX_STRING)
     {
       err = srv_make_new_error ("39000", "FA008",
-        "File '%.1000s' is too large (%ld bytes), cannot return string content larger than %ld bytes", fname_cvt, (long)bytes, (long)FS_MAX_STRING );
+	  "File '%.1000s' too long, cannot return string content %ld chars long", fname_cvt, (long) bytes);
       goto signal_error;
     }
 
@@ -639,15 +611,14 @@ bif_file_to_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   if (NULL == (res = dk_try_alloc_box (bytes + 1, DV_LONG_STRING)))
     {
-      close(fd);
+      close (fd);
       dk_free_box (fname_cvt);
-      qi_signal_if_trx_error ((query_instance_t *)qst);
+      qi_signal_if_trx_error ((query_instance_t *) qst);
     }
   if (read (fd, res, bytes) != bytes)
     {
       dk_free_box (res);
-      err = srv_make_new_error ("39000", "FA009",
-        "Read from file '%.1000s' failed (%d)", fname_cvt, errno );
+      err = srv_make_new_error ("39000", "FA009", "Read from file '%.1000s' failed (%d)", fname_cvt, errno);
       goto signal_error;
     }
   res[bytes] = 0;
@@ -666,7 +637,7 @@ caddr_t
 bif_file_read_line (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   char buf[10000];
-  dk_session_t * ses = bif_strses_arg (qst, args, 0, "file_read_line");
+  dk_session_t *ses = bif_strses_arg (qst, args, 0, "file_read_line");
   int rc = -1;
   CATCH_READ_FAIL (ses)
   {
@@ -698,8 +669,7 @@ set_ses_tmp_dir ()
 {
   static char abs_path[PATH_MAX + 1], *p_abs_path = abs_path;
   abs_path[0] = 0;
-  rel_to_abs_path (p_abs_path, temp_ses_dir ? temp_ses_dir : "",
-      sizeof (abs_path));
+  rel_to_abs_path (p_abs_path, temp_ses_dir ? temp_ses_dir : "", sizeof (abs_path));
   p_abs_path = abs_path;
   ses_tmp_dir = box_dv_short_string (abs_path);
 }
@@ -737,8 +707,7 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
   if (-1 == V_STAT (fname_cvt, &st))
     {
       int eno = errno;
-      err = srv_make_new_error ("42000", "FA112", "Can't stat file '%.1000s', error (%d) : %s",
-        fname_cvt, eno, strerror (eno) );
+      err = srv_make_new_error ("42000", "FA112", "Can't stat file '%.1000s', error (%d) : %s", fname_cvt, eno, strerror (eno));
       goto signal_error;
     }
 
@@ -748,9 +717,8 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
 	{
 	  err = srv_make_new_error ("42000", "FA113",
 	      "Invalid starting offset passed to %s('%.1000s'," OFF_T_PRINTF_FMT ",...),"
-	      " file size is " OFF_T_PRINTF_FMT,
-	      func_name, fname_cvt, (OFF_T_PRINTF_DTP) from, (OFF_T_PRINTF_DTP) st.st_size );
-          goto signal_error;
+	      " file size is " OFF_T_PRINTF_FMT, func_name, fname_cvt, (OFF_T_PRINTF_DTP) from, (OFF_T_PRINTF_DTP) st.st_size);
+	  goto signal_error;
 	}
     }
   else
@@ -764,8 +732,8 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
 	      "Invalid ending offset passed to %s('%.1000s',"
 	      OFF_T_PRINTF_FMT "," OFF_T_PRINTF_FMT "), "
 	      "file size is " OFF_T_PRINTF_FMT,
-	      func_name, fname_cvt, (OFF_T_PRINTF_DTP) from, (OFF_T_PRINTF_DTP) to, (OFF_T_PRINTF_DTP) st.st_size );
-          goto signal_error;
+	      func_name, fname_cvt, (OFF_T_PRINTF_DTP) from, (OFF_T_PRINTF_DTP) to, (OFF_T_PRINTF_DTP) st.st_size);
+	  goto signal_error;
 	}
     }
   else
@@ -774,8 +742,7 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
   if (fd < 0)
     {
       int eno = errno;
-      err = srv_make_new_error ("42000", "FA012", "Can't open file '%.1000s', error (%d) : %s", fname_cvt,
-	  eno, strerror (eno) );
+      err = srv_make_new_error ("42000", "FA012", "Can't open file '%.1000s', error (%d) : %s", fname_cvt, eno, strerror (eno));
       goto signal_error;
     }
 
@@ -785,13 +752,13 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
       strses_enable_paging (res, 1024 * 1024 * 10);
     }
 
-  if ((0 != from) && (((OFF_T)-1) == LSEEK (fd, from, SEEK_SET)))
+  if ((0 != from) && (((OFF_T) - 1) == LSEEK (fd, from, SEEK_SET)))
     {
       int eno = errno;
       strses_free (res);
       err = srv_make_new_error ("42000", "FA113",
 	  "Can't seek to in file '%.1000s' seek to " OFF_T_PRINTF_FMT ", error (%d) : %s",
-	  fname_cvt, (OFF_T_PRINTF_DTP)from, eno, strerror (eno) );
+	  fname_cvt, (OFF_T_PRINTF_DTP) from, eno, strerror (eno));
       goto signal_error;
     }
   if (to == -1)
@@ -821,7 +788,7 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
 	{
 	  strses_free (res);
 	  close (fd);
-	  qi_signal_if_trx_error ((query_instance_t *)qst);
+	  qi_signal_if_trx_error ((query_instance_t *) qst);
 	}
       if (need != -1 && total >= need)
 	break;
@@ -831,7 +798,7 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
       saved_errno = errno;
       strses_free (res);
       err = srv_make_new_error ("39000", "FA013", "Read from '%.1000s' failed (%d) : %s", fname_cvt,
-	  saved_errno, strerror (saved_errno) );
+	  saved_errno, strerror (saved_errno));
       goto signal_error;
     }
   if (need != -1 && total != need)
@@ -840,7 +807,7 @@ bif_file_to_string_session_impl (caddr_t * qst, caddr_t * err_ret,
       err = srv_make_new_error ("39000", "FA115",
 	  "Read " OFF_T_PRINTF_FMT
 	  " instead of " OFF_T_PRINTF_FMT " bytes from file '%.1000s'",
-	  (OFF_T_PRINTF_DTP)total, (OFF_T_PRINTF_DTP)need, fname_cvt );
+	  (OFF_T_PRINTF_DTP) total, (OFF_T_PRINTF_DTP) need, fname_cvt);
       goto signal_error;
     }
   close (fd);
@@ -862,32 +829,28 @@ signal_error:
 
 
 static caddr_t
-bif_file_to_string_session (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_file_to_string_session (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   return bif_file_to_string_session_impl (qst, err_ret, args, 0, 0, "file_to_string_session");
 }
 
 
 static caddr_t
-bif_file_to_string_session_utf8 (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_file_to_string_session_utf8 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   return bif_file_to_string_session_impl (qst, err_ret, args, 1, 0, "file_to_string_session_utf8");
 }
 
 
 static caddr_t
-bif_file_append_to_string_session (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_file_append_to_string_session (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   return bif_file_to_string_session_impl (qst, err_ret, args, 0, 1, "file_append_to_string_session");
 }
 
 
 static caddr_t
-bif_file_append_to_string_session_utf8 (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_file_append_to_string_session_utf8 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   return bif_file_to_string_session_impl (qst, err_ret, args, 1, 1, "file_append_to_string_session_utf8");
 }
@@ -916,7 +879,7 @@ file_stat_int (caddr_t fname, int what)
 #if defined (HAVE_DIRECT_H) && (defined (_AMD64_) || defined (_FORCE_WIN32_FILE_TIME))
       if (!file_mtime_to_dt (fname_cvt, dt))
 	{
-          dk_free_box (fname_cvt);
+	  dk_free_box (fname_cvt);
 	  return NULL;
 	}
 #else
@@ -931,11 +894,11 @@ file_stat_int (caddr_t fname, int what)
     }
   else if (what == 1)
     {
-      snprintf (szTemp, sizeof(szTemp), OFF_T_PRINTF_FMT, (OFF_T_PRINTF_DTP) st.st_size);
+      snprintf (szTemp, sizeof (szTemp), OFF_T_PRINTF_FMT, (OFF_T_PRINTF_DTP) st.st_size);
     }
   else if (what == 2)
     {
-      snprintf (szTemp, sizeof (szTemp), "%ld", (long)st.st_mode);
+      snprintf (szTemp, sizeof (szTemp), "%ld", (long) st.st_mode);
     }
   else if (what == 4)
     {
@@ -1008,8 +971,7 @@ bif_sys_mkdir (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       if (BOX_ELEMENTS (args) > 1)
 	{
 	  if (ssl_is_settable (args[1]))
-	    qst_set (qst, args[1],
-		(caddr_t) box_dv_short_string (virt_strerror (errn)));
+	    qst_set (qst, args[1], (caddr_t) box_dv_short_string (virt_strerror (errn)));
 	}
       return box_num (errn);
     }
@@ -1034,8 +996,7 @@ make_path (const char *path, int istest)
 	*pp++ = '\0';
       if (!istest)
 	{
-	  if ((!((0 == chdir (p)) || (0 == mkdir (p, FS_DIR_MODE)
-			  && 0 == chdir (p)))))
+	  if ((!((0 == chdir (p)) || (0 == mkdir (p, FS_DIR_MODE) && 0 == chdir (p)))))
 	    {
 	      ret = -1;
 	      break;
@@ -1067,8 +1028,7 @@ bif_sys_mkpath (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (BOX_ELEMENTS (args) > 1)
     istest = (long) bif_long_arg (qst, args, 1, "sys_mkpath");
   if (0x1000 < box_length (fname))
-    sqlr_new_error ("42000", "FA116",
-      "Abnormally long path is passed as argument to sys_mkpath()" );
+    sqlr_new_error ("42000", "FA116", "Abnormally long path is passed as argument to sys_mkpath()");
   fname_cvt = file_native_name (fname);
   file_path_assert (fname_cvt, NULL, 1);
   rc = make_path (fname_cvt, istest);
@@ -1078,8 +1038,7 @@ bif_sys_mkpath (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       if (BOX_ELEMENTS (args) > 2)
 	{
 	  if (ssl_is_settable (args[1]))
-	    qst_set (qst, args[1],
-		(caddr_t) box_dv_short_string (virt_strerror (errn)));
+	    qst_set (qst, args[1], (caddr_t) box_dv_short_string (virt_strerror (errn)));
 	}
       rc = errn;
     }
@@ -1095,6 +1054,7 @@ bif_sys_mkpath (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 #define CHECKFH(df)	 (df != INVALID_HANDLE_VALUE)
 #define S_IFLNK	 S_IFREG
 #endif
+
 
 int
 str_compare (const void *s1, const void *s2)
@@ -1113,7 +1073,7 @@ str_compare (const void *s1, const void *s2)
       int cmplen = (len1 < len2) ? len1 : len2;
       int res = memcmp (sc1, sc2, cmplen);
       if ((0 != res) || (len1 == len2))
-        return res;
+	return res;
       return (len1 > len2) ? 1 : -1;
     }
   sign = 1;
@@ -1122,29 +1082,37 @@ str_compare (const void *s1, const void *s2)
       ccaddr_t swap_sc;
       dtp_t swap_sc_dtp;
       sign = -1;
-      swap_sc = sc1; sc1 = sc2; sc2 = swap_sc;
-      swap_sc_dtp = sc1_dtp; sc1_dtp = sc2_dtp; sc2_dtp = swap_sc_dtp;
+      swap_sc = sc1;
+      sc1 = sc2;
+      sc2 = swap_sc;
+      swap_sc_dtp = sc1_dtp;
+      sc1_dtp = sc2_dtp;
+      sc2_dtp = swap_sc_dtp;
     }
   if ((DV_WIDE == sc1_dtp) && IS_STRING_DTP (sc2_dtp))
     {
-      const wchar_t *sc1_tail = (const wchar_t *)sc1;
-      const wchar_t *sc1_end = sc1_tail +  ((box_length (sc1) / sizeof (wchar_t)) - 1);
+      const wchar_t *sc1_tail = (const wchar_t *) sc1;
+      const wchar_t *sc1_end = sc1_tail + ((box_length (sc1) / sizeof (wchar_t)) - 1);
       const char *sc2_tail = sc2;
       const char *sc2_end = sc2_tail + (box_length (sc2) - 1);
       int sc2_is_utf8 = ((DV_UNAME == sc2_dtp) || (BF_UTF8 == box_flags (sc2)));
       while ((sc1_tail < sc1_end) && (sc2_tail < sc2_end))
-        {
-          int c1 = (sc1_tail++)[0];
-          int c2 = sc2_tail[0];
-          if (sc2_is_utf8 && (c2 & ~0x7f))
-            c2 = eh_decode_char__UTF8 (&sc2_tail, sc2_end);
-          else
-            sc2_tail++;
-          if (c1 > c2) return sign;
-          if (c1 < c2) return -sign;
-        }
-      if (sc1_tail < sc1_end) return sign;
-      if (sc2_tail < sc2_end) return -sign;
+	{
+	  int c1 = (sc1_tail++)[0];
+	  int c2 = sc2_tail[0];
+	  if (sc2_is_utf8 && (c2 & ~0x7f))
+	    c2 = eh_decode_char__UTF8 (&sc2_tail, sc2_end);
+	  else
+	    sc2_tail++;
+	  if (c1 > c2)
+	    return sign;
+	  if (c1 < c2)
+	    return -sign;
+	}
+      if (sc1_tail < sc1_end)
+	return sign;
+      if (sc2_tail < sc2_end)
+	return -sign;
       return 0;
     }
   GPF_T;
@@ -1533,8 +1501,7 @@ file_native_name (caddr_t se_name)
 	buf = dk_alloc_box (bufsize + 1, DV_STRING);
 	buf_end = buf + bufsize;
 	end_of_dat = i18n_volume_encoding->eh_encode_wchar_buffer (
-          ((const wchar_t *)se_name), ((const wchar_t *)se_name) + wchars, buf, buf_end,
-          i18n_volume_encoding );
+	    ((const wchar_t *) se_name), ((const wchar_t *) se_name) + wchars, buf, buf_end, i18n_volume_encoding);
 	if (end_of_dat == buf_end)
 	  {
 	    buf_end[0] = '\0';
@@ -1587,7 +1554,9 @@ file_native_name (caddr_t se_name)
       switch (fname_tail[0])
 	{
 	  /* case '|': fname_tail[0] = ':'; break; */
-        case '/': fname_tail[0] = '\\'; break;
+	case '/':
+	  fname_tail[0] = '\\';
+	  break;
 	}
     }
   if ((fname_tail - 1) >= volume_fname && *(fname_tail - 1) == '\\')
@@ -1604,20 +1573,20 @@ file_native_name_from_iri_path_nchars (const char *iri_path, size_t iri_path_len
 #ifdef WIN32
   char *fname_ptr, *fname_end;
   if (iri_path_len >= _MAX_PATH)
-    iri_path_len = _MAX_PATH-1;
+    iri_path_len = _MAX_PATH - 1;
   fname = box_dv_short_nchars (iri_path, iri_path_len);
   fname_end = fname + iri_path_len;
   for (fname_ptr = fname; fname_ptr < fname_end; fname_ptr++)
     {
       switch (fname_ptr[0])
-        {
-        case '|':
-          fname_ptr[0] = ':';
-          break;
-        case '/':
-          fname_ptr[0] = '\\';
-          break;
-        }
+	{
+	case '|':
+	  fname_ptr[0] = ':';
+	  break;
+	case '/':
+	  fname_ptr[0] = '\\';
+	  break;
+	}
     }
 #else
   fname = box_dv_short_nchars (iri_path, iri_path_len);
@@ -1654,12 +1623,10 @@ bif_string_to_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   string_dtp = DV_TYPE_OF (string);
   place = bif_long_arg (qst, args, 2, "string_to_file");
   if (place < -2 /* i.e. (place<0) && (place != -1) */ )
-    sqlr_new_error ("22003", "FA021",
-	"Third argument of string_to_file function, should be nonnegative offset value, -1 or -2");
+    sqlr_new_error ("22003", "FA021", "Third argument of string_to_file function, should be nonnegative offset value, -1 or -2");
 
   if (!DV_STRINGP (string) && !DV_WIDESTRINGP (string) &&
-      !IS_BLOB_HANDLE (string) && string_dtp != DV_C_STRING
-      && string_dtp != DV_STRING_SESSION && string_dtp != DV_BIN)
+      !IS_BLOB_HANDLE (string) && string_dtp != DV_C_STRING && string_dtp != DV_STRING_SESSION && string_dtp != DV_BIN)
     sqlr_new_error ("22023", "FA022",
 	"Function string_to_file needs a string or blob or string_output as argument 2,"
 	"not an arg of type %s (%d)", dv_type_title (string_dtp), string_dtp);
@@ -1669,8 +1636,7 @@ bif_string_to_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       char buf[PATH_MAX + 4];
       memcpy (buf, fname, PATH_MAX);
       buf[PATH_MAX] = '\0';
-      sqlr_new_error ("39000", "FA039",
-	  "File name argument of string_to_file is too long (wrong argument order?): %s...", buf);
+      sqlr_new_error ("39000", "FA039", "File name argument of string_to_file is too long (wrong argument order?): %s...", buf);
     }
   fname_cvt = file_native_name (fname);
   file_path_assert (fname_cvt, &err, 0);
@@ -1687,8 +1653,7 @@ bif_string_to_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (fd < 0)
     {
       int errn = errno;
-      err = srv_make_new_error ("39000", "FA006", "Can't open file '%.1000s', error : %s",
-	  fname_cvt, virt_strerror (errn));
+      err = srv_make_new_error ("39000", "FA006", "Can't open file '%.1000s', error : %s", fname_cvt, virt_strerror (errn));
       goto signal_error;
     }
 
@@ -1722,9 +1687,8 @@ bif_string_to_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	    {
 	      saved_errno = errno;
 	      fd_close (fd, fname);
-	      err = srv_make_new_error ("39000", "FA026", "Write to '%.1000s' failed (%s)",
-		  fname_cvt, virt_strerror (saved_errno) );
-              goto signal_error;
+	      err = srv_make_new_error ("39000", "FA026", "Write to '%.1000s' failed (%s)", fname_cvt, virt_strerror (saved_errno));
+	      goto signal_error;
 	    }
 	  ofs += to_read;
 	}
@@ -1736,28 +1700,27 @@ bif_string_to_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       tcpses_set_fd (ses->dks_session, fd);
 
       CATCH_WRITE_FAIL (ses)
-	{
-	  bh_write_out (qi->qi_trx, (blob_handle_t *) string, ses);
-	}
+      {
+	bh_write_out (qi->qi_trx, (blob_handle_t *) string, ses);
+      }
       FAILED
-	{
-	  failed = 1;
-	}
+      {
+	failed = 1;
+      }
       END_WRITE_FAIL (ses);
 
       if (failed || SER_SUCC != session_flush (ses))
 	{
 	  PrpcSessionFree (ses);
 	  err = srv_make_new_error ("39000", "FA027", "Write to '%.1000s' failed", fname_cvt);
-          goto signal_error;
+	  goto signal_error;
 	}
       else
 	PrpcSessionFree (ses);
     }
   else if (DV_WIDESTRINGP (string))
     {
-      caddr_t utf8 =
-	  box_wide_as_utf8_char (string,
+      caddr_t utf8 = box_wide_as_utf8_char (string,
 	  box_length (string) / sizeof (wchar_t) - 1, DV_LONG_STRING);
       len = box_length (utf8) - 1;
       if (rc == -1 || (len && write (fd, utf8, len) != len))
@@ -1765,25 +1728,23 @@ bif_string_to_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	  saved_errno = errno;
 	  dk_free_box (utf8);
 	  fd_close (fd, fname);
-	  err = srv_make_new_error ("39000", "FA028", "Write to '%.1000s' failed (%s)", fname_cvt,
-	      virt_strerror (saved_errno) );
-          goto signal_error;
+	  err = srv_make_new_error ("39000", "FA028", "Write to '%.1000s' failed (%s)", fname_cvt, virt_strerror (saved_errno));
+	  goto signal_error;
 	}
       dk_free_box (utf8);
     }
   else
     {
       if (string_dtp != DV_BIN)
-        len = box_length (string) - 1;
+	len = box_length (string) - 1;
       else
 	len = box_length (string);
       if (rc == -1 || (len && write (fd, string, len) != len))
 	{
 	  saved_errno = errno;
 	  fd_close (fd, fname);
-	  err = srv_make_new_error ("39000", "FA029", "Write to '%.1000s' failed (%s)", fname_cvt,
-	      virt_strerror (saved_errno) );
-          goto signal_error;
+	  err = srv_make_new_error ("39000", "FA029", "Write to '%.1000s' failed (%s)", fname_cvt, virt_strerror (saved_errno));
+	  goto signal_error;
 	}
     }
   fd_close (fd, fname);
@@ -1797,8 +1758,7 @@ signal_error:
 }
 
 caddr_t
-bif_sys_dir_is_allowed (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_sys_dir_is_allowed (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t fname = bif_string_or_wide_or_uname_arg (qst, args, 0, "sys_dir_is_allowed");
   caddr_t fname_cvt = file_native_name (fname);
@@ -1814,9 +1774,7 @@ bif_file_delete (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t fname, fname_cvt;
   sec_check_dba ((query_instance_t *) qst, "file_delete");
   fname = bif_string_or_wide_or_uname_arg (qst, args, 0, "file_delete");
-  silent =
-      BOX_ELEMENTS (args) > 1 ? (int) bif_long_arg (qst, args, 1,
-      "file_delete") : 0;
+  silent = BOX_ELEMENTS (args) > 1 ? (int) bif_long_arg (qst, args, 1, "file_delete") : 0;
   fname_cvt = file_native_name (fname);
   file_path_assert (fname_cvt, NULL, 1);
   rc = unlink (fname_cvt);
@@ -1824,7 +1782,7 @@ bif_file_delete (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       int saved_errno = errno;
       caddr_t err = srv_make_new_error ("39000", "FA045", "Unlink of '%.1000s' failed (%s)",
-        fname_cvt, virt_strerror (saved_errno) );
+	  fname_cvt, virt_strerror (saved_errno));
       dk_free_box (fname_cvt);
       sqlr_resignal (err);
     }
@@ -1841,11 +1799,9 @@ bif_file_delete (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 static caddr_t
 bif_tmp_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  caddr_t fpref =
-      BOX_ELEMENTS (args) > 0 ? bif_string_or_null_arg (qst, args, 0,
+  caddr_t fpref = BOX_ELEMENTS (args) > 0 ? bif_string_or_null_arg (qst, args, 0,
       "tmp_file_name") : NULL;
-  caddr_t fsuff =
-      BOX_ELEMENTS (args) > 1 ? bif_string_arg (qst, args, 1,
+  caddr_t fsuff = BOX_ELEMENTS (args) > 1 ? bif_string_arg (qst, args, 1,
       "tmp_file_name") : NULL;
   caddr_t fname = NULL;
   char *tmp, *ppref = fpref;
@@ -1941,8 +1897,7 @@ bif_cfg_item_count (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	  else if (cfg_define (pcfgFile))
 	    nItems++;
 	}
-      else if (cfg_section (pcfgFile) &&
-	  !stricmp (pcfgFile->section, pszSection))
+      else if (cfg_section (pcfgFile) && !stricmp (pcfgFile->section, pszSection))
 	bAtSection = 1;
     }
 
@@ -2029,8 +1984,7 @@ bif_cfg_item_name (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	      nItems++;
 	    }
 	}
-      else if (cfg_section (pcfgFile) &&
-	  !stricmp (pcfgFile->section, pszSection))
+      else if (cfg_section (pcfgFile) && !stricmp (pcfgFile->section, pszSection))
 	bAtSection = 1;
     }
 
@@ -2123,26 +2077,18 @@ bif_cfg_write (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     pszSection = NULL;
 
   if (pszSection && pszItemName
-      && STR_EQUAL (pszSection, "Parameters")
-      && (STR_EQUAL (pszItemName, "DirsAllowed")
-	  || STR_EQUAL (pszItemName, "DirsDenied")))
-    sqlr_new_error ("42000", "FA036",
-	"Allow & deny file ACL cannot be modified");
+      && STR_EQUAL (pszSection, "Parameters") && (STR_EQUAL (pszItemName, "DirsAllowed") || STR_EQUAL (pszItemName, "DirsDenied")))
+    sqlr_new_error ("42000", "FA036", "Allow & deny file ACL cannot be modified");
 
   if (pszSection && pszItemName
       && STR_EQUAL (pszSection, "Parameters")
-      && (STR_EQUAL (pszItemName, "SafeExecutables")
-	  || STR_EQUAL (pszItemName, "DbaExecutables")))
-    sqlr_new_error ("42000", "FA038",
-	"Lists of allowed executables cannot be modified");
+      && (STR_EQUAL (pszItemName, "SafeExecutables") || STR_EQUAL (pszItemName, "DbaExecutables")))
+    sqlr_new_error ("42000", "FA038", "Lists of allowed executables cannot be modified");
 
-  if (pszSection && pszItemName
-      && STR_EQUAL (pszSection, "Parameters")
-      && STR_EQUAL (pszItemName, "AllowOSCalls"))
+  if (pszSection && pszItemName && STR_EQUAL (pszSection, "Parameters") && STR_EQUAL (pszItemName, "AllowOSCalls"))
     sqlr_new_error ("42000", "FA038", "The flag for enable/disable system call cannot be modified");
 
-  if (cfg_write (pcfgFile, pszSection, pszItemName, pszItemValue) == -1 ||
-      cfg_commit (pcfgFile) == -1)
+  if (cfg_write (pcfgFile, pszSection, pszItemName, pszItemValue) == -1 || cfg_commit (pcfgFile) == -1)
     sqlr_new_error ("39000", "FA037", "Can't update %s", pszPath);
 
   cfg_done (pcfgFile);
@@ -2197,8 +2143,7 @@ static void get_random_info (unsigned char seed[16]);
 
 /* format_uuid_v1 -- make a UUID from the timestamp, clockseq, and node ID */
 static void
-format_uuid_v1 (uuid_t * uuid, unsigned short clock_seq,
-    uuid_time_t timestamp, uuid_node_t node)
+format_uuid_v1 (uuid_t * uuid, unsigned short clock_seq, uuid_time_t timestamp, uuid_node_t node)
 {
   uuid->time_low = (unsigned long) (timestamp & 0xFFFFFFFF);
   uuid->time_mid = (unsigned short) ((timestamp >> 32) & 0xFFFF);
@@ -2323,9 +2268,7 @@ get_system_time (uuid_time_t * uuid_time)
   /* Offset between UUID formatted times and Unix formatted times.
      UUID UTC base time is October 15, 1582.
      Unix base time is January 1, 1970.   */
-  *uuid_time =
-      ((uuid_time_t) (tp.tv_sec) * 10000000) +
-      ((uuid_time_t) (tp.tv_usec) * 10) + 0x01B21DD213814000LL;
+  *uuid_time = ((uuid_time_t) (tp.tv_sec) * 10000000) + ((uuid_time_t) (tp.tv_usec) * 10) + 0x01B21DD213814000LL;
 }
 
 static void
@@ -2376,16 +2319,15 @@ uuid_set (uuid_t * u)
 #endif
 	  memcpy (node, &ustate->node, sizeof (uuid_node_t));
 	  snprintf (p, sizeof (p), "%d %02X%02X%02X%02X%02X%02X", ustate->cs,
-	      (unsigned)(node[0]), (unsigned)(node[1]), (unsigned)(node[2]),
-	      (unsigned)(node[3]), (unsigned)(node[4]), (unsigned)(node[5]) );
+	      (unsigned) (node[0]), (unsigned) (node[1]), (unsigned) (node[2]),
+	      (unsigned) (node[3]), (unsigned) (node[4]), (unsigned) (node[5]));
 	  registry_set (UUID_STATE, p);
 	}
       else
 	{
 	  int cs;
 	  unsigned n1[sizeof (uuid_node_t)];
-	  sscanf (saved_state, "%d %02X%02X%02X%02X%02X%02X", &cs,
-	      &n1[0], &n1[1], &n1[2], &n1[3], &n1[4], &n1[5]);
+	  sscanf (saved_state, "%d %02X%02X%02X%02X%02X%02X", &cs, &n1[0], &n1[1], &n1[2], &n1[3], &n1[4], &n1[5]);
 	  node[0] = n1[0];
 	  node[1] = n1[1];
 	  node[2] = n1[2];
@@ -2420,8 +2362,7 @@ uuid_str (char *p, int len)
 
   snprintf (p, len, "%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
       (unsigned long) u.time_low, u.time_mid, u.time_hi_and_version,
-      u.clock_seq_hi_and_reserved, u.clock_seq_low,
-      u.node[0], u.node[1], u.node[2], u.node[3], u.node[4], u.node[5]);
+      u.clock_seq_hi_and_reserved, u.clock_seq_low, u.node[0], u.node[1], u.node[2], u.node[3], u.node[4], u.node[5]);
 }
 
 static caddr_t
@@ -2468,7 +2409,7 @@ mdigest5 (caddr_t str)
   MD5Update (&ctx, (unsigned char *) str, box_length (str) - 1);
   res = dk_alloc_box (17, DV_SHORT_STRING);
   res[16] = '\0';
-  MD5Final ((unsigned char *)res, &ctx);
+  MD5Final ((unsigned char *) res, &ctx);
   return res;
 }
 
@@ -2494,8 +2435,7 @@ string_to_md5ctx (MD5_CTX * pctx, caddr_t str)
 {
   int inx;
   if (box_length (str) < sizeof (MD5_CTX) * 2)
-    sqlr_new_error ("42000", "SR435",
-	"Attempt to deserialize too short md5 context.");
+    sqlr_new_error ("42000", "SR435", "Attempt to deserialize too short md5 context.");
 
   for (inx = 0; inx < sizeof (MD5_CTX); inx++)
     {
@@ -2508,8 +2448,7 @@ string_to_md5ctx (MD5_CTX * pctx, caddr_t str)
       if (NULL != p)
 	l2 = (int) (p - __tohex);
       if (l1 < 0 || l2 < 0)
-	sqlr_new_error ("42000", "SR436",
-	    "Attempt to deserialize incorrect md5 context.");
+	sqlr_new_error ("42000", "SR436", "Attempt to deserialize incorrect md5 context.");
       ((char *) pctx)[inx] = (l1 << 4) + l2;
     }
   return 0;
@@ -2548,7 +2487,7 @@ bif_md5_update (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     MD5Update (&ctx, (unsigned char *) str, box_length (str) - 1);
   else
     {
-      dk_session_t * ses = (dk_session_t *) str;
+      dk_session_t *ses = (dk_session_t *) str;
       strses_map (ses, md5_update_map, (caddr_t) & ctx);
       strses_file_map (ses, md5_update_map, (caddr_t) & ctx);
       MD5Update (&ctx, (unsigned char *) ses->dks_out_buffer, ses->dks_out_fill);
@@ -2631,17 +2570,17 @@ bif_md5 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   else if (DV_BIN == DV_TYPE_OF (data))
     {
-      dk_session_t * ses = strses_allocate();
+      dk_session_t *ses = strses_allocate ();
       ptrlong len = box_length (data);
       caddr_t res;
-      CATCH_WRITE_FAIL(ses)
-	{
-	  session_buffered_write (ses, data, len);
-	}
+      CATCH_WRITE_FAIL (ses)
+      {
+	session_buffered_write (ses, data, len);
+      }
       FAILED
-	{
-	  return NEW_DB_NULL;
-	}
+      {
+	return NEW_DB_NULL;
+      }
       END_READ_FAIL (ses);
       res = md5_ses (ses);
       strses_free (ses);
@@ -2670,18 +2609,18 @@ adler32_of_buffer (unsigned char *data, size_t len)
 {
   unsigned lo = 1, hi = 0;
   while (len)
-   {
+    {
       size_t block_len = ((len > ADLER_MAX_BLOCK_LEN) ? ADLER_MAX_BLOCK_LEN : len);
       len -= block_len;
       while (block_len--)
-        {
-          lo += (data++)[0];
-          hi += lo;
-        }
-      MOD_ADLER_WRAP(lo);
-      MOD_ADLER_WRAP(hi);
+	{
+	  lo += (data++)[0];
+	  hi += lo;
+	}
+      MOD_ADLER_WRAP (lo);
+      MOD_ADLER_WRAP (hi);
     }
-  MOD_ADLER_WRAP(hi); /* hi grows obviously faster than lo so it needs one more wrap */
+  MOD_ADLER_WRAP (hi);		/* hi grows obviously faster than lo so it needs one more wrap */
   if (lo >= MOD_ADLER)
     lo -= MOD_ADLER;
   if (hi >= MOD_ADLER)
@@ -2706,14 +2645,14 @@ bif_tridgell32 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   unsigned lo = 0, hi = 0, res;
   unsigned char *tail, *end = data + len - 1;
   for (tail = data; tail < end; tail++)
-   {
-     lo += tail[0];
-     hi += lo;
-   }
+    {
+      lo += tail[0];
+      hi += lo;
+    }
   res = (hi << 16) | (lo & 0xFFFF);
   if (!make_num)
     {
-      unsigned char *buf = (unsigned char *)dk_alloc_box (7, DV_STRING);
+      unsigned char *buf = (unsigned char *) dk_alloc_box (7, DV_STRING);
       buf[6] = '\0';
       buf[5] = 64 + (res & 0x3F);
       buf[4] = 64 + ((res >> 2) & 0x3F);
@@ -2721,7 +2660,7 @@ bif_tridgell32 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       buf[2] = 64 + ((res >> 14) & 0x3F);
       buf[1] = 64 + ((res >> 20) & 0x3F);
       buf[0] = 64 + ((res >> 26) & 0x3F);
-      return (void *)buf;
+      return (void *) buf;
     }
   return box_num (res);
 }
@@ -2733,8 +2672,7 @@ char *command_cmd = NULL;
 static int
 win32_system (char *cmd)
 {
-  caddr_t new_cmd =
-      dk_alloc_box (strlen (command_cmd) + strlen (cmd) + 5, DV_SHORT_STRING);
+  caddr_t new_cmd = dk_alloc_box (strlen (command_cmd) + strlen (cmd) + 5, DV_SHORT_STRING);
   PROCESS_INFORMATION ps;
   STARTUPINFO si;
   BOOL bRet = FALSE;
@@ -2789,8 +2727,7 @@ bif_system (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 #endif
     }
   else
-    sqlr_new_error ("42000", "SR092",
-	"system call not allowed on this server");
+    sqlr_new_error ("42000", "SR092", "system call not allowed on this server");
   return box_num (nRetCode);
 }
 
@@ -2818,57 +2755,47 @@ bif_run_executable (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
   if (2 + MAXARGS < argc)
-    sqlr_new_error ("42000", "SR404",
-	"Too many arguments for run_executable");
+    sqlr_new_error ("42000", "SR404", "Too many arguments for run_executable");
   memset (exe_args, 0, sizeof (exe_args));
   for (ctr = 2; ctr < argc; ctr++)
     exe_args[ctr - 1] = bif_string_arg (qst, args, ctr, "run_executable");
-  if (NULL == rel_to_abs_path (full_exe_name, exe_name,
-	  sizeof (full_exe_name)
+  if (NULL == rel_to_abs_path (full_exe_name, exe_name, sizeof (full_exe_name)
 #ifdef WIN32
-	  - 4 /* sizeof (".exe" added below */
+	  - 4			/* sizeof (".exe" added below */
 #endif
-	  ))
-    sqlr_new_error ("42000", "SR405",
-	"Invalid executable name '%s' in run_executable()", exe_name);
+      ))
+    sqlr_new_error ("42000", "SR405", "Invalid executable name '%s' in run_executable()", exe_name);
   DO_SET (caddr_t, known_name, &safe_execs_set)
-    {
-      if (0 == strcmp (full_exe_name, known_name))
-        {
-          safety = 2;
-          break;
-        }
-    }
+  {
+    if (0 == strcmp (full_exe_name, known_name))
+      {
+	safety = 2;
+	break;
+      }
+  }
   END_DO_SET ();
   if (0 == safety)
     {
       DO_SET (caddr_t, known_name, &dba_execs_set)
-        {
-          if (0 == strcmp (full_exe_name, known_name))
-            {
-              safety = 1;
-              break;
-            }
-        }
+      {
+	if (0 == strcmp (full_exe_name, known_name))
+	  {
+	    safety = 1;
+	    break;
+	  }
+      }
       END_DO_SET ();
       if (0 == safety)
-	sqlr_new_error ("42000", "SR406",
-	    "Running of file '%s' is not allowed in run_executable().",
-	    full_exe_name);
-      if ((1 == safety) && (NULL != cli->cli_user)
-	  && (0 == sec_user_has_group (0, cli->cli_user->usr_g_id)))
-	sqlr_new_error ("42000", "SR407",
-	    "Running of file '%s' is restricted to dba group.",
-	    full_exe_name);
+	sqlr_new_error ("42000", "SR406", "Running of file '%s' is not allowed in run_executable().", full_exe_name);
+      if ((1 == safety) && (NULL != cli->cli_user) && (0 == sec_user_has_group (0, cli->cli_user->usr_g_id)))
+	sqlr_new_error ("42000", "SR407", "Running of file '%s' is restricted to dba group.", full_exe_name);
     }
 #ifdef WIN32
   strcat_ck (full_exe_name, ".exe");
 #endif
   if (-1 == V_STAT (full_exe_name, &st))
     {
-      sqlr_new_error ("42000", "SR408",
-	  "Required executable '%s' does not exist, error %d", full_exe_name,
-	  errno);
+      sqlr_new_error ("42000", "SR408", "Required executable '%s' does not exist, error %d", full_exe_name, errno);
     }
   exe_args[0] = full_exe_name;
 #ifdef WIN32
@@ -2925,27 +2852,20 @@ bif_run_executable (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       switch (errcode)
 	{
 	case E2BIG:
-	  sqlr_new_error ("42000", "SR410",
-	      "Argument list exceeds 1024 bytes in run_executable()");
+	  sqlr_new_error ("42000", "SR410", "Argument list exceeds 1024 bytes in run_executable()");
 	case EINVAL:
-	  sqlr_new_error ("42000", "SR411",
-	      "Mode argument is invalid for host OS in run_executable()");
+	  sqlr_new_error ("42000", "SR411", "Mode argument is invalid for host OS in run_executable()");
 	case ENOENT:
-	  sqlr_new_error ("42000", "SR412",
-	      "File or path '%s' is not found in run_executable()",
-	      full_exe_name);
+	  sqlr_new_error ("42000", "SR412", "File or path '%s' is not found in run_executable()", full_exe_name);
 	case ENOEXEC:
 	  sqlr_new_error ("42000", "SR413",
-	      "Specified file '%s' is not executable or has invalid executable-file format in run_executable()",
-	      full_exe_name);
+	      "Specified file '%s' is not executable or has invalid executable-file format in run_executable()", full_exe_name);
 	case ENOMEM:
 	  sqlr_new_error ("42000", "SR414",
-	      "Not enough memory is available to execute new process '%s' in run_executable()",
-	      full_exe_name);
+	      "Not enough memory is available to execute new process '%s' in run_executable()", full_exe_name);
 	default:
 	  sqlr_new_error ("42000", "SR415",
-	      "Generic error (%d/%s) in run_executable('%s',%d,...)", errcode,
-	      virt_strerror (errcode), exe_name, wait);
+	      "Generic error (%d/%s) in run_executable('%s',%d,...)", errcode, virt_strerror (errcode), exe_name, wait);
 	}
     }
 #endif
@@ -2961,12 +2881,10 @@ bif_run_executable (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	case EAGAIN:
 	case ENOMEM:
 	  sqlr_new_error ("42000", "SR416",
-	      "Not enough memory is available to execute new process '%s' in run_executable()",
-	      full_exe_name);
+	      "Not enough memory is available to execute new process '%s' in run_executable()", full_exe_name);
 	default:
 	  sqlr_new_error ("42000", "SR417",
-	      "Generic error (%d/%s) in run_executable('%s',%d,...)", errcode,
-	      virt_strerror (errcode), exe_name, wait);
+	      "Generic error (%d/%s) in run_executable('%s',%d,...)", errcode, virt_strerror (errcode), exe_name, wait);
 	}
     }
   if (0 == child_pid)
@@ -2994,35 +2912,25 @@ bif_run_executable (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       switch (errcode)
 	{
 	case EACCES:
-	  sqlr_new_error ("42000", "SR418",
-	      "Permission is denied for the file '%s' in run_executable()",
-	      full_exe_name);
+	  sqlr_new_error ("42000", "SR418", "Permission is denied for the file '%s' in run_executable()", full_exe_name);
 	case EPERM:
 	  sqlr_new_error ("42000", "SR419",
-	      "Permission is denied for the file '%s' due to SUID regulations in run_executable()",
-	      full_exe_name);
+	      "Permission is denied for the file '%s' due to SUID regulations in run_executable()", full_exe_name);
 	case E2BIG:
-	  sqlr_new_error ("42000", "SR420",
-	      "Argument list is too big in run_executable()");
+	  sqlr_new_error ("42000", "SR420", "Argument list is too big in run_executable()");
 	case EINVAL:
-	  sqlr_new_error ("42000", "SR421",
-	      "Mode argument is invalid for host OS in run_executable()");
+	  sqlr_new_error ("42000", "SR421", "Mode argument is invalid for host OS in run_executable()");
 	case ENOENT:
-	  sqlr_new_error ("42000", "SR422",
-	      "File or path '%s' is not found in run_executable()",
-	      full_exe_name);
+	  sqlr_new_error ("42000", "SR422", "File or path '%s' is not found in run_executable()", full_exe_name);
 	case ENOEXEC:
 	  sqlr_new_error ("42000", "SR423",
-	      "Specified file '%s' is not executable or has invalid executable-file format in run_executable()",
-	      full_exe_name);
+	      "Specified file '%s' is not executable or has invalid executable-file format in run_executable()", full_exe_name);
 	case ENOMEM:
 	  sqlr_new_error ("42000", "SR424",
-	      "Not enough memory is available to execute new process '%s' in run_executable()",
-	      full_exe_name);
+	      "Not enough memory is available to execute new process '%s' in run_executable()", full_exe_name);
 	default:
 	  sqlr_new_error ("42000", "SR425",
-	      "Generic error (%d/%s) in run_executable('%s',%d,...)", errcode,
-	      virt_strerror (errcode), exe_name, wait);
+	      "Generic error (%d/%s) in run_executable('%s',%d,...)", errcode, virt_strerror (errcode), exe_name, wait);
 	}
     }
   retcode = WIFEXITED (status) ? WEXITSTATUS (status) : -1;
@@ -3046,12 +2954,10 @@ bif_run_executable (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 while (iswhite(x)) x++
 
 static void *
-mime_memmem (const void *haystack, size_t haystack_len,
-    const void *needle, size_t needle_len)
+mime_memmem (const void *haystack, size_t haystack_len, const void *needle, size_t needle_len)
 {
   register const char *begin;
-  register const char *last_possible =
-      (const char *) haystack + haystack_len - needle_len - 2;
+  register const char *last_possible = (const char *) haystack + haystack_len - needle_len - 2;
 
   if (haystack_len < needle_len)
     return NULL;
@@ -3062,8 +2968,7 @@ mime_memmem (const void *haystack, size_t haystack_len,
   for (begin = (const char *) haystack; begin <= last_possible; ++begin)
     if (isendline_nts (begin) && begin[1] == '-' && begin[2] == '-' &&
 	begin[3] == ((const char *) needle)[0] &&
-	!memcmp ((const void *) &begin[4],
-	    (const void *) ((const char *) needle + 1), needle_len - 1))
+	!memcmp ((const void *) &begin[4], (const void *) ((const char *) needle + 1), needle_len - 1))
       return (void *) (begin + 3);
 
   return NULL;
@@ -3071,8 +2976,7 @@ mime_memmem (const void *haystack, size_t haystack_len,
 
 
 static long
-mime_get_line (char *szMessage, long message_size, long offset, char *_szDest,
-    int max_len)
+mime_get_line (char *szMessage, long message_size, long offset, char *_szDest, int max_len)
 {
   char *szSrc = szMessage + offset, *szDest = _szDest;
   size_t line_len;
@@ -3118,8 +3022,7 @@ mime_get_line (char *szMessage, long message_size, long offset, char *_szDest,
 
 int
 mime_get_attr (char *szMessage, long Offset, char szDelim, int *rfc822mode,
-    int *override_to_mime, char *_szName, int max_name, char *_szValue,
-    int max_value)
+    int *override_to_mime, char *_szName, int max_name, char *_szValue, int max_value)
 {
   char *szSrc = szMessage + Offset;
   char *szName = _szName, *szValue = _szValue;
@@ -3130,8 +3033,7 @@ mime_get_attr (char *szMessage, long Offset, char szDelim, int *rfc822mode,
     *szValue = 0;
 
   if (!*rfc822mode || override_to_mime)	/* only if it's MIME field skip the leading separators and space */
-    while (*szSrc && (iswhite_nts (szSrc) || isendline_nts (szSrc)
-	    || *szSrc == ';'))
+    while (*szSrc && (iswhite_nts (szSrc) || isendline_nts (szSrc) || *szSrc == ';'))
       szSrc++;
 
   /* get the name to the separator or white space */
@@ -3190,8 +3092,7 @@ mime_get_attr (char *szMessage, long Offset, char szDelim, int *rfc822mode,
 
 
 static long
-mime_find_boundry (char *szMessage, long message_size, long offset,
-    char *szBoundry, int *is_final)
+mime_find_boundry (char *szMessage, long message_size, long offset, char *szBoundry, int *is_final)
 {
   long nNewOffset = offset;
   char *szFound, *szTemp;
@@ -3200,16 +3101,13 @@ mime_find_boundry (char *szMessage, long message_size, long offset,
   *is_final = 0;
   do
     {
-      szFound = (char *)
-	  mime_memmem (szMessage + nNewOffset, message_size - nNewOffset,
-	  szBoundry, len_of_boundry);
+      szFound = (char *) mime_memmem (szMessage + nNewOffset, message_size - nNewOffset, szBoundry, len_of_boundry);
       if (!szFound)
 	return -1;
 
       if (szFound[len_of_boundry] == '-' && szFound[len_of_boundry + 1] == '-'
 	  && (!*(szFound + len_of_boundry + 2)
-	      || iswhite (szFound + len_of_boundry + 2)
-	      || isendline (szFound + len_of_boundry + 2)))
+	      || iswhite (szFound + len_of_boundry + 2) || isendline (szFound + len_of_boundry + 2)))
 	{
 	  *is_final = 1;
 	  szTemp = szFound + len_of_boundry + 2;
@@ -3259,7 +3157,8 @@ mime_parse_header (int *rfc822, caddr_t szMessage, long message_size, long offse
       if (override_to_mime || !*rfc822)
 	{
 	  new_mode = 0;
-	  while (-1 != (lineOffset = mime_get_attr (szHeaderLine, lineOffset, '=', rfc822, &override_to_mime, szAttr, 1000, szValue, 1000)))
+	  while (-1 != (lineOffset =
+		  mime_get_attr (szHeaderLine, lineOffset, '=', rfc822, &override_to_mime, szAttr, 1000, szValue, 1000)))
 	    {
 	      dk_set_push (&attrs, (void *) box_dv_short_string (szAttr));
 	      dk_set_push (&attrs, (void *) box_dv_short_string (szValue));
@@ -3273,8 +3172,7 @@ mime_parse_header (int *rfc822, caddr_t szMessage, long message_size, long offse
 
 long
 get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
-    char *szBoundry, char *szType, size_t max_szType,
-    caddr_t ** _result, long to_add)
+    char *szBoundry, char *szType, size_t max_szType, caddr_t ** _result, long to_add)
 {
   char szNewBoundry[1000], szHeaderLine[1000], szAttr[1000], szValue[1000];
 #ifdef DEBUG
@@ -3290,15 +3188,12 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
   caddr_t *result;
 
   *szNewBoundry = 0;
-  result =
-      (caddr_t *) dk_alloc_box_zero (3 * sizeof (caddr_t),
-      DV_ARRAY_OF_POINTER);
+  result = (caddr_t *) dk_alloc_box_zero (3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   *_result = result;
 
   /* skip the empty lines if in RFC822 header */
   if (*rfc822)
-    while ((iswhite (szMessage + newOffset)
-	    || isendline (szMessage + newOffset)) && newOffset < message_size)
+    while ((iswhite (szMessage + newOffset) || isendline (szMessage + newOffset)) && newOffset < message_size)
       newOffset++;
   /* the header */
 #ifdef DEBUG
@@ -3311,9 +3206,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
       dbg_printf (("\n\n----------MIME PART HEADER----------\n"));
     }
 #endif
-  while (0 < (tempOffset =
-	  mime_get_line (szMessage, message_size, newOffset, szHeaderLine,
-	      1000)))
+  while (0 < (tempOffset = mime_get_line (szMessage, message_size, newOffset, szHeaderLine, 1000)))
     {
       newOffset = tempOffset;
       lineOffset = 0;
@@ -3321,9 +3214,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 	break;
       override_to_mime = 0;
 
-      lineOffset =
-	  mime_get_attr (szHeaderLine, 0, ':', rfc822, &override_to_mime,
-	  szAttr, 1000, szValue, 1000);
+      lineOffset = mime_get_attr (szHeaderLine, 0, ':', rfc822, &override_to_mime, szAttr, 1000, szValue, 1000);
       if (lineOffset == -1)
 	continue;
       dbg_printf (("Name : [%s]\nValue=[%s]\n", szAttr, szValue));
@@ -3339,8 +3230,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 	    }
 	  dbg_printf (("Attrs : "));
 	  while (-1 != (lineOffset =
-		  mime_get_attr (szHeaderLine, lineOffset, '=', rfc822,
-		      &override_to_mime, szAttr, 1000, szValue, 1000)))
+		  mime_get_attr (szHeaderLine, lineOffset, '=', rfc822, &override_to_mime, szAttr, 1000, szValue, 1000)))
 	    {
 	      if (!strcasecmp (szAttr, "boundary"))
 		{
@@ -3378,9 +3268,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
       new_mode = 0;
     }
 
-  body =
-      (caddr_t *) dk_alloc_box_zero (4 * sizeof (caddr_t),
-      DV_ARRAY_OF_POINTER);
+  body = (caddr_t *) dk_alloc_box_zero (4 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   result[1] = (caddr_t) body;
   body_start = newOffset;
   body[0] = box_num (to_add + body_start);
@@ -3392,9 +3280,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
       if (*szBoundryUsed)
 	{			/* within multipart */
 	  int is_final = 0;
-	  next_body_start = body_end =
-	      mime_find_boundry (szMessage, message_size, body_start - 1,
-	      szBoundryUsed, &is_final);
+	  next_body_start = body_end = mime_find_boundry (szMessage, message_size, body_start - 1, szBoundryUsed, &is_final);
 	  if (body_end < 1 || szMessage[body_end - 1] != LF)
 	    return -1;
 	  body_end--;
@@ -3420,13 +3306,9 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 	      body_mime_offset = get_mime_part (&body_rfc822,
 		  szMessage + body_start,
 		  body_end - body_start,
-		  body_mime_offset,
-		  szBodyBoundry,
-		  szBodyType, sizeof (szBodyType), &body_result, to_add + body_start);
+		  body_mime_offset, szBodyBoundry, szBodyType, sizeof (szBodyType), &body_result, to_add + body_start);
 
-	      if (body_mime_offset == -1
-		  || body_start - body_mime_offset > body_end
-		  || body_mime_offset > 0)
+	      if (body_mime_offset == -1 || body_start - body_mime_offset > body_end || body_mime_offset > 0)
 		{
 #ifdef DEBUG
 		  szMessage[body_end] = chTemp;
@@ -3439,21 +3321,18 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 	      body[2] = (caddr_t) body_result;
 	      if (body_start + body_mime_offset < body_end)
 		{
-		  caddr_t *after_array =
-		      (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t),
+		  caddr_t *after_array = (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t),
 		      DV_ARRAY_OF_POINTER);
 		  /* this is a RFC822 encapsulated into MIME body, witch itself has
 		     MIME structure and after it's end there is some by the constructor
 		     of the encapsulating MIME message. So We'll make it a new type */
 		  body[3] = (caddr_t) after_array;
-		  after_array[0] =
-		      box_num (to_add + body_start + body_mime_offset);
+		  after_array[0] = box_num (to_add + body_start + body_mime_offset);
 		  after_array[1] = box_num (to_add + body_end);
 		  dbg_printf (
 		      ("\n---- TEXT IN THE RFC822 MESSAGE AFTER THE MIME MESSAGE IN IT ----\n%s",
 			  szMessage + body_start + body_mime_offset));
-		  dbg_printf (
-		      ("\n---- END TEXT IN THE RFC822 MESSAGE AFTER THE MIME MESSAGE IN IT ----\n"));
+		  dbg_printf (("\n---- END TEXT IN THE RFC822 MESSAGE AFTER THE MIME MESSAGE IN IT ----\n"));
 #ifdef DEBUG
 		  szMessage[body_end] = chTemp;
 #endif
@@ -3472,9 +3351,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 	      szMessage[body_end] = chTemp;
 	    }
 #endif
-	  tempOffset =
-	      mime_get_line (szMessage, message_size, next_body_start,
-	      szHeaderLine, 1000);
+	  tempOffset = mime_get_line (szMessage, message_size, next_body_start, szHeaderLine, 1000);
 	  if (tempOffset < 0)
 	    return -1;
 	  dbg_printf (("\n----- MIME BODY END -----\n"));
@@ -3500,8 +3377,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 
 		  dbg_printf (("\n----- MULTIPARTS PART START -----\n"));
 		  tempOffset = get_mime_part (&newRFC822, szMessage,
-		      message_size, tempOffset, szNewBoundry, szNewType, sizeof (szNewType),
-		      &part_result, to_add);
+		      message_size, tempOffset, szNewBoundry, szNewType, sizeof (szNewType), &part_result, to_add);
 		  dbg_printf (("\n----- MULTIPARTS PART END -----\n"));
 		  if (part_result)
 		    {
@@ -3517,10 +3393,7 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
 			  if (NULL != part_result[2])
 			    {
 			      long new_body_start = (-1) * tempOffset;
-			      tempOffset =
-				  mime_find_boundry (szMessage, message_size,
-				  new_body_start - 1, szNewBoundry,
-				  &is_final);
+			      tempOffset = mime_find_boundry (szMessage, message_size, new_body_start - 1, szNewBoundry, &is_final);
 			      if (is_final)
 				break;
 			    }
@@ -3541,13 +3414,9 @@ get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
   /* an RFC 822 message or a single mime message outside multiparts */
 #ifdef DEBUG
   if (*rfc822)
-    dbg_printf (
-	("\n----- RFC822 BODY -----\n%s\n----- RFC822 BODY END -----\n",
-	    szMessage + body_start));
+    dbg_printf (("\n----- RFC822 BODY -----\n%s\n----- RFC822 BODY END -----\n", szMessage + body_start));
   else
-    dbg_printf (
-	("\n----- MIME SINGLE BODY -----\n%s\n----- MIME SINGLE BODY END -----\n",
-	    szMessage + body_start));
+    dbg_printf (("\n----- MIME SINGLE BODY -----\n%s\n----- MIME SINGLE BODY END -----\n", szMessage + body_start));
 #endif
   body[1] = box_num (to_add + message_size - 1);
   *rfc822 = new_mode;
@@ -3620,8 +3489,7 @@ mime_stream_get_line (dk_session_t * ses, long max_size, long *chars_read,
 
 static int
 mime_stream_read_to_boundry (dk_session_t * ses, long max_size,
-    long *chars_read, char *szBoundry, dk_session_t * out, char *c_before,
-    char *c_after, size_t max_c_after)
+    long *chars_read, char *szBoundry, dk_session_t * out, char *c_before, char *c_after, size_t max_c_after)
 {
   char *ptr = szBoundry;
   int len_of_boundry = (int) strlen (szBoundry);
@@ -3675,8 +3543,7 @@ mime_stream_read_to_boundry (dk_session_t * ses, long max_size,
 	  else
 	    {
 	      if (buffer[0] == 0 && buffer[1] == LF)
-		session_buffered_write (out, buffer + 1,
-		    (int) (buf_ptr - buffer - 1));
+		session_buffered_write (out, buffer + 1, (int) (buf_ptr - buffer - 1));
 	      else
 		session_buffered_write (out, buffer, buf_ptr - buffer);
 	      state = 0;
@@ -3697,8 +3564,7 @@ mime_stream_read_to_boundry (dk_session_t * ses, long max_size,
 	  else
 	    {
 	      if (buffer[0] == 0 && buffer[1] == LF)
-		session_buffered_write (out, buffer + 1,
-		    (int) (buf_ptr - buffer - 1));
+		session_buffered_write (out, buffer + 1, (int) (buf_ptr - buffer - 1));
 	      else
 		session_buffered_write (out, buffer, buf_ptr - buffer);
 	      state = 0;
@@ -3740,25 +3606,25 @@ mime_stream_read_to_boundry (dk_session_t * ses, long max_size,
 		{
 		  if (max_c_after - 1 > (size_t) (cb_len - cb_inx))
 		    c_after[cb_len - cb_inx] = c;
-		  cb_len ++;
+		  cb_len++;
 		}
 	    }
 	  if (!is_final)
 	    {
 	      if (max_c_after - 1 > (size_t) (cb_len - cb_inx))
 		c_after[cb_len - cb_inx] = c;
-	      cb_len ++;
+	      cb_len++;
 	    }
 	}
       if (!is_final)
 	{
 	  if (max_c_after - 1 > (size_t) (cb_len - cb_inx))
 	    c_after[cb_len - cb_inx] = c;
-	  cb_len ++;
+	  cb_len++;
 
 	  if (max_c_after - 1 > (size_t) (cb_len - cb_inx))
 	    c_after[cb_len - cb_inx] = 0;
-	  cb_len ++;
+	  cb_len++;
 	}
     }
 
@@ -3770,8 +3636,7 @@ mime_stream_read_to_boundry (dk_session_t * ses, long max_size,
 static caddr_t
 mime_stream_get_header (dk_session_t * ses, long max_size, long *chars_read,
     char *szType, size_t max_szType, int rfc822, int *new_mode,
-    char *szNewBoundry, size_t max_szNewBoundry,
-    char *c_before, char *c_after, size_t max_c_after)
+    char *szNewBoundry, size_t max_szNewBoundry, char *c_before, char *c_after, size_t max_c_after)
 {
   char szHeaderLine[1000], szAttr[1000], szValue[1000];
   dk_set_t attrs = NULL;
@@ -3793,9 +3658,7 @@ mime_stream_get_header (dk_session_t * ses, long max_size, long *chars_read,
       cb_len = (int) strlen (_c_before);
       override_to_mime = 0;
 
-      lineOffset =
-	  mime_get_attr (szHeaderLine, 0, ':', &rfc822, &override_to_mime,
-	  szAttr, 1000, szValue, 1000);
+      lineOffset = mime_get_attr (szHeaderLine, 0, ':', &rfc822, &override_to_mime, szAttr, 1000, szValue, 1000);
       if (lineOffset == -1)
 	continue;
       dk_set_push (&attrs, (void *) box_dv_short_string (szAttr));
@@ -3810,8 +3673,7 @@ mime_stream_get_header (dk_session_t * ses, long max_size, long *chars_read,
 		strcpy_size_ck (szType, szValue, max_szType);
 	    }
 	  while (-1 != (lineOffset =
-		  mime_get_attr (szHeaderLine, lineOffset, '=', &rfc822,
-		      &override_to_mime, szAttr, 1000, szValue, 1000)))
+		  mime_get_attr (szHeaderLine, lineOffset, '=', &rfc822, &override_to_mime, szAttr, 1000, szValue, 1000)))
 	    {
 	      if (!strcasecmp (szAttr, "boundary"))
 		{
@@ -3836,8 +3698,7 @@ mime_stream_get_header (dk_session_t * ses, long max_size, long *chars_read,
 
 
 caddr_t
-mime_stream_get_part (int rfc822, dk_session_t * ses, long max_size,
-    dk_session_t * header_ses, long header_size)
+mime_stream_get_part (int rfc822, dk_session_t * ses, long max_size, dk_session_t * header_ses, long header_size)
 {
   long _chars_read = 0, *chars_read = &_chars_read;
   char szNewBoundry[1000];
@@ -3852,160 +3713,152 @@ mime_stream_get_part (int rfc822, dk_session_t * ses, long max_size,
   c_before[0] = c_after[0] = 0;
   c_cnt = 0;
   *szNewBoundry = 0;
-  result =
-      (caddr_t *) dk_alloc_box_zero (3 * sizeof (caddr_t),
-      DV_ARRAY_OF_POINTER);
+  result = (caddr_t *) dk_alloc_box_zero (3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   result[1] = (caddr_t) (subses = strses_allocate ());
 
   CATCH_READ_FAIL (header_ses)
-    {
-      /* the header */
-      result[0] = mime_stream_get_header (header_ses, header_size, chars_read,
-          szType, sizeof (szType), rfc822, &new_mode, szNewBoundry, sizeof (szNewBoundry),
-	  c_before, c_after, sizeof (c_after));
-      strcpy_ck (c_before, c_after);
-    }
+  {
+    /* the header */
+    result[0] = mime_stream_get_header (header_ses, header_size, chars_read,
+	szType, sizeof (szType), rfc822, &new_mode, szNewBoundry, sizeof (szNewBoundry), c_before, c_after, sizeof (c_after));
+    strcpy_ck (c_before, c_after);
+  }
   FAILED
-    {
-      dk_free_tree ((box_t) result);
-      result = NULL;
-    }
+  {
+    dk_free_tree ((box_t) result);
+    result = NULL;
+  }
   END_READ_FAIL (header_ses);
   if (!result)
     return NULL;
   *chars_read = 0;
   CATCH_READ_FAIL_S (ses)
-    {
-      if (!strcasecmp (szType, "message/rfc822"))
-	{
-	  body_is_mime = 1;
-	  new_mode = 0;
-	}
+  {
+    if (!strcasecmp (szType, "message/rfc822"))
+      {
+	body_is_mime = 1;
+	new_mode = 0;
+      }
 
-      if (!new_mode)
-	{				/* the MIME multipart ends on an boundary */
-	  /* get the body of the message */
-	  if (*szNewBoundry)
-	    {			/* within multipart */
-	      int is_final = 0;
-	      if (0 == (is_final =
+    if (!new_mode)
+      {				/* the MIME multipart ends on an boundary */
+	/* get the body of the message */
+	if (*szNewBoundry)
+	  {			/* within multipart */
+	    int is_final = 0;
+	    if (0 == (is_final =
 		    mime_stream_read_to_boundry (ses, max_size, chars_read,
-		      szNewBoundry, subses, c_before, c_after, sizeof (c_after))))
-		{
-		  dk_free_tree ((box_t) result);
-		  result = NULL;
-		  goto done;
-		}
-	      is_final--;
-	      if (strses_length (subses) < MIME_SESSION_LIMIT)
-		{
-		  result[1] = strses_string (subses);
-		  strses_free (subses);
-		  subses = NULL;
-		}
-	      strcpy_ck (c_before, c_after);
+			szNewBoundry, subses, c_before, c_after, sizeof (c_after))))
+	      {
+		dk_free_tree ((box_t) result);
+		result = NULL;
+		goto done;
+	      }
+	    is_final--;
+	    if (strses_length (subses) < MIME_SESSION_LIMIT)
+	      {
+		result[1] = strses_string (subses);
+		strses_free (subses);
+		subses = NULL;
+	      }
+	    strcpy_ck (c_before, c_after);
 #if 0
-	      if (body_is_mime)
-		{			/* a body of a message is mime as well */
+	    if (body_is_mime)
+	      {			/* a body of a message is mime as well */
 
-		}
+	      }
 #endif
-	      if (!is_final)
-		{
-		  mime_stream_get_line (ses, max_size, chars_read, NULL, 0,
-		      c_before, c_after, sizeof (c_after));
-		  strcpy_ck (c_before, c_after);
-		}
+	    if (!is_final)
+	      {
+		mime_stream_get_line (ses, max_size, chars_read, NULL, 0, c_before, c_after, sizeof (c_after));
+		strcpy_ck (c_before, c_after);
+	      }
 
-	      /* now if it's a nested multipart message */
-	      if (!strncasecmp (szType, "multipart", 9))
-		{			/* the beginning of multipart message */
-		  if (!*szNewBoundry)
-		    {
-		      dk_free_tree ((box_t) result);
-		      result = NULL;
-		      goto done;
-		    }
-		  while (!is_final)
-		    {
-		      dk_session_t *part_subses;
-		      caddr_t *part_result = (caddr_t *)
-			  dk_alloc_box_zero (3 * sizeof (caddr_t),
-			      DV_ARRAY_OF_POINTER);
-		      char szNewType[1000];
+	    /* now if it's a nested multipart message */
+	    if (!strncasecmp (szType, "multipart", 9))
+	      {			/* the beginning of multipart message */
+		if (!*szNewBoundry)
+		  {
+		    dk_free_tree ((box_t) result);
+		    result = NULL;
+		    goto done;
+		  }
+		while (!is_final)
+		  {
+		    dk_session_t *part_subses;
+		    caddr_t *part_result = (caddr_t *) dk_alloc_box_zero (3 * sizeof (caddr_t),
+			DV_ARRAY_OF_POINTER);
+		    char szNewType[1000];
 
-		      if (strstr (szType, "digest"))
-			{
-			  /* newRFC822 = 1; */
-			  strcpy_ck (szNewType, "message/rfc822");
-			}
-		      else
-			*szNewType = 0;
+		    if (strstr (szType, "digest"))
+		      {
+			/* newRFC822 = 1; */
+			strcpy_ck (szNewType, "message/rfc822");
+		      }
+		    else
+		      *szNewType = 0;
 
-		      part_result[0] =
-			  mime_stream_get_header (ses, max_size, chars_read,
-			      NULL, 0, 0, NULL, NULL, 0, c_before, c_after, sizeof (c_after));
-		      strcpy_ck (c_before, c_after);
-		      part_result[1] = (caddr_t) (part_subses =
-			  strses_allocate ());
-		      if (0 == (is_final =
+		    part_result[0] =
+			mime_stream_get_header (ses, max_size, chars_read,
+			NULL, 0, 0, NULL, NULL, 0, c_before, c_after, sizeof (c_after));
+		    strcpy_ck (c_before, c_after);
+		    part_result[1] = (caddr_t) (part_subses = strses_allocate ());
+		    if (0 == (is_final =
 			    mime_stream_read_to_boundry (ses, max_size,
-			      chars_read, szNewBoundry, part_subses,
-			      c_before, c_after, sizeof (c_after))))
-			{
-			  dk_free_tree ((box_t) part_result);
-			  part_result = NULL;
-			  continue;
-			}
-		      is_final--;
-		      strcpy_ck (c_before, c_after);
-		      if (strses_length (part_subses) < MIME_SESSION_LIMIT)
-			{
-			  part_result[1] = strses_string (part_subses);
-			  strses_free (part_subses);
-			  part_subses = NULL;
-			}
-		      if (!is_final)
-			{
-			  mime_stream_get_line (ses, max_size, chars_read, NULL,
-			      0, c_before, c_after, sizeof (c_after));
-			  strcpy_ck (c_before, c_after);
-			}
-		      if (part_result)
-			{
-			  dk_set_push (&multiparts, (void *) part_result);
-			}
-		    }
-		  result[2] = list_to_array (dk_set_nreverse (multiparts));
-		  multiparts = NULL;
-		}
-	      goto done;
-	    }
-	}
-      /* an RFC 822 message or a single mime message outside multiparts */
-      while (max_size > *chars_read)
-	{
-	  char chunk[DKSES_OUT_BUFFER_LENGTH];
-	  int to_read = MIN (DKSES_OUT_BUFFER_LENGTH, max_size - *chars_read);
-	  session_buffered_read (ses, chunk, to_read);
-	  session_buffered_write (subses, chunk, to_read);
-	  *chars_read += to_read;
-	}
-      if (strses_length (subses) < MIME_SESSION_LIMIT)
-	{
-	  result[1] = strses_string (subses);
-	  strses_free (subses);
-	  subses = NULL;
-	}
-done:
-      multiparts = NULL;
-    }
+				chars_read, szNewBoundry, part_subses, c_before, c_after, sizeof (c_after))))
+		      {
+			dk_free_tree ((box_t) part_result);
+			part_result = NULL;
+			continue;
+		      }
+		    is_final--;
+		    strcpy_ck (c_before, c_after);
+		    if (strses_length (part_subses) < MIME_SESSION_LIMIT)
+		      {
+			part_result[1] = strses_string (part_subses);
+			strses_free (part_subses);
+			part_subses = NULL;
+		      }
+		    if (!is_final)
+		      {
+			mime_stream_get_line (ses, max_size, chars_read, NULL, 0, c_before, c_after, sizeof (c_after));
+			strcpy_ck (c_before, c_after);
+		      }
+		    if (part_result)
+		      {
+			dk_set_push (&multiparts, (void *) part_result);
+		      }
+		  }
+		result[2] = list_to_array (dk_set_nreverse (multiparts));
+		multiparts = NULL;
+	      }
+	    goto done;
+	  }
+      }
+    /* an RFC 822 message or a single mime message outside multiparts */
+    while (max_size > *chars_read)
+      {
+	char chunk[DKSES_OUT_BUFFER_LENGTH];
+	int to_read = MIN (DKSES_OUT_BUFFER_LENGTH, max_size - *chars_read);
+	session_buffered_read (ses, chunk, to_read);
+	session_buffered_write (subses, chunk, to_read);
+	*chars_read += to_read;
+      }
+    if (strses_length (subses) < MIME_SESSION_LIMIT)
+      {
+	result[1] = strses_string (subses);
+	strses_free (subses);
+	subses = NULL;
+      }
+  done:
+    multiparts = NULL;
+  }
   FAILED
-    {
-      dk_free_tree ((box_t) result);
-      result = NULL;
-      THROW_READ_FAIL_S (ses);
-    }
+  {
+    dk_free_tree ((box_t) result);
+    result = NULL;
+    THROW_READ_FAIL_S (ses);
+  }
   END_READ_FAIL_S (ses);
   return (caddr_t) result;
 }
@@ -4040,8 +3893,7 @@ bif_mime_tree (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       Offset = -1 * Offset;
       if (result && result[1])
 	{
-	  caddr_t *after_array = (caddr_t *)
-	      dk_alloc_box (2 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	  caddr_t *after_array = (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 	  result[1][3] = (caddr_t) after_array;
 	  after_array[0] = box_num (Offset);
 	  after_array[1] = box_num (box_length (szMessage) - 1);
@@ -4080,8 +3932,7 @@ bif_mime_tree_ses (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 static voidpf
 zlib_dk_alloc (voidpf opaque, uInt items, uInt size)
 {
-  return (voidpf) dk_alloc_box (((size_t) items) * ((size_t) size),
-      DV_LONG_STRING);
+  return (voidpf) dk_alloc_box (((size_t) items) * ((size_t) size), DV_LONG_STRING);
 }
 
 
@@ -4113,14 +3964,11 @@ zlib_box_compress (caddr_t src, caddr_t * err_ret)
   int rc;
   if (src_size & 0xff000000 || dest_size & 0xff000000)	/* sign error causes overflow */
     {
-      *err_ret =
-	  srv_make_new_error ("22026", "SR102",
-	  "Error in compressing (invalid input)");
+      *err_ret = srv_make_new_error ("22026", "SR102", "Error in compressing (invalid input)");
       return NULL;
     }
   dest_size_ret = dest_size;
-  rc = compress2 ((Bytef *) dest_tmp, &dest_size_ret, (const Bytef *) src,
-      src_size, Z_DEFAULT_COMPRESSION);
+  rc = compress2 ((Bytef *) dest_tmp, &dest_size_ret, (const Bytef *) src, src_size, Z_DEFAULT_COMPRESSION);
   if (Z_OK == rc)
     {
       dest = dk_alloc_box (dest_size_ret + 1, DV_LONG_STRING);
@@ -4140,13 +3988,11 @@ zlib_box_compress (caddr_t src, caddr_t * err_ret)
 	  state = "22005";
 	  break;
 	case Z_BUF_ERROR:
-	  err_msg =
-	      "Error in compressing (not enough room in the output buffer)";
+	  err_msg = "Error in compressing (not enough room in the output buffer)";
 	  state = "22026";
 	  break;
 	case Z_STREAM_ERROR:
-	  err_msg =
-	      "Error in compressing (compression level parameter is invalid)";
+	  err_msg = "Error in compressing (compression level parameter is invalid)";
 	  state = "22003";
 	  break;
 	default:
@@ -4179,21 +4025,18 @@ zlib_box_uncompress (caddr_t src, dk_session_t * out, caddr_t * err_ret)
       if (rc != Z_OK && rc != Z_STREAM_END)
 	{
 	  if (err_ret)
-	    *err_ret =
-		srv_make_new_error ("22025", "SR104",
-		"Error in decompressing");
+	    *err_ret = srv_make_new_error ("22025", "SR104", "Error in decompressing");
 	  break;
 	}
       if (sizeof (szBuffer) - zs.avail_out > 0)
-	session_buffered_write (out, szBuffer,
-	    sizeof (szBuffer) - zs.avail_out);
+	session_buffered_write (out, szBuffer, sizeof (szBuffer) - zs.avail_out);
     }
   while (rc != Z_STREAM_END);
   inflateEnd (&zs);
 }
 
 void
-zlib_blob_uncompress (lock_trx_t *lt, blob_handle_t *bh, dk_session_t * out, caddr_t * err_ret)
+zlib_blob_uncompress (lock_trx_t * lt, blob_handle_t * bh, dk_session_t * out, caddr_t * err_ret)
 {
   z_stream zs;
   int rc;
@@ -4226,42 +4069,41 @@ zlib_blob_uncompress (lock_trx_t *lt, blob_handle_t *bh, dk_session_t * out, cad
 	db_dbg_account_add_page (start);
 #endif
       if (!page_wait_blob_access (tmp_itc, start, &buf, PA_READ, bh, 1))
-        break;
+	break;
       len = LONG_REF (buf->bd_buffer + DP_BLOB_LEN);
       bytes_on_page = len - from_byte;
       if (bytes_on_page)
 	{
 	  /* dbg_printf (("Read blob page %ld, %ld bytes.\n", start,
 	     bytes_on_page)); */
-          zs.next_in = (Bytef *)(buf->bd_buffer + DP_DATA + from_byte);
-          zs.avail_in = bytes_on_page;
-          do
-            {
-              zs.next_out = (Bytef *) szBuffer;
-              zs.avail_out = sizeof (szBuffer);
-              rc = inflate (&zs, Z_NO_FLUSH);
-              if (rc != Z_OK && rc != Z_STREAM_END)
-                {
-                  if (err_ret)
-                    *err_ret = srv_make_new_error ("22025", "SR104", "Error in decompressing of blob, page %ld", (long)start);
-                  next = 0;
-                  goto next_is_set; /* see below */
-                }
-              if (sizeof (szBuffer) - zs.avail_out > 0)
-                session_buffered_write (out, szBuffer,
-                sizeof (szBuffer) - zs.avail_out );
-            } while (rc != Z_STREAM_END);
+	  zs.next_in = (Bytef *) (buf->bd_buffer + DP_DATA + from_byte);
+	  zs.avail_in = bytes_on_page;
+	  do
+	    {
+	      zs.next_out = (Bytef *) szBuffer;
+	      zs.avail_out = sizeof (szBuffer);
+	      rc = inflate (&zs, Z_NO_FLUSH);
+	      if (rc != Z_OK && rc != Z_STREAM_END)
+		{
+		  if (err_ret)
+		    *err_ret = srv_make_new_error ("22025", "SR104", "Error in decompressing of blob, page %ld", (long) start);
+		  next = 0;
+		  goto next_is_set;	/* see below */
+		}
+	      if (sizeof (szBuffer) - zs.avail_out > 0)
+		session_buffered_write (out, szBuffer, sizeof (szBuffer) - zs.avail_out);
+	    }
+	  while (rc != Z_STREAM_END);
 	  bytes_filled += bytes_on_page;
 	  from_byte += bytes_on_page;
 	}
       next = LONG_REF (buf->bd_buffer + DP_OVERFLOW);
-next_is_set:
+    next_is_set:
       if (start == bh->bh_page)
 	{
 	  dp_addr_t t = LONG_REF (buf->bd_buffer + DP_BLOB_DIR);
 	  if (bh->bh_dir_page && t != bh->bh_dir_page)
-	    log_info ("Mismatch in directory page ID %d(%x) vs %d(%x).",
-		t, t, bh->bh_dir_page, bh->bh_dir_page);
+	    log_info ("Mismatch in directory page ID %d(%x) vs %d(%x).", t, t, bh->bh_dir_page, bh->bh_dir_page);
 	  bh->bh_dir_page = t;
 	}
       ITC_IN_KNOWN_MAP (tmp_itc, buf->bd_page);
@@ -4284,8 +4126,7 @@ next_is_set:
 /* If blob handle references to a field of deleted row, or in case of internal error, we should return empty string */
 stub_for_corrupted_blob:
   log_info ("Attempt to convert invalid blob to string_output at page %d, %ld bytes expected, %ld retrieved%s",
-    bh->bh_page, bytes, fill,
-    ((0 == fill) ? "; it may be access to deleted page." : "") );
+      bh->bh_page, bytes, fill, ((0 == fill) ? "; it may be access to deleted page." : ""));
   inflateEnd (&zs);
 }
 
@@ -4301,14 +4142,14 @@ zget_byte (z_stream * stream)
 static void
 zcheck_header (z_stream * stream, caddr_t * err_ret)
 {
-#define ASCII_FLAG   0x01 /* bit 0 set: file probably ascii text */
-#define HEAD_CRC     0x02 /* bit 1 set: header CRC present */
-#define EXTRA_FIELD  0x04 /* bit 2 set: extra field present */
-#define ORIG_NAME    0x08 /* bit 3 set: original file name present */
-#define COMMENT      0x10 /* bit 4 set: file comment present */
-#define RESERVED     0xE0 /* bits 5..7: reserved */
-  int method; /* method byte */
-  int flags;  /* flags byte */
+#define ASCII_FLAG   0x01	/* bit 0 set: file probably ascii text */
+#define HEAD_CRC     0x02	/* bit 1 set: header CRC present */
+#define EXTRA_FIELD  0x04	/* bit 2 set: extra field present */
+#define ORIG_NAME    0x08	/* bit 3 set: original file name present */
+#define COMMENT      0x10	/* bit 4 set: file comment present */
+#define RESERVED     0xE0	/* bits 5..7: reserved */
+  int method;			/* method byte */
+  int flags;			/* flags byte */
   unsigned int len;
   int c;
 
@@ -4322,8 +4163,8 @@ zcheck_header (z_stream * stream, caddr_t * err_ret)
   stream->next_in += 2;
 
   /* Check the rest of the gzip header */
-  method = zget_byte(stream);
-  flags = zget_byte(stream);
+  method = zget_byte (stream);
+  flags = zget_byte (stream);
   if (method != Z_DEFLATED || (flags & RESERVED) != 0)
     {
       if (err_ret)
@@ -4332,26 +4173,28 @@ zcheck_header (z_stream * stream, caddr_t * err_ret)
     }
 
   /* Discard time, xflags and OS code: */
-  for (len = 0; len < 6; len++) (void) zget_byte(stream);
+  for (len = 0; len < 6; len++)
+    (void) zget_byte (stream);
 
   if ((flags & EXTRA_FIELD) != 0)
-    { /* skip the extra field */
-      len  =  (unsigned int)zget_byte(stream);
-      len += ((unsigned int)zget_byte(stream))<<8;
+    {				/* skip the extra field */
+      len = (unsigned int) zget_byte (stream);
+      len += ((unsigned int) zget_byte (stream)) << 8;
       /* len is garbage if EOF but the loop below will quit anyway */
-      while (len-- != 0 && zget_byte(stream) != EOF) ;
+      while (len-- != 0 && zget_byte (stream) != EOF);
     }
   if ((flags & ORIG_NAME) != 0)
-    { /* skip the original file name */
-      while ((c = zget_byte(stream)) != 0 && c != EOF) ;
+    {				/* skip the original file name */
+      while ((c = zget_byte (stream)) != 0 && c != EOF);
     }
   if ((flags & COMMENT) != 0)
-    {   /* skip the .gz file comment */
-      while ((c = zget_byte(stream)) != 0 && c != EOF) ;
+    {				/* skip the .gz file comment */
+      while ((c = zget_byte (stream)) != 0 && c != EOF);
     }
   if ((flags & HEAD_CRC) != 0)
-    {  /* skip the header crc */
-      for (len = 0; len < 2; len++) (void)zget_byte(stream);
+    {				/* skip the header crc */
+      for (len = 0; len < 2; len++)
+	(void) zget_byte (stream);
     }
 }
 
@@ -4380,21 +4223,18 @@ zlib_box_gzip_uncompress (caddr_t src, dk_session_t * out, caddr_t * err_ret)
       if (rc != Z_OK && rc != Z_STREAM_END)
 	{
 	  if (err_ret)
-	    *err_ret =
-		srv_make_new_error ("22025", "SR104",
-		"Error in decompressing");
+	    *err_ret = srv_make_new_error ("22025", "SR104", "Error in decompressing");
 	  break;
 	}
       if (sizeof (szBuffer) - zs.avail_out > 0)
-	session_buffered_write (out, szBuffer,
-	    sizeof (szBuffer) - zs.avail_out);
+	session_buffered_write (out, szBuffer, sizeof (szBuffer) - zs.avail_out);
     }
   while (rc != Z_STREAM_END);
   inflateEnd (&zs);
 }
 
 void
-zlib_strses_gzip_uncompress (dk_session_t * ses, dk_session_t * out, caddr_t *err_ret)
+zlib_strses_gzip_uncompress (dk_session_t * ses, dk_session_t * out, caddr_t * err_ret)
 {
   z_stream zs;
   int rc, started = 0;
@@ -4466,8 +4306,7 @@ strses_write_out_compressed (dk_session_t * ses, dk_session_t * out)
 
   ZLIB_INIT_DK_STREAM (zs);
   deflateInit (&zs, Z_DEFAULT_COMPRESSION);
-  while (sizeof (in_buffer) > (unread_bytes =
-	  strses_get_part (ses, in_buffer, ofs, sizeof (in_buffer))))
+  while (sizeof (in_buffer) > (unread_bytes = strses_get_part (ses, in_buffer, ofs, sizeof (in_buffer))))
     {
       ofs += sizeof (in_buffer) - unread_bytes;
 
@@ -4485,8 +4324,7 @@ strses_write_out_compressed (dk_session_t * ses, dk_session_t * out)
 	    goto error;
 
 	  if (sizeof (out_buffer) - zs.avail_out > 0 && out)
-	    session_buffered_write (out, out_buffer,
-		sizeof (out_buffer) - zs.avail_out);
+	    session_buffered_write (out, out_buffer, sizeof (out_buffer) - zs.avail_out);
 	}
       while (zs.avail_in);
     }
@@ -4498,8 +4336,7 @@ strses_write_out_compressed (dk_session_t * ses, dk_session_t * out)
   if (rc != Z_OK && rc != Z_STREAM_END)
     goto error;
   if (sizeof (out_buffer) - zs.avail_out > 0 && out)
-    session_buffered_write (out, out_buffer,
-	sizeof (out_buffer) - zs.avail_out);
+    session_buffered_write (out, out_buffer, sizeof (out_buffer) - zs.avail_out);
 
 error:
   out_len = zs.total_out;
@@ -4520,8 +4357,7 @@ bif_gz_compress (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 static caddr_t
-bif_string_output_gz_compress (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_string_output_gz_compress (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   static char *szMe = "string_output_gz_compress";
   dk_session_t *ses = (dk_session_t *) bif_arg (qst, args, 0, szMe);
@@ -4530,8 +4366,7 @@ bif_string_output_gz_compress (caddr_t * qst, caddr_t * err_ret,
 
   if (DV_STRING_SESSION != ses_dtp)
     sqlr_new_error ("22023", "SR094",
-	"%s needs a string_output as a first argument, not an argument of type %s (%d)",
-	szMe, dv_type_title (ses_dtp), ses_dtp);
+	"%s needs a string_output as a first argument, not an argument of type %s (%d)", szMe, dv_type_title (ses_dtp), ses_dtp);
 
   if (DV_STRING_SESSION != out_dtp)
     out = NULL;
@@ -4590,7 +4425,7 @@ bif_gz_compress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int fd = 0;
   caddr_t fname_cvt, dname_cvt;
   int readed = 0;
-  char buffer [0x8000];
+  char buffer[0x8000];
   caddr_t err = NULL;
 
   sec_check_dba ((query_instance_t *) qst, szMe);
@@ -4611,8 +4446,7 @@ bif_gz_compress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       int errn = errno;
       dk_free_box (dname_cvt);
       dk_free_box (fname_cvt);
-      sqlr_new_error ("39000", "FA049", "Can't open file %s, error : %s",
-	  fname, virt_strerror (errn));
+      sqlr_new_error ("39000", "FA049", "Can't open file %s, error : %s", fname, virt_strerror (errn));
     }
   LSEEK (fd, 0, SEEK_SET);
   gz_fd = gzopen (dname_cvt, "w");
@@ -4633,7 +4467,7 @@ bif_gz_compress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
 
   gzclose (gz_fd);
-  close(fd);
+  close (fd);
 
   dk_free_box (dname_cvt);
   dk_free_box (fname_cvt);
@@ -4650,7 +4484,7 @@ bif_gz_uncompress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int fd = 0;
   caddr_t fname_cvt, dname_cvt;
   int readed = 0;
-  char buffer [0x8000];
+  char buffer[0x8000];
   caddr_t err = NULL;
 
   sec_check_dba ((query_instance_t *) qst, szMe);
@@ -4670,8 +4504,7 @@ bif_gz_uncompress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       int errn = errno;
       dk_free_box (dname_cvt);
       dk_free_box (fname_cvt);
-      sqlr_new_error ("39000", "FA053", "Can't open file %s, error : %s",
-	  fname, virt_strerror (errn));
+      sqlr_new_error ("39000", "FA053", "Can't open file %s, error : %s", fname, virt_strerror (errn));
     }
   gz_fd = gzopen (dname_cvt, "r");
   if (!gz_fd)
@@ -4685,13 +4518,13 @@ bif_gz_uncompress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       readed = gzread (gz_fd, buffer, sizeof (buffer));
       if (readed > 0)
-        write (fd, buffer, readed);
+	write (fd, buffer, readed);
       else
 	break;
     }
 
   gzclose (gz_fd);
-  close(fd);
+  close (fd);
 
   dk_free_box (dname_cvt);
   dk_free_box (fname_cvt);
@@ -4699,9 +4532,9 @@ bif_gz_uncompress_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return NULL;
 }
 
+
 caddr_t
-get_message_header_field (char *szMessage, long message_size,
-    caddr_t szHeaderFld)
+get_message_header_field (char *szMessage, long message_size, caddr_t szHeaderFld)
 {
   char szHeaderLine[1000], szAttr[1000], szValue[1000];
 #ifdef DEBUG
@@ -4714,16 +4547,13 @@ get_message_header_field (char *szMessage, long message_size,
   caddr_t result = NULL;
   memset (szValue, '\x0', sizeof (szValue));
   /* skip the empty lines if in RFC822 header */
-  while ((iswhite (szMessage + newOffset)
-	  || isendline (szMessage + newOffset)) && newOffset < message_size)
+  while ((iswhite (szMessage + newOffset) || isendline (szMessage + newOffset)) && newOffset < message_size)
     newOffset++;
   /* the header */
 #ifdef DEBUG
   dbg_printf (("\n\n----------HEADER----------\n"));
 #endif
-  while (0 < (tempOffset =
-	  mime_get_line (szMessage, message_size, newOffset, szHeaderLine,
-	      1000)))
+  while (0 < (tempOffset = mime_get_line (szMessage, message_size, newOffset, szHeaderLine, 1000)))
     {
       newOffset = tempOffset;
       lineOffset = 0;
@@ -4731,9 +4561,7 @@ get_message_header_field (char *szMessage, long message_size,
 	break;
       override_to_mime = 0;
 
-      lineOffset =
-	  mime_get_attr (szHeaderLine, 0, ':', &new_mode, &override_to_mime,
-	  szAttr, 1000, szValue, 1000);
+      lineOffset = mime_get_attr (szHeaderLine, 0, ':', &new_mode, &override_to_mime, szAttr, 1000, szValue, 1000);
       if (lineOffset == -1)
 	continue;
       dbg_printf (("Name : [%s]\nValue=[%s]\n", szAttr, szValue));
@@ -4770,8 +4598,7 @@ id_hash_t *http_ext_to_mime_type = NULL;
 char *
 ws_file_ctype (char *name)
 {
-  char **ft, *dot = strrchr (name, '.'), szExtBuffer[20], *szPtr =
-      szExtBuffer;
+  char **ft, *dot = strrchr (name, '.'), szExtBuffer[20], *szPtr = szExtBuffer;
   int inx;
   if (http_ext_to_mime_type)
     {
@@ -4789,8 +4616,7 @@ ws_file_ctype (char *name)
 
 
 static caddr_t
-bif_http_mime_type_add (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_http_mime_type_add (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   char *szMe = "http_mime_type_add", *ptr;
   caddr_t ext = bif_string_arg (qst, args, 0, szMe);
@@ -4806,8 +4632,7 @@ bif_http_mime_type_add (caddr_t * qst, caddr_t * err_ret,
       for (ptr = (char *) ext; *ptr; ptr++)
 	*ptr = tolower (*ptr);
       mime_type = box_dv_short_string (mime_type);
-      id_hash_set (http_ext_to_mime_type,
-	  (caddr_t) & ext, (caddr_t) & mime_type);
+      id_hash_set (http_ext_to_mime_type, (caddr_t) & ext, (caddr_t) & mime_type);
     }
   else
     id_hash_remove (http_ext_to_mime_type, (caddr_t) & ext);
@@ -4839,7 +4664,7 @@ typedef struct gz_stream
 
 
 int
-gz_s_free (gz_stream *s)
+gz_s_free (gz_stream * s)
 {
   int err = Z_OK;
 
@@ -4861,13 +4686,13 @@ gz_s_free (gz_stream *s)
 }
 
 int
-gz_stream_free (void * s)
+gz_stream_free (void *s)
 {
-  return gz_s_free ((gz_stream *)s);
+  return gz_s_free ((gz_stream *) s);
 }
 
 int
-do_flush_ses (gzFile file, int flush, dk_session_t *ses_out)
+do_flush_ses (gzFile file, int flush, dk_session_t * ses_out)
 {
   uInt len;
   int done = 0;
@@ -4909,7 +4734,7 @@ gzclose_ses (strses_chunked_out_t * outd)
   int n, err;
   uLong x;
   char temp[8];
-  dk_session_t * ses_out = outd->sc_out;
+  dk_session_t *ses_out = outd->sc_out;
   gz_stream *s = (gz_stream *) outd->sc_buff;
 
   if (s == NULL)
@@ -4950,8 +4775,7 @@ static void
 gz_write_head (dk_session_t * ses_out)
 {
   char temp[16];
-  snprintf (temp, sizeof (temp), "a\r\n%c%c%c%c%c%c%c%c%c%c\r\n",
-      0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 3);
+  snprintf (temp, sizeof (temp), "a\r\n%c%c%c%c%c%c%c%c%c%c\r\n", 0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 3);
   session_buffered_write (ses_out, temp, 15);
 }
 
@@ -4977,8 +4801,7 @@ gz_init_ses (dk_session_t * ses_out)
   s->crc = crc32 (0L, Z_NULL, 0);
   level = 6;
 
-  err = deflateInit2 (&(s->stream), level,
-      Z_DEFLATED, -MAX_WBITS, DEF_MEM_LEVEL, strategy);
+  err = deflateInit2 (&(s->stream), level, Z_DEFLATED, -MAX_WBITS, DEF_MEM_LEVEL, strategy);
 
   s->stream.next_out = s->outbuf = (Byte *) dk_alloc_box (Z_BUFSIZE, DV_BIN);
   if (err != Z_OK || s->outbuf == Z_NULL)
@@ -4999,7 +4822,7 @@ gzwrite_ses (strses_chunked_out_t * outd, const voidp buf, unsigned len)
 {
   int len_buff;
   char temp[20];
-  dk_session_t * ses_out = outd->sc_out;
+  dk_session_t *ses_out = outd->sc_out;
   gz_stream *s = (gz_stream *) outd->sc_buff;
 
   s->stream.next_in = (Bytef *) buf;
@@ -5048,10 +4871,10 @@ strses_write_out_gz (dk_session_t * ses, dk_session_t * out, strses_chunked_out_
   session_flush_1 (out);
   start = out->dks_bytes_sent;
   gz_write_head (out);
-  strses_map (ses, strses_chunked_out_buf, (caddr_t)outd);
-  strses_file_map (ses, strses_chunked_out_buf, (caddr_t)outd);
+  strses_map (ses, strses_chunked_out_buf, (caddr_t) outd);
+  strses_file_map (ses, strses_chunked_out_buf, (caddr_t) outd);
   gzwrite_ses (outd, ses->dks_out_buffer, (unsigned) ses->dks_out_fill);
-  gzclose_ses (outd); /* free of the stream and set outd->sc_buff to null as next flush on output may jump outside with dead memory in outd members */
+  gzclose_ses (outd);		/* free of the stream and set outd->sc_buff to null as next flush on output may jump outside with dead memory in outd members */
   session_flush_1 (out);
   outd->sc_bytes_sent = out->dks_bytes_sent - start;
 }
@@ -5128,14 +4951,12 @@ dime_tnf (char *type, int len, int ind)
   caddr_t regex;
   if (DIME_MIDDLE_CHUNK (ind))
     return TNF_UNCHANGED;
-  if (NULL != (regex =
-	  regexp_match_01 ("[A-Za-z]+[A-Za-z0-9\\+\\.-]*:.*", type, 0)))
+  if (NULL != (regex = regexp_match_01 ("[A-Za-z]+[A-Za-z0-9\\+\\.-]*:.*", type, 0)))
     {
       dk_free_box (regex);
       return TNF_URI;
     }
-  else if (NULL != (regex =
-	  regexp_match_01 ("[A-Za-z-]+/[A-Za-z-]+(;.*)?", type, 0)))
+  else if (NULL != (regex = regexp_match_01 ("[A-Za-z-]+/[A-Za-z-]+(;.*)?", type, 0)))
     {
       dk_free_box (regex);
       return TNF_MTYPE;
@@ -5170,14 +4991,11 @@ dime_tnf (char *type, int len, int ind)
 
 #ifdef DIME_V1
 static void
-dime_compose_1 (dk_session_t * ses, caddr_t msg, char *id, char *type,
-    int ind)
+dime_compose_1 (dk_session_t * ses, caddr_t msg, char *id, char *type, int ind)
 {
   uint32 len = box_length (msg) - 1;
-  uint16 idlen = (uint16) ((id
-	  && !DIME_MIDDLE_CHUNK (ind)) ? strlen (id) : 0);
-  uint16 tlen = (uint16) ((type
-	  && !DIME_MIDDLE_CHUNK (ind)) ? strlen (type) : 0);
+  uint16 idlen = (uint16) ((id && !DIME_MIDDLE_CHUNK (ind)) ? strlen (id) : 0);
+  uint16 tlen = (uint16) ((type && !DIME_MIDDLE_CHUNK (ind)) ? strlen (type) : 0);
   int tnf;
   dtp_t c[4], pad[32];
   int padl;
@@ -5254,14 +5072,11 @@ dime_compose_1 (dk_session_t * ses, caddr_t msg, char *id, char *type,
 
 /* XXX: OPTIONS are unhandled for now */
 static void
-dime_compose_2 (dk_session_t * ses, caddr_t msg, char *id, char *type,
-    int ind)
+dime_compose_2 (dk_session_t * ses, caddr_t msg, char *id, char *type, int ind)
 {
   uint32 len = box_length (msg) - 1;
-  uint16 idlen = (uint16) ((id
-	  && !DIME_MIDDLE_CHUNK (ind)) ? strlen (id) : 0);
-  uint16 tlen = (uint16) ((type
-	  && !DIME_MIDDLE_CHUNK (ind)) ? strlen (type) : 0);
+  uint16 idlen = (uint16) ((id && !DIME_MIDDLE_CHUNK (ind)) ? strlen (id) : 0);
+  uint16 tlen = (uint16) ((type && !DIME_MIDDLE_CHUNK (ind)) ? strlen (type) : 0);
   uint16 opt_len = (uint16) 0;
   int tnf;
   dtp_t c[4], pad[32];
@@ -5320,165 +5135,146 @@ soap_dime_tree (caddr_t body, dk_set_t * set, caddr_t * err)
   ses.dks_in_fill = len - 1;
 
   CATCH_READ_FAIL (&ses)
-    {
-      for (inx = 0;; inx++)
-	{
-	  session_buffered_read (&ses, (char *) dimeh, sizeof (dimeh));
+  {
+    for (inx = 0;; inx++)
+      {
+	session_buffered_read (&ses, (char *) dimeh, sizeof (dimeh));
 
-	  ver = (int) (dimeh[0] >> 3);
-	  flag = (int) (dimeh[0] & 0x7);
-	  tnf = (int) (dimeh[1] >> 4);
+	ver = (int) (dimeh[0] >> 3);
+	flag = (int) (dimeh[0] & 0x7);
+	tnf = (int) (dimeh[1] >> 4);
 
-	  opt_len = (uint32) ((dimeh[2] << 8) | dimeh[3]);	/* options len */
+	opt_len = (uint32) ((dimeh[2] << 8) | dimeh[3]);	/* options len */
 
-	  ilen = (uint32) ((dimeh[4] << 8) | dimeh[5]);
-	  tlen = (uint32) ((dimeh[6] << 8) | dimeh[7]);
-	  dlen =
-	      (uint32) ((dimeh[8] << 24) | (dimeh[9] << 16) | (dimeh[10] << 8) |
-			dimeh[11]);
+	ilen = (uint32) ((dimeh[4] << 8) | dimeh[5]);
+	tlen = (uint32) ((dimeh[6] << 8) | dimeh[7]);
+	dlen = (uint32) ((dimeh[8] << 24) | (dimeh[9] << 16) | (dimeh[10] << 8) | dimeh[11]);
 
-	  /*	  fprintf (stderr, "DIME rec: f:(%X) tnf(%X) , i(%d) t(%d), d(%d)\n", flag, tnf, ilen, tlen, dlen);*/
+	/*      fprintf (stderr, "DIME rec: f:(%X) tnf(%X) , i(%d) t(%d), d(%d)\n", flag, tnf, ilen, tlen, dlen); */
 
-	  if (tnf > TNF_NONE)	/* draft-dime section 3.2.5 */
-	    tnf = TNF_UNKNOWN;
+	if (tnf > TNF_NONE)	/* draft-dime section 3.2.5 */
+	  tnf = TNF_UNKNOWN;
 
-	  if (ver != 0x01)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM09", "Wrong DIME Version");
-	      break;
-	    }
+	if (ver != 0x01)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM09", "Wrong DIME Version");
+	    break;
+	  }
 
-	  if (!inx && 0 == (flag & DIME_MB))
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM01",
-		      "The DIME message do not have MB flag in first record");
-	      break;
-	    }
+	if (!inx && 0 == (flag & DIME_MB))
+	  {
+	    *err = srv_make_new_error ("22023", "DIM01", "The DIME message do not have MB flag in first record");
+	    break;
+	  }
 
-	  if (ilen > MIME_POST_LIMIT || tlen > MIME_POST_LIMIT
-	      || dlen > MIME_POST_LIMIT)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM02",
-		      "The decoded DIME message part is limited to a 10Mb");
-	      break;
-	    }
+	if (ilen > MIME_POST_LIMIT || tlen > MIME_POST_LIMIT || dlen > MIME_POST_LIMIT)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM02", "The decoded DIME message part is limited to a 10Mb");
+	    break;
+	  }
 
-	  if (0 != (flag & DIME_CF) && 0 != (flag & DIME_ME))
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM04",
-		      "The last DIME message chunk must not have CF flag");
-	      break;
-	    }
+	if (0 != (flag & DIME_CF) && 0 != (flag & DIME_ME))
+	  {
+	    *err = srv_make_new_error ("22023", "DIM04", "The last DIME message chunk must not have CF flag");
+	    break;
+	  }
 
-	  if (chunks && ilen > 0 && tlen > 0)
-	    {
-	      *err = srv_make_new_error ("22023", "DIM05",
-		  "The middle DIME message chunks must not have id and type");
-	      break;
-	    }
+	if (chunks && ilen > 0 && tlen > 0)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM05", "The middle DIME message chunks must not have id and type");
+	    break;
+	  }
 
-	  if (tnf == TNF_UNKNOWN && tlen > 0)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM06",
-		      "The TNF Unknown requires type to be empty");
-	      break;
-	    }
+	if (tnf == TNF_UNKNOWN && tlen > 0)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM06", "The TNF Unknown requires type to be empty");
+	    break;
+	  }
 
-	  if (tnf == TNF_NONE && (tlen != 0 || dlen != 0))
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM07",
-		      "The TNF None requires type and data to be empty");
-	      break;
-	    }
+	if (tnf == TNF_NONE && (tlen != 0 || dlen != 0))
+	  {
+	    *err = srv_make_new_error ("22023", "DIM07", "The TNF None requires type and data to be empty");
+	    break;
+	  }
 
-	  if (chunks && tnf != TNF_UNCHANGED)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM07",
-		      "The TNF Unchanged requires on middle and last chunks");
-	      break;
-	    }
+	if (chunks && tnf != TNF_UNCHANGED)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM07", "The TNF Unchanged requires on middle and last chunks");
+	    break;
+	  }
 
 
-	  if (!chunks)
-	    {
-	      id = dk_alloc_box_zero (ilen + 1, DV_STRING);
-	      type = dk_alloc_box_zero (tlen + 1, DV_STRING);
-	      opts = dk_alloc_box_zero (opt_len + 1, DV_STRING);
-	    }
+	if (!chunks)
+	  {
+	    id = dk_alloc_box_zero (ilen + 1, DV_STRING);
+	    type = dk_alloc_box_zero (tlen + 1, DV_STRING);
+	    opts = dk_alloc_box_zero (opt_len + 1, DV_STRING);
+	  }
 
-	  if (0 != (flag & DIME_CF) && !chunks)
-	    chunks = strses_allocate ();
-	  else if (!chunks)
-	    data = dk_alloc_box_zero (dlen + 1, DV_STRING);
+	if (0 != (flag & DIME_CF) && !chunks)
+	  chunks = strses_allocate ();
+	else if (!chunks)
+	  data = dk_alloc_box_zero (dlen + 1, DV_STRING);
 
-	  if (opt_len > 0)
-	    session_buffered_read (&ses, opts, opt_len);
-	  if (0 != (padl = DIME_PAD_LEN (opt_len)))
-	    session_buffered_read (&ses, pad, padl);
+	if (opt_len > 0)
+	  session_buffered_read (&ses, opts, opt_len);
+	if (0 != (padl = DIME_PAD_LEN (opt_len)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (ilen > 0)
-	    session_buffered_read (&ses, id, ilen);
-	  if (0 != (padl = DIME_PAD_LEN (ilen)))
-	    session_buffered_read (&ses, pad, padl);
+	if (ilen > 0)
+	  session_buffered_read (&ses, id, ilen);
+	if (0 != (padl = DIME_PAD_LEN (ilen)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (tlen > 0)
-	    session_buffered_read (&ses, type, tlen);
-	  if (0 != (padl = DIME_PAD_LEN (tlen)))
-	    session_buffered_read (&ses, pad, padl);
+	if (tlen > 0)
+	  session_buffered_read (&ses, type, tlen);
+	if (0 != (padl = DIME_PAD_LEN (tlen)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (!chunks)
-	    session_buffered_read (&ses, data, dlen);
-	  else
-	    {
-	      /* read the chunk data */
-	      to_read = dlen;
-	      to_read_len = sizeof (pad);
-	      do
-		{
-		  if (to_read < to_read_len)
-		    to_read_len = to_read;
-		  readed = session_buffered_read (&ses, pad, to_read_len);
-		  to_read -= readed;
-		  if (readed > 0)
-		    session_buffered_write (chunks, pad, readed);
-		}
-	      while (to_read > 0);
-	    }
-	  if (0 != (padl = DIME_PAD_LEN (dlen)))
-	    session_buffered_read (&ses, pad, padl);
+	if (!chunks)
+	  session_buffered_read (&ses, data, dlen);
+	else
+	  {
+	    /* read the chunk data */
+	    to_read = dlen;
+	    to_read_len = sizeof (pad);
+	    do
+	      {
+		if (to_read < to_read_len)
+		  to_read_len = to_read;
+		readed = session_buffered_read (&ses, pad, to_read_len);
+		to_read -= readed;
+		if (readed > 0)
+		  session_buffered_write (chunks, pad, readed);
+	      }
+	    while (to_read > 0);
+	  }
+	if (0 != (padl = DIME_PAD_LEN (dlen)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (!chunks)
+	if (!chunks)
+	  dk_set_push (set, (void *) list (4, id, type, data, opts));
+	else if (chunks && 0 == (flag & DIME_CF))
+	  {
+	    if (!STRSES_CAN_BE_STRING (chunks))
+	      {
+		*err = STRSES_LENGTH_ERROR ("dime_tree");
+		break;
+	      }
+	    data = strses_string (chunks);
+	    dk_free_box ((box_t) chunks);
+	    chunks = NULL;
 	    dk_set_push (set, (void *) list (4, id, type, data, opts));
-	  else if (chunks && 0 == (flag & DIME_CF))
-	    {
-	      if (!STRSES_CAN_BE_STRING (chunks))
-		{
-		  *err = STRSES_LENGTH_ERROR ("dime_tree");
-		  break;
-		}
-	      data = strses_string (chunks);
-	      dk_free_box ((box_t) chunks);
-	      chunks = NULL;
-	      dk_set_push (set, (void *) list (4, id, type, data, opts));
-	    }
+	  }
 
-	  if (ses.dks_in_fill == ses.dks_in_read)
-	    {
-	      if (0 == (flag & DIME_ME))
-		*err =
-		    srv_make_new_error ("22023", "DIM03",
-			"The DIME do not have ME flag in last record");
-	      break;
-	    }
-	}
-    }
+	if (ses.dks_in_fill == ses.dks_in_read)
+	  {
+	    if (0 == (flag & DIME_ME))
+	      *err = srv_make_new_error ("22023", "DIM03", "The DIME do not have ME flag in last record");
+	    break;
+	  }
+      }
+  }
   END_READ_FAIL (&ses);
   dk_free_box ((box_t) chunks);
 }
@@ -5489,57 +5285,52 @@ dime_compose (dk_session_t * ses, caddr_t * input, caddr_t * err)
   caddr_t msg, id, type;
   int offs = 0, prevf = 0, inx, len = input ? BOX_ELEMENTS (input) : 0;
   DO_BOX (caddr_t *, elm, inx, input)
-    {
-      prevf = offs;
-      if (len == 1)
-        offs = (DIME_MB | DIME_ME);
-      else if (inx == (len - 1))
-        offs = DIME_ME;
-      else if (!inx)
-        offs = DIME_MB;
-      else
-        offs = DIME_NA;
-      if (!ARRAYP (elm) || BOX_ELEMENTS (elm) < 3 ||
-          !DV_STRINGP (elm[0]) || !DV_STRINGP (elm[1]) || !DV_STRINGP (elm[2]))
-        {
-          *err = srv_make_new_error ("22023", "SR014",
-              "Function dime_compose needs an array of string arrays as argument 1");
-          return;
-        }
-      if (BOX_ELEMENTS (elm) > 3 && unbox (elm[3]) > 0)
-        {
-          if (0 == (offs & DIME_ME))
-            {
-              offs |= DIME_CF;
-              if (0 == (prevf & DIME_CF))
-                offs |= DIME_FIRST_CF;
-            }
-          else if (0 != (prevf & DIME_CF))
-            offs |= DIME_LAST_CF;
-        }
-      else if (0 != (prevf & DIME_CF))
-        offs |= DIME_LAST_CF;
+  {
+    prevf = offs;
+    if (len == 1)
+      offs = (DIME_MB | DIME_ME);
+    else if (inx == (len - 1))
+      offs = DIME_ME;
+    else if (!inx)
+      offs = DIME_MB;
+    else
+      offs = DIME_NA;
+    if (!ARRAYP (elm) || BOX_ELEMENTS (elm) < 3 || !DV_STRINGP (elm[0]) || !DV_STRINGP (elm[1]) || !DV_STRINGP (elm[2]))
+      {
+	*err = srv_make_new_error ("22023", "SR014", "Function dime_compose needs an array of string arrays as argument 1");
+	return;
+      }
+    if (BOX_ELEMENTS (elm) > 3 && unbox (elm[3]) > 0)
+      {
+	if (0 == (offs & DIME_ME))
+	  {
+	    offs |= DIME_CF;
+	    if (0 == (prevf & DIME_CF))
+	      offs |= DIME_FIRST_CF;
+	  }
+	else if (0 != (prevf & DIME_CF))
+	  offs |= DIME_LAST_CF;
+      }
+    else if (0 != (prevf & DIME_CF))
+      offs |= DIME_LAST_CF;
 
-      msg = elm[2];
-      id = elm[0];
-      type = elm[1];
-      dime_compose_2 (ses, msg, id, type, offs);
-    }
+    msg = elm[2];
+    id = elm[0];
+    type = elm[1];
+    dime_compose_2 (ses, msg, id, type, offs);
+  }
   END_DO_BOX;
 }
 
 static caddr_t
 bif_dime_compose (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  caddr_t *input =
-      (caddr_t *) bif_strict_array_or_null_arg (qst, args, 0, "dime_compose");
+  caddr_t *input = (caddr_t *) bif_strict_array_or_null_arg (qst, args, 0, "dime_compose");
   dk_session_t *ses = strses_allocate ();
   caddr_t err = NULL, res;
 
   if (!input)
-    sqlr_new_error ("22023", "SR014",
-	"Function dime_compose needs an array as argument 1, "
-	"not an arg of type DB_NULL (204)");
+    sqlr_new_error ("22023", "SR014", "Function dime_compose needs an array as argument 1, " "not an arg of type DB_NULL (204)");
 
   dime_compose (ses, input, &err);
   if (err)
@@ -5577,148 +5368,130 @@ dime_tree_1 (caddr_t body, dk_set_t * set, caddr_t * err)
   ses.dks_in_fill = len - 1;
 
   CATCH_READ_FAIL (&ses)
-    {
-      for (inx = 0;; inx++)
-	{
-	  session_buffered_read (&ses, (char *) dimeh, sizeof (dimeh));
-	  ilen = (uint32) (((dimeh[0] & 0x1f) << 8) | dimeh[1]);
-	  tlen = (uint32) (((dimeh[2] & 0x1f) << 8) | dimeh[3]);
-	  dlen =
-	      (uint32) ((dimeh[4] << 24) | (dimeh[5] << 16) | (dimeh[6] << 8) |
-			dimeh[7]);
-	  flag = (int) (dimeh[0] >> 5);
-	  tnf = (int) (dimeh[2] >> 5);
+  {
+    for (inx = 0;; inx++)
+      {
+	session_buffered_read (&ses, (char *) dimeh, sizeof (dimeh));
+	ilen = (uint32) (((dimeh[0] & 0x1f) << 8) | dimeh[1]);
+	tlen = (uint32) (((dimeh[2] & 0x1f) << 8) | dimeh[3]);
+	dlen = (uint32) ((dimeh[4] << 24) | (dimeh[5] << 16) | (dimeh[6] << 8) | dimeh[7]);
+	flag = (int) (dimeh[0] >> 5);
+	tnf = (int) (dimeh[2] >> 5);
 
-	  /*	  fprintf (stderr, "DIME rec: f:(%X) tnf(%X) , i(%d) t(%d), d(%d)\n", flag, tnf, ilen, tlen, dlen);*/
+	/*      fprintf (stderr, "DIME rec: f:(%X) tnf(%X) , i(%d) t(%d), d(%d)\n", flag, tnf, ilen, tlen, dlen); */
 
-	  if (tnf > TNF_NONE)	/* draft-dime section 3.2.5 */
-	    tnf = TNF_UNKNOWN;
+	if (tnf > TNF_NONE)	/* draft-dime section 3.2.5 */
+	  tnf = TNF_UNKNOWN;
 
-	  if (!inx && 0 == (flag & DIME_MB))
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM01",
-		      "The DIME message do not have MB flag in first record");
-	      break;
-	    }
+	if (!inx && 0 == (flag & DIME_MB))
+	  {
+	    *err = srv_make_new_error ("22023", "DIM01", "The DIME message do not have MB flag in first record");
+	    break;
+	  }
 
-	  if (ilen > MIME_POST_LIMIT || tlen > MIME_POST_LIMIT
-	      || dlen > MIME_POST_LIMIT)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM02",
-		      "The decoded DIME message part is limited to a 10Mb");
-	      break;
-	    }
+	if (ilen > MIME_POST_LIMIT || tlen > MIME_POST_LIMIT || dlen > MIME_POST_LIMIT)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM02", "The decoded DIME message part is limited to a 10Mb");
+	    break;
+	  }
 
-	  if (0 != (flag & DIME_CF) && 0 != (flag & DIME_ME))
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM04",
-		      "The last DIME message chunk must not have CF flag");
-	      break;
-	    }
+	if (0 != (flag & DIME_CF) && 0 != (flag & DIME_ME))
+	  {
+	    *err = srv_make_new_error ("22023", "DIM04", "The last DIME message chunk must not have CF flag");
+	    break;
+	  }
 
-	  if (chunks && ilen > 0 && tlen > 0)
-	    {
-	      *err = srv_make_new_error ("22023", "DIM05",
-		  "The middle DIME message chunks must not have id and type");
-	      break;
-	    }
+	if (chunks && ilen > 0 && tlen > 0)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM05", "The middle DIME message chunks must not have id and type");
+	    break;
+	  }
 
-	  if (tnf == TNF_UNKNOWN && tlen > 0)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM06",
-		      "The TNF Unknown requires type to be empty");
-	      break;
-	    }
+	if (tnf == TNF_UNKNOWN && tlen > 0)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM06", "The TNF Unknown requires type to be empty");
+	    break;
+	  }
 
-	  if (tnf == TNF_NONE && (tlen != 0 || dlen != 0))
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM07",
-		      "The TNF None requires type and data to be empty");
-	      break;
-	    }
+	if (tnf == TNF_NONE && (tlen != 0 || dlen != 0))
+	  {
+	    *err = srv_make_new_error ("22023", "DIM07", "The TNF None requires type and data to be empty");
+	    break;
+	  }
 
-	  if (chunks && tnf != TNF_UNCHANGED)
-	    {
-	      *err =
-		  srv_make_new_error ("22023", "DIM07",
-		      "The TNF Unchanged requires on middle and last chunks");
-	      break;
-	    }
+	if (chunks && tnf != TNF_UNCHANGED)
+	  {
+	    *err = srv_make_new_error ("22023", "DIM07", "The TNF Unchanged requires on middle and last chunks");
+	    break;
+	  }
 
 
-	  if (!chunks)
-	    {
-	      id = dk_alloc_box_zero (ilen + 1, DV_STRING);
-	      type = dk_alloc_box_zero (tlen + 1, DV_STRING);
-	    }
+	if (!chunks)
+	  {
+	    id = dk_alloc_box_zero (ilen + 1, DV_STRING);
+	    type = dk_alloc_box_zero (tlen + 1, DV_STRING);
+	  }
 
-	  if (0 != (flag & DIME_CF) && !chunks)
-	    chunks = strses_allocate ();
-	  else if (!chunks)
-	    data = dk_alloc_box_zero (dlen + 1, DV_STRING);
+	if (0 != (flag & DIME_CF) && !chunks)
+	  chunks = strses_allocate ();
+	else if (!chunks)
+	  data = dk_alloc_box_zero (dlen + 1, DV_STRING);
 
-	  if (ilen > 0)
-	    session_buffered_read (&ses, id, ilen);
-	  if (0 != (padl = DIME_PAD_LEN (ilen)))
-	    session_buffered_read (&ses, pad, padl);
+	if (ilen > 0)
+	  session_buffered_read (&ses, id, ilen);
+	if (0 != (padl = DIME_PAD_LEN (ilen)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (tlen > 0)
-	    session_buffered_read (&ses, type, tlen);
-	  if (0 != (padl = DIME_PAD_LEN (tlen)))
-	    session_buffered_read (&ses, pad, padl);
+	if (tlen > 0)
+	  session_buffered_read (&ses, type, tlen);
+	if (0 != (padl = DIME_PAD_LEN (tlen)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (!chunks)
-	    session_buffered_read (&ses, data, dlen);
-	  else
-	    {
-	      /* read the chunk data */
-	      to_read = dlen;
-	      to_read_len = sizeof (pad);
-	      do
-		{
-		  if (to_read < to_read_len)
-		    to_read_len = to_read;
-		  readed = session_buffered_read (&ses, pad, to_read_len);
-		  to_read -= readed;
-		  if (readed > 0)
-		    session_buffered_write (chunks, pad, readed);
-		}
-	      while (to_read > 0);
-	    }
-	  if (0 != (padl = DIME_PAD_LEN (dlen)))
-	    session_buffered_read (&ses, pad, padl);
+	if (!chunks)
+	  session_buffered_read (&ses, data, dlen);
+	else
+	  {
+	    /* read the chunk data */
+	    to_read = dlen;
+	    to_read_len = sizeof (pad);
+	    do
+	      {
+		if (to_read < to_read_len)
+		  to_read_len = to_read;
+		readed = session_buffered_read (&ses, pad, to_read_len);
+		to_read -= readed;
+		if (readed > 0)
+		  session_buffered_write (chunks, pad, readed);
+	      }
+	    while (to_read > 0);
+	  }
+	if (0 != (padl = DIME_PAD_LEN (dlen)))
+	  session_buffered_read (&ses, pad, padl);
 
-	  if (!chunks)
+	if (!chunks)
+	  dk_set_push (set, (void *) list (3, id, type, data));
+	else if (chunks && 0 == (flag & DIME_CF))
+	  {
+	    if (!STRSES_CAN_BE_STRING (chunks))
+	      {
+		*err = STRSES_LENGTH_ERROR ("dime_tree");
+		data = NULL;
+	      }
+	    else
+	      data = strses_string (chunks);
+	    dk_free_box ((box_t) chunks);
+	    chunks = NULL;
 	    dk_set_push (set, (void *) list (3, id, type, data));
-	  else if (chunks && 0 == (flag & DIME_CF))
-	    {
-	      if (!STRSES_CAN_BE_STRING (chunks))
-		{
-		  *err = STRSES_LENGTH_ERROR ("dime_tree");
-		  data = NULL;
-		}
-	      else
-		data = strses_string (chunks);
-	      dk_free_box ((box_t) chunks);
-	      chunks = NULL;
-	      dk_set_push (set, (void *) list (3, id, type, data));
-	    }
+	  }
 
-	  if (ses.dks_in_fill == ses.dks_in_read)
-	    {
-	      if (0 == (flag & DIME_ME))
-		*err =
-		    srv_make_new_error ("22023", "DIM03",
-			"The DIME do not have ME flag in last record");
-	      break;
-	    }
-	}
-    }
+	if (ses.dks_in_fill == ses.dks_in_read)
+	  {
+	    if (0 == (flag & DIME_ME))
+	      *err = srv_make_new_error ("22023", "DIM03", "The DIME do not have ME flag in last record");
+	    break;
+	  }
+      }
+  }
   END_READ_FAIL (&ses);
   dk_free_box ((box_t) chunks);
 }
@@ -5837,9 +5610,7 @@ bif_trace_on (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
       if (!res)
 	{
-	  *err_ret =
-	      srv_make_new_error ("22005", "SR322",
-	      " %s is not valid trace_on option", mode);
+	  *err_ret = srv_make_new_error ("22005", "SR322", " %s is not valid trace_on option", mode);
 	  return NULL;
 	}
 
@@ -5872,9 +5643,7 @@ bif_trace_off (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
       if (!res)
 	{
-	  *err_ret =
-	      srv_make_new_error ("22005", "SR323",
-	      " %s is not valid trace_off option", mode);
+	  *err_ret = srv_make_new_error ("22005", "SR323", " %s is not valid trace_off option", mode);
 	  return NULL;
 	}
 
@@ -5950,39 +5719,39 @@ static caddr_t
 core_foundation_to_virt (CFTypeRef * source)
 {
   CFTypeID typeid;
-  typeid = CFGetTypeID(*source);
+  typeid = CFGetTypeID (*source);
 
-  if (typeid == CFArrayGetTypeID())
-      {
-	int i;
-	dk_set_t list_ret = NULL;
-	CFIndex attr_count;
-	attr_count = CFArrayGetCount (* source);
-	for (i = 0; i < attr_count; i++)
-	  {
-	    CFTypeRef item_cf;
-	    item_cf = CFArrayGetValueAtIndex(*source, i);
-	    dk_set_push (&list_ret, core_foundation_to_virt (&item_cf));
-	  }
-	return list_to_array (dk_set_nreverse (list_ret));
-      }
-  else if (typeid == CFStringGetTypeID())
+  if (typeid == CFArrayGetTypeID ())
     {
-	char buffer[1024];
-        CFStringGetCString (*source, buffer, sizeof (buffer), CFStringGetSystemEncoding());
-	return box_dv_short_string (buffer);
+      int i;
+      dk_set_t list_ret = NULL;
+      CFIndex attr_count;
+      attr_count = CFArrayGetCount (*source);
+      for (i = 0; i < attr_count; i++)
+	{
+	  CFTypeRef item_cf;
+	  item_cf = CFArrayGetValueAtIndex (*source, i);
+	  dk_set_push (&list_ret, core_foundation_to_virt (&item_cf));
+	}
+      return list_to_array (dk_set_nreverse (list_ret));
     }
-  else if (typeid == CFBooleanGetTypeID())
+  else if (typeid == CFStringGetTypeID ())
     {
-      return box_num ((long)CFBooleanGetValue(*source));
+      char buffer[1024];
+      CFStringGetCString (*source, buffer, sizeof (buffer), CFStringGetSystemEncoding ());
+      return box_dv_short_string (buffer);
     }
-  else if (typeid == CFNumberGetTypeID())
+  else if (typeid == CFBooleanGetTypeID ())
+    {
+      return box_num ((long) CFBooleanGetValue (*source));
+    }
+  else if (typeid == CFNumberGetTypeID ())
     {
       double d;
-      CFNumberGetValue(*source, kCFNumberDoubleType, &d);
+      CFNumberGetValue (*source, kCFNumberDoubleType, &d);
       return box_double (d);
     }
-  else if (typeid == CFDateGetTypeID())
+  else if (typeid == CFDateGetTypeID ())
     {
       long abs_time;
       TIMESTAMP_STRUCT ts;
@@ -6004,7 +5773,7 @@ core_foundation_to_virt (CFTypeRef * source)
       timestamp_struct_to_dt (&ts, res);
       return res;
     }
-  if (typeid == CFDictionaryGetTypeID())
+  if (typeid == CFDictionaryGetTypeID ())
     return NEW_DB_NULL;
 
   return box_num (0);
@@ -6028,7 +5797,7 @@ bif_spotlight_metadata (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (!spotlight_integration)
     return NEW_DB_NULL;
 
-  path = CFStringCreateWithCString((CFAllocatorRef)NULL, f_name, kCFStringEncodingASCII);
+  path = CFStringCreateWithCString ((CFAllocatorRef) NULL, f_name, kCFStringEncodingASCII);
 
   caddr_t ret = NULL;
   dk_set_t list_r = NULL;
@@ -6037,7 +5806,7 @@ bif_spotlight_metadata (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   CFTypeRef val;
   CFIndex attr_count;
 
-  item = MDItemCreate(kCFAllocatorDefault, path);
+  item = MDItemCreate (kCFAllocatorDefault, path);
 
   if (!item)
     {
@@ -6051,11 +5820,9 @@ bif_spotlight_metadata (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   for (i = 0; i < attr_count; i++)
     {
-	CFStringRef attr_name = (CFStringRef)CFArrayGetValueAtIndex (attr_names, i);
- 	val = MDItemCopyAttribute (item, attr_name);
-	dk_set_push (&list_r, list (2,
-	      core_foundation_to_virt ((CFTypeRef *)&attr_name),
-	      core_foundation_to_virt (&val)));
+      CFStringRef attr_name = (CFStringRef) CFArrayGetValueAtIndex (attr_names, i);
+      val = MDItemCopyAttribute (item, attr_name);
+      dk_set_push (&list_r, list (2, core_foundation_to_virt ((CFTypeRef *) & attr_name), core_foundation_to_virt (&val)));
     }
 
   ret = list_to_array (dk_set_nreverse (list_r));
@@ -6072,21 +5839,23 @@ bif_vector_sort (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (in_vector == NULL || DV_TYPE_OF (in_vector) == DV_DB_NULL)
     return NEW_DB_NULL;
   DO_BOX (caddr_t, line, inx, ((caddr_t *) in_vector))
-    {
-      dtp_t dtp;
-      dtp = DV_TYPE_OF (line);
+  {
+    dtp_t dtp;
+    dtp = DV_TYPE_OF (line);
 
-      if (dtp != DV_SHORT_STRING)
-	sqlr_new_error ("22023", "SR482",
-	    "Function vector_sort() needs a vector of strings as the first argument, but the vector contains %s (%d)", dv_type_title (dtp), dtp);
-    }
+    if (dtp != DV_SHORT_STRING)
+      sqlr_new_error ("22023", "SR482",
+	  "Function vector_sort() needs a vector of strings as the first argument, but the vector contains %s (%d)",
+	  dv_type_title (dtp), dtp);
+  }
   END_DO_BOX;
   out_vector = box_copy_tree (in_vector);
   qsort (out_vector, BOX_ELEMENTS (out_vector), sizeof (caddr_t), str_compare);
   return out_vector;
 }
 
-typedef struct file_io_descriptor_s {
+typedef struct file_io_descriptor_s
+{
   ptrlong fiod_refctr;
   dk_mutex_t *fiod_mutex;
   ptrlong fiod_fd;
@@ -6097,15 +5866,15 @@ typedef struct file_io_descriptor_s {
 int
 fiop_release (caddr_t box)
 {
-  file_io_descriptor_t *fiod = (file_io_descriptor_t *)box;
+  file_io_descriptor_t *fiod = (file_io_descriptor_t *) box;
   if (NULL != fiod->fiod_mutex)
     mutex_enter (fiod->fiod_mutex);
   if (0 >= fiod->fiod_refctr)
     GPF_T1 ("filep_destroy: nonpositive refctr");
   if (--(fiod->fiod_refctr))
-{
+    {
       if (NULL != fiod->fiod_mutex)
-        mutex_leave (fiod->fiod_mutex);
+	mutex_leave (fiod->fiod_mutex);
       return 1;
     }
   if (NULL != fiod->fiod_mutex)
@@ -6123,7 +5892,7 @@ fiop_release (caddr_t box)
 caddr_t
 fiop_copy (caddr_t box)
 {
-  file_io_descriptor_t *fiod = (file_io_descriptor_t *)box;
+  file_io_descriptor_t *fiod = (file_io_descriptor_t *) box;
   if (NULL != fiod->fiod_mutex)
     mutex_enter (fiod->fiod_mutex);
   if (0 >= fiod->fiod_refctr)
@@ -6138,7 +5907,7 @@ fiop_copy (caddr_t box)
 caddr_t
 bif_file_rlc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  file_io_descriptor_t *fiod = (file_io_descriptor_t *)bif_arg (qst, args, 0, "file_rlc");
+  file_io_descriptor_t *fiod = (file_io_descriptor_t *) bif_arg (qst, args, 0, "file_rlc");
   sec_check_dba ((query_instance_t *) qst, "file_rlc");
   if (DV_TYPE_OF (fiod) != DV_FD)
     sqlr_new_error ("22023", "SSSSS", "The argument of file_rlc must be an valid file pointer");
@@ -6149,6 +5918,8 @@ bif_file_rlc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   fiod->fiod_fd = -257;
   return box_num (1);
 }
+
+
 
 caddr_t
 bif_file_rlo (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
@@ -6175,16 +5946,14 @@ bif_file_rlo (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (!is_allowed (fname_cvt))
     {
       dk_free (fname_cvt, fname_cvt_len);
-      sqlr_new_error ("42000", "FA003",
-	  "Access to %s is denied due to access control in ini file", fname);
+      sqlr_new_error ("42000", "FA003", "Access to %s is denied due to access control in ini file", fname);
     }
 
   fd = fd_open (fname_cvt, OPEN_FLAGS_RO);
   dk_free (fname_cvt, fname_cvt_len);
 #else
   if (!is_allowed (fname))
-    sqlr_new_error ("42000", "FA004",
-	"Access to %s is denied due to access control in ini file", fname);
+    sqlr_new_error ("42000", "FA004", "Access to %s is denied due to access control in ini file", fname);
 
   fd = fd_open (fname, OPEN_FLAGS_RO);
 #endif
@@ -6192,8 +5961,7 @@ bif_file_rlo (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (fd < 0)
     {
       int errn = errno;
-      sqlr_new_error ("39000", "FA003", "Can't open file %s, error : %s",
-	  fname, virt_strerror (errn));
+      sqlr_new_error ("39000", "FA003", "Can't open file %s, error : %s", fname, virt_strerror (errn));
     }
   fiod = (file_io_descriptor_t *) dk_alloc_box_zero (sizeof (file_io_descriptor_t), DV_FD);
   fiod->fiod_refctr = 1;
@@ -6204,7 +5972,7 @@ bif_file_rlo (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 int
-ses_read_line_unbuffered (dk_session_t * ses, char *buf, int max, char * state)
+ses_read_line_unbuffered (dk_session_t * ses, char *buf, int max, char *state)
 {
   int inx = 0;
   buf[0] = 0;
@@ -6220,7 +5988,7 @@ ses_read_line_unbuffered (dk_session_t * ses, char *buf, int max, char * state)
       if (c == 10 || c == 13)
 	{
 	  *state = c;
-	  buf[inx-1] = 0;
+	  buf[inx - 1] = 0;
 	  return inx;
 	}
     }
@@ -6229,9 +5997,9 @@ ses_read_line_unbuffered (dk_session_t * ses, char *buf, int max, char * state)
 caddr_t
 bif_file_rl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  file_io_descriptor_t *fiod = (file_io_descriptor_t *)bif_arg (qst, args, 0, "file_rl");
+  file_io_descriptor_t *fiod = (file_io_descriptor_t *) bif_arg (qst, args, 0, "file_rl");
   long inx = (long) bif_long_arg (qst, args, 1, "file_rl");
-  long max_len = BOX_ELEMENTS (args) > 2 ? (long) bif_long_arg (qst, args, 2, "file_rl") : 80*1024;
+  long max_len = BOX_ELEMENTS (args) > 2 ? (long) bif_long_arg (qst, args, 2, "file_rl") : 80 * 1024;
   caddr_t str;
   dk_set_t line = NULL;
   caddr_t ret = NULL;
@@ -6239,7 +6007,7 @@ bif_file_rl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   sec_check_dba ((query_instance_t *) qst, "file_rl");
 
-  if (DV_TYPE_OF ((caddr_t)fiod) != DV_FD)
+  if (DV_TYPE_OF ((caddr_t) fiod) != DV_FD)
     sqlr_new_error ("22023", "SSSSS", "The argument of file_rl must be an valid file pointer");
 
   if (fiod->fiod_fd < 0)
@@ -6249,35 +6017,35 @@ bif_file_rl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     sqlr_new_error ("22023", "SSSSS", "The max length of line could not be less than 1 and over 1mb");
 
   str = dk_alloc_box (max_len, DV_STRING);
-  str[0]=0;
+  str[0] = 0;
 
   file_in = dk_session_allocate (SESCLASS_TCPIP);
   tcpses_set_fd (file_in->dks_session, fiod->fiod_fd);
   CATCH_READ_FAIL (file_in)
-    {
-      char state = '\0';
-      OFF_T pos;
-      do
-	{
-	  ses_read_line_unbuffered (file_in, str, max_len, &state);
-	  if (str[0])
-	    dk_set_push (&line, box_dv_short_string (str));
-	  str[0]=0;
-	  inx--;
-	}
-      while (inx);
-      if (state == 13) /* after so many reads we look for last LF, if no LF, we restore position */
-	{
-	  char c;
-          pos = LSEEK (fiod->fiod_fd, 0L, SEEK_CUR);
-	  service_read (file_in, &c, 1, 1);
-	  if (c != 10)
-	    LSEEK (fiod->fiod_fd, pos, SEEK_SET);
-	}
-    }
+  {
+    char state = '\0';
+    OFF_T pos;
+    do
+      {
+	ses_read_line_unbuffered (file_in, str, max_len, &state);
+	if (str[0])
+	  dk_set_push (&line, box_dv_short_string (str));
+	str[0] = 0;
+	inx--;
+      }
+    while (inx);
+    if (state == 13)		/* after so many reads we look for last LF, if no LF, we restore position */
+      {
+	char c;
+	pos = LSEEK (fiod->fiod_fd, 0L, SEEK_CUR);
+	service_read (file_in, &c, 1, 1);
+	if (c != 10)
+	  LSEEK (fiod->fiod_fd, pos, SEEK_SET);
+      }
+  }
   FAILED
-    {
-    }
+  {
+  }
   END_READ_FAIL (file_in);
   PrpcSessionFree (file_in);
   dk_free_box (str);
@@ -6288,7 +6056,7 @@ bif_file_rl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 caddr_t
 bif_file_rb (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  file_io_descriptor_t *fiod = (file_io_descriptor_t *)bif_arg (qst, args, 0, "file_rb");
+  file_io_descriptor_t *fiod = (file_io_descriptor_t *) bif_arg (qst, args, 0, "file_rb");
   long len = bif_long_arg (qst, args, 1, "file_rb");
   caddr_t str;
   dk_session_t *file_in;
@@ -6299,25 +6067,25 @@ bif_file_rb (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (fiod->fiod_fd < 0)
     sqlr_new_error ("22023", "SSSSS", "The file pointer is already closed");
 
-  if (len <= 0 || len >= (10000000-1))
+  if (len <= 0 || len >= (10000000 - 1))
     sqlr_new_error ("22023", "SSSSS", "The max length of fragment could not be negative or over 10mb");
 
-  str = dk_alloc_box (len+1, DV_STRING);
-  str[len]=0;
+  str = dk_alloc_box (len + 1, DV_STRING);
+  str[len] = 0;
   if (0 == len)
     return str;
 
   file_in = dk_session_allocate (SESCLASS_TCPIP);
   tcpses_set_fd (file_in->dks_session, fiod->fiod_fd);
   CATCH_READ_FAIL (file_in)
-    {
-      service_read (file_in, str, len, 1);
-    }
+  {
+    service_read (file_in, str, len, 1);
+  }
   FAILED
-    {
-      dk_free_box (str);
-      str = NEW_DB_NULL;
-    }
+  {
+    dk_free_box (str);
+    str = NEW_DB_NULL;
+  }
   END_READ_FAIL (file_in);
   PrpcSessionFree (file_in);
   return str;
@@ -6327,11 +6095,11 @@ caddr_t
 bif_file_open (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t fname = bif_string_arg (qst, args, 0, "file_open");
-  dk_session_t * ses = strses_allocate ();
+  dk_session_t *ses = strses_allocate ();
   caddr_t fname_cvt, err = NULL;
   int fd = 0;
   OFF_T off;
-  strsestmpfile_t * sesfile;
+  strsestmpfile_t *sesfile;
 
   fname_cvt = file_native_name (fname);
   file_path_assert (fname_cvt, &err, 0);
@@ -6342,8 +6110,7 @@ bif_file_open (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (fd < 0)
     {
       int errn = errno;
-      err = srv_make_new_error ("39000", "FA006", "Can't open file '%.1000s', error : %s",
-	  fname_cvt, virt_strerror (errn));
+      err = srv_make_new_error ("39000", "FA006", "Can't open file '%.1000s', error : %s", fname_cvt, virt_strerror (errn));
       goto signal_error;
     }
 
@@ -6374,7 +6141,7 @@ signal_error:
 caddr_t
 bif_read_object (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  dk_session_t * ses = (dk_session_t *) bif_strses_arg (qst, args, 0, "read_object");
+  dk_session_t *ses = (dk_session_t *) bif_strses_arg (qst, args, 0, "read_object");
   return PrpcReadObject (ses);
 }
 
@@ -6383,8 +6150,8 @@ caddr_t
 bif_getenv (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t var = bif_string_arg (qst, args, 0, "getenv");
-  char * res = NULL;
-  sec_check_dba ((query_instance_t *)qst, "getenv");
+  char *res = NULL;
+  sec_check_dba ((query_instance_t *) qst, "getenv");
   res = getenv (var);
   return res ? box_dv_short_string (res) : NEW_DB_NULL;
 }
@@ -6406,24 +6173,24 @@ zlib_read (strsestmpfile_t * sesfile, void *buf, size_t nbyte)
 static size_t
 zlib_write (strsestmpfile_t * sesfile, const void *buf, size_t nbyte)
 {
-  return -1; /* write is not supported in gz stream for now */
+  return -1;			/* write is not supported in gz stream for now */
 }
 
 int
 zlib_close (strsestmpfile_t * sesfile)
 {
-  return gzclose (sesfile->ses_file_ctx); /* this must close the fd passed earlier to gzdopen  */
+  return gzclose (sesfile->ses_file_ctx);	/* this must close the fd passed earlier to gzdopen  */
 }
 
 caddr_t
 bif_gz_file_open (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t fname = bif_string_arg (qst, args, 0, "gz_file_open");
-  dk_session_t * ses = strses_allocate ();
+  dk_session_t *ses = strses_allocate ();
   caddr_t fname_cvt, err = NULL;
   int fd = 0;
   OFF_T off;
-  strsestmpfile_t * sesfile;
+  strsestmpfile_t *sesfile;
 
   fname_cvt = file_native_name (fname);
   file_path_assert (fname_cvt, &err, 0);
@@ -6434,8 +6201,7 @@ bif_gz_file_open (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (fd < 0)
     {
       int errn = errno;
-      err = srv_make_new_error ("39000", "FA006", "Can't open file '%.1000s', error : %s",
-	  fname_cvt, virt_strerror (errn));
+      err = srv_make_new_error ("39000", "FA006", "Can't open file '%.1000s', error : %s", fname_cvt, virt_strerror (errn));
       goto signal_error;
     }
 
@@ -6491,10 +6257,10 @@ bif_unzip_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t fname = bif_string_arg (qst, args, 0, szMe);
   caddr_t zname = bif_string_arg (qst, args, 1, szMe);
   caddr_t fname_cvt;
-  char buffer [0x8000];
+  char buffer[0x8000];
   caddr_t err = NULL;
   unzFile uf = NULL;
-  dk_session_t * ses = NULL;
+  dk_session_t *ses = NULL;
   int rc = 0;
 
   sec_check_dba ((query_instance_t *) qst, szMe);
@@ -6513,7 +6279,7 @@ bif_unzip_file (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       goto err_end;
     }
 
-  rc = unzOpenCurrentFilePassword (uf, NULL /* password */);
+  rc = unzOpenCurrentFilePassword (uf, NULL /* password */ );
   if (rc != UNZ_OK)
     {
       *err_ret = srv_make_new_error ("37000", "ZIP02", "Can not open file from archive");
@@ -6603,12 +6369,12 @@ bif_unzip_list (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       ts.day = file_info.tmu_date.tm_mday;
       ts.hour = file_info.tmu_date.tm_hour;
       ts.minute = file_info.tmu_date.tm_min;
-      ts.second	= file_info.tmu_date.tm_sec;
+      ts.second = file_info.tmu_date.tm_sec;
       ts.fraction = 0;
       timestamp_struct_to_dt (&ts, dt);
       dk_set_push (&set, list (4, box_dv_short_string (filename_inzip),
-	    box_num (file_info.uncompressed_size), box_num (file_info.compressed_size), dt));
-      if ((i+1) < gi.number_entry)
+	      box_num (file_info.uncompressed_size), box_num (file_info.compressed_size), dt));
+      if ((i + 1) < gi.number_entry)
 	{
 	  rc = unzGoToNextFile (uf);
 	  if (rc != UNZ_OK)
@@ -6699,7 +6465,7 @@ csv_field (dk_session_t * ses, int mode)
   else
     {
       if (0 != str[0])
-      ret = str;
+	ret = str;
       else
 	{
 	  dk_free_box (str);
@@ -6713,11 +6479,11 @@ static unichar
 get_uchar_from_session (dk_session_t * in, encoding_handler_t * eh)
 {
   unichar c = UNICHAR_EOD;
-  char buf [MAX_ENCODED_CHAR];
+  char buf[MAX_ENCODED_CHAR];
   int readed = 0;
   do
     {
-      const char * ptr = &(buf[0]);
+      const char *ptr = &(buf[0]);
       if ((readed + eh->eh_minsize) > MAX_ENCODED_CHAR)
 	return UNICHAR_BAD_ENCODING;
       readed += session_buffered_read (in, buf + readed, eh->eh_minsize);
@@ -6855,48 +6621,48 @@ bif_get_csv_row (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 		      goto end;	/* row end */
 		    }
 		}
-		      else if (c == esc && csv_field_escapes)
-		        {
-                          state = CSV_ESC_SEQUENCE_STARTED;
-		          escaped_idx = 0;
-		        }
+	      else if (c == esc && csv_field_escapes)
+		{
+		  state = CSV_ESC_SEQUENCE_STARTED;
+		  escaped_idx = 0;
+		}
 	      else
 		{
 		  CSV_CHAR (c, fl);
 		}
 	    }
 	    break;
-	      case CSV_ESC_SEQUENCE_STARTED:
-	          {                             /*30                 9 A B C D E F40 41 42 43 44 45 46*/
-	            static char digit_weights[] = {0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,0,10,11,12,13,14,15};
-	            if (c == esc)
-	              {
-                        CSV_CHAR (c, fl);
-                        escaped_idx = escaped[0] = escaped[1] = 0;
-                        state = CSV_FIELD_STARTED;
-	              }
-	            else if (c >= 0x30 && c <= 0x46)
-                      {
-                        escaped[escaped_idx++] = c;
-                        if (escaped_idx >= 2)
-                          {
-                            unichar ch = 16 * digit_weights[ escaped[0] - 0x30] + digit_weights[ escaped[1] - 0x30 ];
-                            CSV_CHAR (ch, fl);
-                            escaped_idx = escaped[0] = escaped[1] = 0;
-                            state = CSV_FIELD_STARTED;
-                          }
-                      }
-	            else
-                      {
-                        /* wrong digit in esc sequence */
-                        CSV_CHAR (esc, fl);
-                        CSV_CHAR (escaped[0], fl);
-                        CSV_CHAR (escaped[0], fl);
-                        escaped_idx = escaped[0] = escaped[1] = 0;
-                        state = CSV_FIELD_STARTED;
-                      }
-	          }
-	          break;
+	  case CSV_ESC_SEQUENCE_STARTED:
+	    {			/*30                 9 A B C D E F40 41 42 43 44 45 46 */
+	      static char digit_weights[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 10, 11, 12, 13, 14, 15 };
+	      if (c == esc)
+		{
+		  CSV_CHAR (c, fl);
+		  escaped_idx = escaped[0] = escaped[1] = 0;
+		  state = CSV_FIELD_STARTED;
+		}
+	      else if (c >= 0x30 && c <= 0x46)
+		{
+		  escaped[escaped_idx++] = c;
+		  if (escaped_idx >= 2)
+		    {
+		      unichar ch = 16 * digit_weights[escaped[0] - 0x30] + digit_weights[escaped[1] - 0x30];
+		      CSV_CHAR (ch, fl);
+		      escaped_idx = escaped[0] = escaped[1] = 0;
+		      state = CSV_FIELD_STARTED;
+		    }
+		}
+	      else
+		{
+		  /* wrong digit in esc sequence */
+		  CSV_CHAR (esc, fl);
+		  CSV_CHAR (escaped[0], fl);
+		  CSV_CHAR (escaped[0], fl);
+		  escaped_idx = escaped[0] = escaped[1] = 0;
+		  state = CSV_FIELD_STARTED;
+		}
+	    }
+	    break;
 	  case CSV_FIELD_MAY_END:
 	    {
 	      if (c == quote)
@@ -6965,7 +6731,7 @@ end:
 caddr_t
 bif_get_plaintext_row (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  dk_session_t * ses = (dk_session_t *) bif_strses_arg (qst, args, 0, "get_plaintext_row");
+  dk_session_t *ses = (dk_session_t *) bif_strses_arg (qst, args, 0, "get_plaintext_row");
   char buf_on_stack[4096];
   char *buf = buf_on_stack;
   int buf_size = sizeof (buf_on_stack);
@@ -6978,74 +6744,74 @@ bif_get_plaintext_row (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   char *new_buf;
   char c;
 /* First, full scan of buffered in hope that the whole line is in session buffer already */
-      read_begin = ses->dks_in_buffer + ses->dks_in_read;
-      eol = (char *)memchr (read_begin, '\n', ses->dks_in_fill - ses->dks_in_read);
-      if (NULL != eol)
-        {
-          res = box_dv_short_nchars (read_begin, eol - read_begin);
-          ses->dks_in_read = eol + 1 - ses->dks_in_buffer;
-          goto res_done; /* see below */
-        }
+  read_begin = ses->dks_in_buffer + ses->dks_in_read;
+  eol = (char *) memchr (read_begin, '\n', ses->dks_in_fill - ses->dks_in_read);
+  if (NULL != eol)
+    {
+      res = box_dv_short_nchars (read_begin, eol - read_begin);
+      ses->dks_in_read = eol + 1 - ses->dks_in_buffer;
+      goto res_done;		/* see below */
+    }
 /* Now we know that the '\n' is not in buffer so an extra copying is unavoidable */
   CATCH_READ_FAIL (ses)
-    {
-  buf_add_len = ses->dks_in_fill - ses->dks_in_read;
-add_portion_to_buf:
-  if (buf_tail + buf_add_len + 1 > buf_end)
-    {
-          min_new_buf_size = buf_tail + buf_add_len + 1 - buf;
-          if (min_new_buf_size > MAX_BOX_LENGTH)
-            goto res_done; /* abnormally long line, can't return it */
-          new_buf_size = min_new_buf_size * 2;
-#if 0 /* no big beed */
-          if (2 <= BOX_ELEMENTS (args))
-            {
-              int recommended_buf_size = bif_long_arg (qst, args, 1, "get_plaintext_row");
-              if (new_buf_size < recommended_buf_size)
-                new_buf_size = recommended_buf_size;
-            }
+  {
+    buf_add_len = ses->dks_in_fill - ses->dks_in_read;
+  add_portion_to_buf:
+    if (buf_tail + buf_add_len + 1 > buf_end)
+      {
+	min_new_buf_size = buf_tail + buf_add_len + 1 - buf;
+	if (min_new_buf_size > MAX_BOX_LENGTH)
+	  goto res_done;	/* abnormally long line, can't return it */
+	new_buf_size = min_new_buf_size * 2;
+#if 0				/* no big beed */
+	if (2 <= BOX_ELEMENTS (args))
+	  {
+	    int recommended_buf_size = bif_long_arg (qst, args, 1, "get_plaintext_row");
+	    if (new_buf_size < recommended_buf_size)
+	      new_buf_size = recommended_buf_size;
+	  }
 #endif
-          if (new_buf_size > MAX_BOX_LENGTH)
-            new_buf_size = MAX_BOX_LENGTH;
-      new_buf = (char *)dk_alloc (new_buf_size);
-      memcpy (new_buf, buf, buf_tail - buf);
-      buf_end = new_buf + new_buf_size;
-      buf_tail = new_buf + (buf_tail - buf);
-      if (buf_is_allocated)
-        dk_free (buf, buf_size);
-      buf = new_buf;
-      buf_size = new_buf_size;
-      buf_is_allocated = 1;
-    }
-  memcpy (buf_tail, ses->dks_in_buffer + ses->dks_in_read, buf_add_len);
-  buf_tail += buf_add_len;
-  ses->dks_in_read += buf_add_len;
-  if (NULL != eol)
-    {
-      res = box_dv_short_nchars (buf, (buf_tail - 1) - buf); /* -1 because eol is not included into the result */
-      goto res_done; /* see below */
-    }
-  session_buffered_read (ses, &c, 1);
-  if ('\n' == c)
-    {
-      res = box_dv_short_nchars (buf, buf_tail - buf); /* eol is not in the buffer */
-      goto res_done; /* see below */
-    }
-  (buf_tail++)[0] = c;
-  read_begin = ses->dks_in_buffer + ses->dks_in_read;
-  eol = (char *)memchr (read_begin, '\n', ses->dks_in_fill - ses->dks_in_read);
-  if (NULL != eol)
-    {
-      buf_add_len = (eol + 1) - read_begin;
-      goto add_portion_to_buf; /* see above */
-    }
-  buf_add_len = ses->dks_in_fill - ses->dks_in_read;
-  goto add_portion_to_buf; /* see above */
-res_done: ;
-    }
+	if (new_buf_size > MAX_BOX_LENGTH)
+	  new_buf_size = MAX_BOX_LENGTH;
+	new_buf = (char *) dk_alloc (new_buf_size);
+	memcpy (new_buf, buf, buf_tail - buf);
+	buf_end = new_buf + new_buf_size;
+	buf_tail = new_buf + (buf_tail - buf);
+	if (buf_is_allocated)
+	  dk_free (buf, buf_size);
+	buf = new_buf;
+	buf_size = new_buf_size;
+	buf_is_allocated = 1;
+      }
+    memcpy (buf_tail, ses->dks_in_buffer + ses->dks_in_read, buf_add_len);
+    buf_tail += buf_add_len;
+    ses->dks_in_read += buf_add_len;
+    if (NULL != eol)
+      {
+	res = box_dv_short_nchars (buf, (buf_tail - 1) - buf);	/* -1 because eol is not included into the result */
+	goto res_done;		/* see below */
+      }
+    session_buffered_read (ses, &c, 1);
+    if ('\n' == c)
+      {
+	res = box_dv_short_nchars (buf, buf_tail - buf);	/* eol is not in the buffer */
+	goto res_done;		/* see below */
+      }
+    (buf_tail++)[0] = c;
+    read_begin = ses->dks_in_buffer + ses->dks_in_read;
+    eol = (char *) memchr (read_begin, '\n', ses->dks_in_fill - ses->dks_in_read);
+    if (NULL != eol)
+      {
+	buf_add_len = (eol + 1) - read_begin;
+	goto add_portion_to_buf;	/* see above */
+      }
+    buf_add_len = ses->dks_in_fill - ses->dks_in_read;
+    goto add_portion_to_buf;	/* see above */
+  res_done:;
+  }
   FAILED
-    {
-    }
+  {
+  }
   END_READ_FAIL (ses);
   if (buf_is_allocated)
     dk_free (buf, buf_size);
@@ -7110,7 +6876,7 @@ bif_file_init (void)
   bif_define ("http_mime_type_add", bif_http_mime_type_add);
   bif_define_ex ("http_mime_type", bif_http_mime_type, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
   bif_define_ex ("delay", bif_sleep, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_set_uses_index (bif_sleep); /* is io sect, means can't hold a page wired */
+  bif_set_uses_index (bif_sleep);	/* is io sect, means can't hold a page wired */
   bif_define_ex ("trace_on", bif_trace_on, BMD_RET_TYPE, &bt_any, BMD_DONE);
   bif_define_ex ("trace_status", bif_trace_status, BMD_RET_TYPE, &bt_any, BMD_DONE);
   bif_define_ex ("trace_off", bif_trace_off, BMD_RET_TYPE, &bt_any, BMD_DONE);

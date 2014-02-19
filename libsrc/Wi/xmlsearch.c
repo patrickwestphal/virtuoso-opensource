@@ -34,8 +34,7 @@
 
 
 
-int itc_xml_row (it_cursor_t * itc, buffer_desc_t * buf, int pos,
-		 dp_addr_t * leaf_ret);
+int itc_xml_row (it_cursor_t * itc, buffer_desc_t * buf, int pos, dp_addr_t * leaf_ret);
 
 
 
@@ -50,15 +49,12 @@ pg_entity_level (db_buf_t first_key)
   DB_BUF_TLEN (len, *first_key, first_key);
   first_key += len;
   first_key++;
-  return (DV_LONG_INT == *first_key
-	  ? LONG_REF (first_key)
-	  : (long) (((signed char *) first_key)[1]));
+  return (DV_LONG_INT == *first_key ? LONG_REF (first_key) : (long) (((signed char *) first_key)[1]));
 }
 
 
 int
-itc_xml_row (it_cursor_t * itc, buffer_desc_t * buf, int pos,
-	     dp_addr_t * leaf_ret)
+itc_xml_row (it_cursor_t * itc, buffer_desc_t * buf, int pos, dp_addr_t * leaf_ret)
 {
   O12;
   return 0;
@@ -161,8 +157,7 @@ mu_next_new (misc_upd_t * mu)
 	return 0;
       cid = upd_nth_col (mu->mu_upd, mu->mu_qst, mu->mu_nth_col);
       if (IS_MISC_ID (cid)
-	  && (!mu->mu_row_tb->tb_misc_id_to_col_id
-	   || !gethash ((void *) (ptrlong) cid, mu->mu_row_tb->tb_misc_id_to_col_id)))
+	  && (!mu->mu_row_tb->tb_misc_id_to_col_id || !gethash ((void *) (ptrlong) cid, mu->mu_row_tb->tb_misc_id_to_col_id)))
 	{
 	  return cid;
 	}
@@ -215,8 +210,7 @@ mu_copy_old (misc_upd_t * mu)
 
 
 void
-upd_misc_col (update_node_t * upd, caddr_t * qst, dbe_table_t * row_tb, db_buf_t old_val, dk_session_t * ses,
-	      caddr_t * err_ret)
+upd_misc_col (update_node_t * upd, caddr_t * qst, dbe_table_t * row_tb, db_buf_t old_val, dk_session_t * ses, caddr_t * err_ret)
 {
   oid_t old_id, new_id;
   misc_upd_t mu;
@@ -242,8 +236,7 @@ upd_misc_col (update_node_t * upd, caddr_t * qst, dbe_table_t * row_tb, db_buf_t
     {
       if (!old_id && !new_id)
 	break;
-      if (!new_id
-	  || (old_id && old_id < new_id))
+      if (!new_id || (old_id && old_id < new_id))
 	{
 	  mu_copy_old (&mu);
 	  old_id = mu_next_old (&mu);
@@ -265,8 +258,7 @@ upd_misc_col (update_node_t * upd, caddr_t * qst, dbe_table_t * row_tb, db_buf_t
 
 
 void
-ins_misc_col (dk_session_t * ses,
-	      dbe_table_t * tb, oid_t * col_ids, caddr_t * values)
+ins_misc_col (dk_session_t * ses, dbe_table_t * tb, oid_t * col_ids, caddr_t * values)
 {
   int inx;
   misc_upd_t mu;
@@ -278,9 +270,7 @@ ins_misc_col (dk_session_t * ses,
   session_buffered_write (ses, "     ", 5);	/* space for header */
   DO_BOX (oid_t, cid, inx, col_ids)
   {
-    if (IS_MISC_ID (cid)
-	&& (!tb->tb_misc_id_to_col_id
-	    || !gethash ((void *) (ptrlong) cid, tb->tb_misc_id_to_col_id)))
+    if (IS_MISC_ID (cid) && (!tb->tb_misc_id_to_col_id || !gethash ((void *) (ptrlong) cid, tb->tb_misc_id_to_col_id)))
       {
 	print_long ((long) cid, ses);
 	print_object (values[inx], ses, NULL, NULL);

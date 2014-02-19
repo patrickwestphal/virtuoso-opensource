@@ -104,7 +104,8 @@ st_utf8_str_contains_unaccented_ucase_wstr (const utf8char * haystack, const wch
   first_is_plain = !IS_UNICHAR_ALPHA (first_wide);
   if (first_is_plain)
     {
-      utf8char *res = (utf8char *) eh_encode_char__UTF8 (first_wide, (char *) first_utf8buf, (char *) first_utf8buf + MAX_UTF8_CHAR);
+      utf8char *res =
+	  (utf8char *) eh_encode_char__UTF8 (first_wide, (char *) first_utf8buf, (char *) first_utf8buf + MAX_UTF8_CHAR);
       if (res == first_utf8buf)
 	return NULL;		/* can't search for invalid char */
       first_utf8len = (first_utf8buf - res);
@@ -115,7 +116,9 @@ again:
   if (first_is_plain)
     {				/* It's some non-letter character (e.g. a digit), then we can search
 				   it with strchr or strstr. If the first letter of needle is not found from haystack, then this surely fails: */
-      haystack = (utf8char *) ((1 == first_utf8len) ? strchr ((const char *) haystack, first_wide) : strstr ((const char *) haystack, (char *) first_utf8buf));
+      haystack =
+	  (utf8char *) ((1 == first_utf8len) ? strchr ((const char *) haystack, first_wide) : strstr ((const char *) haystack,
+	      (char *) first_utf8buf));
       if (NULL == haystack)
 	return NULL;
       haystack += first_utf8len;
@@ -320,11 +323,9 @@ se_merge_sets (dk_set_t s1, dk_set_t s2)
 #define SE_HIT_BEGIN(seh) (const SE_char *)(((se_hit_t*) seh)->seh_hit_begin)
 #define SE_HIT_END(seh) (const SE_char *)(((se_hit_t*) seh)->seh_hit_end)
 
-int
-SE_NAME (check_html_tag) (const SE_char ** wpoint);
+int SE_NAME (check_html_tag) (const SE_char ** wpoint);
 
-caddr_t
-SE_NAME (print) (se_ctx_t * se)
+caddr_t SE_NAME (print) (se_ctx_t * se)
 {
   caddr_t _result;
   dk_session_t *strses = strses_allocate ();
@@ -398,8 +399,7 @@ SE_NAME (print) (se_ctx_t * se)
   return _result;
 }
 
-void
-SE_NAME (push_hit_word) (dk_set_t * set, const SE_char * start, const SE_char * end)
+void SE_NAME (push_hit_word) (dk_set_t * set, const SE_char * start, const SE_char * end)
 {
   caddr_t *hwrd = (caddr_t *) dk_alloc_box (3 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   hwrd[0] = box_num (1);
@@ -420,8 +420,7 @@ SE_NAME (push_hit_word) (dk_set_t * set, const SE_char * start, const SE_char * 
 }
 
 /* returns offset to begin of tag */
-int
-SE_NAME (get_html_tag_offset) (SE_ccaddr_t doc, const SE_char * pointer, int max_offset)
+int SE_NAME (get_html_tag_offset) (SE_ccaddr_t doc, const SE_char * pointer, int max_offset)
 {
   const SE_char *start = pointer;
   while (--start > doc)
@@ -441,8 +440,7 @@ SE_NAME (get_html_tag_offset) (SE_ccaddr_t doc, const SE_char * pointer, int max
 /* return 1 if html tag detected,
    points wpoint to the end of tag
 */
-int
-SE_NAME (check_html_tag) (const SE_char ** wpoint)
+int SE_NAME (check_html_tag) (const SE_char ** wpoint)
 {
   const SE_char *p = wpoint[0];
   if (p[0] == '<')
@@ -532,8 +530,7 @@ SE_NAME (ctx_to_begin) (SE_ccaddr_t doc, const SE_char * left_border, const SE_c
   return pointer;
 }
 
-void
-SE_NAME (ctx_tokenize_doc) (se_ctx_t * se)
+void SE_NAME (ctx_tokenize_doc) (se_ctx_t * se)
 {
   caddr_t *curr_sentence;
   dk_set_t curr_sentence_set = 0;
@@ -550,10 +547,12 @@ SE_NAME (ctx_tokenize_doc) (se_ctx_t * se)
   __constcharptr ptrptr[1];
 #endif
   if (!se->se_from_begin)
-    wpoint = SE_NAME (ctx_to_begin) (se->se_doc_.SE_NAME (doc), se->se_doc_.SE_NAME (doc), SE_HIT_BEGIN (se->se_hits[0]),
+    wpoint =
+	SE_NAME (ctx_to_begin) (se->se_doc_.SE_NAME (doc), se->se_doc_.SE_NAME (doc), SE_HIT_BEGIN (se->se_hits[0]),
 	se->se_excerpt_max / 2, se->se_text_mode, 0);
   else
-    wpoint = SE_NAME (ctx_to_begin) (se->se_doc_.SE_NAME (doc), se->se_doc_.SE_NAME (doc), se->se_doc_.SE_NAME (doc),
+    wpoint =
+	SE_NAME (ctx_to_begin) (se->se_doc_.SE_NAME (doc), se->se_doc_.SE_NAME (doc), se->se_doc_.SE_NAME (doc),
 	se->se_excerpt_max / 2, se->se_text_mode, 0);
   wstart = wpoint;
   /* search sentence */
@@ -724,7 +723,9 @@ excerpt_end:
 	      int hit_left_border = 0;
 	      if (!point_at_the_end && !hit_left_border)
 		dk_set_push (&curr_sentence_set, WORD_POINTS);
-	      wstart = wpoint = SE_NAME (ctx_to_begin) (se->se_doc_.SE_NAME (doc), wpoint, SE_HIT_BEGIN (se->se_hits[hidx]), se->se_excerpt_max / 2, se->se_text_mode, &hit_left_border);
+	      wstart = wpoint =
+		  SE_NAME (ctx_to_begin) (se->se_doc_.SE_NAME (doc), wpoint, SE_HIT_BEGIN (se->se_hits[hidx]),
+		  se->se_excerpt_max / 2, se->se_text_mode, &hit_left_border);
 	      if (!hit_left_border || (se->se_doc_.SE_NAME (doc) != wpoint))
 		{
 		  sentence_hit_weight = 0;
@@ -747,8 +748,7 @@ excerpt_end:
   se->se_sentences = (caddr_t **) list_to_array (dk_set_nreverse (sentences_set));
 }
 
-int
-SE_NAME (ctx_search_cluster) (se_hit_t ** hit_index, int hit_index_sz, int cluster_sz)
+int SE_NAME (ctx_search_cluster) (se_hit_t ** hit_index, int hit_index_sz, int cluster_sz)
 {
   int idx;
   for (idx = 1; idx < hit_index_sz; idx++)
@@ -870,7 +870,8 @@ bif_search_excerpt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	if ((BF_UTF8 | BF_IRI) & box_flags (hit))
 	  tmp_wide_hit = box_utf8_as_wide_char (hit, NULL, box_length (hit) - 1, 0, DV_STRING);
 	else
-	  tmp_wide_hit = box_narrow_string_as_wide ((unsigned char *) hit, NULL, 0, qst ? QST_CHARSET (qst) : NULL, NULL /* no err */ , 1);
+	  tmp_wide_hit =
+	      box_narrow_string_as_wide ((unsigned char *) hit, NULL, 0, qst ? QST_CHARSET (qst) : NULL, NULL /* no err */ , 1);
 	if (NULL == tmp_wide_hit)
 	  goto fin;		/* see below */
       }
@@ -891,12 +892,14 @@ bif_search_excerpt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	break;
 #if 0
       case SE_UTF8:
-	normalized_word_hits[inx] = box_wide_as_utf8_char (tmp_wide_hit, box_length (tmp_wide_hit) / sizeof (wchar_t) - 1, DV_STRING);
+	normalized_word_hits[inx] =
+	    box_wide_as_utf8_char (tmp_wide_hit, box_length (tmp_wide_hit) / sizeof (wchar_t) - 1, DV_STRING);
 	dk_free_box (tmp_wide_hit);
 	break;
 #endif
       case SE_NARROW:
-	normalized_word_hits[inx] = box_wide_string_as_narrow (tmp_wide_hit, NULL, box_length (tmp_wide_hit) / sizeof (wchar_t) - 1,
+	normalized_word_hits[inx] =
+	    box_wide_string_as_narrow (tmp_wide_hit, NULL, box_length (tmp_wide_hit) / sizeof (wchar_t) - 1,
 	    qst ? QST_CHARSET (qst) : NULL);
 	dk_free_box (tmp_wide_hit);
 	break;
@@ -951,7 +954,8 @@ bif_search_excerpt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	      hit_end = (hit_pointer + box_length (hit) - 1);
 	    break;
 	  case SE_UTF8:
-	    hit_pointer = (const char *) st_utf8_str_contains_unaccented_ucase_wstr ((const utf8char *) hit_pointer, (const wchar_t *) hit,
+	    hit_pointer =
+		(const char *) st_utf8_str_contains_unaccented_ucase_wstr ((const utf8char *) hit_pointer, (const wchar_t *) hit,
 		(const utf8char **) (&hit_end));
 	    break;
 	  case SE_WIDE:
@@ -1206,14 +1210,13 @@ rnk_scale (caddr_t box)
 
 
 caddr_t
-bif_sum_rank (caddr_t *qst, caddr_t * err_ret, state_slot_t ** args)
+bif_sum_rank (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  caddr_t * arr = (caddr_t*)bif_arg (qst, args, 0, "sum_rank");
+  caddr_t *arr = (caddr_t *) bif_arg (qst, args, 0, "sum_rank");
   if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (arr) || BOX_ELEMENTS (arr) < 3)
     return NULL;
-  return box_double (rnk_scale (arr[0]) + (float) ((float)unbox (arr[2]) / ((unbox (arr[1]) / 3))));
+  return box_double (rnk_scale (arr[0]) + (float) ((float) unbox (arr[2]) / ((unbox (arr[1]) / 3))));
   /* return  rnk_scale_v (arr[0]) + cast (arr[2] as real) / (arr[1] / 3); */
 }
-
 
 #endif

@@ -30,24 +30,19 @@
 
 /* hosting structs */
 
-typedef char * (* hv_http_handler_t)
+typedef char *(*hv_http_handler_t)
     (void *cli, char *err, int max_err_len,
-     const char *base_uri, const char *content,
-     const char *params, const char **lines, int n_lines,
-     char **head_ret, const char **options, int n_options, char **diag_ret,
-     int compile_only);
+    const char *base_uri, const char *content,
+    const char *params, const char **lines, int n_lines,
+    char **head_ret, const char **options, int n_options, char **diag_ret, int compile_only);
 
-typedef void * (* hv_client_attach_t)
-    (char *err, int max_err_len);
+typedef void *(*hv_client_attach_t) (char *err, int max_err_len);
 
-typedef char * (* hv_client_detach_t)
-    (void *cli);
+typedef char *(*hv_client_detach_t) (void *cli);
 
-typedef void * (* hv_client_clone_t)
-    (void *cli, char *err, int max_err_len);
+typedef void *(*hv_client_clone_t) (void *cli, char *err, int max_err_len);
 
-typedef void (* hv_client_free_t)
-    (void *cli);
+typedef void (*hv_client_free_t) (void *cli);
 
 typedef struct hosting_version_s
 {

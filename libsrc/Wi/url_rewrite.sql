@@ -994,7 +994,7 @@ create procedure DB.DBA.HTTP_URLREWRITE_APPLY_PATTERN (in pattern varchar, in st
                ret := ret || sprintf ('%U', par);
 	     }
 	   else
-         ret := ret || pars[tmp-1];
+             ret := ret || pars[tmp-1];
 	 }
        pos := arr[1];
        arr := regexp_parse ('(\\x24U?[0-9]+)', format, pos);
@@ -1129,7 +1129,7 @@ create procedure DB.DBA.URLREWRITE_APPLY_TCN (in rulelist_uri varchar, inout pat
 	   declare s any;
 	   best_q := curr;
 	   best_ct := VM_TYPE;
-	     best_variant := variant;
+	   best_variant := variant;
 	   --if (VM_URI like '/%')
 	   --  best_variant := variant;
 	   --else
@@ -1313,8 +1313,8 @@ create procedure DB.DBA.HTTP_URLREWRITE (in path varchar, in rule_list varchar, 
 	  if (length (http_headers))
 	    {
 	      http_headers := http_headers || '\r\n';
-	  http_header (http_headers);
-	}
+	      http_header (http_headers);
+	    }
 	}
 
       if (http_redir in (301, 302, 303, 307))
@@ -1357,6 +1357,7 @@ create procedure DB.DBA.HTTP_URLREWRITE (in path varchar, in rule_list varchar, 
   return 0;
 }
 ;
+
 
 create procedure DB.DBA.URLREWRITE_DUMP_RULELIST_SQL (in rulelist_iri varchar)
 {

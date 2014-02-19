@@ -35,13 +35,13 @@ typedef struct numeric_s *numeric_t;
 
 
 struct numeric_s
-    {
-      char n_len;	/* The number of digits before the decimal point. */
-      char n_scale;	/* The number of digits after the decimal point. */
-      char n_invalid;	/* NDF_NAN or NDF_INF */
-      char n_neg;	/* 0 or 1 */
-      char n_value[NUMERIC_PADDING];
-    };
+{
+  char n_len;			/* The number of digits before the decimal point. */
+  char n_scale;			/* The number of digits after the decimal point. */
+  char n_invalid;		/* NDF_NAN or NDF_INF */
+  char n_neg;			/* 0 or 1 */
+  char n_value[NUMERIC_PADDING];
+};
 
 #define num_is_zero(N)		((N)->n_len + (N)->n_scale == 0)
 #define num_is_invalid(N)	((N)->n_invalid)
@@ -114,12 +114,12 @@ numeric_t mp_numeric_allocate (mem_pool_t * mp);
 numeric_t dbg_numeric_allocate (DBG_PARAMS_0);	/* dynamic allocation */
 numeric_t dbg_t_numeric_allocate (DBG_PARAMS_0);	/* thread space dynamic allocation */
 #else
-numeric_t numeric_allocate (void);		/* dynamic allocation */
-numeric_t t_numeric_allocate (void);		/* thread space dynamic allocation */
+numeric_t numeric_allocate (void);	/* dynamic allocation */
+numeric_t t_numeric_allocate (void);	/* thread space dynamic allocation */
 #endif
 void numeric_free (numeric_t n);
 int numeric_copy (numeric_t y, numeric_t x);
-numeric_t numeric_init_static (numeric_t n, size_t size);/* stack allocation */
+numeric_t numeric_init_static (numeric_t n, size_t size);	/* stack allocation */
 
 /* error reporting */
 int numeric_error (int code, char *sqlstate, int state_len, char *sqlerror, int error_length);
@@ -130,17 +130,17 @@ const char *numeric_from_string_is_ok (const char *s);
 int numeric_from_int32 (numeric_t n, int32 i);
 int numeric_from_int64 (numeric_t n, int64 i);
 int numeric_from_double (numeric_t n, double d);
-int numeric_from_dv (numeric_t n, dtp_t *buf, int n_bytes);
-int numeric_from_buf (numeric_t n, dtp_t *buf);
-int numeric_to_hex_array (numeric_t n, unsigned char * arr);
-void numeric_from_hex_array (numeric_t n, char len, char scale, char sign, unsigned char * arr, int a_len);
+int numeric_from_dv (numeric_t n, dtp_t * buf, int n_bytes);
+int numeric_from_buf (numeric_t n, dtp_t * buf);
+int numeric_to_hex_array (numeric_t n, unsigned char *arr);
+void numeric_from_hex_array (numeric_t n, char len, char scale, char sign, unsigned char *arr, int a_len);
 int numeric_sign (numeric_t n);
 /* int numeric_to_string_box (numeric_t n, char **pvalue); */
 int numeric_to_string (numeric_t n, char *pvalue, size_t max_pvalue);
-int numeric_to_int32 (numeric_t n, int32 *pvalue);
-int numeric_to_int64 (numeric_t n, int64 *pvalue);
+int numeric_to_int32 (numeric_t n, int32 * pvalue);
+int numeric_to_int64 (numeric_t n, int64 * pvalue);
 int numeric_to_double (numeric_t n, double *pvalue);
-int numeric_to_dv (numeric_t n, dtp_t *res, size_t reslength);
+int numeric_to_dv (numeric_t n, dtp_t * res, size_t reslength);
 int numeric_dv_len (numeric_t n);
 
 int numeric_rescale (numeric_t y, numeric_t x, int prec, int scale);
@@ -157,15 +157,15 @@ int numeric_modulo (numeric_t z, numeric_t x, numeric_t y);
 int numeric_sqr (numeric_t z, numeric_t x);
 
 /* marshalling */
-int numeric_serialize (numeric_t n, dk_session_t *session);
-void *numeric_deserialize (dk_session_t *session, dtp_t macro);
-int numeric_dv_compare (dtp_t *x, dtp_t *y);
+int numeric_serialize (numeric_t n, dk_session_t * session);
+void *numeric_deserialize (dk_session_t * session, dtp_t macro);
+int numeric_dv_compare (dtp_t * x, dtp_t * y);
 
 /* debugging */
 #ifdef NUMERIC_DEBUG
-void numeric_print (FILE *fd, char *what, numeric_t n);
-void numeric_debug (FILE *fd, char *what, numeric_t n);
-void numeric_dv_debug (FILE *fd, char *name, dtp_t *res);
+void numeric_print (FILE * fd, char *what, numeric_t n);
+void numeric_debug (FILE * fd, char *what, numeric_t n);
+void numeric_dv_debug (FILE * fd, char *name, dtp_t * res);
 #endif
 
 /* Note: returns internal precision (!) */

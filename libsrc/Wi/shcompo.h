@@ -54,59 +54,59 @@ struct shcompo_cache_s;
 /*! Allocates memory and returns a pointer to new shcompo.
 It should set \c shcompo_data field to either some actual data or to NULL, but
 it should not try to fill other fields. */
-typedef struct shcompo_s * (* shcompo_alloc_t) (void *env);
+typedef struct shcompo_s *(*shcompo_alloc_t) (void *env);
 /*! Allocates memory and returns a pointer to new shcompo, using given one as a template.
 It should set \c shcompo_data field to either some actual data or to NULL, but
 it should not try to fill other fields. */
-typedef struct shcompo_s * (* shcompo_alloc_copy_t) (struct shcompo_s *shc);
+typedef struct shcompo_s *(*shcompo_alloc_copy_t) (struct shcompo_s * shc);
 /*! Compiles a key of \c shc and fills in either its \c shcompo_data or \c shcompo_error */
-typedef void (* shcompo_compile_t) (struct shcompo_s *shc, struct query_instance_s *qi, void *env);
+typedef void (*shcompo_compile_t) (struct shcompo_s * shc, struct query_instance_s * qi, void *env);
 /*! Returns whether a \c shc is stale (so \c shcompo_is_stale should be set) */
-typedef int (* shcompo_check_if_stale_t) (struct shcompo_s *shc);
+typedef int (*shcompo_check_if_stale_t) (struct shcompo_s * shc);
 /*! Recompiles a key of \c shc and fills in either its \c shcompo_data or \c shcompo_error.
 The key is supposed to be successfully compiled at least once before so shcompo_data is filled in. */
-typedef void (* shcompo_recompile_t) (struct shcompo_s *old_shcompo, struct shcompo_s *new_shcompo);
+typedef void (*shcompo_recompile_t) (struct shcompo_s * old_shcompo, struct shcompo_s * new_shcompo);
 /*! Destroys \c shcompo_data if needed and de-allocates \c shc by e.g. dk_free (shcompo, sizeof (shcompo_t));
 Actual behaviour may vary because
 a) \c shcompo_data and shcompo_key may or may not be owned by shcompo and
 b) the shcompo itself can be one of fields of a structure that is available via \c shcompo_data
 c) this function may assert that the shcompo is not in cache and that the refcounter is zero.
 */
-typedef void (* shcompo_destroy_data_t) (struct shcompo_s *shc);
+typedef void (*shcompo_destroy_data_t) (struct shcompo_s * shc);
 
 typedef struct shcompo_vtable_s
-  {
-    const char *		shcompo_type_title;
-    id_hash_t *			shcompo_cache;
-    dk_mutex_t *		shcompo_cache_mutex;
-    dk_set_t			shcompo_spare_mutexes;
-    shcompo_alloc_t		shcompo_alloc;
-    shcompo_alloc_copy_t	shcompo_alloc_copy;	/*!< Can be NULL, but only if \c shcompo_recompile is also NULL */
-    shcompo_compile_t		shcompo_compile;
-    shcompo_check_if_stale_t    shcompo_check_if_stale;
-    shcompo_recompile_t		shcompo_recompile;	/*!< Can be NULL if re-compilation is impossible (say, it requires environment that is not stored in the result of the compilation) */
-    shcompo_destroy_data_t	shcompo_destroy_data;
-    unsigned long		shcompo_cache_size_limit;	/*!< Maximum allowed number of cached objects in the cache, can not be less than two. Setting the value much smaller than number of buckets of \c shcompo_cache may cause inefficient searches for old item to remove when the limit is reached */
-  } shcompo_vtable_t;
+{
+  const char *shcompo_type_title;
+  id_hash_t *shcompo_cache;
+  dk_mutex_t *shcompo_cache_mutex;
+  dk_set_t shcompo_spare_mutexes;
+  shcompo_alloc_t shcompo_alloc;
+  shcompo_alloc_copy_t shcompo_alloc_copy;	/*!< Can be NULL, but only if \c shcompo_recompile is also NULL */
+  shcompo_compile_t shcompo_compile;
+  shcompo_check_if_stale_t shcompo_check_if_stale;
+  shcompo_recompile_t shcompo_recompile;	/*!< Can be NULL if re-compilation is impossible (say, it requires environment that is not stored in the result of the compilation) */
+  shcompo_destroy_data_t shcompo_destroy_data;
+  unsigned long shcompo_cache_size_limit;	/*!< Maximum allowed number of cached objects in the cache, can not be less than two. Setting the value much smaller than number of buckets of \c shcompo_cache may cause inefficient searches for old item to remove when the limit is reached */
+} shcompo_vtable_t;
 
 /* Shcompo and basic operations on shcompo instances. */
 
 typedef struct shcompo_s
-  {
-    shcompo_vtable_t * _;		/*!< Pointer to virtual table */
-    caddr_t	shcompo_key;		/*!< Key such as vector (query text, user, group) for query */
-    int		shcompo_ref_count;	/*!< Reference count */
-    int		shcompo_is_stale;	/*!< Flags that the shcompo should not be used in new processes */
-    void *	shcompo_data;		/*!< Useful data. The shcompo itself can be part of that data but only if _->shcompo_recompile is NULL */
-    caddr_t	shcompo_error;		/*!< NULL in case of successful (or not performed) compilation, compilation error otherwise */
-    dk_mutex_t *shcompo_comp_mutex;	/*!< Compilation mutex, it is non-NULL while the compilation is in progress */
+{
+  shcompo_vtable_t *_;		/*!< Pointer to virtual table */
+  caddr_t shcompo_key;		/*!< Key such as vector (query text, user, group) for query */
+  int shcompo_ref_count;	/*!< Reference count */
+  int shcompo_is_stale;		/*!< Flags that the shcompo should not be used in new processes */
+  void *shcompo_data;		/*!< Useful data. The shcompo itself can be part of that data but only if _->shcompo_recompile is NULL */
+  caddr_t shcompo_error;	/*!< NULL in case of successful (or not performed) compilation, compilation error otherwise */
+  dk_mutex_t *shcompo_comp_mutex;	/*!< Compilation mutex, it is non-NULL while the compilation is in progress */
 #ifdef DEBUG
-    int		shcompo_watchdog;	/*!< Last moment when the shcompo is in shcompo_global_hashtable. */
+  int shcompo_watchdog;		/*!< Last moment when the shcompo is in shcompo_global_hashtable. */
 #endif
 #ifndef NDEBUG
-    thread_t *  shcompo_owner;
+  thread_t *shcompo_owner;
 #endif
-  } shcompo_t;
+} shcompo_t;
 
 #ifdef NDEBUG
 #define SHC_ENTER(s) mutex_enter ((s)->shcompo_comp_mutex)
@@ -131,27 +131,28 @@ typedef struct shcompo_s
 /*! Tries to get a thing or create it by compiling a (copy of) key.
 If \c key_is_const then \c key is not changed (cache will store a copy if needed, otherwise \c key can be freed or placed into cache).
 \returns an old or a previously compiled shcompo, locked. */
-extern shcompo_t *shcompo_get_or_compile (shcompo_vtable_t *vt, caddr_t key, int key_is_const, struct query_instance_s *qi, void *env, caddr_t *err_ret);
+extern shcompo_t *shcompo_get_or_compile (shcompo_vtable_t * vt, caddr_t key, int key_is_const, struct query_instance_s *qi,
+    void *env, caddr_t * err_ret);
 
 /*! Returns locked shcompo for given key if it exists, otherwise returns NULL.
 There's no function to find if some shcompo exists, because it's useless:
 other thread may stale shcompo before it is locked for actual use. */
-extern shcompo_t *shcompo_get (shcompo_vtable_t *vt, caddr_t key);
+extern shcompo_t *shcompo_get (shcompo_vtable_t * vt, caddr_t key);
 
 /*! Adds a lock to given shcompo. It will do nothing if NULL is passed. */
-extern void shcompo_lock (shcompo_t *shc);
+extern void shcompo_lock (shcompo_t * shc);
 
 /*! Releases given previously locked shcompo. It will do nothing if NULL is passed. */
-extern void shcompo_release (shcompo_t *locked_shcompo);
+extern void shcompo_release (shcompo_t * locked_shcompo);
 
 /*! Stales shcompo if it exists. It will not erase the existing locked shcompo(s), but they
 become unavailable via shcompo_get().
 They still might be available via shcompo_get_or_compile().
 It's not an error to pass NULL as an argument. */
-extern void shcompo_stale (shcompo_t *locked_shcompo);
+extern void shcompo_stale (shcompo_t * locked_shcompo);
 
 /*! Checks whether the shcompo should be staled, then acts like \c shcompo_stale() if needed */
-extern void shcompo_stale_if_needed (shcompo_t *locked_shcompo);
+extern void shcompo_stale_if_needed (shcompo_t * locked_shcompo);
 
 /*! Stales shcompo if it exists, then tries to recompile.
 It will not erase the existing locked shcompo(s), but they may become unavailable via shcompo_get() in case of recompilation error.
@@ -159,13 +160,13 @@ They still might be available via shcompo_get_or_compile().
 It's not an error to pass pointer to NULL as an argument.
 After successful recompilation, the locked_shcompo_ptr points to new shcompo.
  */
-extern void shcompo_recompile (shcompo_t **locked_shcompo_ptr);
+extern void shcompo_recompile (shcompo_t ** locked_shcompo_ptr);
 
 /*! Checks whether the shcompo should be staled, then call \c shcompo_recompile() if needed */
-extern void shcompo_recompile_if_needed (shcompo_t **locked_shcompo_ptr);
+extern void shcompo_recompile_if_needed (shcompo_t ** locked_shcompo_ptr);
 
 /*! Checks if the given shcompo is obsolete. */
-extern int shcompo_is_obsolete_1 (shcompo_t *shc);
+extern int shcompo_is_obsolete_1 (shcompo_t * shc);
 
 #ifdef DEBUG
 extern void shcompo_validate_refcounters (int strict);

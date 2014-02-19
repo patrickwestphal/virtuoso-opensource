@@ -56,57 +56,57 @@
 #define BACKUP_DIR_ARG_ERR_CODE	"IB015"
 typedef struct ol_backup_context_s
 {
-  dk_session_t*	octx_file;
-  dp_addr_t	page_dp;
+  dk_session_t *octx_file;
+  dp_addr_t page_dp;
 
 
-  dbe_storage_t * octx_dbs;
+  dbe_storage_t *octx_dbs;
 
-  uint32	octx_timestamp;
-  uint32	octx_num;
+  uint32 octx_timestamp;
+  uint32 octx_num;
 
-  char		octx_file_prefix[FILEN_BUFSIZ];
-  char		octx_curr_file[FILEN_BUFSIZ];
-  int		octx_curr_dir;
+  char octx_file_prefix[FILEN_BUFSIZ];
+  char octx_curr_file[FILEN_BUFSIZ];
+  int octx_curr_dir;
 
-  long		octx_max_pages;
-  long		octx_page_count;
-  long		octx_last_page;
+  long octx_max_pages;
+  long octx_page_count;
+  long octx_last_page;
 
-  int		octx_is_invalid;
-  int		octx_is_tail; /* do not write header */
+  int octx_is_invalid;
+  int octx_is_tail;		/* do not write header */
 
-  dk_hash_t *	octx_cpt_remap_r;
+  dk_hash_t *octx_cpt_remap_r;
 
-  long		octx_last_backup; /* datetime of last backup */
-  long		octx_max_uncomp_size; /* maximal uncompressed size of backup file */
+  long octx_last_backup;	/* datetime of last backup */
+  long octx_max_uncomp_size;	/* maximal uncompressed size of backup file */
 
   /* error reporting */
-  long		octx_error;
-  char *	octx_error_code;
-  char *	octx_error_string;
+  long octx_error;
+  char *octx_error_code;
+  char *octx_error_string;
 
   /* deadline time (in msecs) */
-  long		octx_deadline;
+  long octx_deadline;
 
   /* copy of wi_inst.wi_master->dbs_incbackup_set to rollback all changes over this set if error occurs (e.g. timeout). */
-  buffer_desc_t *	octx_incset;
-  buffer_desc_t *	octx_free_set;
-  buffer_desc_t *	octx_ext_set;
-  caddr_t *		octx_registry;
-  buffer_desc_t *	octx_cpt_set;
+  buffer_desc_t *octx_incset;
+  buffer_desc_t *octx_free_set;
+  buffer_desc_t *octx_ext_set;
+  caddr_t *octx_registry;
+  buffer_desc_t *octx_cpt_set;
 
   /* list of all created files */
-  dk_set_t	octx_backup_files;
+  dk_set_t octx_backup_files;
   /* must not be deallocated by destructor */
-  caddr_t*	octx_backup_patha;
-  OFF_T		octx_wr_bytes;
-  OFF_T		octx_max_wr_bytes;
-  dp_addr_t	octx_curr_page;
+  caddr_t *octx_backup_patha;
+  OFF_T octx_wr_bytes;
+  OFF_T octx_max_wr_bytes;
+  dp_addr_t octx_curr_page;
 
-  dk_hash_t*	known;
+  dk_hash_t *known;
 
-  int		octx_disable_increment;
+  int octx_disable_increment;
 } ol_backup_context_t;
 
 
@@ -117,10 +117,9 @@ extern ol_backup_ctx_t bp_ctx;
 
 typedef void (*page_func_t) (it_cursor_t *, buffer_desc_t *, void *);
 
-void walk_dbtree ( it_cursor_t * it, buffer_desc_t ** buf_ret, int level,
-      page_func_t func, void* ctx);
+void walk_dbtree (it_cursor_t * it, buffer_desc_t ** buf_ret, int level, page_func_t func, void *ctx);
 
-int backup_context_increment (ol_backup_context_t* ctx, int is_restore);
+int backup_context_increment (ol_backup_context_t * ctx, int is_restore);
 
 extern dk_mutex_t *checkpoint_mtx;
 
@@ -128,12 +127,12 @@ int lt_backup_flush (lock_trx_t * lt, int do_commit);
 
 void wi_open_dbs ();
 
-extern const char* recover_file_prefix; /* from obackup.c */
+extern const char *recover_file_prefix;	/* from obackup.c */
 void ddl_obackup_init (void);
-char* bp_curr_timestamp();
-char* bp_curr_date();
+char *bp_curr_timestamp ();
+char *bp_curr_date ();
 
-extern caddr_t * backup_patha;
+extern caddr_t *backup_patha;
 
 typedef int (*ol_regist_callback_f) (it_cursor_t * itc, buffer_desc_t * buf, ol_backup_context_t * ctx);
 int ol_regist_unmark (it_cursor_t * itc, buffer_desc_t * buf, ol_backup_context_t * ctx);

@@ -1,25 +1,4 @@
-/*
- *  Column Compression
- *
- *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
- *  project.
- *
- *  Copyright (C) 1998-2014 OpenLink Software
- *
- *  This project is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; only version 2 of the License, dated June 1991.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- *
- */
+
 
 
 #undef CE_BITS_TGT
@@ -45,8 +24,8 @@
 int
 CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
 {
-  it_cursor_t * itc = cpo->cpo_itc;
-  data_col_t * dc = cpo->cpo_dc;
+  it_cursor_t *itc = cpo->cpo_itc;
+  data_col_t *dc = cpo->cpo_dc;
   int64 base, base_1, first;
   uint32 date_base = 0;
   db_buf_t ce = cpo->cpo_ce;
@@ -57,8 +36,7 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   int last_row = cpo->cpo_ce_row_no;
   db_buf_t body;
   int byte = 0, bit = 0;
-  CED_VARS
-  int to = cpo->cpo_to;
+  CED_VARS int to = cpo->cpo_to;
   int target;
 #ifdef CE_BITS_RANGE
   int last_of_ce = MIN (last_row + n_values, cpo->cpo_to);
@@ -109,4 +87,3 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
 #undef CE_OUT
 #undef CED_VARS
 #undef ELT_DTP
-

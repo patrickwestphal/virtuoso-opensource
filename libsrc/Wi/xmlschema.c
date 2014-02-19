@@ -38,37 +38,24 @@
 
 
 char *xmlt1 =
-"create table SYS_ELEMENT_TABLE (\n"
-"	ET_ELEMENT varchar, \n"
-"	ET_TABLE varchar,\n"
-"	primary key (ET_ELEMENT))";
+    "create table SYS_ELEMENT_TABLE (\n" "	ET_ELEMENT varchar, \n" "	ET_TABLE varchar,\n" "	primary key (ET_ELEMENT))";
 
 char *xmlt2 =
-"create table SYS_ELEMENT_MAP (\n"
-"	EM_TABLE varchar,\n"
-"	EM_A_ID integer,\n"
-"	EM_COL_ID integer,\n"
-"	primary key (EM_TABLE,EM_COL_ID))";
+    "create table SYS_ELEMENT_MAP (\n"
+    "	EM_TABLE varchar,\n" "	EM_A_ID integer,\n" "	EM_COL_ID integer,\n" "	primary key (EM_TABLE,EM_COL_ID))";
 
-char *xmlt3 =
-"create table SYS_ATTR (\n"
-"	A_NAME varchar,\n"
-"	A_ID integer,\n"
-"	primary key (A_ID))";
+char *xmlt3 = "create table SYS_ATTR (\n" "	A_NAME varchar,\n" "	A_ID integer,\n" "	primary key (A_ID))";
 
 char *xmlt4 =
-"create table SYS_ATTR_META (AM_A_ID integer, AM_URI varchar, \n"
-"	AM_DATA varchar,\n"
-"	primary key (AM_A_ID, AM_URI))";
+    "create table SYS_ATTR_META (AM_A_ID integer, AM_URI varchar, \n" "	AM_DATA varchar,\n" "	primary key (AM_A_ID, AM_URI))";
 
 
-char * xmlt5 =
-"create table SYS_VT_INDEX (VI_TABLE varchar, VI_INDEX varchar, VI_COL varchar, "
-"	VI_ID_COL varchar, VI_INDEX_TABLE varchar,"
-"       VI_ID_IS_PK integer, VI_ID_CONSTR varchar,"
-"       VI_OFFBAND_COLS varchar, VI_OPTIONS varchar, VI_LANGUAGE varchar, VI_ENCODING varchar,"
-"       primary key (VI_TABLE, VI_COL))\n"
-"alter index SYS_VT_INDEX on SYS_VT_INDEX partition cluster REPLICATED";
+char *xmlt5 =
+    "create table SYS_VT_INDEX (VI_TABLE varchar, VI_INDEX varchar, VI_COL varchar, "
+    "	VI_ID_COL varchar, VI_INDEX_TABLE varchar,"
+    "       VI_ID_IS_PK integer, VI_ID_CONSTR varchar,"
+    "       VI_OFFBAND_COLS varchar, VI_OPTIONS varchar, VI_LANGUAGE varchar, VI_ENCODING varchar,"
+    "       primary key (VI_TABLE, VI_COL))\n" "alter index SYS_VT_INDEX on SYS_VT_INDEX partition cluster REPLICATED";
 
 
 xml_schema_t *xml_global;
@@ -85,7 +72,7 @@ xs_allocate (void)
   xs->xs_element_table = id_str_hash_create (101);
   xs->xs_key_id_to_element = hash_table_allocate (101);
   xs->xs_views = id_str_hash_create (101);
-  xs->xs_old_views = (dk_set_t  *) dk_alloc_zero (sizeof (dk_set_t));/*mapping schema*/
+  xs->xs_old_views = (dk_set_t *) dk_alloc_zero (sizeof (dk_set_t));	/*mapping schema */
   return xs;
 }
 
@@ -118,38 +105,35 @@ oid_t entity_leading_col_id;
 oid_t entity_trailing_col_id;
 oid_t textfrag_leading_col_id;
 oid_t textfrag_long_col_id;
-dbe_table_t * entity_table;
-dbe_table_t * textfrag_table;
+dbe_table_t *entity_table;
+dbe_table_t *textfrag_table;
 
 
-char * ent_map_text =
-"create procedure xml_element_table (in tb varchar, in element varchar, in attr_col varchar)\n"
-"{\n"
-"  declare c integer;\n"
-"  if (not exists (select 1 from SYS_KEYS where KEY_TABLE = tb))\n"
-"    signal ('S0002', 'No table in xml_entity_map');\n"
-"  insert soft SYS_ELEMENT_TABLE (ET_ELEMENT, ET_TABLE) values (element, tb);\n"
-"  declare inx integer;\n"
-"  inx := 0;\n"
-"  while (inx < length (attr_col)) {\n"
-"    declare cid, aid integer;\n"
-"    whenever not found goto no_col;\n"
-"    select COL_ID into cid from SYS_COLS \n"
-"      where \\TABLE = tb and \\COLUMN = aref (attr_col, inx);\n"
-"    xml_attr (aref (attr_col, inx + 1));\n"
-"    select A_ID into aid from SYS_ATTR where A_NAME = aref (attr_col, inx + 1);\n"
-"    insert soft SYS_ELEMENT_MAP (EM_TABLE, EM_COL_ID, EM_A_ID) values (tb, cid, aid);\n"
-"    inx := inx + 2;\n"
-"  }\n"
-"  xmls_element_table (element, tb);\n"
-"  log_text ('xmls_element_table (?, ?)', element, tb);\n"
-"  select sum ((xmls_element_col (tb, EM_COL_ID, EM_A_ID),\n"
-"	       log_text ('xmls_element_col (?, ?, ?)', tb, EM_COL_ID, EM_A_ID))) \n"
-"    into c from SYS_ELEMENT_MAP where EM_TABLE = tb;\n"
-"  return;\n"
-" no_col:\n"
-"  signal ('S0022', 'No column or attribute in xml_element_element_table');\n"
-"}";
+char *ent_map_text =
+    "create procedure xml_element_table (in tb varchar, in element varchar, in attr_col varchar)\n"
+    "{\n"
+    "  declare c integer;\n"
+    "  if (not exists (select 1 from SYS_KEYS where KEY_TABLE = tb))\n"
+    "    signal ('S0002', 'No table in xml_entity_map');\n"
+    "  insert soft SYS_ELEMENT_TABLE (ET_ELEMENT, ET_TABLE) values (element, tb);\n"
+    "  declare inx integer;\n"
+    "  inx := 0;\n"
+    "  while (inx < length (attr_col)) {\n"
+    "    declare cid, aid integer;\n"
+    "    whenever not found goto no_col;\n"
+    "    select COL_ID into cid from SYS_COLS \n"
+    "      where \\TABLE = tb and \\COLUMN = aref (attr_col, inx);\n"
+    "    xml_attr (aref (attr_col, inx + 1));\n"
+    "    select A_ID into aid from SYS_ATTR where A_NAME = aref (attr_col, inx + 1);\n"
+    "    insert soft SYS_ELEMENT_MAP (EM_TABLE, EM_COL_ID, EM_A_ID) values (tb, cid, aid);\n"
+    "    inx := inx + 2;\n"
+    "  }\n"
+    "  xmls_element_table (element, tb);\n"
+    "  log_text ('xmls_element_table (?, ?)', element, tb);\n"
+    "  select sum ((xmls_element_col (tb, EM_COL_ID, EM_A_ID),\n"
+    "	       log_text ('xmls_element_col (?, ?, ?)', tb, EM_COL_ID, EM_A_ID))) \n"
+    "    into c from SYS_ELEMENT_MAP where EM_TABLE = tb;\n"
+    "  return;\n" " no_col:\n" "  signal ('S0022', 'No column or attribute in xml_element_element_table');\n" "}";
 
 void
 xmls_init (void)
@@ -169,9 +153,9 @@ xmls_init (void)
   if (!xml_global)
     xml_global = xs_allocate ();
 
-  qr = sql_compile_static ("select A_ID, A_NAME from SYS_ATTR",
-		    bootstrap_cli, &err, SQLC_DEFAULT);
-  if (NULL != err) goto no_attrs;
+  qr = sql_compile_static ("select A_ID, A_NAME from SYS_ATTR", bootstrap_cli, &err, SQLC_DEFAULT);
+  if (NULL != err)
+    goto no_attrs;
   err = qr_quick_exec (qr, bootstrap_cli, "", &lc, 0);
   while (lc_next (lc))
     {
@@ -188,9 +172,11 @@ no_attrs:
   ddl_sel_for_effect ("select count (*) from SYS_ELEMENT_MAP where xmls_element_col (EM_TABLE, EM_COL_ID, EM_A_ID)");
   tb = sch_name_to_table (isp_schema (NULL), "DB.DBA.SYS_VT_INDEX");
   if (tb && tb_name_to_column (tb, LAST_FTI_COL))
-    ddl_sel_for_effect ("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
+    ddl_sel_for_effect
+	("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
   else
-    ddl_sel_for_effect ("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, NULL, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
+    ddl_sel_for_effect
+	("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, NULL, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
 #ifdef OLD_VXML_TABLES
   xp_comp_init ();
 #endif
@@ -360,9 +346,9 @@ qi_new_attr (query_instance_t * qi, char *name)
   if (!new_attr_qr)
     {
       new_attr_qr = sql_compile_static ("select A_ID from DB.DBA.SYS_ATTR order by A_ID desc for update",
-				 bootstrap_cli, &err, SQLC_DEFAULT);
+	  bootstrap_cli, &err, SQLC_DEFAULT);
       ins_attr_qr = sql_compile_static ("insert into DB.DBA.SYS_ATTR (A_ID, A_NAME) values (?, ?)",
-				 bootstrap_cli, &err, SQLC_DEFAULT);
+	  bootstrap_cli, &err, SQLC_DEFAULT);
       if (err)
 	sqlr_resignal (err);
     }
@@ -377,9 +363,7 @@ qi_new_attr (query_instance_t * qi, char *name)
     a_id = MIN_MISC_ID;
   lc_free (lc);
   a_id++;
-  err = qr_rec_exec (ins_attr_qr, qi->qi_client, NULL, qi, NULL, 2,
-		     ":0", (ptrlong) a_id, QRP_INT,
-		     ":1", name, QRP_STR);
+  err = qr_rec_exec (ins_attr_qr, qi->qi_client, NULL, qi, NULL, 2, ":0", (ptrlong) a_id, QRP_INT, ":1", name, QRP_STR);
   if (err)
     sqlr_resignal (err);
 
@@ -399,10 +383,9 @@ lt_attr_col_id (lock_trx_t * lt, key_id_t key_id, oid_t a_id)
 
 
 dbe_table_t *
-xmls_element_table (char * elt)
+xmls_element_table (char *elt)
 {
-  dbe_table_t ** place = (dbe_table_t **)
-    id_hash_get (xml_global->xs_element_table, (caddr_t) &elt);
+  dbe_table_t **place = (dbe_table_t **) id_hash_get (xml_global->xs_element_table, (caddr_t) & elt);
   if (place)
     return (*place);
   return NULL;
@@ -419,7 +402,7 @@ bif_xmls_element_table (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (!tb)
     return (box_num (-1));
   id_hash_set (xml_global->xs_element_table, (caddr_t) & e_copy, (caddr_t) & tb);
-  sethash ((void *)(ptrlong) tb->tb_primary_key->key_id, xml_global->xs_key_id_to_element, (void *) e_copy);
+  sethash ((void *) (ptrlong) tb->tb_primary_key->key_id, xml_global->xs_key_id_to_element, (void *) e_copy);
   return (box_num (0));
 }
 
@@ -447,40 +430,40 @@ bif_xmls_element_col (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 caddr_t
 bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  query_instance_t * qi = (query_instance_t *) qst;
-  dbe_schema_t * pending_sc = qi->qi_trx->lt_pending_schema;
-  dbe_schema_t * global_sc = /*isp_schema (qi->qi_trx->lt_after_space)*/ wi_inst.wi_schema;
+  query_instance_t *qi = (query_instance_t *) qst;
+  dbe_schema_t *pending_sc = qi->qi_trx->lt_pending_schema;
+  dbe_schema_t *global_sc = /*isp_schema (qi->qi_trx->lt_after_space) */ wi_inst.wi_schema;
   caddr_t tb_name = bif_string_arg (qst, args, 0, "vt_index");
   caddr_t index_name = bif_string_arg (qst, args, 1, "vt_index");
   caddr_t text_col_name = bif_string_arg (qst, args, 2, "vt_index");
   caddr_t id_col_name = bif_string_arg (qst, args, 3, "vt_index");
   caddr_t index_tb_name = bif_string_arg (qst, args, 4, "vt_index");
-  dbe_table_t * tb = NULL;
-  dbe_table_t * inx_tb = sch_name_to_table (isp_schema (qi->qi_space), index_tb_name);
-  dbe_column_t * text_col, * id_col;
-  dbe_key_t * id_key = NULL;
+  dbe_table_t *tb = NULL;
+  dbe_table_t *inx_tb = sch_name_to_table (isp_schema (qi->qi_space), index_tb_name);
+  dbe_column_t *text_col, *id_col;
+  dbe_key_t *id_key = NULL;
   caddr_t lang = NULL;
   caddr_t enc = NULL;
-  caddr_t * offb_data = NULL;
-  caddr_t * constr_data = NULL;
+  caddr_t *offb_data = NULL;
+  caddr_t *constr_data = NULL;
   caddr_t opts = BOX_ELEMENTS (args) > 9 ? bif_arg (qst, args, 9, "__vt_index") : NULL;
-  int is_geo = DV_STRING == DV_TYPE_OF (opts) && 'G'== opts[0];
+  int is_geo = DV_STRING == DV_TYPE_OF (opts) && 'G' == opts[0];
   if (pending_sc)
-    tb  = sch_name_to_table (pending_sc, tb_name);
+    tb = sch_name_to_table (pending_sc, tb_name);
   if (!tb)
-    tb  = sch_name_to_table (global_sc, tb_name);
+    tb = sch_name_to_table (global_sc, tb_name);
   if (!tb)
     sqlr_error ("S0002", "No table in vt_index");
   if (!inx_tb)
     sqlr_error ("S0002", "No index table in vt_index");
   DO_SET (dbe_key_t *, key, &tb->tb_keys)
-    {
-      if (0 == strcmp (key->key_name, index_name))
-	{
+  {
+    if (0 == strcmp (key->key_name, index_name))
+      {
 	id_key = key;
-	  break;
-	}
-    }
+	break;
+      }
+  }
   END_DO_SET ();
   if (!id_key)
     sqlr_error ("S0022", "no index in vt_index");
@@ -490,14 +473,14 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       /* text col is always case insensitive.  Trick to allow geo and ft inxon the same o col of rdf_quad */
       DO_SET (dbe_column_t *, col, &tb->tb_primary_key->key_parts)
-	{
-	  if (0 == stricmp (col->col_name, text_col_name))
-	    {
-	      text_col = col;
-	      break;
-	    }
-	}
-      END_DO_SET();
+      {
+	if (0 == stricmp (col->col_name, text_col_name))
+	  {
+	    text_col = col;
+	    break;
+	  }
+      }
+      END_DO_SET ();
     }
   if (!id_col || !text_col)
     sqlr_error ("S0002", "No column in vt_index");
@@ -509,27 +492,27 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   else
     {
-    id_key->key_text_table = inx_tb;
-    id_key->key_text_col = text_col;
-    text_col->col_is_text_index = 1;
+      id_key->key_text_table = inx_tb;
+      id_key->key_text_col = text_col;
+      text_col->col_is_text_index = 1;
     }
   /* added: init of language & offband cols members */
   if (BOX_ELEMENTS (args) > 5)
     {
       int ix, len;
-      dbe_column_t ** off_cols;
-      dbe_column_t * off_col;
+      dbe_column_t **off_cols;
+      dbe_column_t *off_col;
       offb_data = (caddr_t *) bif_arg (qst, args, 5, "vt_index");
       if (IS_BOX_POINTER (text_col->col_offband_cols))
-	dk_free_box ((caddr_t)(text_col->col_offband_cols));
-      if (offb_data && DV_ARRAY_OF_POINTER == DV_TYPE_OF (offb_data) && BOX_ELEMENTS (offb_data)  > 0)
+	dk_free_box ((caddr_t) (text_col->col_offband_cols));
+      if (offb_data && DV_ARRAY_OF_POINTER == DV_TYPE_OF (offb_data) && BOX_ELEMENTS (offb_data) > 0)
 	{
 	  len = BOX_ELEMENTS (offb_data);
 	  off_cols = (dbe_column_t **) dk_alloc_box (len * sizeof (void *), DV_ARRAY_OF_POINTER);
 	  for (ix = 0; ix < len; ix++)
 	    {
-	      off_col = tb_name_to_column (tb, offb_data [ix]);
-	      off_cols [ix] = off_col;
+	      off_col = tb_name_to_column (tb, offb_data[ix]);
+	      off_cols[ix] = off_col;
 	    }
 	  text_col->col_offband_cols = off_cols;
 	}
@@ -539,7 +522,7 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (BOX_ELEMENTS (args) > 6)
     {
       lang = bif_string_or_null_arg (qst, args, 6, "vt_index");
-      if (IS_BOX_POINTER(text_col->col_lang))
+      if (IS_BOX_POINTER (text_col->col_lang))
 	dk_free_box (text_col->col_lang);
       if (lang)
 	{
@@ -551,7 +534,7 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (BOX_ELEMENTS (args) > 7)
     {
       enc = bif_string_or_null_arg (qst, args, 7, "vt_index");
-      if (IS_BOX_POINTER(text_col->col_enc))
+      if (IS_BOX_POINTER (text_col->col_enc))
 	dk_free_box (text_col->col_enc);
       if (enc)
 	{
@@ -563,19 +546,19 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (BOX_ELEMENTS (args) > 8)
     {
       int ix, len;
-      dbe_column_t ** constr_cols;
-      dbe_column_t * constr_col;
+      dbe_column_t **constr_cols;
+      dbe_column_t *constr_col;
       constr_data = (caddr_t *) bif_arg (qst, args, 8, "vt_index");
       if (IS_BOX_POINTER (text_col->col_constr_cols))
-	dk_free_box ((caddr_t)(text_col->col_constr_cols));
+	dk_free_box ((caddr_t) (text_col->col_constr_cols));
       if (constr_data && DV_ARRAY_OF_POINTER == DV_TYPE_OF (constr_data) && BOX_ELEMENTS (constr_data) > 0)
 	{
 	  len = BOX_ELEMENTS (constr_data);
 	  constr_cols = (dbe_column_t **) dk_alloc_box (len * sizeof (void *), DV_ARRAY_OF_POINTER);
 	  for (ix = 0; ix < len; ix++)
 	    {
-	      constr_col = tb_name_to_column (tb, constr_data [ix]);
-	      constr_cols [ix] = constr_col;
+	      constr_col = tb_name_to_column (tb, constr_data[ix]);
+	      constr_cols[ix] = constr_col;
 	    }
 	  text_col->col_constr_cols = constr_cols;
 	}
@@ -592,7 +575,8 @@ tb_name_to_column_misc (dbe_table_t * tb, char *name)
 {
   dbe_column_t *col = tb_name_to_column (tb, name);
   if (!col
-      && sch_is_subkey_incl (/*isp_schema (db_main_tree->it_commit_space)*/ wi_inst.wi_schema, tb->tb_primary_key->key_id, entity_key_id))
+      && sch_is_subkey_incl ( /*isp_schema (db_main_tree->it_commit_space) */ wi_inst.wi_schema, tb->tb_primary_key->key_id,
+	  entity_key_id))
     {
       col = lt_xml_col (NULL, name);
       if (col && tb->tb_misc_id_to_col_id)
@@ -614,7 +598,7 @@ tb_name_to_column_misc (dbe_table_t * tb, char *name)
 
 
 caddr_t
-qi_sel_for_effect (query_instance_t * qi, char *str, int n_pars,...)
+qi_sel_for_effect (query_instance_t * qi, char *str, int n_pars, ...)
 {
   char *a1[8];
   char *a2[8];
@@ -637,12 +621,8 @@ qi_sel_for_effect (query_instance_t * qi, char *str, int n_pars,...)
       a3[inx] = va_arg (ap, long);
     }
 
-  err = qr_rec_exec (qr,qi->qi_client,  &lc, qi, NULL, n_pars,
-		       a1[0], a2[0], a3[0],
-		       a1[1], a2[1], a3[1],
-		       a1[2], a2[2], a3[2],
-		       a1[3], a2[3], a3[3]
-    );
+  err = qr_rec_exec (qr, qi->qi_client, &lc, qi, NULL, n_pars,
+      a1[0], a2[0], a3[0], a1[1], a2[1], a3[1], a1[2], a2[2], a3[2], a1[3], a2[3], a3[3]);
   if (err != (caddr_t) SQL_SUCCESS)
     return err;
   while (lc_next (lc))
@@ -662,11 +642,11 @@ qi_tb_xml_schema (query_instance_t * qi, char *read_tb)
   if (tb && !tb_name_to_column (tb, LAST_FTI_COL))
     return NULL;
 
-  err = qi_sel_for_effect (qi, "select __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS) "
-		     " from DB.DBA.SYS_VT_INDEX where VI_TABLE = ?", 1,
-		     ":0", read_tb, QRP_STR);
+  err =
+      qi_sel_for_effect (qi,
+      "select __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS) "
+      " from DB.DBA.SYS_VT_INDEX where VI_TABLE = ?", 1, ":0", read_tb, QRP_STR);
   if (err)
     return err;
   return NULL;
 }
-

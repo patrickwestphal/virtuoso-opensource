@@ -3,6 +3,8 @@
  *
  *  $Id$
  *
+ *
+ *
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
@@ -23,7 +25,7 @@
  *
  */
 
-int stricmp (const char *s1, const char *s2); /* from libutil */
+int stricmp (const char *s1, const char *s2);	/* from libutil */
 
 col_ref_rec_t *
 ct_col_crr (comp_table_t * ct, ST * ref)
@@ -42,24 +44,21 @@ void
 col_ref_error (sql_comp_t * sc, ST * ref)
 {
   if (ref->_.col_ref.prefix)
-    sqlc_new_error (sc->sc_cc, "42S22", "SQ062", "No column %s.%s.",
-	ref->_.col_ref.prefix, ref->_.col_ref.name);
+    sqlc_new_error (sc->sc_cc, "42S22", "SQ062", "No column %s.%s.", ref->_.col_ref.prefix, ref->_.col_ref.name);
   else
     sqlc_new_error (sc->sc_cc, "42S22", "SQ063", "No column %s.", ref->_.col_ref.name);
 }
 
 
 int
-ct_col_ref (sql_comp_t * sc, comp_table_t * ct, ST * ref,
-    dbe_column_t ** col_ret, col_ref_rec_t ** crr_ret, int err_if_not)
+ct_col_ref (sql_comp_t * sc, comp_table_t * ct, ST * ref, dbe_column_t ** col_ret, col_ref_rec_t ** crr_ret, int err_if_not)
 {
   char *col_name = ref->_.col_ref.name;
   if (!ct->ct_derived)
     {
       dbe_column_t *dbe_col = tb_name_to_column (ct->ct_table, col_name);
 #ifdef BIF_XML
-      if (!dbe_col
-	  && ct_is_entity (sc, ct))
+      if (!dbe_col && ct_is_entity (sc, ct))
 	dbe_col = lt_xml_col (NULL, col_name);
 #endif
       if (dbe_col)
@@ -68,8 +67,7 @@ ct_col_ref (sql_comp_t * sc, comp_table_t * ct, ST * ref,
 	  *crr_ret = NULL;
 	  DO_SET (col_ref_rec_t *, crr, &ct->ct_out_crrs)
 	  {
-	    if (0 == CASEMODESTRCMP (crr->crr_col_ref->_.col_ref.name,
-		ref->_.col_ref.name))
+	    if (0 == CASEMODESTRCMP (crr->crr_col_ref->_.col_ref.name, ref->_.col_ref.name))
 	      {
 		*crr_ret = crr;
 		break;
@@ -106,8 +104,7 @@ ct_col_ref (sql_comp_t * sc, comp_table_t * ct, ST * ref,
 }
 
 comp_table_t *
-sqlc_col_table_1 (sql_comp_t * sc, ST * col_ref, dbe_column_t ** col_ret,
-    col_ref_rec_t ** crr_ret, int err_if_not)
+sqlc_col_table_1 (sql_comp_t * sc, ST * col_ref, dbe_column_t ** col_ret, col_ref_rec_t ** crr_ret, int err_if_not)
 {
   /* Find a table with the col. Error if 2 found. */
   col_ref_rec_t *crr_found = NULL;
@@ -153,8 +150,7 @@ sqlc_col_table_1 (sql_comp_t * sc, ST * col_ref, dbe_column_t ** col_ret,
       if (ct_found && n_found == 1 && ct_col_ref (sc, ct_found, col_ref, col_ret, crr_ret, err_if_not))
 	return ct_found;
 
-      prefix_table = sch_name_to_table (sc->sc_cc->cc_schema,
-	  col_ref->_.col_ref.prefix);
+      prefix_table = sch_name_to_table (sc->sc_cc->cc_schema, col_ref->_.col_ref.prefix);
       DO_BOX (comp_table_t *, ct, inx, sc->sc_tables)
       {
 	if (!ct->ct_prefix)

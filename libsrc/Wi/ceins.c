@@ -44,14 +44,14 @@ ceic_all_dtp (ce_ins_ctx_t * ceic, dtp_t dtp)
   last = itc->itc_ce_first_set + n_for_ce;
   if (DV_ANY == ceic->ceic_col->col_sqt.sqt_dtp)
     {
-  for (inx = itc->itc_ce_first_set; inx < last; inx++)
-    {
-	val = (db_buf_t) itc->itc_vec_rds[itc->itc_param_order[inx]]->rd_values[ceic->ceic_nth_col];
-      if (can_dtp != dtp_canonical[*(db_buf_t) val])
-	return 0;
-      if ((DV_LONG_INT == dtp && DV_INT64 == *(db_buf_t) val) || (DV_IRI_ID == dtp && DV_IRI_ID_8 == *(db_buf_t) val))
-	return 0;
-    }
+      for (inx = itc->itc_ce_first_set; inx < last; inx++)
+	{
+	  val = (db_buf_t) itc->itc_vec_rds[itc->itc_param_order[inx]]->rd_values[ceic->ceic_nth_col];
+	  if (can_dtp != dtp_canonical[*(db_buf_t) val])
+	    return 0;
+	  if ((DV_LONG_INT == dtp && DV_INT64 == *(db_buf_t) val) || (DV_IRI_ID == dtp && DV_IRI_ID_8 == *(db_buf_t) val))
+	    return 0;
+	}
     }
   else
     {
@@ -89,7 +89,7 @@ ceic_ins_any_value_ap (ce_ins_ctx_t * ceic, int nth, auto_pool_t * ap, int *from
     return (db_buf_t) box;
   *from_ap = 1;
   r = box_to_any_1 (box, &err, ap, 0);
-  CEIC_FLOAT_INT (ceic->ceic_col->col_sqt.sqt_dtp, r, box_any_dv ((db_buf_t)r), ff_nop);
+  CEIC_FLOAT_INT (ceic->ceic_col->col_sqt.sqt_dtp, r, box_any_dv ((db_buf_t) r), ff_nop);
   return (db_buf_t) r;
 }
 
@@ -302,7 +302,7 @@ ce_insert_deltas (ce_ins_ctx_t * ceic, db_buf_t ce, db_buf_t * body_ret, int64 *
 		goto ntype;	/* rdf ids of different lengths do not go in the same ce even if values close. */
 	      rc = asc_cmp_delta (ce_first_val, dv, &delta, is_int_delta);
 	      if (from_ap && (dv < (db_buf_t) ap.ap_area || dv > (db_buf_t) ap.ap_area + ap.ap_fill))
-		dk_free_box ((caddr_t)dv);
+		dk_free_box ((caddr_t) dv);
 	      if (rc > DVC_GREATER)
 		goto ntype;
 	      if (DVC_GREATER == rc)

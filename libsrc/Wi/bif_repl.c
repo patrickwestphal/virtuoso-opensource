@@ -49,12 +49,12 @@ sched_set_thread_count (void)
 }
 
 void
-sched_do_round_1 (const char * text)
+sched_do_round_1 (const char *text)
 {
   caddr_t err = NULL;
   query_t *qr;
-  client_connection_t * save_cli = THR_ATTR (THREAD_CURRENT_THREAD, TA_IMMEDIATE_CLIENT), *old_cli = sqlc_client ();
-  caddr_t org_qual = sched_cli->cli_qualifier; /* store the original qualifier */
+  client_connection_t *save_cli = THR_ATTR (THREAD_CURRENT_THREAD, TA_IMMEDIATE_CLIENT), *old_cli = sqlc_client ();
+  caddr_t org_qual = sched_cli->cli_qualifier;	/* store the original qualifier */
 
   if (cpt_is_global_lock (NULL))
     return;

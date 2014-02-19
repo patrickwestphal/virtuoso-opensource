@@ -29,18 +29,19 @@
 #include "xmltree.h"
 #include "security.h"
 
-static void shcompo_release_int (shcompo_t *shc);
+static void shcompo_release_int (shcompo_t * shc);
 long shc_waits = 0;
 long shc_recompiled = 0;
 
 /* PART 1. Generic functionality */
 
 shcompo_t *
-shcompo_get_or_compile (shcompo_vtable_t *vt, caddr_t key, int key_is_const, struct query_instance_s *qi, void *env, caddr_t *err_ret)
+shcompo_get_or_compile (shcompo_vtable_t * vt, caddr_t key, int key_is_const, struct query_instance_s *qi, void *env,
+    caddr_t * err_ret)
 {
   shcompo_t *res, **val_ptr;
   mutex_enter (vt->shcompo_cache_mutex);
-  val_ptr = (shcompo_t **)id_hash_get (vt->shcompo_cache, (caddr_t)(&key));
+  val_ptr = (shcompo_t **) id_hash_get (vt->shcompo_cache, (caddr_t) (&key));
   if (NULL != val_ptr)
     {
       res = val_ptr[0];
@@ -49,21 +50,21 @@ shcompo_get_or_compile (shcompo_vtable_t *vt, caddr_t key, int key_is_const, str
 	dk_free_tree (key);
       mutex_leave (vt->shcompo_cache_mutex);
       if (NULL != res->shcompo_comp_mutex)
-        {
+	{
 	  IO_SECT (qi);
-          SHC_ENTER (res);
+	  SHC_ENTER (res);
 	  END_IO_SECT (err_ret);
-	  shc_waits ++;
-          if (NULL != res->shcompo_error)
-            {
-              if (NULL != err_ret)
-                err_ret[0] = box_copy_tree (res->shcompo_error);
-              SHC_LEAVE (res);
-              shcompo_release (res);
-              return NULL;
-            }
-          SHC_LEAVE (res);
-        }
+	  shc_waits++;
+	  if (NULL != res->shcompo_error)
+	    {
+	      if (NULL != err_ret)
+		err_ret[0] = box_copy_tree (res->shcompo_error);
+	      SHC_LEAVE (res);
+	      shcompo_release (res);
+	      return NULL;
+	    }
+	  SHC_LEAVE (res);
+	}
       return res;
     }
   res = vt->shcompo_alloc (env);
@@ -72,45 +73,45 @@ shcompo_get_or_compile (shcompo_vtable_t *vt, caddr_t key, int key_is_const, str
   res->_ = vt;
   res->shcompo_key = key;
   res->shcompo_error = NULL;
-  res->shcompo_ref_count = 2; /* +1 for adding into cache, +1 for returned pointer */
+  res->shcompo_ref_count = 2;	/* +1 for adding into cache, +1 for returned pointer */
   res->shcompo_is_stale = 0;
 #ifdef DEBUG
   res->shcompo_watchdog = 0;
 #endif
   if (NULL != vt->shcompo_spare_mutexes)
-    res->shcompo_comp_mutex = (dk_mutex_t *)(dk_set_pop (&(vt->shcompo_spare_mutexes)));
+    res->shcompo_comp_mutex = (dk_mutex_t *) (dk_set_pop (&(vt->shcompo_spare_mutexes)));
   else
     res->shcompo_comp_mutex = mutex_allocate ();
   if (vt->shcompo_cache->ht_count > vt->shcompo_cache_size_limit)
     {
-static int32 shc_rnd_seed;
+      static int32 shc_rnd_seed;
       int32 rnd = sqlbif_rnd (&shc_rnd_seed);
       while (vt->shcompo_cache->ht_count > vt->shcompo_cache_size_limit)
 	{
 	  caddr_t old_key;
-          shcompo_t *old_data;
-	  if (id_hash_remove_rnd (vt->shcompo_cache, rnd, (caddr_t)&old_key, (caddr_t)&old_data))
-            {
-              old_data->shcompo_ref_count -= 1;
-              if (0 == old_data->shcompo_ref_count)
-	        shcompo_release_int (old_data);
-	      else /* we must increase again as it may happen to be released prematurely by other thread waiting on same condition */
+	  shcompo_t *old_data;
+	  if (id_hash_remove_rnd (vt->shcompo_cache, rnd, (caddr_t) & old_key, (caddr_t) & old_data))
+	    {
+	      old_data->shcompo_ref_count -= 1;
+	      if (0 == old_data->shcompo_ref_count)
+		shcompo_release_int (old_data);
+	      else		/* we must increase again as it may happen to be released prematurely by other thread waiting on same condition */
 		old_data->shcompo_ref_count += 1;
-            }
-          rnd++;
+	    }
+	  rnd++;
 	}
     }
-  id_hash_add_new (vt->shcompo_cache, (caddr_t)(&key), (caddr_t)(&res));
-  SHC_ENTER (res); /* Safe to enter there inside vt->shcompo_cache_mutex because nobody else knows about the res at all */
+  id_hash_add_new (vt->shcompo_cache, (caddr_t) (&key), (caddr_t) (&res));
+  SHC_ENTER (res);		/* Safe to enter there inside vt->shcompo_cache_mutex because nobody else knows about the res at all */
   mutex_leave (vt->shcompo_cache_mutex);
   vt->shcompo_compile (res, qi, env);
   if (NULL != res->shcompo_error)
     {
       if (NULL != err_ret)
-        err_ret[0] = box_copy_tree (res->shcompo_error);
+	err_ret[0] = box_copy_tree (res->shcompo_error);
       mutex_enter (vt->shcompo_cache_mutex);
-      if (id_hash_remove (vt->shcompo_cache, (caddr_t)(&key)))
-        res->shcompo_ref_count -= 1;
+      if (id_hash_remove (vt->shcompo_cache, (caddr_t) (&key)))
+	res->shcompo_ref_count -= 1;
       mutex_leave (vt->shcompo_cache_mutex);
       SHC_LEAVE (res);
       shcompo_release (res);
@@ -121,27 +122,27 @@ static int32 shc_rnd_seed;
 }
 
 shcompo_t *
-shcompo_get (shcompo_vtable_t *vt, caddr_t key)
+shcompo_get (shcompo_vtable_t * vt, caddr_t key)
 {
   shcompo_t *res, **val_ptr;
   mutex_enter (vt->shcompo_cache_mutex);
-  val_ptr = (shcompo_t **)id_hash_get (vt->shcompo_cache, (caddr_t)(&key));
+  val_ptr = (shcompo_t **) id_hash_get (vt->shcompo_cache, (caddr_t) (&key));
   if (NULL != val_ptr)
     {
       res = val_ptr[0];
       res->shcompo_ref_count++;
       mutex_leave (vt->shcompo_cache_mutex);
       if (NULL != res->shcompo_comp_mutex)
-        {
-          SHC_ENTER (res);
-          if (NULL != res->shcompo_error)
-            {
-              SHC_LEAVE (res);
-              shcompo_release (res);
-              return NULL;
-            }
-          SHC_LEAVE (res);
-        }
+	{
+	  SHC_ENTER (res);
+	  if (NULL != res->shcompo_error)
+	    {
+	      SHC_LEAVE (res);
+	      shcompo_release (res);
+	      return NULL;
+	    }
+	  SHC_LEAVE (res);
+	}
       return res;
     }
   mutex_leave (vt->shcompo_cache_mutex);
@@ -149,7 +150,7 @@ shcompo_get (shcompo_vtable_t *vt, caddr_t key)
 }
 
 void
-shcompo_lock (shcompo_t *shc)
+shcompo_lock (shcompo_t * shc)
 {
   mutex_enter (shc->_->shcompo_cache_mutex);
   shc->shcompo_ref_count++;
@@ -157,7 +158,7 @@ shcompo_lock (shcompo_t *shc)
 }
 
 void
-shcompo_release_int (shcompo_t *shc)
+shcompo_release_int (shcompo_t * shc)
 {
   shcompo_vtable_t *vt = shc->_;
   if (NULL != shc->shcompo_comp_mutex)
@@ -174,7 +175,7 @@ shcompo_release_int (shcompo_t *shc)
 }
 
 void
-shcompo_release (shcompo_t *shc)
+shcompo_release (shcompo_t * shc)
 {
   shcompo_vtable_t *vt;
   if (NULL == shc)
@@ -188,7 +189,7 @@ shcompo_release (shcompo_t *shc)
 }
 
 void
-shcompo_stale (shcompo_t *shc)
+shcompo_stale (shcompo_t * shc)
 {
   shcompo_vtable_t *vt;
   if (NULL == shc)
@@ -202,14 +203,14 @@ shcompo_stale (shcompo_t *shc)
       mutex_leave (vt->shcompo_cache_mutex);
       return;
     }
-  if (id_hash_remove (vt->shcompo_cache, (caddr_t)(&(shc->shcompo_key))))
+  if (id_hash_remove (vt->shcompo_cache, (caddr_t) (&(shc->shcompo_key))))
     shc->shcompo_ref_count--;
   shc->shcompo_is_stale = 1;
   mutex_leave (vt->shcompo_cache_mutex);
 }
 
 void
-shcompo_stale_if_needed (shcompo_t *shc)
+shcompo_stale_if_needed (shcompo_t * shc)
 {
   shcompo_vtable_t *vt;
   if (NULL == shc)
@@ -218,8 +219,8 @@ shcompo_stale_if_needed (shcompo_t *shc)
   if (NULL == vt->shcompo_check_if_stale)
     return;
   /* Removed by Mitko in v6:
-  if (shc->shcompo_is_stale || (NULL == shc->shcompo_data))
-    return; */
+     if (shc->shcompo_is_stale || (NULL == shc->shcompo_data))
+     return; */
   mutex_enter (vt->shcompo_cache_mutex);
   if (shc->shcompo_is_stale || (NULL == shc->shcompo_data))
     {
@@ -228,15 +229,15 @@ shcompo_stale_if_needed (shcompo_t *shc)
     }
   if (vt->shcompo_check_if_stale (shc))
     {
-      if (id_hash_remove (vt->shcompo_cache, (caddr_t)(&(shc->shcompo_key))))
-        shc->shcompo_ref_count--;
+      if (id_hash_remove (vt->shcompo_cache, (caddr_t) (&(shc->shcompo_key))))
+	shc->shcompo_ref_count--;
       shc->shcompo_is_stale = 1;
     }
   mutex_leave (vt->shcompo_cache_mutex);
 }
 
 void
-shcompo_recompile (shcompo_t **shc_ptr)
+shcompo_recompile (shcompo_t ** shc_ptr)
 {
   shcompo_t *old_shc, *new_shc;
   shcompo_vtable_t *vt;
@@ -260,25 +261,25 @@ shcompo_recompile (shcompo_t **shc_ptr)
 #endif
   mutex_enter (vt->shcompo_cache_mutex);
   if (NULL != vt->shcompo_spare_mutexes)
-    new_shc->shcompo_comp_mutex = (dk_mutex_t *)(dk_set_pop (&(vt->shcompo_spare_mutexes)));
+    new_shc->shcompo_comp_mutex = (dk_mutex_t *) (dk_set_pop (&(vt->shcompo_spare_mutexes)));
   else
     new_shc->shcompo_comp_mutex = mutex_allocate ();
   SHC_ENTER (new_shc);
-  shc_recompiled ++;
+  shc_recompiled++;
   mutex_leave (vt->shcompo_cache_mutex);
   vt->shcompo_recompile (old_shc, new_shc);
   if (NULL != new_shc->shcompo_error)
     {
       mutex_enter (vt->shcompo_cache_mutex);
-      if (id_hash_remove (vt->shcompo_cache, (caddr_t)(&(old_shc->shcompo_key))))
-        old_shc->shcompo_ref_count -= 1;
+      if (id_hash_remove (vt->shcompo_cache, (caddr_t) (&(old_shc->shcompo_key))))
+	old_shc->shcompo_ref_count -= 1;
       old_shc->shcompo_is_stale = 1;
       if (1 == old_shc->shcompo_ref_count)
-        {
+	{
 	  SHC_COMP_MTX_CHECK (old_shc);
-          dk_set_push (&(old_shc->_->shcompo_spare_mutexes), old_shc->shcompo_comp_mutex);
-          old_shc->shcompo_comp_mutex = NULL;
-        }
+	  dk_set_push (&(old_shc->_->shcompo_spare_mutexes), old_shc->shcompo_comp_mutex);
+	  old_shc->shcompo_comp_mutex = NULL;
+	}
       new_shc->shcompo_key = NULL;
       mutex_leave (vt->shcompo_cache_mutex);
       SHC_LEAVE (new_shc);
@@ -286,7 +287,7 @@ shcompo_recompile (shcompo_t **shc_ptr)
       return;
     }
   mutex_enter (vt->shcompo_cache_mutex);
-  id_hash_set (vt->shcompo_cache, (caddr_t)(&(old_shc->shcompo_key)), (caddr_t)(&new_shc));
+  id_hash_set (vt->shcompo_cache, (caddr_t) (&(old_shc->shcompo_key)), (caddr_t) (&new_shc));
   new_shc->shcompo_ref_count += 1;
   old_shc->shcompo_key = NULL;
   mutex_leave (vt->shcompo_cache_mutex);
@@ -296,7 +297,7 @@ shcompo_recompile (shcompo_t **shc_ptr)
 }
 
 void
-shcompo_recompile_if_needed (shcompo_t **shc_ptr)
+shcompo_recompile_if_needed (shcompo_t ** shc_ptr)
 {
   shcompo_t *shc = shc_ptr[0];
   shcompo_vtable_t *vt;
@@ -325,7 +326,7 @@ shcompo_recompile_if_needed (shcompo_t **shc_ptr)
 shcompo_t *
 shcompo_alloc__default (void *env)
 {
-  shcompo_t *res = (shcompo_t *)dk_alloc (sizeof (shcompo_t));
+  shcompo_t *res = (shcompo_t *) dk_alloc (sizeof (shcompo_t));
   res->shcompo_data = NULL;
 #ifndef NDEBUG
   res->shcompo_owner = NULL;
@@ -338,45 +339,45 @@ shcompo_alloc__default (void *env)
 shcompo_vtable_t shcompo_vtable__qr;
 
 void
-shcompo_compile__qr(shcompo_t *shc, query_instance_t *qi, void *env)
+shcompo_compile__qr (shcompo_t * shc, query_instance_t * qi, void *env)
 {
-  caddr_t txt = ((caddr_t *)(shc->shcompo_key))[0];
+  caddr_t txt = ((caddr_t *) (shc->shcompo_key))[0];
   long saved_mrows = qi->qi_client->cli_resultset_max_rows;
   qi->qi_client->cli_resultset_max_rows = -1;
   QR_RESET_CTX_T (qi->qi_thread)
-    {
-      shc->shcompo_data = sql_compile (txt, qi->qi_client, &(shc->shcompo_error), 0);
-    }
+  {
+    shc->shcompo_data = sql_compile (txt, qi->qi_client, &(shc->shcompo_error), 0);
+  }
   QR_RESET_CODE
-    {
-      POP_QR_RESET;
-      /* if it compiles possibly will have an non-empty mem pool */
-      if (THR_TMP_POOL)
-	MP_DONE ();
-      switch (reset_code)
-	{
-	  case RST_ERROR:
-	      shc->shcompo_error = thr_get_error_code (THREAD_CURRENT_THREAD);
-	      break;
-	  default:
-	      shc->shcompo_error = srv_make_new_error ("S1T00", "SR490", "Transaction timed out");
-	}
-    }
+  {
+    POP_QR_RESET;
+    /* if it compiles possibly will have an non-empty mem pool */
+    if (THR_TMP_POOL)
+      MP_DONE ();
+    switch (reset_code)
+      {
+      case RST_ERROR:
+	shc->shcompo_error = thr_get_error_code (THREAD_CURRENT_THREAD);
+	break;
+      default:
+	shc->shcompo_error = srv_make_new_error ("S1T00", "SR490", "Transaction timed out");
+      }
+  }
   END_QR_RESET;
   qi->qi_client->cli_resultset_max_rows = saved_mrows;
 }
 
 int
-shcompo_check_if_stale__qr (shcompo_t *shc)
+shcompo_check_if_stale__qr (shcompo_t * shc)
 {
-  query_t *qr = (query_t *)(shc->shcompo_data);
+  query_t *qr = (query_t *) (shc->shcompo_data);
   return qr->qr_to_recompile;
 }
 
 void
-shcompo_recompile__qr (shcompo_t *old_shc, shcompo_t *new_shc)
+shcompo_recompile__qr (shcompo_t * old_shc, shcompo_t * new_shc)
 {
-  query_t *qr = (query_t *)(old_shc->shcompo_data);
+  query_t *qr = (query_t *) (old_shc->shcompo_data);
   query_t *new_qr;
 /*  long saved_mrows = bootstrap_cli->cli_resultset_max_rows;*/
   bootstrap_cli->cli_resultset_max_rows = -1;
@@ -386,11 +387,11 @@ shcompo_recompile__qr (shcompo_t *old_shc, shcompo_t *new_shc)
 }
 
 void
-shcompo_destroy_data__qr (shcompo_t *shc)
+shcompo_destroy_data__qr (shcompo_t * shc)
 {
   if (NULL != shc->shcompo_data)
     {
-      query_t *qr = (query_t *)(shc->shcompo_data);
+      query_t *qr = (query_t *) (shc->shcompo_data);
       qr_free (qr);
     }
   dk_free (shc, sizeof (shcompo_t));
@@ -401,9 +402,9 @@ shcompo_destroy_data__qr (shcompo_t *shc)
 shcompo_vtable_t shcompo_vtable__test;
 
 void
-shcompo_compile__test (shcompo_t *shc, query_instance_t *qi, void *env)
+shcompo_compile__test (shcompo_t * shc, query_instance_t * qi, void *env)
 {
-  caddr_t txt = ((caddr_t *)(shc->shcompo_key))[0];
+  caddr_t txt = ((caddr_t *) (shc->shcompo_key))[0];
   caddr_t my;
   if ((NULL != shc->shcompo_data) || (NULL != shc->shcompo_error))
     GPF_T1 ("shcompo_compile__test: bad state before");
@@ -420,15 +421,15 @@ shcompo_compile__test (shcompo_t *shc, query_instance_t *qi, void *env)
 }
 
 int
-shcompo_check_if_stale__test (shcompo_t *shc)
+shcompo_check_if_stale__test (shcompo_t * shc)
 {
-  return ((0 == (((char *)(shc->shcompo_data))[0] % 5)) ? 1 : 0);
+  return ((0 == (((char *) (shc->shcompo_data))[0] % 5)) ? 1 : 0);
 }
 
 void
-shcompo_recompile__test (shcompo_t *old_shc, shcompo_t *new_shc)
+shcompo_recompile__test (shcompo_t * old_shc, shcompo_t * new_shc)
 {
-  caddr_t txt = ((caddr_t *)(old_shc->shcompo_key))[0];
+  caddr_t txt = ((caddr_t *) (old_shc->shcompo_key))[0];
   caddr_t my;
   if ((NULL == old_shc->shcompo_data) || (NULL != old_shc->shcompo_error))
     GPF_T1 ("shcompo_recompile__test: bad old_shc state before");
@@ -446,7 +447,7 @@ shcompo_recompile__test (shcompo_t *old_shc, shcompo_t *new_shc)
 }
 
 void
-shcompo_destroy_data__test (shcompo_t *shc)
+shcompo_destroy_data__test (shcompo_t * shc)
 {
   if (NULL != shc->shcompo_data)
     dk_free_tree (shc->shcompo_data);
@@ -456,10 +457,12 @@ shcompo_destroy_data__test (shcompo_t *shc)
 caddr_t
 bif_exec_shcompo_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  query_instance_t *qi = (query_instance_t *)qst;
+  query_instance_t *qi = (query_instance_t *) qst;
   caddr_t txt = bif_string_arg (qst, args, 0, "bif_exec_shcompo_test");
   caddr_t err = NULL;
-  shcompo_t *shc = shcompo_get_or_compile (&shcompo_vtable__test, list (4, box_copy_tree (txt), (ptrlong)11, (ptrlong)22, (ptrlong)0), 0, qi, NULL, &err);
+  shcompo_t *shc =
+      shcompo_get_or_compile (&shcompo_vtable__test, list (4, box_copy_tree (txt), (ptrlong) 11, (ptrlong) 22, (ptrlong) 0), 0, qi,
+      NULL, &err);
   if (NULL != err)
     sqlr_resignal (err);
   shcompo_recompile_if_needed (&shc);
@@ -479,7 +482,7 @@ bif_shcompo_clear (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   sec_check_dba ((query_instance_t *) qst, "shcompo_clear");
   mutex_enter (vt->shcompo_cache_mutex);
   id_hash_iterator (&it, shcompo_vtable__qr.shcompo_cache);
-  while (hit_next (&it, (char **)&key, (char **)&val_ptr))
+  while (hit_next (&it, (char **) &key, (char **) &val_ptr))
     {
       val_ptr[0]->shcompo_ref_count--;
       if (0 == val_ptr[0]->shcompo_ref_count)
@@ -489,41 +492,42 @@ bif_shcompo_clear (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   mutex_leave (vt->shcompo_cache_mutex);
   return NULL;
 }
+
 ;
 
 /* Part 3. Init/final */
 
 int c_shcompo_size = 100;
-void shcompo_init (void)
+void
+shcompo_init (void)
 {
-    shcompo_vtable__qr.shcompo_type_title = "precompiled SQL query";
-    shcompo_vtable__qr.shcompo_cache = id_hash_allocate (4096, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
-    shcompo_vtable__qr.shcompo_cache_mutex = mutex_allocate ();
-    shcompo_vtable__qr.shcompo_spare_mutexes = NULL;
-    shcompo_vtable__qr.shcompo_alloc = shcompo_alloc__default;
-    shcompo_vtable__qr.shcompo_alloc_copy = (shcompo_alloc_copy_t) shcompo_alloc__default;
-    shcompo_vtable__qr.shcompo_compile = shcompo_compile__qr;
-    shcompo_vtable__qr.shcompo_check_if_stale = shcompo_check_if_stale__qr;
-    shcompo_vtable__qr.shcompo_recompile = shcompo_recompile__qr;
-    shcompo_vtable__qr.shcompo_destroy_data = shcompo_destroy_data__qr;
-    shcompo_vtable__qr.shcompo_cache_size_limit = c_shcompo_size;
-    shcompo_vtable__test.shcompo_type_title = "test emulator of compilation";
-    shcompo_vtable__test.shcompo_cache = id_hash_allocate (4096, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
-    shcompo_vtable__test.shcompo_cache_mutex = mutex_allocate ();
-    shcompo_vtable__test.shcompo_spare_mutexes = NULL;
-    shcompo_vtable__test.shcompo_alloc = shcompo_alloc__default;
-    shcompo_vtable__test.shcompo_alloc_copy = (shcompo_alloc_copy_t) shcompo_alloc__default;
-    shcompo_vtable__test.shcompo_compile = shcompo_compile__test;
-    shcompo_vtable__test.shcompo_check_if_stale = shcompo_check_if_stale__test;
-    shcompo_vtable__test.shcompo_recompile = shcompo_recompile__test;
-    shcompo_vtable__test.shcompo_destroy_data = shcompo_destroy_data__test;
-    shcompo_vtable__test.shcompo_cache_size_limit = 10;
-    bif_define ("exec_shcompo_test", bif_exec_shcompo_test);
-    bif_define ("shcompo_clear", bif_shcompo_clear);
+  shcompo_vtable__qr.shcompo_type_title = "precompiled SQL query";
+  shcompo_vtable__qr.shcompo_cache = id_hash_allocate (4096, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
+  shcompo_vtable__qr.shcompo_cache_mutex = mutex_allocate ();
+  shcompo_vtable__qr.shcompo_spare_mutexes = NULL;
+  shcompo_vtable__qr.shcompo_alloc = shcompo_alloc__default;
+  shcompo_vtable__qr.shcompo_alloc_copy = (shcompo_alloc_copy_t) shcompo_alloc__default;
+  shcompo_vtable__qr.shcompo_compile = shcompo_compile__qr;
+  shcompo_vtable__qr.shcompo_check_if_stale = shcompo_check_if_stale__qr;
+  shcompo_vtable__qr.shcompo_recompile = shcompo_recompile__qr;
+  shcompo_vtable__qr.shcompo_destroy_data = shcompo_destroy_data__qr;
+  shcompo_vtable__qr.shcompo_cache_size_limit = c_shcompo_size;
+  shcompo_vtable__test.shcompo_type_title = "test emulator of compilation";
+  shcompo_vtable__test.shcompo_cache = id_hash_allocate (4096, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
+  shcompo_vtable__test.shcompo_cache_mutex = mutex_allocate ();
+  shcompo_vtable__test.shcompo_spare_mutexes = NULL;
+  shcompo_vtable__test.shcompo_alloc = shcompo_alloc__default;
+  shcompo_vtable__test.shcompo_alloc_copy = (shcompo_alloc_copy_t) shcompo_alloc__default;
+  shcompo_vtable__test.shcompo_compile = shcompo_compile__test;
+  shcompo_vtable__test.shcompo_check_if_stale = shcompo_check_if_stale__test;
+  shcompo_vtable__test.shcompo_recompile = shcompo_recompile__test;
+  shcompo_vtable__test.shcompo_destroy_data = shcompo_destroy_data__test;
+  shcompo_vtable__test.shcompo_cache_size_limit = 10;
+  bif_define ("exec_shcompo_test", bif_exec_shcompo_test);
+  bif_define ("shcompo_clear", bif_shcompo_clear);
 }
 
 void
 shcompo_terminate_module (void)
 {
 }
-

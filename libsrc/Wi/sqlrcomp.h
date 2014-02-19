@@ -30,10 +30,9 @@ void sqlc_subquery_text (sql_comp_t * sc, comp_table_t * subq_for_pred_in_ct,
     ST * tree, char *text, size_t tlen, int *fill, select_node_t * sel);
 
 void sqlc_exp_commalist_print (sql_comp_t * sc, comp_table_t * ct, ST ** exps,
-    char *text, size_t tlen, int *fill, select_node_t * sel, state_slot_t **ssls);
+    char *text, size_t tlen, int *fill, select_node_t * sel, state_slot_t ** ssls);
 
-void sqlc_exp_print (sql_comp_t * sc, comp_table_t * ct, ST * exp,
-    char *text, size_t tlen, int *fill);
+void sqlc_exp_print (sql_comp_t * sc, comp_table_t * ct, ST * exp, char *text, size_t tlen, int *fill);
 
 int sqlc_is_local_array (sql_comp_t * sc, remote_ds_t * rds, ST ** exps, int only_eq_comps);
 
@@ -72,7 +71,7 @@ remote_ds_t *sqlc_table_remote_ds (sql_comp_t * sc, char *name);
     first = 0;
 
 
-remote_ds_t * sqlc_first_location (sql_comp_t * sc, ST * tree);
+remote_ds_t *sqlc_first_location (sql_comp_t * sc, ST * tree);
 
 #define target_rds  ((remote_ds_t*)THR_ATTR (THREAD_CURRENT_THREAD, TA_TARGET_RDS))
 #define SET_TARGET_RDS(r) SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_TARGET_RDS, (void*)r)
@@ -81,24 +80,23 @@ remote_ds_t * sqlc_first_location (sql_comp_t * sc, ST * tree);
 #define SQL_QUOTE (target_rds ? target_rds->rds_quote : "\"")
 
 void
-sqlc_order_by_print (sql_comp_t * sc, char *title, ST ** orderby,
-    char *text, size_t tlen, int *fill, caddr_t *box, dk_set_t set);
+sqlc_order_by_print (sql_comp_t * sc, char *title, ST ** orderby, char *text, size_t tlen, int *fill, caddr_t * box, dk_set_t set);
 void rts_free (remote_table_source_t * rts);
 void sqlc_rts_env (sql_comp_t * sc, remote_table_source_t * rts);
 void sqlc_rts_array_slots (sql_comp_t * sc, remote_table_source_t * rts);
 
 int sqlc_is_proc_available (remote_ds_t * rds, char *p_name);
 int sqlc_is_literal_proc (char *p_name);
-int sqlc_is_standard_proc (remote_ds_t * rds, char *name, ST **params);
+int sqlc_is_standard_proc (remote_ds_t * rds, char *name, ST ** params);
 int sqlc_is_masked_proc (char *p_name);
-int sqlc_is_contains_proc (remote_ds_t *rds, char ctype, ST **params, comp_context_t *cc);
-int sqlc_is_remote_proc (remote_ds_t *rds, char *p_name);
-int sqlc_is_pass_through_function (remote_ds_t *rds, char *p_name);
+int sqlc_is_contains_proc (remote_ds_t * rds, char ctype, ST ** params, comp_context_t * cc);
+int sqlc_is_remote_proc (remote_ds_t * rds, char *p_name);
+int sqlc_is_pass_through_function (remote_ds_t * rds, char *p_name);
 char sqlc_contains_fn_to_char (const char *name);
 
 void sqlc_string_virtuoso_literal (char *text, size_t tlen, int *fill, const char *exp);
 void sqlc_string_literal (char *text, size_t tlen, int *fill, const char *exp);
-void sqlc_wide_string_literal (char *text, size_t tlen, int *fill, wchar_t *exp);
+void sqlc_wide_string_literal (char *text, size_t tlen, int *fill, wchar_t * exp);
 
 void sqlc_insert_commalist (sql_comp_t * sc, comp_table_t * ct, ST * tree,
     dbe_table_t * tb, char *text, size_t tlen, int *fill, int in_vdb);

@@ -53,9 +53,7 @@ extern int _gate_export (void *tgt);
     }
 
 static hosting_version_t *
-hosting_load_and_check_plugin (
-  char *file_name, char *function_name,
-  unit_version_t *dock_version, void *appdata)
+hosting_load_and_check_plugin (char *file_name, char *function_name, unit_version_t * dock_version, void *appdata)
 {
   void *dll;
   unit_check_t *check_callback;
@@ -152,18 +150,17 @@ hosting_load_and_check_plugin (
 }
 
 
-static unit_version_t
-dock_hosting_version = {
-  HOSTING_TITLE,			/*!< Title of unit, filled by unit */
-  DBMS_SRV_GEN_MAJOR DBMS_SRV_GEN_MINOR,/*!< Version number, filled by unit */
-  "OpenLink Software",			/*!< Plugin's developer, filled by unit */
-  "",					/*!< Any additional info, filled by unit */
-  NULL,					/*!< Error message, filled by unit loader */
-  NULL,					/*!< Name of file with unit's code, filled by unit loader */
-  NULL,					/*!< Pointer to connection function, cannot be NULL */
-  NULL,					/*!< Pointer to disconnection function, or NULL */
-  NULL,					/*!< Pointer to activation function, or NULL */
-  NULL,					/*!< Pointer to deactivation function, or NULL */
+static unit_version_t dock_hosting_version = {
+  HOSTING_TITLE,		/*!< Title of unit, filled by unit */
+  DBMS_SRV_GEN_MAJOR DBMS_SRV_GEN_MINOR,	/*!< Version number, filled by unit */
+  "OpenLink Software",		/*!< Plugin's developer, filled by unit */
+  "",				/*!< Any additional info, filled by unit */
+  NULL,				/*!< Error message, filled by unit loader */
+  NULL,				/*!< Name of file with unit's code, filled by unit loader */
+  NULL,				/*!< Pointer to connection function, cannot be NULL */
+  NULL,				/*!< Pointer to disconnection function, or NULL */
+  NULL,				/*!< Pointer to activation function, or NULL */
+  NULL,				/*!< Pointer to deactivation function, or NULL */
   NULL
 };
 
@@ -181,7 +178,7 @@ hosting_plugin_load (const char *plugin_dll_name, const char *plugin_load_path)
 
   filename = (char *) dk_alloc (strlen (plugin_load_path) + 1 + strlen (plugin_dll_name) + 1);
   snprintf (filename, file_name_max_len, "%s/%s", plugin_load_path, plugin_dll_name);
-  funname_max_len = strlen (plugin_dll_name) + 6 /* == strlen ("_check") */ + 1;
+  funname_max_len = strlen (plugin_dll_name) + 6 /* == strlen ("_check") */  + 1;
 
   filename = (char *) dk_alloc (file_name_max_len);
   snprintf (filename, file_name_max_len, "%s/%s", plugin_load_path, plugin_dll_name);
@@ -197,7 +194,7 @@ hosting_plugin_load (const char *plugin_dll_name, const char *plugin_load_path)
   for (inx = 0; hver->hv_extensions && hver->hv_extensions[inx]; inx++)
     {
       caddr_t ext = box_dv_short_string (hver->hv_extensions[inx]);
-      id_hash_set (ext_hash, (caddr_t) &ext, (caddr_t) &hver);
+      id_hash_set (ext_hash, (caddr_t) & ext, (caddr_t) & hver);
     }
 
   return &(hver->hv_pversion);
@@ -205,7 +202,7 @@ hosting_plugin_load (const char *plugin_dll_name, const char *plugin_load_path)
 
 
 static void
-hosting_plugin_connect (const unit_version_t *plugin)
+hosting_plugin_connect (const unit_version_t * plugin)
 {
   UV_CALL (plugin, uv_connect, NULL);
 }
@@ -231,7 +228,7 @@ hosting_plugin_find_by_ext (char *ext)
 
 
 static void *
-hosting_client_attach (client_connection_t *cli, hosting_version_t * ver, char *err, int err_max)
+hosting_client_attach (client_connection_t * cli, hosting_version_t * ver, char *err, int err_max)
 {
   void *hcli = NULL;
 
@@ -257,14 +254,14 @@ hosting_client_attach (client_connection_t *cli, hosting_version_t * ver, char *
 static void
 hosting_clear_attachment (const void *k, void *data)
 {
-  hosting_version_t *ver = (hosting_version_t *)k;
+  hosting_version_t *ver = (hosting_version_t *) k;
 
   ver->hv_client_detach (data);
 }
 
 
 void
-hosting_clear_cli_attachments (client_connection_t *cli, int free)
+hosting_clear_cli_attachments (client_connection_t * cli, int free)
 {
   if (cli->cli_module_attachments)
     {
@@ -281,7 +278,7 @@ hosting_clear_cli_attachments (client_connection_t *cli, int free)
 
 
 static char **
-hosting_make_string_array (caddr_t *qst, caddr_t *arr)
+hosting_make_string_array (caddr_t * qst, caddr_t * arr)
 {
   char **ret = NULL;
   int inx;
@@ -293,16 +290,15 @@ hosting_make_string_array (caddr_t *qst, caddr_t *arr)
   ret = (char **) dk_alloc_box (BOX_ELEMENTS (arr) * sizeof (char *), DV_ARRAY_OF_POINTER);
   memset (ret, 0, BOX_ELEMENTS (arr) * sizeof (char *));
   DO_BOX (caddr_t, elt, inx, arr)
-    {
-      ret[inx] = box_cast_to (qst, elt, DV_TYPE_OF (elt),
-	  DV_STRING, 0, 0, &err);
-      if (err)
-	{
-	  dk_free_tree ((box_t) ret);
-	  sqlr_resignal (err);
-	}
+  {
+    ret[inx] = box_cast_to (qst, elt, DV_TYPE_OF (elt), DV_STRING, 0, 0, &err);
+    if (err)
+      {
+	dk_free_tree ((box_t) ret);
+	sqlr_resignal (err);
+      }
 
-    }
+  }
   END_DO_BOX;
   return ret;
 }
@@ -316,56 +312,52 @@ hosting_prepare_params (caddr_t params)
     {
       switch (DV_TYPE_OF (params))
 	{
-	  case DV_ARRAY_OF_POINTER:
-		{
-		  size_t pars_len = 1;
-		  int inx;
-		  char *_params_ptr;
-		  for (inx = 0; inx < BOX_ELEMENTS_INT (params); inx += 2)
-		    {
-		      if (inx)
-			pars_len += 1;
-		      if (!DV_STRINGP (((caddr_t *)params)[inx]))
-			{
-			  sqlr_new_error ("22023", "HO002",
-			      "Invalid value data type (%s (%d) not a string) for parameter element %d",
-			      dv_type_title (DV_TYPE_OF (((caddr_t *)params)[inx])),
-			      DV_TYPE_OF (((caddr_t *)params)[inx]),
-			      inx + 1);
-			}
-		      if (!DV_STRINGP (((caddr_t *)params)[inx + 1]))
-			{
-			  sqlr_new_error ("22023", "HO003",
-			      "Invalid value data type (%s (%d) not a string) for parameter element %d",
-			      dv_type_title (DV_TYPE_OF (((caddr_t *)params)[inx + 1])),
-			      DV_TYPE_OF (((caddr_t *)params)[inx + 1]),
-			      inx + 2);
-			}
-		      pars_len += strlen (((caddr_t *)params)[inx]) + 1
-			  + strlen (((caddr_t *)params)[inx + 1]);
-		    }
-		  _params = _params_ptr = dk_alloc_box (pars_len, DV_STRING);
-		  for (inx = 0; inx < BOX_ELEMENTS_INT (params); inx += 2)
-		    {
-		      if (inx)
-			*_params_ptr++ = '&';
+	case DV_ARRAY_OF_POINTER:
+	  {
+	    size_t pars_len = 1;
+	    int inx;
+	    char *_params_ptr;
+	    for (inx = 0; inx < BOX_ELEMENTS_INT (params); inx += 2)
+	      {
+		if (inx)
+		  pars_len += 1;
+		if (!DV_STRINGP (((caddr_t *) params)[inx]))
+		  {
+		    sqlr_new_error ("22023", "HO002",
+			"Invalid value data type (%s (%d) not a string) for parameter element %d",
+			dv_type_title (DV_TYPE_OF (((caddr_t *) params)[inx])), DV_TYPE_OF (((caddr_t *) params)[inx]), inx + 1);
+		  }
+		if (!DV_STRINGP (((caddr_t *) params)[inx + 1]))
+		  {
+		    sqlr_new_error ("22023", "HO003",
+			"Invalid value data type (%s (%d) not a string) for parameter element %d",
+			dv_type_title (DV_TYPE_OF (((caddr_t *) params)[inx + 1])),
+			DV_TYPE_OF (((caddr_t *) params)[inx + 1]), inx + 2);
+		  }
+		pars_len += strlen (((caddr_t *) params)[inx]) + 1 + strlen (((caddr_t *) params)[inx + 1]);
+	      }
+	    _params = _params_ptr = dk_alloc_box (pars_len, DV_STRING);
+	    for (inx = 0; inx < BOX_ELEMENTS_INT (params); inx += 2)
+	      {
+		if (inx)
+		  *_params_ptr++ = '&';
 
-		      _params_ptr = stpcpy (_params_ptr, ((caddr_t *)params)[inx]);
-		      *_params_ptr++ = '=';
-		      _params_ptr = stpcpy (_params_ptr, ((caddr_t *)params)[inx + 1]);
-		    }
-		  *_params_ptr = 0;
-		  break;
-		}
+		_params_ptr = stpcpy (_params_ptr, ((caddr_t *) params)[inx]);
+		*_params_ptr++ = '=';
+		_params_ptr = stpcpy (_params_ptr, ((caddr_t *) params)[inx + 1]);
+	      }
+	    *_params_ptr = 0;
+	    break;
+	  }
 
-	  case DV_STRING_SESSION:
-	      if (!STRSES_CAN_BE_STRING ((dk_session_t *) params))
-		sqlr_resignal (STRSES_LENGTH_ERROR ("Hosting params handling"));
-	      _params = strses_string ((dk_session_t *) params);
-	      break;
-	  default:
-	      sqlr_new_error ("22023", "HO001", "Invalid params type %d (%s)",
-		  DV_TYPE_OF (params), dv_type_title (DV_TYPE_OF (params)));
+	case DV_STRING_SESSION:
+	  if (!STRSES_CAN_BE_STRING ((dk_session_t *) params))
+	    sqlr_resignal (STRSES_LENGTH_ERROR ("Hosting params handling"));
+	  _params = strses_string ((dk_session_t *) params);
+	  break;
+	default:
+	  sqlr_new_error ("22023", "HO001", "Invalid params type %d (%s)",
+	      DV_TYPE_OF (params), dv_type_title (DV_TYPE_OF (params)));
 	}
     }
   return _params;
@@ -377,7 +369,7 @@ bif_hosting_http_handler (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 {
   query_instance_t *qi = (query_instance_t *) qst;
   caddr_t params = NULL;
-  caddr_t * lines = NULL, *head_ret = NULL, *diag_ret = NULL;
+  caddr_t *lines = NULL, *head_ret = NULL, *diag_ret = NULL;
   caddr_t in_file, file, file_copy = NULL;
   caddr_t ext = bif_string_arg (qst, args, 0, "hosting_http_handler");
   hosting_version_t *ver;
@@ -403,6 +395,7 @@ bif_hosting_http_handler (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
   else
     file = in_file;
 
+
   if (BOX_ELEMENTS (args) > 2)
     {
       params = bif_arg (qst, args, 2, "hosting_http_handler");
@@ -418,7 +411,7 @@ bif_hosting_http_handler (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
       options = (caddr_t *) bif_array_or_null_arg (qst, args, 5, "hosting_http_handler");
     }
 
-  IO_SECT(qst);
+  IO_SECT (qst);
 
   err[0] = 0;
   hcli = hosting_client_attach (qi->qi_client, ver, err, sizeof (err));
@@ -428,21 +421,17 @@ bif_hosting_http_handler (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
   err[0] = 0;
   _lines = hosting_make_string_array (qst, lines);
   _options = hosting_make_string_array (qst, options);
-
   _params = hosting_prepare_params (params);
 
-  if (BOX_ELEMENTS (args) > 4 &&
-      DV_TYPE_OF (bif_arg (qst, args, 4, "hosting_http_handler")) != DV_DB_NULL)
-    {/* the 1-st parameter is a content of page not a file  */
+  if (BOX_ELEMENTS (args) > 4 && DV_TYPE_OF (bif_arg (qst, args, 4, "hosting_http_handler")) != DV_DB_NULL)
+    {				/* the 1-st parameter is a content of page not a file  */
       caddr_t what = bif_string_or_null_arg (qst, args, 4, "hosting_http_handler");
 
       _res = ver->hv_http_handler (hcli, err, sizeof (err) - 1,
 	  (what ? what : file), (what ? file : NULL),
 	  (const char *) _params ? _params : params,
 	  (const char **) _lines, lines ? BOX_ELEMENTS (lines) : 0,
-	  &_head_ret,
-	  (const char **) _options, options ? BOX_ELEMENTS (options) : 0,
-	  &_diag_ret, 0);
+	  &_head_ret, (const char **) _options, options ? BOX_ELEMENTS (options) : 0, &_diag_ret, 0);
     }
   else
     {
@@ -450,9 +439,7 @@ bif_hosting_http_handler (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  file, NULL,
 	  (const char *) _params ? _params : params,
 	  (const char **) _lines, lines ? BOX_ELEMENTS (lines) : 0,
-	  &_head_ret,
-	  (const char **) _options, options ? BOX_ELEMENTS (options) : 0,
-	  &_diag_ret, 0);
+	  &_head_ret, (const char **) _options, options ? BOX_ELEMENTS (options) : 0, &_diag_ret, 0);
     }
 
   dk_free_tree ((box_t) _lines);
@@ -576,17 +563,15 @@ ddl_init_plugin (void)
 
   id_hash_iterator (&hit, ext_hash);
 
-  while (hit_next (&hit, (caddr_t *) &pext, (caddr_t *) &ppver))
+  while (hit_next (&hit, (caddr_t *) & pext, (caddr_t *) & ppver))
     {
-      char cmd_buffer [2048];
+      char cmd_buffer[2048];
 
       snprintf (cmd_buffer, sizeof (cmd_buffer),
-         "create procedure \"WS\".\"WS\".\"__http_handler_%s\" (inout content any, inout params any, inout lines any, inout filename varchar)\n"
-	 "{\n"
-	 "  return __hosting_http_handler ('%s', content, params, lines, filename,\n"
-	 " WS.WS.GET_CGI_VARS_VECTOR (lines));\n"
-	 "}\n",
-	 *pext, *pext);
+	  "create procedure \"WS\".\"WS\".\"__http_handler_%s\" (inout content any, inout params any, inout lines any, inout filename varchar)\n"
+	  "{\n"
+	  "  return __hosting_http_handler ('%s', content, params, lines, filename,\n"
+	  " WS.WS.GET_CGI_VARS_VECTOR (lines));\n" "}\n", *pext, *pext);
       ddl_std_proc_1 (cmd_buffer, 1, 0);
     }
 }

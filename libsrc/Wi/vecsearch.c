@@ -44,7 +44,6 @@ itc_empty_set (it_cursor_t * itc)
 {
 }
 
-
 int
 itc_copy_last_set (it_cursor_t * itc)
 {
@@ -546,7 +545,7 @@ next_set:
       if (itc_next_set_parent (itc, buf_ret))
 	{
 	  NEXT_SET_SP_LAND_CHECK;
-	return DVC_MATCH;
+	  return DVC_MATCH;
 	}
       goto start_at_reset;
     }
@@ -707,7 +706,7 @@ next_set:
       if (itc_next_set_parent (itc, buf_ret))
 	{
 	  NEXT_SET_SP_LAND_CHECK;
-	return DVC_MATCH;
+	  return DVC_MATCH;
 	}
       goto start_at_reset;
     }
@@ -776,8 +775,8 @@ itc_pop_last_out (it_cursor_t * itc, caddr_t * inst, v_out_map_t * om, buffer_de
 	      if (DV_ITC == DV_TYPE_OF (box))
 		itc_unregister_inner ((it_cursor_t *) box, buf, 0);
 	    }
-	dc_pop_last (dc);
-    }
+	  dc_pop_last (dc);
+	}
     }
   if (RSP_CHANGED == itc->itc_hash_row_spec)
     {
@@ -976,7 +975,7 @@ itc_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
   if (IS_QN (ts, table_source_input) && ts->ts_max_rows)
     {
       if (1 == ts->ts_max_rows)
-    return DVC_GREATER;
+	return DVC_GREATER;
       else if (1 == itc->itc_n_sets && itc->itc_n_results >= ts->ts_max_rows)
 	return DVC_GREATER;
     }

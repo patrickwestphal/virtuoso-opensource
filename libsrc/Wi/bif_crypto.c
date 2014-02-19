@@ -134,10 +134,7 @@ DO_BOX_ALG(A_TYPE,A_NAME,A_PREFIX,A_LENGTH) \
 DO_BIF_TREE_ALG(A_TYPE,A_NAME,A_PREFIX,A_LENGTH)
 
 
-DO_ALG (SHA, sha1, SHA1_, SHA_DIGEST_LENGTH)
-DO_BOX_ALG_1 (HMAC, hmac, HMAC_)
-
-caddr_t
+DO_ALG (SHA, sha1, SHA1_, SHA_DIGEST_LENGTH) DO_BOX_ALG_1 (HMAC, hmac, HMAC_) caddr_t
 get_ssl_error_text (char *buf, int len)
 {
   char *err_ptr = NULL;
@@ -240,7 +237,7 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 #if 0
   dump_indent = indent;
 #else
-  dump_indent = 6;				 /* Because we know BIO_dump_indent() */
+  dump_indent = 6;		/* Because we know BIO_dump_indent() */
 #endif
   p = *pp;
   tot = p + length;
@@ -268,16 +265,16 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 
       /*
          if (j != (V_ASN1_CONSTRUCTED | 1))
-           {
-             if (BIO_printf(bp,"d=%-2d hl=%ld l=%4ld ", depth,(long)hl,len) <= 0)
-               goto end;
-           }
+         {
+         if (BIO_printf(bp,"d=%-2d hl=%ld l=%4ld ", depth,(long)hl,len) <= 0)
+         goto end;
+         }
          else
-           {
-             if (BIO_printf(bp,"d=%-2d hl=%ld l=inf  ", depth,(long)hl) <= 0)
-               goto end;
-           }
-      */
+         {
+         if (BIO_printf(bp,"d=%-2d hl=%ld l=inf  ", depth,(long)hl) <= 0)
+         goto end;
+         }
+       */
       if (!asn1_print_xml_tree_info (bp, tag, xclass, j, (indent) ? depth : 0, 0))
 	goto end;
       if (j & V_ASN1_CONSTRUCTED)
@@ -323,7 +320,8 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
       else
 	{
 	  nl = 0;
-	  if ((tag == V_ASN1_PRINTABLESTRING) || (tag == V_ASN1_T61STRING) || (tag == V_ASN1_IA5STRING) || (tag == V_ASN1_VISIBLESTRING) || (tag == V_ASN1_UTCTIME) || (tag == V_ASN1_GENERALIZEDTIME))
+	  if ((tag == V_ASN1_PRINTABLESTRING) || (tag == V_ASN1_T61STRING) || (tag == V_ASN1_IA5STRING)
+	      || (tag == V_ASN1_VISIBLESTRING) || (tag == V_ASN1_UTCTIME) || (tag == V_ASN1_GENERALIZEDTIME))
 	    {
 	      /*if (BIO_write(bp,":",1) <= 0) goto end; */
 	      if ((len > 0) && BIO_write (bp, (const char *) p, (int) len) != (int) len)
@@ -332,7 +330,7 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 	  else if (tag == V_ASN1_OBJECT)
 	    {
 	      opp = op;
-	      if (d2i_ASN1_OBJECT (&o, (const unsigned char **)&opp, len + hl) != NULL)
+	      if (d2i_ASN1_OBJECT (&o, (const unsigned char **) &opp, len + hl) != NULL)
 		{
 		  /*if (BIO_write(bp,":",1) <= 0) goto end; */
 		  i2a_ASN1_OBJECT (bp, o);
@@ -348,7 +346,7 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 	      int ii;
 
 	      opp = op;
-	      ii = d2i_ASN1_BOOLEAN (NULL, (const unsigned char **)&opp, len + hl);
+	      ii = d2i_ASN1_BOOLEAN (NULL, (const unsigned char **) &opp, len + hl);
 	      if (ii < 0)
 		{
 		  if (BIO_write (bp, "Bad boolean\n", 12))
@@ -365,7 +363,7 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 	      int i, printable = 1;
 
 	      opp = op;
-	      os = d2i_ASN1_OCTET_STRING (NULL, (const unsigned char **)&opp, len + hl);
+	      os = d2i_ASN1_OCTET_STRING (NULL, (const unsigned char **) &opp, len + hl);
 	      if (os != NULL && os->length > 0)
 		{
 		  opp = os->data;
@@ -408,7 +406,8 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 			     goto end; */
 			  ;
 			}
-		      if (BIO_dump_indent (bp, (const char *) opp, ((dump == -1 || dump > os->length) ? os->length : dump), dump_indent) <= 0)
+		      if (BIO_dump_indent (bp, (const char *) opp, ((dump == -1
+				      || dump > os->length) ? os->length : dump), dump_indent) <= 0)
 			goto end;
 		      nl = 1;
 		    }
@@ -425,7 +424,7 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 	      int i;
 
 	      opp = op;
-	      bs = d2i_ASN1_INTEGER (NULL, (const unsigned char **)&opp, len + hl);
+	      bs = d2i_ASN1_INTEGER (NULL, (const unsigned char **) &opp, len + hl);
 	      if (bs != NULL)
 		{
 		  /*if (BIO_write(bp,":",1) <= 0) goto end; */
@@ -502,7 +501,7 @@ asn1_parse_to_xml (BIO * bp, unsigned char **pp, long length, int offset, int de
 	  p += len;
 	  if ((tag == V_ASN1_EOC) && (xclass == 0))
 	    {
-	      ret = 2;				 /* End of sequence */
+	      ret = 2;		/* End of sequence */
 	      goto end;
 	    }
 	}
@@ -602,14 +601,18 @@ X509_load_cert_crl_buf (X509_STORE * store, caddr_t buf, caddr_t * err_ret)
   in = BIO_new_mem_buf (buf, box_length (buf) - 1);
   if (!in)
     {
-      *err_ret = srv_make_new_error ("42000", "CR001", "Cannot allocate temp space. SSL Error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      *err_ret =
+	  srv_make_new_error ("42000", "CR001", "Cannot allocate temp space. SSL Error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
       return 0;
     }
   inf = PEM_X509_INFO_read_bio (in, NULL, NULL, NULL);
   BIO_free (in);
   if (!inf)
     {
-      *err_ret = srv_make_new_error ("42000", "CR002", "Cannot read certificates. SSL Error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      *err_ret =
+	  srv_make_new_error ("42000", "CR002", "Cannot read certificates. SSL Error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
       return 0;
     }
   for (i = 0; i < sk_X509_INFO_num (inf); i++)
@@ -695,21 +698,23 @@ pkcs7_signer_info_to_array (PKCS7 * p7)
 BIO *
 strses_to_bio (dk_session_t * ses)
 {
-  BIO * in_bio;
+  BIO *in_bio;
   int len = strses_length (ses), to_read = len, readed = 0;
   char buf[4096];
   char err_buf[512];
 
   in_bio = BIO_new (BIO_s_mem ());
   CATCH_READ_FAIL (ses)
-    {
-      do {
+  {
+    do
+      {
 	readed = session_buffered_read (ses, buf, MIN (sizeof (buf), to_read));
 	if (readed && readed != BIO_write (in_bio, buf, readed))
 	  sqlr_new_error ("42000", "CR003", "Can not write to BIO. SSL Error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
 	to_read -= readed;
-      } while (to_read > 0);
-    }
+      }
+    while (to_read > 0);
+  }
   END_READ_FAIL (ses);
   return in_bio;
 }
@@ -717,7 +722,7 @@ strses_to_bio (dk_session_t * ses)
 dk_session_t *
 bio_to_strses (BIO * out_bio)
 {
-  dk_session_t * ses = strses_allocate ();
+  dk_session_t *ses = strses_allocate ();
   char buf[4096], *to_free;
   char *ptr = NULL;
   int len = BIO_get_mem_data (out_bio, &ptr);
@@ -726,14 +731,16 @@ bio_to_strses (BIO * out_bio)
   to_free = ((BUF_MEM *) out_bio->ptr)->data;
   BIO_set_flags (out_bio, BIO_FLAGS_MEM_RDONLY);
   CATCH_WRITE_FAIL (ses)
-    {
-      do {
+  {
+    do
+      {
 	readed = BIO_read (out_bio, buf, MIN (sizeof (buf), to_read));
 	if (readed > 0)
 	  session_buffered_write (ses, buf, readed);
 	to_read -= readed;
-      } while (to_read > 0);
-    }
+      }
+    while (to_read > 0);
+  }
   END_WRITE_FAIL (ses);
   ((BUF_MEM *) out_bio->ptr)->data = to_free;
   BIO_clear_flags (out_bio, BIO_FLAGS_MEM_RDONLY);
@@ -752,7 +759,7 @@ bif_smime_verify (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   BIO *out_bio = NULL, *in_bio = NULL, *data_bio = NULL;
   PKCS7 *p7 = NULL;
   X509_STORE *store = NULL;
-  char * to_free = NULL;
+  char *to_free = NULL;
   int res;
   char err_buf[512];
 
@@ -760,7 +767,7 @@ bif_smime_verify (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     flags = (int) bif_long_arg (qst, args, 3, "smime_verify");
 
   if (!IS_BOX_POINTER (msg) || (DV_TYPE_OF (msg) != DV_STRING && DV_TYPE_OF (msg) != DV_STRING_SESSION))
-     msg = bif_string_arg (qst, args, 0, "smime_verify");
+    msg = bif_string_arg (qst, args, 0, "smime_verify");
 
   store = smime_get_store_from_array (certs, &err);
   if (err)
@@ -792,7 +799,8 @@ bif_smime_verify (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	X509_STORE_free (store);
       if (data_bio)
 	BIO_free (data_bio);
-      sqlr_new_error ("42000", "CR004", "Cannot read PKCS7 attached signature. SSL Error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR004", "Cannot read PKCS7 attached signature. SSL Error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   out_bio = BIO_new (BIO_s_mem ());
@@ -804,7 +812,8 @@ bif_smime_verify (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	BIO_free (data_bio);
       if (p7)
 	PKCS7_free (p7);
-      sqlr_new_error ("42000", "CR005", "Cannot allocate output storage. SSL Error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR005", "Cannot allocate output storage. SSL Error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   res = PKCS7_verify (p7, NULL, store, data_bio, out_bio, flags);
@@ -866,6 +875,7 @@ virt_pem_password_cb (char *buf, int size, int rwflag, void *userdata)
     }
 }
 
+
 static EVP_PKEY *
 x509_get_pkey_from_buffer (caddr_t buffer, caddr_t password)
 {
@@ -911,7 +921,8 @@ bif_smime_sign (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       if (store)
 	X509_STORE_free (store);
-      sqlr_new_error ("42000", "CR007", "Error reading the signer certificate. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR007", "Error reading the signer certificate. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   signer_key = x509_get_pkey_from_buffer (privatekey, privatepass);
@@ -920,7 +931,8 @@ bif_smime_sign (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       if (store)
 	X509_STORE_free (store);
       X509_free (signer_cert);
-      sqlr_new_error ("42000", "CR008", "Error reading the signer private key. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR008", "Error reading the signer private key. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   certs = sk_X509_new_null ();
@@ -951,7 +963,8 @@ bif_smime_sign (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       if (in_bio)
 	BIO_free (in_bio);
-      sqlr_new_error ("42000", "CR009", "Cannot generate PKCS7 signature. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR009", "Cannot generate PKCS7 signature. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   out_bio = BIO_new (BIO_s_mem ());
@@ -961,7 +974,8 @@ bif_smime_sign (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	PKCS7_free (p7);
       if (in_bio)
 	BIO_free (in_bio);
-      sqlr_new_error ("42000", "CR010", "Cannot allocate output storage. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR010", "Cannot allocate output storage. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   SMIME_write_PKCS7 (out_bio, p7, in_bio, flags);
@@ -979,7 +993,7 @@ bif_smime_sign (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 static caddr_t
 bif_smime_encrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  char * me = "smime_encrypt";
+  char *me = "smime_encrypt";
   caddr_t msg = bif_string_arg (qst, args, 0, me);
   caddr_t scerts = bif_array_arg (qst, args, 1, me);
   caddr_t cipher_name = bif_string_arg (qst, args, 2, me);
@@ -1019,7 +1033,7 @@ bif_smime_encrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   in_bio = BIO_new_mem_buf (msg, box_length (msg) - 1);
   if (in_bio)
     {
-      p7 = PKCS7_encrypt(certs, in_bio, cipher, flags);
+      p7 = PKCS7_encrypt (certs, in_bio, cipher, flags);
       BIO_free (in_bio);
       in_bio = BIO_new_mem_buf (msg, box_length (msg) - 1);
     }
@@ -1029,7 +1043,8 @@ bif_smime_encrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       if (in_bio)
 	BIO_free (in_bio);
-      sqlr_new_error ("42000", "CR009", "Cannot generate PKCS7 structure. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR009", "Cannot generate PKCS7 structure. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   out_bio = BIO_new (BIO_s_mem ());
@@ -1039,7 +1054,8 @@ bif_smime_encrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	PKCS7_free (p7);
       if (in_bio)
 	BIO_free (in_bio);
-      sqlr_new_error ("42000", "CR010", "Cannot allocate output storage. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR010", "Cannot allocate output storage. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   SMIME_write_PKCS7 (out_bio, p7, in_bio, flags);
@@ -1057,7 +1073,7 @@ bif_smime_encrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 static caddr_t
 bif_smime_decrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  char * me = "smime_decrypt";
+  char *me = "smime_decrypt";
   caddr_t msg = bif_string_arg (qst, args, 0, me);
   caddr_t cert = bif_string_arg (qst, args, 1, me);
   caddr_t privatekey = bif_string_arg (qst, args, 2, me);
@@ -1075,14 +1091,16 @@ bif_smime_decrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   recip_cert = x509_get_cert_from_buffer (cert);
   if (!recip_cert)
     {
-      sqlr_new_error ("42000", "CR007", "Error reading the recipient certificate. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR007", "Error reading the recipient certificate. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   recip_key = x509_get_pkey_from_buffer (privatekey, privatepass);
   if (!recip_key)
     {
       X509_free (recip_cert);
-      sqlr_new_error ("42000", "CR008", "Error reading the recipient private key. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR008", "Error reading the recipient private key. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
   in_bio = BIO_new_mem_buf (msg, box_length (msg) - 1);
@@ -1095,8 +1113,10 @@ bif_smime_decrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       X509_free (recip_cert);
       EVP_PKEY_free (recip_key);
-      if (data_bio) BIO_free (data_bio);
-      sqlr_new_error ("42000", "CR004", "Cannot read PKCS7 attached signature. SSL Error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      if (data_bio)
+	BIO_free (data_bio);
+      sqlr_new_error ("42000", "CR004", "Cannot read PKCS7 attached signature. SSL Error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
   out_bio = BIO_new (BIO_s_mem ());
   if (!out_bio)
@@ -1104,11 +1124,13 @@ bif_smime_decrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       X509_free (recip_cert);
       EVP_PKEY_free (recip_key);
       PKCS7_free (p7);
-      if (data_bio) BIO_free (data_bio);
-      sqlr_new_error ("42000", "CR010", "Cannot allocate output storage. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      if (data_bio)
+	BIO_free (data_bio);
+      sqlr_new_error ("42000", "CR010", "Cannot allocate output storage. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
     }
 
-  rc = PKCS7_decrypt(p7, recip_key, recip_cert, out_bio, flags);
+  rc = PKCS7_decrypt (p7, recip_key, recip_cert, out_bio, flags);
 
   X509_free (recip_cert);
   EVP_PKEY_free (recip_key);
@@ -1123,7 +1145,8 @@ bif_smime_decrypt (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     ret = NEW_DB_NULL;
 
   PKCS7_free (p7);
-  if (data_bio) BIO_free (data_bio);
+  if (data_bio)
+    BIO_free (data_bio);
   BIO_free (out_bio);
   return ret;
 }
@@ -1143,7 +1166,8 @@ bif_pem_certificates_to_array (caddr_t * qst, caddr_t * err_ret, state_slot_t **
   in = BIO_new_mem_buf (buf, box_length (buf) - 1);
   if (!in)
     {
-      sqlr_new_error ("42000", "CR011", "Cannot allocate temp space. SSL error : %s", get_ssl_error_text (err_buf, sizeof (err_buf)));
+      sqlr_new_error ("42000", "CR011", "Cannot allocate temp space. SSL error : %s", get_ssl_error_text (err_buf,
+	      sizeof (err_buf)));
       return 0;
     }
   inf = PEM_X509_INFO_read_bio (in, NULL, NULL, NULL);
@@ -1296,7 +1320,9 @@ err_ret:
 
 }
 
+
 #define VIRT_CERT_EXT "2.16.840.1.1113.1"
+
 
 static caddr_t
 BN_box (BIGNUM * x)
@@ -1346,7 +1372,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
       BIO *mem_bio = BIO_new_mem_buf (scert, box_length (scert) - 1);
 
       if (BOX_ELEMENTS (args) > 2)
-	{					 /* input type: 1 - X509, 2 - PKCS12, 0 - PEM, 3 - by key name */
+	{			/* input type: 1 - X509, 2 - PKCS12, 0 - PEM, 3 - by key name */
 	  input_type = bif_long_arg (qst, args, 2, "get_certificate_info");
 	}
 
@@ -1386,7 +1412,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
   ret = NULL;
   switch (type)
     {
-    case 1:					 /* Serial number */
+    case 1:			/* Serial number */
       {
 	ASN1_INTEGER *ai = X509_get_serialNumber (cert);
 	BIGNUM *n = ASN1_INTEGER_to_BN (ai, NULL);
@@ -1399,7 +1425,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	OPENSSL_free (dec);
 	break;
       }
-    case 2:					 /* Subject */
+    case 2:			/* Subject */
       {
 	X509_NAME *subj = X509_get_subject_name (cert);
 	if (subj)
@@ -1410,7 +1436,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  }
 	break;
       }
-    case 3:					 /* Issuer */
+    case 3:			/* Issuer */
       {
 	X509_NAME *subj = X509_get_issuer_name (cert);
 	if (subj)
@@ -1421,7 +1447,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  }
 	break;
       }
-    case 4:					 /* not before */
+    case 4:			/* not before */
       {
 	int len;
 	char *data_ptr;
@@ -1437,7 +1463,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	BIO_free (mem);
 	break;
       }
-    case 5:					 /* not after */
+    case 5:			/* not after */
       {
 	int len;
 	char *data_ptr;
@@ -1460,7 +1486,8 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	unsigned int n;
 	unsigned char md[EVP_MAX_MD_SIZE];
 	char tmp[4];
-	char *digest_name = (char *) (BOX_ELEMENTS (args) > 4 ? bif_string_or_null_arg (qst, args, 4, "get_certificate_info") : NULL);
+	char *digest_name =
+	    (char *) (BOX_ELEMENTS (args) > 4 ? bif_string_or_null_arg (qst, args, 4, "get_certificate_info") : NULL);
 
 	if (digest_name)
 	  {
@@ -1484,7 +1511,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  }
 	break;
       }
-    case 7:					 /* default private extension: sqlUserName */
+    case 7:			/* default private extension: sqlUserName */
       {
 	int i;
 	char tmp[1024];
@@ -1514,7 +1541,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  }
 	break;
       }
-    case 8:					 /* Certificate name  */
+    case 8:			/* Certificate name  */
       {
 	caddr_t KI = NULL;
 	KI = xenc_x509_KI_base64 (cert);
@@ -1522,7 +1549,7 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	dk_free_box (KI);
 	break;
       }
-    case 9:					 /* certificate public key */
+    case 9:			/* certificate public key */
       {
 	EVP_PKEY *k = X509_get_pubkey (cert);
 	if (k)
@@ -1558,9 +1585,9 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	int n, i, len;
 	char *s, *data_ptr;
 	BIO *mem = BIO_new (BIO_s_mem ());
-	for (i = 0; NULL != subj && i < sk_X509_NAME_ENTRY_num(subj->entries); i++)
+	for (i = 0; NULL != subj && i < sk_X509_NAME_ENTRY_num (subj->entries); i++)
 	  {
-	    ne = sk_X509_NAME_ENTRY_value(subj->entries,i);
+	    ne = sk_X509_NAME_ENTRY_value (subj->entries, i);
 	    n = OBJ_obj2nid (ne->object);
 	    if ((n == NID_undef) || ((s = (char *) OBJ_nid2sn (n)) == NULL))
 	      {
@@ -1596,10 +1623,10 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	dk_set_t set = NULL;
 	caddr_t val;
 	BIO *mem = BIO_new (BIO_s_mem ());
-	for (i = 0; NULL != subj && i < sk_X509_NAME_ENTRY_num(subj->entries); i++)
+	for (i = 0; NULL != subj && i < sk_X509_NAME_ENTRY_num (subj->entries); i++)
 	  {
 	    val = NULL;
-	    ne = sk_X509_NAME_ENTRY_value(subj->entries,i);
+	    ne = sk_X509_NAME_ENTRY_value (subj->entries, i);
 	    n = OBJ_obj2nid (ne->object);
 	    if ((n == NID_undef) || ((s = (char *) OBJ_nid2sn (n)) == NULL))
 	      {
@@ -1631,12 +1658,12 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	char buf[80];
 	caddr_t val;
 
-        i2t_ASN1_OBJECT(buf,sizeof (buf), sigalg->algorithm);
+	i2t_ASN1_OBJECT (buf, sizeof (buf), sigalg->algorithm);
 
 	n = sig->length;
 	s = sig->data;
 	val = dk_alloc_box ((n * 2) + 1, DV_SHORT_STRING);
-	for (i = 0; i < n; i ++)
+	for (i = 0; i < n; i++)
 	  {
 	    sprintf (&(val[i * 2]), "%02x", s[i]);
 	  }
@@ -1690,12 +1717,12 @@ bif_hex2bin (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   out[0] = 0;
   for (inx = 0; inx < len; inx += 2)
     {
-      if (1 != sscanf (str+inx, "%02x", &tmp))
+      if (1 != sscanf (str + inx, "%02x", &tmp))
 	{
 	  dk_free_box (out);
 	  sqlr_new_error ("22023", "ENC..", "The input string does not contains hexadecimal string");
 	}
-      out [inx/2] = (unsigned char) tmp;
+      out[inx / 2] = (unsigned char) tmp;
     }
   return out;
 }
@@ -1720,13 +1747,13 @@ bif_sha1_digest (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 static caddr_t
 bif_pkcs7_certificates (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  char * me = "pkcs7_certificates";
+  char *me = "pkcs7_certificates";
   X509 *cert = NULL;
   caddr_t scert = bif_string_arg (qst, args, 0, me);
-  caddr_t * ret = NULL;
+  caddr_t *ret = NULL;
   BIO *in = BIO_new_mem_buf (scert, box_length (scert) - 1), *out;
   PKCS7 *p7 = NULL;
-  STACK_OF(X509) *certs = NULL;
+  STACK_OF (X509) * certs = NULL;
   int i;
 
   p7 = d2i_PKCS7_bio (in, NULL);
@@ -1739,13 +1766,13 @@ bif_pkcs7_certificates (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (certs != NULL)
     {
       int n_certs = sk_X509_num (certs);
-      char * ptr;
+      char *ptr;
 
       ret = (caddr_t *) dk_alloc_box_zero (n_certs * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
       out = BIO_new (BIO_s_mem ());
       for (i = 0; i < n_certs; i++)
 	{
-	  cert = sk_X509_value (certs,i);
+	  cert = sk_X509_value (certs, i);
 	  PEM_write_bio_X509 (out, cert);
 	  ret[i] = dk_alloc_box (BIO_get_mem_data (out, &ptr) + 1, DV_SHORT_STRING);
 	  memcpy (ret[i], ptr, box_length (ret[i]) - 1);
@@ -1803,4 +1830,3 @@ bif_crypto_init (void)
   bif_define_ex ("get_certificate_info", bif_get_certificate_info, BMD_RET_TYPE, &bt_any, BMD_DONE);
 }
 #endif
-

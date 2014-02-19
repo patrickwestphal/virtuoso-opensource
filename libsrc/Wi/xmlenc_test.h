@@ -23,24 +23,22 @@
  *
  */
 
-void breakpoint(void);
+void breakpoint (void);
 void trset_start (caddr_t * qst);
 void trset_printf (const char *str, ...);
 void trset_end ();
 
 #define rep_printf	trset_printf
 
-void xenc_test_begin();
-void xenc_test_end();
-int xenc_test_processing();
-void xenc_assert_1(int term, char* file, long line);
+void xenc_test_begin ();
+void xenc_test_end ();
+int xenc_test_processing ();
+void xenc_assert_1 (int term, char *file, long line);
 
 #define xenc_assert(term) xenc_assert_1(term, __FILE__, __LINE__)
 
-void xenc_asserts_print_report(FILE * stream);
+void xenc_asserts_print_report (FILE * stream);
 
 extern long xenc_errs;
 extern long xenc_asserts;
 extern long is_test_processing;
-
-

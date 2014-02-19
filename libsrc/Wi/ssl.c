@@ -27,12 +27,12 @@ ssl_with_info (comp_context_t * cc, state_slot_t * ssl)
   cc = cc->cc_super_cc;
   if (!cc->cc_keep_ssl)
     cc->cc_keep_ssl = hash_table_allocate (11);
-  sethash ((void*) ssl, cc->cc_keep_ssl, (void*) ssl);
+  sethash ((void *) ssl, cc->cc_keep_ssl, (void *) ssl);
   return ssl;
 }
 
 
-dk_hash_t * ssl_stock;
+dk_hash_t *ssl_stock;
 
 state_slot_t *
 ssl_get_stock (ptrlong inx)
@@ -40,7 +40,7 @@ ssl_get_stock (ptrlong inx)
   state_slot_t *ssl;
   if (!ssl_stock)
     ssl_stock = hash_table_allocate (101);
-  ssl = (state_slot_t *) gethash ((void*) (ptrlong) inx, ssl_stock);
+  ssl = (state_slot_t *) gethash ((void *) (ptrlong) inx, ssl_stock);
   if (ssl)
     return ssl;
   else
@@ -55,7 +55,7 @@ ssl_get_stock (ptrlong inx)
 }
 
 state_slot_t *
-ssl_use_stock  (comp_context_t * cc, state_slot_t * ssl)
+ssl_use_stock (comp_context_t * cc, state_slot_t * ssl)
 {
   cc = cc->cc_super_cc;
 
@@ -63,10 +63,9 @@ ssl_use_stock  (comp_context_t * cc, state_slot_t * ssl)
   if (!cc->cc_keep_ssl)
     cc->cc_keep_ssl = hash_table_allocate (11);
 
-  if (!ssl || !IS_REAL_SSL (ssl)  )
+  if (!ssl || !IS_REAL_SSL (ssl))
     return ssl;
-  if (SSL_VARIABLE == ssl->ssl_type
-      && !gethash ((void*) ssl, cc->cc_keep_ssl))
+  if (SSL_VARIABLE == ssl->ssl_type && !gethash ((void *) ssl, cc->cc_keep_ssl))
     return ssl_get_stock (ssl->ssl_index);
 #endif
 
@@ -86,16 +85,16 @@ ssl_use_stock_array (comp_context_t * cc, state_slot_t ** arr)
   if (!arr)
     return;
   DO_BOX (state_slot_t *, ssl, inx, arr)
-    {
-      arr[inx] = ssl_use_stock (cc, ssl);
-    }
+  {
+    arr[inx] = ssl_use_stock (cc, ssl);
+  }
   END_DO_BOX;
 }
 
 
 
 void
-stssl_sp (comp_context_t * cc, search_spec_t *sp)
+stssl_sp (comp_context_t * cc, search_spec_t * sp)
 {
   while (sp)
     {
@@ -112,7 +111,7 @@ stssl_list2 (comp_context_t * cc, dk_set_t it)
 {
   while (it)
     {
-      it->data = (void*)ssl_use_stock (cc, (state_slot_t *) it->data);
+      it->data = (void *) ssl_use_stock (cc, (state_slot_t *) it->data);
       it = it->next;
     }
 }
@@ -158,9 +157,9 @@ stssl_inx_op (comp_context_t * cc, inx_op_t * iop)
     {
       int inx;
       DO_BOX (inx_op_t *, term, inx, iop->iop_terms)
-	{
-	  stssl_inx_op (cc, term);
-	}
+      {
+	stssl_inx_op (cc, term);
+      }
       END_DO_BOX;
     }
 }
@@ -179,7 +178,7 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
 
   if (IS_TS (node))
     {
-      table_source_t * ts = (table_source_t *) node;
+      table_source_t *ts = (table_source_t *) node;
       if (ts->ts_order_ks)
 	stssl_ks (cc, ts->ts_order_ks);
       else
@@ -192,7 +191,7 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (hash_source_input, node))
     {
-      hash_source_t * hs = (hash_source_t *) node;
+      hash_source_t *hs = (hash_source_t *) node;
       stssl_arr (hs->hs_ref_slots);
       stssl_arr (hs->hs_out_slots);
       stssl_ha (cc, hs->hs_ha);
@@ -200,14 +199,14 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (subq_node_input, node))
     {
-      subq_source_t  * sqs = (subq_source_t *) node;
+      subq_source_t *sqs = (subq_source_t *) node;
       stssl_query (cc, sqs->sqs_query);
       stssl_arr (sqs->sqs_out_slots);
       stssl_cv (cc, sqs->sqs_after_join_test);
     }
   else if (IS_RTS (node))
     {
-      remote_table_source_t * rts = (remote_table_source_t *) node;
+      remote_table_source_t *rts = (remote_table_source_t *) node;
       stssl_arr (rts->rts_out_slots);
       stssl_list (rts->rts_params);
       STSSL (rts->rts_remote_stmt);
@@ -221,28 +220,28 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (union_node_input, node))
     {
-      union_node_t * un = (union_node_t *) node;
+      union_node_t *un = (union_node_t *) node;
       STSSL (un->uni_nth_output);
       DO_SET (query_t *, qr, &un->uni_successors)
-	{
-	  stssl_query (cc, qr);
-	}
+      {
+	stssl_query (cc, qr);
+      }
       END_DO_SET ();
     }
   else if (IS_NODE (insert_node_input, node))
     {
-      insert_node_t * ins = (insert_node_t *) node;
+      insert_node_t *ins = (insert_node_t *) node;
       stssl_list (ins->ins_values);
-            stssl_arr (ins->ins_trigger_args);
-	    DO_BOX (ins_key_t *, ik, inx, ins->ins_keys)
-	      {
-		stssl_arr (ik->ik_slots);
-	      }
-	    END_DO_BOX;
+      stssl_arr (ins->ins_trigger_args);
+      DO_BOX (ins_key_t *, ik, inx, ins->ins_keys)
+      {
+	stssl_arr (ik->ik_slots);
+      }
+      END_DO_BOX;
     }
   else if (IS_NODE (update_node_input, node))
     {
-      update_node_t * upd = (update_node_t *) node;
+      update_node_t *upd = (update_node_t *) node;
       STSSL (upd->upd_place);
       stssl_arr (upd->upd_values);
       STSSL (upd->upd_cols_param);
@@ -251,42 +250,42 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (delete_node_input, node))
     {
-      delete_node_t * del = (delete_node_t *) node;
+      delete_node_t *del = (delete_node_t *) node;
       STSSL (del->del_place);
       stssl_arr (del->del_trigger_args);
     }
   else if (IS_NODE (row_insert_node_input, node))
     {
-      row_insert_node_t * rins = (row_insert_node_t *) node;
+      row_insert_node_t *rins = (row_insert_node_t *) node;
       STSSL (rins->rins_row);
     }
   else if (IS_NODE (key_insert_node_input, node))
     {
-      key_insert_node_t * rins = (key_insert_node_t *) node;
+      key_insert_node_t *rins = (key_insert_node_t *) node;
       STSSL (rins->kins_row);
     }
   else if (IS_NODE (deref_node_input, node))
     {
-      deref_node_t * dn = (deref_node_t *) node;
+      deref_node_t *dn = (deref_node_t *) node;
       STSSL (dn->dn_ref);
       STSSL (dn->dn_row);
       STSSL (dn->dn_place);
     }
   else if (IS_NODE (pl_source_input, node))
     {
-      pl_source_t * pls = (pl_source_t *) node;
+      pl_source_t *pls = (pl_source_t *) node;
       STSSL (pls->pls_place);
       stssl_arr (pls->pls_values);
     }
   else if (IS_NODE (current_of_node_input, node))
     {
-      current_of_node_t * co = (current_of_node_t*) node;
+      current_of_node_t *co = (current_of_node_t *) node;
       STSSL (co->co_place);
       STSSL (co->co_cursor_name);
     }
   else if (IS_NODE (select_node_input, node) || IS_NODE (select_node_input_subq, node))
     {
-      select_node_t * sel = (select_node_t *) node;
+      select_node_t *sel = (select_node_t *) node;
       stssl_arr (sel->sel_out_slots);
       STSSL (sel->sel_top);
       STSSL (sel->sel_top_skip);
@@ -295,7 +294,7 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (op_node_input, node))
     {
-      op_node_t * op = (op_node_t *) node;
+      op_node_t *op = (op_node_t *) node;
       STSSL (op->op_arg_1);
       STSSL (op->op_arg_2);
       STSSL (op->op_arg_3);
@@ -303,20 +302,20 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (setp_node_input, node))
     {
-      setp_node_t * setp = (setp_node_t *) node;
+      setp_node_t *setp = (setp_node_t *) node;
       stssl_ha (cc, setp->setp_ha);
       stssl_list (setp->setp_keys);
       stssl_list (setp->setp_dependent);
       DO_SET (gb_op_t *, go, &setp->setp_gb_ops)
-	{
-	  stssl_ha (cc, go->go_distinct_ha);
-	  stssl_arr (go->go_ua_arglist);
-	  STSSL (go->go_old_val);
-	  STSSL (go->go_distinct);
-	  stssl_cv (cc, go->go_ua_init_setp_call);
-	  stssl_cv (cc, go->go_ua_acc_setp_call);
-	}
-      END_DO_SET();
+      {
+	stssl_ha (cc, go->go_distinct_ha);
+	stssl_arr (go->go_ua_arglist);
+	STSSL (go->go_old_val);
+	STSSL (go->go_distinct);
+	stssl_cv (cc, go->go_ua_init_setp_call);
+	stssl_cv (cc, go->go_ua_acc_setp_call);
+      }
+      END_DO_SET ();
       STSSL (setp->setp_top);
       STSSL (setp->setp_top_skip);
       STSSL (setp->setp_row_ctr);
@@ -332,12 +331,12 @@ stssl_qnode (comp_context_t * cc, table_source_t * node)
     }
   else if (IS_NODE (gs_union_node_input, node))
     {
-      gs_union_node_t * su = (gs_union_node_t *) node;
+      gs_union_node_t *su = (gs_union_node_t *) node;
       STSSL (su->gsu_nth);
     }
   else if (IS_NODE (fun_ref_node_input, node))
     {
-      fun_ref_node_t * fref = (fun_ref_node_t *) node;
+      fun_ref_node_t *fref = (fun_ref_node_t *) node;
       stssl_list (fref->fnr_default_ssls);
       stssl_list (fref->fnr_temp_slots);
     }
@@ -349,10 +348,10 @@ void
 stssl_query (comp_context_t * cc, query_t * qr)
 {
   DO_SET (data_source_t *, node, &qr->qr_nodes)
-    {
-      stssl_qnode (cc, (table_source_t *) node);
-    }
-  END_DO_SET();
+  {
+    stssl_qnode (cc, (table_source_t *) node);
+  }
+  END_DO_SET ();
 }
 
 void
@@ -360,27 +359,39 @@ stssl_ins (comp_context_t * cc, instruction_t * ins)
 {
   switch (ins->ins_type)
     {
-    case IN_ARTM_PLUS:	STSSL_ARTM; break;
-    case IN_ARTM_MINUS:	STSSL_ARTM; break;
-    case IN_ARTM_TIMES:	STSSL_ARTM; break;
-    case IN_ARTM_DIV:		STSSL_ARTM; break;
-    case IN_ARTM_IDENTITY:	STSSL_ARTM; break;
-    case IN_ARTM_FPTR:	STSSL_ARTM; break;
+    case IN_ARTM_PLUS:
+      STSSL_ARTM;
+      break;
+    case IN_ARTM_MINUS:
+      STSSL_ARTM;
+      break;
+    case IN_ARTM_TIMES:
+      STSSL_ARTM;
+      break;
+    case IN_ARTM_DIV:
+      STSSL_ARTM;
+      break;
+    case IN_ARTM_IDENTITY:
+      STSSL_ARTM;
+      break;
+    case IN_ARTM_FPTR:
+      STSSL_ARTM;
+      break;
 
     case IN_PRED:
       {
 	if (ins->_.pred.func == distinct_comp_func)
 	  {
-	    stssl_ha  (cc, (hash_area_t *) ins->_.pred.cmp);
+	    stssl_ha (cc, (hash_area_t *) ins->_.pred.cmp);
 	  }
 	else if (ins->_.pred.func == subq_comp_func)
 	  {
-	    subq_pred_t * sp = (subq_pred_t *) ins->_.pred.cmp;
+	    subq_pred_t *sp = (subq_pred_t *) ins->_.pred.cmp;
 	    stssl_query (cc, sp->subp_query);
 	  }
 	else if (ins->_.pred.func == bop_comp_func)
 	  {
-	    bop_comparison_t * cmp = (bop_comparison_t *) ins->_.pred.cmp;
+	    bop_comparison_t *cmp = (bop_comparison_t *) ins->_.pred.cmp;
 	    STSSL (cmp->cmp_left);
 	    STSSL (cmp->cmp_right);
 	  }
@@ -407,9 +418,9 @@ stssl_ins (comp_context_t * cc, instruction_t * ins)
     case INS_SUBQ:
       stssl_query (cc, ins->_.subq.query);
       break;
-	      case INS_QNODE:
-		stssl_qnode (cc, (table_source_t *) ins->_.qnode.node);
-		break;
+    case INS_QNODE:
+      stssl_qnode (cc, (table_source_t *) ins->_.qnode.node);
+      break;
     case INS_OPEN:
       STSSL (ins->_.open.cursor);
       stssl_query (cc, ins->_.open.query);
@@ -445,9 +456,8 @@ stssl_cv (comp_context_t * cc, instruction_t * cv)
   if (!cv)
     return;
   DO_INSTR (ins, 0, cv)
-    {
-      stssl_ins (cc, ins);
-    }
+  {
+    stssl_ins (cc, ins);
+  }
   END_DO_INSTR;
 }
-

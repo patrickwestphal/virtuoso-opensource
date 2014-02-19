@@ -65,17 +65,15 @@ int ct_is_entity (sql_comp_t * sc, comp_table_t * ct);
 
 
 comp_table_t *
-sqlc_col_table (sql_comp_t * sc, ST * col_ref, dbe_column_t ** col_ret,
-    col_ref_rec_t ** crr_ret, int err_if_not)
+sqlc_col_table (sql_comp_t * sc, ST * col_ref, dbe_column_t ** col_ret, col_ref_rec_t ** crr_ret, int err_if_not)
 {
-  comp_table_t *ct =
-      sqlc_col_table_1 (sc, col_ref, col_ret, crr_ret, err_if_not);
+  comp_table_t *ct = sqlc_col_table_1 (sc, col_ref, col_ret, crr_ret, err_if_not);
   if (ct && *col_ret)
     {
       if (!sec_tb_check (ct->ct_table, ct->ct_g_id, ct->ct_u_id, GR_SELECT)
 	  && !sec_col_check (*col_ret, ct->ct_g_id, ct->ct_u_id, GR_SELECT))
 	sqlc_new_error (sc->sc_cc, "42000", "SQ033", "SELECT access denied for column %s of table %s, user ID %lu",
-	    (*col_ret)->col_name, ct->ct_table->tb_name, ct->ct_u_id );
+	    (*col_ret)->col_name, ct->ct_table->tb_name, ct->ct_u_id);
     }
   return ct;
 }
@@ -87,7 +85,7 @@ sqlc_col_table (sql_comp_t * sc, ST * col_ref, dbe_column_t ** col_ret,
 
 
 int
-sqlc_pref_match (char * crr_pref, char * ref_pref)
+sqlc_pref_match (char *crr_pref, char *ref_pref)
 {
   size_t ref_len, crr_len;
   if (!crr_pref && !ref_pref)
@@ -102,7 +100,7 @@ sqlc_pref_match (char * crr_pref, char * ref_pref)
     return P_EXACT;
   if (ref_len >= crr_len)
     return P_NO_MATCH;
-  if ('.' == crr_pref [(crr_len - ref_len) - 1])
+  if ('.' == crr_pref[(crr_len - ref_len) - 1])
     {
       if (0 == CASEMODESTRCMP (crr_pref + crr_len - ref_len, ref_pref))
 	return P_PARTIAL;
@@ -117,39 +115,37 @@ sqlc_find_crr (sql_comp_t * sc, ST * ref)
   /* the first exact match is returned.  If no exact match exists,
    * a partial match is possible if 1. there are no multiple, different partial matches
    * 2. the crr partially matched is a column, not a proc variable (i.e. crr_ct != NULL). */
-  col_ref_rec_t * found = NULL;
+  col_ref_rec_t *found = NULL;
   int many_found = 0;
   if (ST_P (ref, COL_DOTTED) && STAR == ref->_.col_ref.name)
     sqlc_new_error (sc->sc_cc, "37000", ".....", " A * is not allowed in a variable's place in an expression");
   DO_SET (col_ref_rec_t *, crr, &sc->sc_col_ref_recs)
-    {
-      if (ST_P (crr->crr_col_ref, COL_DOTTED)
-	  && ST_P (ref, COL_DOTTED))
-	{
-	  if (0 == CASEMODESTRCMP (ref->_.col_ref.name, crr->crr_col_ref->_.col_ref.name))
-	    {
-	      int p_match = sqlc_pref_match (crr->crr_col_ref->_.col_ref.prefix, ref->_.col_ref.prefix);
-	      if (P_EXACT == p_match)
-		return crr;
-	      if (P_PARTIAL == p_match
-		  && crr->crr_ct)
-		{
-		  if (found && !box_equal ((box_t) found->crr_col_ref, (box_t) ref))
-		    {
-		      many_found = 1;
-		    }
-		  if (! found)
-		    found = crr;
-		}
-	    }
-	}
-      else
-	{
-	  if (box_equal ((box_t) crr->crr_col_ref, (box_t) ref))
-	    return crr;
-	}
-    }
-  END_DO_SET();
+  {
+    if (ST_P (crr->crr_col_ref, COL_DOTTED) && ST_P (ref, COL_DOTTED))
+      {
+	if (0 == CASEMODESTRCMP (ref->_.col_ref.name, crr->crr_col_ref->_.col_ref.name))
+	  {
+	    int p_match = sqlc_pref_match (crr->crr_col_ref->_.col_ref.prefix, ref->_.col_ref.prefix);
+	    if (P_EXACT == p_match)
+	      return crr;
+	    if (P_PARTIAL == p_match && crr->crr_ct)
+	      {
+		if (found && !box_equal ((box_t) found->crr_col_ref, (box_t) ref))
+		  {
+		    many_found = 1;
+		  }
+		if (!found)
+		  found = crr;
+	      }
+	  }
+      }
+    else
+      {
+	if (box_equal ((box_t) crr->crr_col_ref, (box_t) ref))
+	  return crr;
+      }
+  }
+  END_DO_SET ();
   return NULL;
 #if 0
   if (many_found)
@@ -168,8 +164,7 @@ sqlc_col_ref_rec (sql_comp_t * sc, ST * col_ref, int err_if_not)
     return col_crr;
   if (ST_P (col_ref, FUN_REF))
     sqlc_new_error (sc->sc_cc, "37000", "SQ035",
-	"Bad function reference in expression, "
-	"only ones in selection recognized in HAVING / ORDER BY");
+	"Bad function reference in expression, " "only ones in selection recognized in HAVING / ORDER BY");
   {
     dbe_column_t *col;
     comp_table_t *ct = sqlc_col_table (sc, col_ref, &col, &col_crr, err_if_not);
@@ -180,8 +175,8 @@ sqlc_col_ref_rec (sql_comp_t * sc, ST * col_ref, int err_if_not)
 	t_NEW_VARZ (col_ref_rec_t, cr);
 	if (ct->ct_table)
 	  {
-	    char * prefix = ct->ct_prefix ? ct->ct_prefix : ct->ct_table->tb_name;
-	    cr->crr_col_ref = (ST*) t_list (3, COL_DOTTED, t_box_string (prefix), t_box_copy (col_ref->_.col_ref.name));
+	    char *prefix = ct->ct_prefix ? ct->ct_prefix : ct->ct_table->tb_name;
+	    cr->crr_col_ref = (ST *) t_list (3, COL_DOTTED, t_box_string (prefix), t_box_copy (col_ref->_.col_ref.name));
 	    sqlc_temp_tree (sc, (caddr_t) cr->crr_col_ref);
 	  }
 	else
@@ -197,8 +192,7 @@ sqlc_col_ref_rec (sql_comp_t * sc, ST * col_ref, int err_if_not)
 	if (!err_if_not)
 	  return NULL;
 
-	sqlc_new_error (sc->sc_cc, "42S22", "SQ036", "Bad column/variable ref %s",
-	    col_ref->_.col_ref.name);
+	sqlc_new_error (sc->sc_cc, "42S22", "SQ036", "Bad column/variable ref %s", col_ref->_.col_ref.name);
       }
   }
   /*NO RETURN */ return NULL;
@@ -206,9 +200,9 @@ sqlc_col_ref_rec (sql_comp_t * sc, ST * col_ref, int err_if_not)
 
 
 col_ref_rec_t *
-sqlc_virtual_col_crr (sql_comp_t * sc, comp_table_t * ct, char * name, dtp_t dtp)
+sqlc_virtual_col_crr (sql_comp_t * sc, comp_table_t * ct, char *name, dtp_t dtp)
 {
-  ST * col_ref = (ST *) t_list (3, COL_DOTTED, t_box_copy (ct->ct_prefix), t_box_string (name));
+  ST *col_ref = (ST *) t_list (3, COL_DOTTED, t_box_copy (ct->ct_prefix), t_box_string (name));
   t_NEW_VARZ (col_ref_rec_t, cr);
   cr->crr_col_ref = col_ref;
   sqlc_temp_tree (sc, (caddr_t) cr->crr_col_ref);
@@ -225,9 +219,8 @@ sqlc_mark_super_pred_dep (sql_comp_t * sub_sc, col_ref_rec_t * super_cr)
 {
   if (sub_sc->sc_predicate && super_cr->crr_ct)
     {
-    /* refers a col, not a parameter in an intermediate qr of the call chain */
-      t_set_pushnew (&sub_sc->sc_predicate->pred_tables,
-	  (void *) super_cr->crr_ct);
+      /* refers a col, not a parameter in an intermediate qr of the call chain */
+      t_set_pushnew (&sub_sc->sc_predicate->pred_tables, (void *) super_cr->crr_ct);
     }
 }
 
@@ -238,14 +231,12 @@ sqlc_col_ref_ssl (sql_comp_t * sc, ST * col_ref)
   col_ref_rec_t *cr = sqlc_col_ref_rec (sc, col_ref, 1);
   if (cr->crr_ssl)
     return cr->crr_ssl;
-    /* There's a ssl if this is a ref from subq to superq col/param */
+  /* There's a ssl if this is a ref from subq to superq col/param */
 
   if (!cr->crr_dbe_col)
     SQL_GPF_T1 (sc->sc_cc, "crr without ssl must have col");
 
-  cr->crr_ssl = ssl_new_column (sc->sc_cc,
-      (col_ref->_.col_ref.prefix ? col_ref->_.col_ref.prefix : ""),
-      cr->crr_dbe_col);
+  cr->crr_ssl = ssl_new_column (sc->sc_cc, (col_ref->_.col_ref.prefix ? col_ref->_.col_ref.prefix : ""), cr->crr_dbe_col);
   t_set_push (&cr->crr_ct->ct_out_cols, (void *) cr);
   return (cr->crr_ssl);
 }
@@ -257,10 +248,8 @@ sqlc_col_ref_rec_ssl (sql_comp_t * sc, col_ref_rec_t * cr)
   ST *col_ref = cr->crr_col_ref;
   if (cr->crr_ssl)
     return cr->crr_ssl;
-    /* There's a ssl if this is a ref from subq to superq col/param */
-  cr->crr_ssl = ssl_new_column (sc->sc_cc,
-      (col_ref->_.col_ref.prefix ?  col_ref->_.col_ref.prefix : ""),
-      cr->crr_dbe_col);
+  /* There's a ssl if this is a ref from subq to superq col/param */
+  cr->crr_ssl = ssl_new_column (sc->sc_cc, (col_ref->_.col_ref.prefix ? col_ref->_.col_ref.prefix : ""), cr->crr_dbe_col);
   t_set_push (&cr->crr_ct->ct_out_cols, (void *) cr);
   return (cr->crr_ssl);
 }
@@ -293,22 +282,21 @@ sqlc_col_or_param (sql_comp_t * sc, ST * tree, int is_recursive)
 	      if (ST_P (tree, COL_DOTTED))
 		{
 		  DO_SET (ST *, var, sc->sc_scroll_param_cols)
-		    {
-		      if (!ST_P (var, COL_DOTTED))
-			goto next;
-		      if (var->_.col_ref.prefix && tree->_.col_ref.prefix &&
-			  strcmp (var->_.col_ref.prefix, tree->_.col_ref.prefix))
-			goto next;
-		      if (var->_.col_ref.prefix != tree->_.col_ref.prefix)
-			goto next;
-		      if (!strcmp (var->_.col_ref.name, tree->_.col_ref.name))
-			{
-			  inx_found = inx;
-			  break;
-			}
-next:
-		      inx++;
-		    }
+		  {
+		    if (!ST_P (var, COL_DOTTED))
+		      goto next;
+		    if (var->_.col_ref.prefix && tree->_.col_ref.prefix && strcmp (var->_.col_ref.prefix, tree->_.col_ref.prefix))
+		      goto next;
+		    if (var->_.col_ref.prefix != tree->_.col_ref.prefix)
+		      goto next;
+		    if (!strcmp (var->_.col_ref.name, tree->_.col_ref.name))
+		      {
+			inx_found = inx;
+			break;
+		      }
+		  next:
+		    inx++;
+		  }
 		  END_DO_SET ();
 		}
 	      else
@@ -429,7 +417,7 @@ sqlc_mark_pred_deps (sql_comp_t * sc, predicate_t * pred, sql_tree_t * tree)
     {
       /* this is to prevent assignment of value NULL to ssl constant when sql data not found */
       sqlc_union_constants (tree->_.bin_exp.left);
-      sqlc_subquery_1 (sc, pred, &(tree->_.bin_exp.left), _SQL_CURSOR_FORWARD_ONLY, (ST**)SCALAR_SUBQ);
+      sqlc_subquery_1 (sc, pred, &(tree->_.bin_exp.left), _SQL_CURSOR_FORWARD_ONLY, (ST **) SCALAR_SUBQ);
     }
   else if (ST_P (tree, CALL_STMT))
     {
@@ -437,17 +425,14 @@ sqlc_mark_pred_deps (sql_comp_t * sc, predicate_t * pred, sql_tree_t * tree)
       if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (tree->_.call.name) && BOX_ELEMENTS (tree->_.call.name) == 1)
 	sqlc_mark_pred_deps (sc, pred, ((ST **) tree->_.call.name)[0]);
       DO_BOX (ST *, arg, inx, tree->_.call.params)
-	{
-	  sqlc_mark_pred_deps (sc, pred, arg);
-	}
+      {
+	sqlc_mark_pred_deps (sc, pred, arg);
+      }
       END_DO_BOX;
       if (BOX_ELEMENTS (tree) > 3)
 	sqlc_mark_pred_deps (sc, pred, tree->_.call.ret_param);
     }
-  else if (ST_P (tree, COMMA_EXP)
-	   || ST_P (tree, SIMPLE_CASE)
-	   || ST_P (tree, SEARCHED_CASE)
-	   || ST_P (tree, COALESCE_EXP))
+  else if (ST_P (tree, COMMA_EXP) || ST_P (tree, SIMPLE_CASE) || ST_P (tree, SEARCHED_CASE) || ST_P (tree, COALESCE_EXP))
     {
       int inx;
       DO_BOX (ST *, arg, inx, tree->_.comma_exp.exps)
@@ -547,8 +532,7 @@ sqlc_table_refd_p (sql_comp_t * sc, sql_tree_t * tree, comp_table_t * ct)
 	return 0;
     }
   if (BIN_EXP_P (tree))
-    return (sqlc_table_refd_p (sc, tree->_.bin_exp.left, ct)
-	|| sqlc_table_refd_p (sc, tree->_.bin_exp.left, ct));
+    return (sqlc_table_refd_p (sc, tree->_.bin_exp.left, ct) || sqlc_table_refd_p (sc, tree->_.bin_exp.left, ct));
   else if (ST_P (tree, CALL_STMT))
     {
       int inx;
@@ -569,7 +553,7 @@ crr_col_is_searchable (col_ref_rec_t * crr)
 {
   if (crr->crr_ct && ST_P (crr->crr_ct->ct_derived, PROC_TABLE))
 
-    return 1; /* if this is a param of a proc table */
+    return 1;			/* if this is a param of a proc table */
   if (!crr->crr_dbe_col)
     return 0;
   return (!IS_BLOB_DTP (crr->crr_dbe_col->col_sqt.sqt_dtp));
@@ -578,12 +562,10 @@ crr_col_is_searchable (col_ref_rec_t * crr)
 ST **
 sqlc_ancestor_args (ST * tree)
 {
-  if (ST_P (tree, BOP_NOT)
-      && ST_P (tree->_.bin_exp.left, BOP_EQ))
+  if (ST_P (tree, BOP_NOT) && ST_P (tree->_.bin_exp.left, BOP_EQ))
     {
-      ST * call = tree->_.bin_exp.left->_.bin_exp.right;
-      if (ST_P (call, CALL_STMT)
-	  && 0 == stricmp (call->_.call.name, "ancestor_of"))
+      ST *call = tree->_.bin_exp.left->_.bin_exp.right;
+      if (ST_P (call, CALL_STMT) && 0 == stricmp (call->_.call.name, "ancestor_of"))
 	return (call->_.call.params);
     }
   return NULL;
@@ -595,21 +577,24 @@ sqlc_contains_fn_to_char (const char *name)
 {
   switch (name[0])
     {
-    case 'c': case 'C':
-  if (0 == stricmp (name, "contains"))
-    return 'c';
+    case 'c':
+    case 'C':
+      if (0 == stricmp (name, "contains"))
+	return 'c';
       break;
-    case 'e': case 'E':
+    case 'e':
+    case 'E':
       if (0 == stricmp (name, "ext_contains"))
-        return 'e';
+	return 'e';
       break;
-    case 'x': case 'X':
+    case 'x':
+    case 'X':
       if (0 == stricmp (name, "xcontains"))
-    return 'x';
+	return 'x';
       if (0 == stricmp (name, "xpath_contains"))
-    return 'p';
+	return 'p';
       if (0 == stricmp (name, "xquery_contains"))
-    return 'q';
+	return 'q';
       break;
     }
   return '\0';
@@ -630,17 +615,16 @@ sqlc_geo_fn_to_char (const char *name)
   else if (0 == stricmp (name, "st_may_intersect"))
     return GSOP_MAY_INTERSECT;
   else
-  return 0;
+    return 0;
 }
 
 ST **
-sqlc_contains_args (ST * tree, int * contains_type)
+sqlc_contains_args (ST * tree, int *contains_type)
 {
   int ct = ' ';
-  if (ST_P (tree, BOP_NOT)
-      && ST_P (tree->_.bin_exp.left, BOP_EQ))
+  if (ST_P (tree, BOP_NOT) && ST_P (tree->_.bin_exp.left, BOP_EQ))
     {
-      ST * call = tree->_.bin_exp.left->_.bin_exp.right;
+      ST *call = tree->_.bin_exp.left->_.bin_exp.right;
       if (ST_P (call, CALL_STMT))
 	{
 	  ct = sqlc_contains_fn_to_char (call->_.call.name);
@@ -656,13 +640,12 @@ sqlc_contains_args (ST * tree, int * contains_type)
 
 
 ST **
-sqlc_geo_args (ST * tree, int * contains_type)
+sqlc_geo_args (ST * tree, int *contains_type)
 {
   int ct = 0;
-  if (ST_P (tree, BOP_NOT)
-      && ST_P (tree->_.bin_exp.left, BOP_EQ))
+  if (ST_P (tree, BOP_NOT) && ST_P (tree->_.bin_exp.left, BOP_EQ))
     {
-      ST * call = tree->_.bin_exp.left->_.bin_exp.right;
+      ST *call = tree->_.bin_exp.left->_.bin_exp.right;
       if (ST_P (call, CALL_STMT))
 	{
 	  ct = sqlc_geo_fn_to_char (call->_.call.name);
@@ -683,8 +666,7 @@ ct_is_entity (sql_comp_t * sc, comp_table_t * ct)
   return 0;
 #if 0
 #ifdef BIF_XML
-  return (ct->ct_table
-	  && sch_is_subkey_incl (sc->sc_cc->cc_schema, ct->ct_table->tb_primary_key->key_id, entity_key_id));
+  return (ct->ct_table && sch_is_subkey_incl (sc->sc_cc->cc_schema, ct->ct_table->tb_primary_key->key_id, entity_key_id));
 #else
   return 0;
 #endif
@@ -714,11 +696,10 @@ bop_to_dvc (int op)
     case BOP_NULL:
       return CMP_NULL;
     default:
-      SQL_GPF_T(NULL);			/* Bad BOP predicate */
+      SQL_GPF_T (NULL);		/* Bad BOP predicate */
     }
 
-  /*NOTREACHED*/
-  return 0;
+   /*NOTREACHED*/ return 0;
 }
 
 

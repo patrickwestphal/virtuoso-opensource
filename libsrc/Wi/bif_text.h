@@ -26,9 +26,10 @@
 #ifndef _BIF_TEXT_H
 #define _BIF_TEXT_H
 
-#include "text.h"	/* IvAn/TextXperIndex/000815 */
+#include "text.h"		/* IvAn/TextXperIndex/000815 */
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "langfunc.h"
 #ifdef __cplusplus
@@ -36,11 +37,11 @@ extern "C" {
 #endif
 
 #if 0
-char * asciiword_start_0 (char * str);
-char * asciiword_last_0 (char * str);
-char * asciiword_start (char * str, char * extra);
-char * asciiword_last (char * str, char * extra);
-void str_asciiupc_copy (char * to, const char * from, int len);
+char *asciiword_start_0 (char *str);
+char *asciiword_last_0 (char *str);
+char *asciiword_start (char *str, char *extra);
+char *asciiword_last (char *str, char *extra);
+void str_asciiupc_copy (char *to, const char *from, int len);
 
 #define ASCIIALPHACHARP(c) \
   (((c) >= '0' && (c) <= '9') || \
@@ -51,14 +52,14 @@ void str_asciiupc_copy (char * to, const char * from, int len);
   (((c) >= '0' && (c) <= '9') || \
   ((c) >= 'a' && (c) <= 'z') || \
   ((c) >= 'A' && (c) <= 'Z') \
-  || (((unsigned char)(c)) >= 192)) /* Any ISO-8059/x letter. */
+  || (((unsigned char)(c)) >= 192))	/* Any ISO-8059/x letter. */
 
 #define IS_ASCIIWORD_CHAR(c, extra) \
   (((c) >= '0' && (c) <= '9') || \
   ((c) >= 'a' && (c) <= 'z') || \
   ((c) >= 'A' && (c) <= 'Z') \
   || strchr (extra, (c)) \
-  || (((unsigned char)(c)) >= 192)) /* Any ISO-8059/x letter. */
+  || (((unsigned char)(c)) >= 192))	/* Any ISO-8059/x letter. */
 #endif
 
 extern lang_handler_t *server_default_lh;
@@ -82,25 +83,25 @@ extern char *server_default_language_name;
 #define IS_ATTR_WORD_POS(pos) ((pos) & FIRST_ATTR_WORD_POS)
 
 typedef struct vt_batch_s
-  {
-    int		vtb_ref_count;
-    id_hash_t *	vtb_words;
-    d_id_t	vtb_d_id;
-    wpos_t	vtb_word_pos;
-    wpos_t	vtb_attr_word_pos;
-    int		vtb_strings_taken;
-    lenmem_t	vtb_min_word;
-    lenmem_t	vtb_max_word;
-    encoding_handler_t *	vtb_default_eh;
-    lang_handler_t *		vtb_default_lh;
-    ptrlong	vtb_words_len;
-  } vt_batch_t;
+{
+  int vtb_ref_count;
+  id_hash_t *vtb_words;
+  d_id_t vtb_d_id;
+  wpos_t vtb_word_pos;
+  wpos_t vtb_attr_word_pos;
+  int vtb_strings_taken;
+  lenmem_t vtb_min_word;
+  lenmem_t vtb_max_word;
+  encoding_handler_t *vtb_default_eh;
+  lang_handler_t *vtb_default_lh;
+  ptrlong vtb_words_len;
+} vt_batch_t;
 
 typedef struct wb_pos_s
-  {
-    wpos_t *	wbp_buf;
-    wpos_t	wbp_buf_fill;
-  } wb_pos_t;
+{
+  wpos_t *wbp_buf;
+  wpos_t wbp_buf_fill;
+} wb_pos_t;
 
 #define FREE_WBP_BUF(WBP) \
   do \
@@ -114,12 +115,12 @@ typedef struct wb_pos_s
   while (0)
 
 typedef struct word_batch_s
-  {
-    d_id_t	wb_d_id;
-    dk_set_t	wb_word_recs;
-    wb_pos_t    wb_main_positions;
-    wb_pos_t    wb_attr_positions;
-  } word_batch_t;
+{
+  d_id_t wb_d_id;
+  dk_set_t wb_word_recs;
+  wb_pos_t wb_main_positions;
+  wb_pos_t wb_attr_positions;
+} word_batch_t;
 
 
 extern lh_word_callback_t vtb_hash_string_ins_callback;
@@ -129,6 +130,6 @@ extern lh_word_callback_t push_string_into_set_callback;
 void ddl_text_init (void);
 void ddl_text_index_upgrade (void);
 void log_thread_initialize (void);
-vt_batch_t * bif_vtb_arg (caddr_t * qst, state_slot_t ** args, int n, const char * f);
+vt_batch_t *bif_vtb_arg (caddr_t * qst, state_slot_t ** args, int n, const char *f);
 
 #endif /* _BIF_TEXT_H */

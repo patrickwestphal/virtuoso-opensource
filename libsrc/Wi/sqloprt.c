@@ -44,30 +44,30 @@ void
 sqlo_dfe_list_print (dk_set_t list, int offset)
 {
   DO_SET (df_elt_t *, elt, &list)
-    {
-      sqlo_dfe_print (elt, offset);
-    }
-  END_DO_SET();
+  {
+    sqlo_dfe_print (elt, offset);
+  }
+  END_DO_SET ();
 }
 
 void
 sqlo_index_path_print (df_elt_t * dfe)
 {
   DO_SET (index_choice_t *, ic, &dfe->_.table.index_path)
-    {
-      if (ic->ic_key)
-	{
-	  if (ic->ic_text_order)
-	    printf ("by_text ");
-	  printf ("key %s %9.2g %9.2g ", ic->ic_key->key_name, ic->ic_unit, ic->ic_arity);
-	}
-      if (ic->ic_inx_op)
-	{
+  {
+    if (ic->ic_key)
+      {
+	if (ic->ic_text_order)
+	  printf ("by_text ");
+	printf ("key %s %9.2g %9.2g ", ic->ic_key->key_name, ic->ic_unit, ic->ic_arity);
+      }
+    if (ic->ic_inx_op)
+      {
 	DO_SET (df_inx_op_t *, dio, &ic->ic_inx_op->dio_terms) printf ("%s ", dio->dio_key->key_name);
-	  END_DO_SET();
-	}
-    }
-  END_DO_SET();
+	END_DO_SET ();
+      }
+  }
+  END_DO_SET ();
   printf ("\n");
 }
 
@@ -77,12 +77,12 @@ caddr_t dv_iri_short_name (caddr_t x);
 void
 dbg_print_st (caddr_t * box, FILE * f)
 {
-  ST * st = (ST*)box;
+  ST *st = (ST *) box;
   dtp_t dtp = DV_TYPE_OF (box);
   if (DV_IRI_ID == dtp)
     {
       caddr_t n = dv_iri_short_name (box);
-      sqlo_print (("#%s ", n ? n :  "unnamed"));
+      sqlo_print (("#%s ", n ? n : "unnamed"));
       dk_free_box (n);
       return;
     }
@@ -108,19 +108,19 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
   if (!IS_BOX_POINTER (dfe))
     {
       sqlo_print (("#%ld", (long) (ptrlong) dfe));
-      switch ((ptrlong)dfe)
+      switch ((ptrlong) dfe)
 	{
 	case BOP_NOT:
-	    sqlo_print ((" (not)"));
+	  sqlo_print ((" (not)"));
 	  break;
 	case BOP_OR:
-	    sqlo_print ((" (or)"));
+	  sqlo_print ((" (or)"));
 	  break;
 	case BOP_AND:
-	    sqlo_print ((" (and)"));
+	  sqlo_print ((" (and)"));
 	  break;
 	case DFE_PRED_BODY:
-	    sqlo_print ((" (pred body)"));
+	  sqlo_print ((" (pred body)"));
 	  break;
 	}
       return;
@@ -128,12 +128,12 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
   if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (dfe))
     {
       int inx;
-      df_elt_t ** dfe_arr = (df_elt_t **) dfe;
+      df_elt_t **dfe_arr = (df_elt_t **) dfe;
       sqlo_print (("{\n"));
       DO_BOX (df_elt_t *, elt, inx, dfe_arr)
-	{
-	  sqlo_dfe_print (elt, offset + OFS_INCR);
-	}
+      {
+	sqlo_dfe_print (elt, offset + OFS_INCR);
+      }
       END_DO_BOX;
       sqlo_print (("%*.*s", offset, offset, " "));
       sqlo_print (("}\n"));
@@ -165,14 +165,14 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
       if (AMMSC_USER == dfe->dfe_tree->_.fn_ref.fn_code)
 	{
 	  int argctr;
-	  user_aggregate_t * ua = (user_aggregate_t *)unbox_ptrlong(dfe->dfe_tree->_.fn_ref.user_aggr_addr);
+	  user_aggregate_t *ua = (user_aggregate_t *) unbox_ptrlong (dfe->dfe_tree->_.fn_ref.user_aggr_addr);
 	  sqlo_print (("   AGGREGATE %s (", ua->ua_name));
 	  DO_BOX_FAST (ST *, arg, argctr, dfe->dfe_tree->_.fn_ref.fn_arglist)
-	    {
-	      if (argctr)
-		sqlo_print ((", "));
-	      dbg_print_box ((caddr_t) arg, stdout);
-	    }
+	  {
+	    if (argctr)
+	      sqlo_print ((", "));
+	    dbg_print_box ((caddr_t) arg, stdout);
+	  }
 	  END_DO_BOX_FAST;
 	}
       else
@@ -227,22 +227,19 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	char spacing[40];
 	spacing[0] = 0;
 	if (dfe->_.table.hit_spacing)
-	  snprintf (spacing, sizeof (spacing), "%s spacing %9.2g", dfe->_.table.in_order ? "in order" : "", dfe->_.table.hit_spacing);
-	sqlo_print ((" key %s (%s %s) %s %s",
-		     dfe->_.table.key ? dfe->_.table.key->key_name : "no key",
-		     dfe->_.table.ot->ot_prefix ? dfe->_.table.ot->ot_prefix : "",
-		     dfe->_.table.ot->ot_new_prefix,
-		     dfe->_.table.hash_role == HR_FILL ? " hash filler " : dfe->_.table.hash_role == HR_REF ? "hash join" : "",
-		     dfe->_.table.is_cl_part_first ? "cl new partition" : ""));
+	  snprintf (spacing, sizeof (spacing), "%s spacing %9.2g", dfe->_.table.in_order ? "in order" : "",
+	      dfe->_.table.hit_spacing);
+	sqlo_print ((" key %s (%s %s) %s %s", dfe->_.table.key ? dfe->_.table.key->key_name : "no key",
+		dfe->_.table.ot->ot_prefix ? dfe->_.table.ot->ot_prefix : "", dfe->_.table.ot->ot_new_prefix,
+		dfe->_.table.hash_role == HR_FILL ? " hash filler " : dfe->_.table.hash_role == HR_REF ? "hash join" : "",
+		dfe->_.table.is_cl_part_first ? "cl new partition" : ""));
 	if (compiler_unit_msecs)
 	  sqlo_print (("  Reached %9.2g unit %9.2g (%g msecs) arity %9.2g %s\n",
-		(double) dfe->_.table.in_arity, (double) dfe->dfe_unit,
-		(double) dfe->dfe_unit * dfe->_.table.in_arity * compiler_unit_msecs,
-		       (double) dfe->dfe_arity, spacing));
+		  (double) dfe->_.table.in_arity, (double) dfe->dfe_unit,
+		  (double) dfe->dfe_unit * dfe->_.table.in_arity * compiler_unit_msecs, (double) dfe->dfe_arity, spacing));
 	else
 	  sqlo_print (("  Reached %9.2g unit %9.2g arity %9.2g %s\n",
-		(double) dfe->_.table.in_arity, (double) dfe->dfe_unit,
-		       (double) dfe->dfe_arity, spacing));
+		  (double) dfe->_.table.in_arity, (double) dfe->dfe_unit, (double) dfe->dfe_arity, spacing));
 	sqlo_print (("  col preds: "));
 	if (dfe->_.table.index_path)
 	  sqlo_index_path_print (dfe);
@@ -254,10 +251,10 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	    sqlo_print (("%*.*s", offset, offset, " "));
 	    sqlo_print (("  col pred merge pre-code:\n"));
 	    DO_SET (df_elt_t *, mrg, &dfe->_.table.col_pred_merges)
-	      {
-		sqlo_dfe_print (mrg, offset + OFS_INCR);
-	      }
-	    END_DO_SET();
+	    {
+	      sqlo_dfe_print (mrg, offset + OFS_INCR);
+	    }
+	    END_DO_SET ();
 	    sqlo_print (("\n"));
 	    sqlo_print (("%*.*s", offset, offset, " "));
 	  }
@@ -267,30 +264,30 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	  {
 	    sqlo_print (("Index AND:\n{\n"));
 	    DO_SET (df_inx_op_t *, term, &dfe->_.table.inx_op->dio_terms)
-	      {
-		sqlo_dfe_print (term->dio_table, -1);
-		sqlo_print (("\n"));
-	      }
-	    END_DO_SET();
+	    {
+	      sqlo_dfe_print (term->dio_table, -1);
+	      sqlo_print (("\n"));
+	    }
+	    END_DO_SET ();
 	    sqlo_print (("\n}"));
 	  }
 	if (dfe->_.table.out_cols)
 	  {
 	    sqlo_print (("  out cols: "));
 	    DO_SET (df_elt_t *, col_dfe, &dfe->_.table.out_cols)
-	      {
-		if (col_dfe->_.col.col == (dbe_column_t *) CI_ROW)
-		  sqlo_print ((" _ROW "));
-		else if (col_dfe->_.col.col)
-		  sqlo_print ((" %s ", col_dfe->_.col.col->col_name));
-		else
-		  {
-		    sqlo_print ((" "));
-		    dbg_print_box ((caddr_t) col_dfe->dfe_tree, stdout);
-		    sqlo_print ((" "));
-		  }
-	      }
-	    END_DO_SET();
+	    {
+	      if (col_dfe->_.col.col == (dbe_column_t *) CI_ROW)
+		sqlo_print ((" _ROW "));
+	      else if (col_dfe->_.col.col)
+		sqlo_print ((" %s ", col_dfe->_.col.col->col_name));
+	      else
+		{
+		  sqlo_print ((" "));
+		  dbg_print_box ((caddr_t) col_dfe->dfe_tree, stdout);
+		  sqlo_print ((" "));
+		}
+	    }
+	    END_DO_SET ();
 	    sqlo_print (("\n"));
 	    sqlo_print (("%*.*s", offset, offset, " "));
 	  }
@@ -312,8 +309,9 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 
 	if (dfe->_.table.hash_filler)
 	  {
-	    df_elt_t * filler = dfe->_.table.hash_filler;
-	    sqlo_print (("  hash filler dfe build time %g ms:\n", sqlo_hash_ins_cost (dfe, filler->dfe_arity, dfe->_.table.out_cols, NULL) * compiler_unit_msecs));
+	    df_elt_t *filler = dfe->_.table.hash_filler;
+	    sqlo_print (("  hash filler dfe build time %g ms:\n", sqlo_hash_ins_cost (dfe, filler->dfe_arity, dfe->_.table.out_cols,
+			NULL) * compiler_unit_msecs));
 	    sqlo_dfe_print (filler, offset + OFS_INCR);
 	  }
 
@@ -342,7 +340,7 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
     case DFE_VALUE_SUBQ:
     case DFE_PRED_BODY:
       {
-	df_elt_t * elt;
+	df_elt_t *elt;
 	sqlo_print (("{"));
 	sqlo_print (("%*.*s", offset, offset, " "));
 	if (dfe->dfe_type == DFE_VALUE_SUBQ)
@@ -355,16 +353,16 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	    sqlo_print (("  %s dt %s\n", dfe->_.sub.is_contradiction ? "CONTR" : "", dfe->_.sub.ot->ot_new_prefix));
 	    if (compiler_unit_msecs)
 	      sqlo_print (("  unit %9.2g (%g msecs) arity %9.2g reached %7.2g \n",
-		    (double) dfe->dfe_unit, (double) dfe->dfe_unit * compiler_unit_msecs,
-		    (double) dfe->dfe_arity, dfe->_.sub.in_arity));
+		      (double) dfe->dfe_unit, (double) dfe->dfe_unit * compiler_unit_msecs,
+		      (double) dfe->dfe_arity, dfe->_.sub.in_arity));
 	    else
 	      sqlo_print (("  unit %9.2g arity %9.2g reached %7.2g \n",
-		    (double) dfe->dfe_unit, (double) dfe->dfe_arity, dfe->_.sub.in_arity));
+		      (double) dfe->dfe_unit, (double) dfe->dfe_arity, dfe->_.sub.in_arity));
 	    sqlo_print (("%*.*sOut cols :\n", offset, offset, " "));
 	    DO_BOX (df_elt_t *, out, inx, dfe->_.sub.dt_out)
-	      {
-		sqlo_dfe_print (out, offset + OFS_INCR);
-	      }
+	    {
+	      sqlo_dfe_print (out, offset + OFS_INCR);
+	    }
 	    END_DO_BOX;
 	  }
 	if (dfe->_.sub.generated_dfe)
@@ -379,11 +377,11 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	  sqlo_print (("empty dt"));
 	else
 	  {
-	  for (elt = dfe->_.sub.first->dfe_next; elt; elt = elt->dfe_next)
-	    {
-	      sqlo_dfe_print (elt, offset + OFS_INCR);
-	      sqlo_print (("\n"));
-	    }
+	    for (elt = dfe->_.sub.first->dfe_next; elt; elt = elt->dfe_next)
+	      {
+		sqlo_dfe_print (elt, offset + OFS_INCR);
+		sqlo_print (("\n"));
+	      }
 	  }
 	sqlo_print (("%*.*s", offset, offset, " "));
 	sqlo_print (("}\n"));
@@ -421,9 +419,9 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	int inx;
 	sqlo_print (("{ set op %d\n", dfe->_.qexp.op));
 	DO_BOX (df_elt_t *, elt, inx, dfe->_.qexp.terms)
-	  {
-	    sqlo_dfe_print (elt, offset + OFS_INCR);
-	  }
+	{
+	  sqlo_dfe_print (elt, offset + OFS_INCR);
+	}
 	END_DO_BOX;
 	sqlo_print (("%*.*s", offset, offset, " "));
 	sqlo_print (("}\n"));
@@ -440,13 +438,13 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	  int inx;
 	  printf ("oby dep:\n");
 	  DO_BOX (dk_set_t, deps, inx, dfe->_.setp.oby_dep_cols)
+	  {
+	    DO_SET (df_elt_t *, dfe, &deps)
 	    {
-	      DO_SET (df_elt_t *, dfe, &deps)
-		{
-		  sqlo_dfe_print (dfe, 0);
-		}
-	      END_DO_SET();
+	      sqlo_dfe_print (dfe, 0);
 	    }
+	    END_DO_SET ();
+	  }
 	  END_DO_BOX;
 	}
       if (dfe->_.setp.after_test)
@@ -474,7 +472,7 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 char *
 rq_inx_abbrev (df_elt_t * elt)
 {
-  dbe_key_t * key = elt->_.table.key;
+  dbe_key_t *key = elt->_.table.key;
   if (key->key_is_primary)
     return "so";
   if (key->key_n_significant == 4)
@@ -487,12 +485,12 @@ void
 rq_print_ps (dk_set_t * preds)
 {
   DO_SET (df_elt_t *, pred, preds)
-    {
+  {
     if (PRED_IS_EQ (pred) && DFE_COLUMN == pred->_.bin.left->dfe_type && pred->_.bin.left->_.col.col
 	&& 'P' == toupper (pred->_.bin.left->_.col.col->col_name[0]))
-	sqlo_dfe_print (pred, 0);
-    }
-  END_DO_SET();
+      sqlo_dfe_print (pred, 0);
+  }
+  END_DO_SET ();
 }
 
 
@@ -502,12 +500,12 @@ sqlo_next_print (dk_set_t * arr)
   /* print the array of next steps in sqlo_layout_sort_tables */
   int inx;
   DO_BOX (dk_set_t, dfes, inx, arr)
-    {
-      df_elt_t * dfe = (df_elt_t*)dfes->data;
-      sqlo_print ((" score %9.2g %s ", dfe->dfe_unit, DFE_TABLE == dfe->dfe_type && dfe->_.table.is_leaf ? "leaf" : ""));
+  {
+    df_elt_t *dfe = (df_elt_t *) dfes->data;
+    sqlo_print ((" score %9.2g %s ", dfe->dfe_unit, DFE_TABLE == dfe->dfe_type && dfe->_.table.is_leaf ? "leaf" : ""));
     DO_SET (df_elt_t *, elt, &dfes) sqlo_print ((" %s ", elt->_.table.ot->ot_new_prefix));
-      END_DO_SET();
-    }
+    END_DO_SET ();
+  }
   END_DO_BOX;
   sqlo_print (("\n"));
 }
@@ -516,7 +514,7 @@ sqlo_next_print (dk_set_t * arr)
 void
 sqlo_scenario_summary (df_elt_t * dfe, float cost)
 {
-  df_elt_t * elt;
+  df_elt_t *elt;
   int is_rq;
   if (compiler_unit_msecs)
     sqlo_print (("sequence for %s cost %9.2g (%g msec):", dfe->_.sub.ot->ot_new_prefix, cost, cost * compiler_unit_msecs));
@@ -529,52 +527,52 @@ sqlo_scenario_summary (df_elt_t * dfe, float cost)
 	{
 	case DFE_TABLE:
 	  is_rq = dfe_is_quad (elt);
-	    if (elt->_.table.hash_role == HR_FILL)
-	      {
-		sqlo_print (("(%s filler) ", elt->_.table.ot->ot_new_prefix));
-	      }
-	    else
-	      {
-		sqlo_print (("%s as %s ", is_rq ? "rq" : elt->_.table.ot->ot_table->tb_name_only, elt->_.table.ot->ot_new_prefix));
-		if (elt->_.table.inx_op)
+	  if (elt->_.table.hash_role == HR_FILL)
+	    {
+	      sqlo_print (("(%s filler) ", elt->_.table.ot->ot_new_prefix));
+	    }
+	  else
+	    {
+	      sqlo_print (("%s as %s ", is_rq ? "rq" : elt->_.table.ot->ot_table->tb_name_only, elt->_.table.ot->ot_new_prefix));
+	      if (elt->_.table.inx_op)
+		{
+		  sqlo_print ((" inx and ( "));
+		  DO_SET (df_inx_op_t *, dio, &elt->_.table.inx_op->dio_terms)
 		  {
-		    sqlo_print ((" inx and ( "));
-		    DO_SET (df_inx_op_t *, dio, &elt->_.table. inx_op->dio_terms)
-		      {
-			sqlo_print ((" %s on %s, ", OT_NAME (dio->dio_table->_.table.ot), dio->dio_key->key_name));
-		      }
-		    END_DO_SET();
-		    sqlo_print ((" ) "));
+		    sqlo_print ((" %s on %s, ", OT_NAME (dio->dio_table->_.table.ot), dio->dio_key->key_name));
 		  }
-		else if (HR_REF == elt->_.table.hash_role)
-		  {
-		    df_elt_t * filler = elt->_.table.hash_filler;
-		    sqlo_print ((" hash ref "));
-		    if (DFE_DT == filler->dfe_type)
-		      {
-			sqlo_print (("build ("));
-			sqlo_scenario_summary (filler, filler->dfe_unit);
-			sqlo_print ((")"));
-		      }
-		  }
-		else
-		  {
-		    if (is_rq)
-		      sqlo_print ((" %s ", rq_inx_abbrev (elt)));
-		    else
+		  END_DO_SET ();
+		  sqlo_print ((" ) "));
+		}
+	      else if (HR_REF == elt->_.table.hash_role)
+		{
+		  df_elt_t *filler = elt->_.table.hash_filler;
+		  sqlo_print ((" hash ref "));
+		  if (DFE_DT == filler->dfe_type)
+		    {
+		      sqlo_print (("build ("));
+		      sqlo_scenario_summary (filler, filler->dfe_unit);
+		      sqlo_print ((")"));
+		    }
+		}
+	      else
+		{
+		  if (is_rq)
+		    sqlo_print ((" %s ", rq_inx_abbrev (elt)));
+		  else
 		    sqlo_print ((" on %s ", elt->_.table.key->key_name ? elt->_.table.key->key_name : "no inx"));
-		  }
-		if (is_rq)
-		  printf ("%s", dfe_p_const_abbrev (elt));
-		if (elt->_.table.is_oby_order && elt->_.table.ot->ot_order_cols)
-		  sqlo_print (("(index_oby %s %s) ",
+		}
+	      if (is_rq)
+		printf ("%s", dfe_p_const_abbrev (elt));
+	      if (elt->_.table.is_oby_order && elt->_.table.ot->ot_order_cols)
+		sqlo_print (("(index_oby %s %s) ",
 			elt->_.table.key->key_name, elt->_.table.ot->ot_order_dir == ORDER_DESC ? "DESC" : "ASC"));
-	      }
+	    }
 	  break;
 	case DFE_DT:
 	  sqlo_print (("%s ", elt->_.sub.ot->ot_new_prefix));
 	  if (elt->_.sub.trans)
-	    sqlo_print ((" transdir=%d ", (int)elt->_.sub.trans->tl_direction));
+	    sqlo_print ((" transdir=%d ", (int) elt->_.sub.trans->tl_direction));
 	  break;
 	case DFE_ORDER:
 	  sqlo_print ((" order_by "));
@@ -592,7 +590,7 @@ sqlo_scenario_summary (df_elt_t * dfe, float cost)
 	sqlo_print ((", "));
     }
   if (!dfe->_.sub.hash_filler_of)
-  sqlo_print (("\n"));
+    sqlo_print (("\n"));
 }
 
 void
@@ -637,7 +635,7 @@ dbg_qi_print_slots (query_instance_t * qi, state_slot_t ** slots, int nthset)
   fflush (stdout);
 }
 
-#endif // DEBUG
+#endif /* DEBUG */
 
 
 void
@@ -645,16 +643,17 @@ jp_arr_print (dk_set_t * arr)
 {
   int inx;
   DO_BOX (dk_set_t, list, inx, arr)
+  {
+    df_elt_t *head = (df_elt_t *) list->data;
+    printf (" card %s %g score %g %s ", head->dfe_is_joined ? "" : "NJ", head->dfe_arity, head->dfe_unit,
+	head->_.table.ot->ot_new_prefix);
+    DO_SET (df_elt_t *, dfe, &list->next)
     {
-      df_elt_t * head = (df_elt_t*)list->data;
-      printf (" card %s %g score %g %s ", head->dfe_is_joined ? "": "NJ", head->dfe_arity, head->dfe_unit, head->_.table.ot->ot_new_prefix);
-      DO_SET (df_elt_t *, dfe, &list->next)
-	{
-	  printf ("%s ", dfe->_.table.ot->ot_new_prefix);
-	}
-      END_DO_SET();
-      printf ("\n");
+      printf ("%s ", dfe->_.table.ot->ot_new_prefix);
     }
+    END_DO_SET ();
+    printf ("\n");
+  }
   END_DO_BOX;
 }
 
@@ -662,10 +661,9 @@ void
 ot_list_print (dk_set_t ots)
 {
   DO_SET (op_table_t *, ot, &ots)
-    {
-      printf ("%s ", ot->ot_new_prefix);
-    }
-  END_DO_SET();
+  {
+    printf ("%s ", ot->ot_new_prefix);
+  }
+  END_DO_SET ();
   printf ("\n");
 }
-

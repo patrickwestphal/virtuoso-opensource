@@ -118,6 +118,7 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
     }
   if (cert)
     {
+#ifdef _SSL
       int ssl_err = 0;
       int fd = tcpses_get_fd (ses->dks_session);
       ssl_method = SSLv23_client_method ();
@@ -136,6 +137,11 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
 	}
       else
 	tcpses_to_sslses (ses->dks_session, ssl);
+#else
+      strcpy_ck (err_code, "08006");
+      strcpy_ck (err_text, "pop3_get() cannot connect via SSL because Virtuoso is compiled without SSL support");
+      goto error_end;
+#endif
     }
 
   msg = strses_allocate ();
@@ -147,24 +153,23 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
   IS_OK_NEXT (ses, resp, rc, "PO004", "Not valid user in remote POP3 server");
   SEND (ses, rc, "PASS ", pass);
   CATCH_READ_FAIL (ses)
-    {
-      resp[0] = 0;
-      rc = dks_read_line (ses, resp, sizeof (resp));
-      if (is_ok (resp))
-	{
-	  strncpy (err_text, resp, sizeof (err_text) - 1);
-	  err_text[sizeof (err_text) - 1] = 0;
-	  goto error_end;
-	}
-    }
+  {
+    resp[0] = 0;
+    rc = dks_read_line (ses, resp, sizeof (resp));
+    if (is_ok (resp))
+      {
+	strncpy (err_text, resp, sizeof (err_text) - 1);
+	err_text[sizeof (err_text) - 1] = 0;
+	goto error_end;
+      }
+  }
   FAILED
-    {
-      goto error_end;
-    }
-  END_READ_FAIL (ses);
-  /*  IS_OK_NEXT (ses, resp, rc, "Bad user name and password"); */
-
-  inx_mails = 0;
+  {
+    goto error_end;
+  }
+  END_READ_FAIL (ses)
+      /*  IS_OK_NEXT (ses, resp, rc, "Bad user name and password"); */
+      inx_mails = 0;
   size = 0;
 
   /* get LIST of message and set size */
@@ -173,46 +178,46 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
   IS_OK_NEXT (ses, resp, rc, "PO005", "UIDL command to remote POP3 server failed");
 
   CATCH_READ_FAIL (ses)
-    {
-      char next[101];
-      volatile int l, br, fl;
+  {
+    char next[101];
+    volatile int l, br, fl;
 
-      if (in)
-	l = BOX_ELEMENTS (in);
+    if (in)
+      l = BOX_ELEMENTS (in);
 
-      for (;;)
-	{
-	  rc = dks_read_line (ses, resp, sizeof (resp));
-	  if (!strncmp (end_msg, resp, sizeof (end_msg)))
-	    break;
-	  sscanf (resp, "%i %100s", (int *) (&number), next);
-	  if (in)
-	    {
-	      fl = 0;
-	      for (br = 0; br < l; br++)
-		{
-		  if (!strcmp (in[br], next))
-		    {
-		      fl = 1;
-		      break;
-		    }
-		}
+    for (;;)
+      {
+	rc = dks_read_line (ses, resp, sizeof (resp));
+	if (!strncmp (end_msg, resp, sizeof (end_msg)))
+	  break;
+	sscanf (resp, "%i %100s", (int *) (&number), next);
+	if (in)
+	  {
+	    fl = 0;
+	    for (br = 0; br < l; br++)
+	      {
+		if (!strcmp (in[br], next))
+		  {
+		    fl = 1;
+		    break;
+		  }
+	      }
 
-	      if (fl)
-		dk_set_push (&uidl, NULL);
-	      else
-		dk_set_push (&uidl, box_dv_short_string (next));
-	    }
-	  else
-	    dk_set_push (&uidl, box_dv_short_string (next));
-	}
-    }
+	    if (fl)
+	      dk_set_push (&uidl, NULL);
+	    else
+	      dk_set_push (&uidl, box_dv_short_string (next));
+	  }
+	else
+	  dk_set_push (&uidl, box_dv_short_string (next));
+      }
+  }
   FAILED
-    {
-      strncpy (err_code, "PO006", sizeof (err_code));
-      strncpy (err_text, "Could not get output of UIDL from remote POP3 server.", sizeof (err_text));
-      goto error_end;
-    }
+  {
+    strncpy (err_code, "PO006", sizeof (err_code));
+    strncpy (err_text, "Could not get output of UIDL from remote POP3 server.", sizeof (err_text));
+    goto error_end;
+  }
   END_READ_FAIL (ses);
 
   my_list = (caddr_t *) list_to_array (dk_set_nreverse (uidl));
@@ -221,36 +226,37 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
   IS_OK_NEXT (ses, resp, rc, "PO007", "LIST command to remote POP3 server failed.");
 
   CATCH_READ_FAIL (ses)
-    {
-      for (;;)
-	{
-	  long msg_size;
-	  rc = dks_read_line (ses, resp, sizeof (resp));
-	  if (!strncmp (end_msg, resp, sizeof (end_msg)))
+  {
+    for (;;)
+      {
+	long msg_size;
+	rc = dks_read_line (ses, resp, sizeof (resp));
+	if (!strncmp (end_msg, resp, sizeof (end_msg)))
+	  break;
+	sscanf (resp, "%10s %li", num, &msg_size);
+
+	if (atoi (num) == 0)
+	  if (num[0] != '.')
 	    break;
-	  sscanf (resp, "%10s %li", num, &msg_size);
 
-	  if (atoi (num) == 0)
-	    if (num[0] != '.')
-	      break;
+	if (my_list[atoi (num) - 1])
+	  size = size + msg_size;
 
-	  if (my_list[atoi (num) - 1])
-	    size = size + msg_size;
+	if (size < end_size)
+	  {
+	    inx_mails++;
+	  }
 
-	  if (size < end_size)
-	    {
-	      inx_mails++;
-	    }
-
-	}
-    }
+      }
+  }
   FAILED
-    {
-      strcpy_ck (err_code, "PO008");
-      strncpy (err_text, "Could not get output of LIST from remote POP3 server.", sizeof (err_text));
-      goto error_end;
-    }
+  {
+    strcpy_ck (err_code, "PO008");
+    strncpy (err_text, "Could not get output of LIST from remote POP3 server.", sizeof (err_text));
+    goto error_end;
+  }
   END_READ_FAIL (ses);
+
 
   for (inx = 1; inx <= inx_mails; inx++)
     {
@@ -269,43 +275,43 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
 	  strses_flush (msg);
 	  strses_enable_paging (msg, http_ses_size);
 	  CATCH_READ_FAIL (ses)
-	    {
-	      while (strncmp (end_msg, resp, sizeof (end_msg)))
-		{
-		  rc = dks_read_line (ses, resp, sizeof (resp));
-		  if (strncmp (end_msg, resp, sizeof (end_msg)))
-		    SES_PRINT (msg, resp);
-		  if (tcpses_check_disk_error (msg, qst, 0))
-		    {
-		      strcpy_ck (err_text, "Server error in accessing temp file");
-		      strcpy_ck (err_code, "PO010");
-		      SESSION_SCH_DATA (ses)->sio_read_fail_on = 0;
-		      goto error_end;
-		    }
-		}
-	      session_flush_1 (msg);
-	      if (tcpses_check_disk_error (msg, NULL, 0))
-		{
-		  strcpy_ck (err_text, "Server error in accessing temp file");
-		  strcpy_ck (err_code, "PO010");
-		  SESSION_SCH_DATA (ses)->sio_read_fail_on = 0;
-		  goto error_end;
-		}
-	      if (!STRSES_CAN_BE_STRING (msg))
-		{
-		  dk_set_push (ret_v, list (2, my_list[inx-1], msg));
-		  msg = strses_allocate ();
-		}
-	      else
-		dk_set_push (ret_v, list (2, my_list[inx - 1], strses_string (msg)));
-	      my_list[inx - 1] = NULL;
-	    }
+	  {
+	    while (strncmp (end_msg, resp, sizeof (end_msg)))
+	      {
+		rc = dks_read_line (ses, resp, sizeof (resp));
+		if (strncmp (end_msg, resp, sizeof (end_msg)))
+		  SES_PRINT (msg, resp);
+		if (tcpses_check_disk_error (msg, qst, 0))
+		  {
+		    strcpy_ck (err_text, "Server error in accessing temp file");
+		    strcpy_ck (err_code, "PO010");
+		    SESSION_SCH_DATA (ses)->sio_read_fail_on = 0;
+		    goto error_end;
+		  }
+	      }
+	    session_flush_1 (msg);
+	    if (tcpses_check_disk_error (msg, NULL, 0))
+	      {
+		strcpy_ck (err_text, "Server error in accessing temp file");
+		strcpy_ck (err_code, "PO010");
+		SESSION_SCH_DATA (ses)->sio_read_fail_on = 0;
+		goto error_end;
+	      }
+	    if (!STRSES_CAN_BE_STRING (msg))
+	      {
+		dk_set_push (ret_v, list (2, my_list[inx - 1], msg));
+		msg = strses_allocate ();
+	      }
+	    else
+	      dk_set_push (ret_v, list (2, my_list[inx - 1], strses_string (msg)));
+	    my_list[inx - 1] = NULL;
+	  }
 	  FAILED
-	    {
-	      strcpy_ck (err_code, "PO010");
-	      strcpy_ck (err_text, "Failed reading output of LIST command on remote POP3 server");
-	      goto error_end;
-	    }
+	  {
+	    strcpy_ck (err_code, "PO010");
+	    strcpy_ck (err_text, "Failed reading output of LIST command on remote POP3 server");
+	    goto error_end;
+	  }
 	  END_READ_FAIL (ses);
 	}
       else
@@ -317,8 +323,7 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
       if (!stricmp ("delete", mode))
 	{
 	  SEND (ses, rc, "DELE ", message);
-	  IS_OK_NEXT (ses, resp, rc, "PO011",
-		      "Could not DELE messages from remote POP3 server");
+	  IS_OK_NEXT (ses, resp, rc, "PO011", "Could not DELE messages from remote POP3 server");
 	}
     }
 
@@ -330,7 +335,9 @@ pop3_get (char *host, caddr_t * err_ret, caddr_t user, caddr_t pass,
   dk_free_tree ((box_t) my_list);
   PrpcDisconnect (ses);
   PrpcSessionFree (ses);
+#ifdef _SSL
   SSL_CTX_free (ssl_ctx);
+#endif
   return;
 
 error_end:
@@ -339,8 +346,9 @@ error_end:
   dk_free_tree ((box_t) my_list);
   PrpcDisconnect (ses);
   PrpcSessionFree (ses);
+#ifdef _SSL
   SSL_CTX_free (ssl_ctx);
-
+#endif
   if (err_code[0] != 0)
     *err_ret = srv_make_new_error ("08006", err_code, "%s", err_text);
   else
@@ -422,39 +430,35 @@ bif_ses_write (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     out = qi->qi_client->cli_ws->ws_session; */
 
   CATCH_WRITE_FAIL (out)
-    {
-      if (dtp == DV_SHORT_STRING || dtp == DV_LONG_STRING ||
-	  dtp == DV_C_STRING)
-	session_buffered_write (out, string,
-	    box_length (string) - (IS_STRING_DTP (DV_TYPE_OF (string)) ? 1 : 0));
-      else if ((dtp == DV_BLOB_HANDLE) || (dtp == DV_BLOB_WIDE_HANDLE))
-	{
-	  blob_handle_t *bh = (blob_handle_t *) string;
-	  if (!bh->bh_length)
-	    {
-	      if (bh->bh_ask_from_client)
-		sqlr_new_error ("22023", "HT001",
-		    "An interactive blob can't be passed as argument to ses_write");
-	      goto endwrite;
-	    }
-	  bh->bh_current_page = bh->bh_page;
-	  bh->bh_position = 0;
-	  bh_write_out (qi->qi_trx, bh, out);
-	  bh->bh_current_page = bh->bh_page;
-	  bh->bh_position = 0;
-	}
-      else if (dtp == DV_STRING_SESSION)
-	{
-	  strses_write_out ((dk_session_t *) string, out);
-	}
-      else
-	*err_ret = srv_make_new_error ("22023", "HT002",
-	    "ses_write requires string, string_output or blob as argument 1");
-    }
+  {
+    if (dtp == DV_SHORT_STRING || dtp == DV_LONG_STRING || dtp == DV_C_STRING)
+      session_buffered_write (out, string, box_length (string) - (IS_STRING_DTP (DV_TYPE_OF (string)) ? 1 : 0));
+    else if ((dtp == DV_BLOB_HANDLE) || (dtp == DV_BLOB_WIDE_HANDLE))
+      {
+	blob_handle_t *bh = (blob_handle_t *) string;
+	if (!bh->bh_length)
+	  {
+	    if (bh->bh_ask_from_client)
+	      sqlr_new_error ("22023", "HT001", "An interactive blob can't be passed as argument to ses_write");
+	    goto endwrite;
+	  }
+	bh->bh_current_page = bh->bh_page;
+	bh->bh_position = 0;
+	bh_write_out (qi->qi_trx, bh, out);
+	bh->bh_current_page = bh->bh_page;
+	bh->bh_position = 0;
+      }
+    else if (dtp == DV_STRING_SESSION)
+      {
+	strses_write_out ((dk_session_t *) string, out);
+      }
+    else
+      *err_ret = srv_make_new_error ("22023", "HT002", "ses_write requires string, string_output or blob as argument 1");
+  }
   FAILED
-    {
-      *err_ret = srv_make_new_error ("08003", "HT003", "cannot write to session");
-    }
+  {
+    *err_ret = srv_make_new_error ("08003", "HT003", "cannot write to session");
+  }
   END_WRITE_FAIL (out);
   session_flush (out);
 endwrite:

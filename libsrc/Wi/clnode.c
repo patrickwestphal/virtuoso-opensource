@@ -25,6 +25,8 @@
  *
  */
 
+
+
 #include "sqlnode.h"
 #include "sqlbif.h"
 #include "arith.h"
@@ -218,7 +220,7 @@ again:
     default:
       {
 	DB_BUF_TLEN (len, val[0], val);
-	return cp_string_hash (cp, (char *)val, len, rem_ret);
+	return cp_string_hash (cp, (char *) val, len, rem_ret);
       }
     }
 }
@@ -238,33 +240,33 @@ col_part_cast_rdf (caddr_t val, sql_type_t * sqt, caddr_t * err)
 
 uint32
 col_part_hash (col_partition_t * cp, caddr_t val, int is_already_cast, int *cast_ret, int32 * rem_ret)
-    {
+{
   uint32 hash = 0;
   dtp_t dtp = DV_TYPE_OF (val);
   sql_type_t *sqt = &cp->cp_sqt;
   caddr_t cast_val = NULL;
   if (DV_DB_NULL == dtp)
-	{
+    {
       if (cast_ret)
 	*cast_ret = KS_CAST_NULL;
       return 0;
-}
+    }
   if (cast_ret)
     *cast_ret = KS_CAST_OK;
   if (CP_NO_CAST != is_already_cast)
-{
-      if (dtp != sqt->sqt_dtp)
     {
+      if (dtp != sqt->sqt_dtp)
+	{
 	  caddr_t err = NULL;
 	  if (IS_BLOB_DTP (dtp))
-	{
-	      if (cast_ret && CP_CAST_NO_ERROR == is_already_cast)
 	    {
+	      if (cast_ret && CP_CAST_NO_ERROR == is_already_cast)
+		{
 		  *cast_ret = KS_CAST_NULL;
 		  return 0;
-	}
+		}
 	      sqlr_new_error ("42000", "CL...", "A lob value cannot be used as a value compared to a partitioning column.");
-	}
+	    }
 	  if (DV_ANY == sqt->sqt_dtp)
 	    val = cast_val = box_to_any (val, &err);
 	  else if (DV_IRI_ID_8 == sqt->sqt_dtp && DV_IRI_ID == dtp)
@@ -273,65 +275,65 @@ col_part_hash (col_partition_t * cp, caddr_t val, int is_already_cast, int *cast
 	    ;
 	  else if (DV_RDF == dtp)
 	    val = cast_val = col_part_cast_rdf (val, sqt, &err);
-      else
+	  else
 	    val = cast_val = box_cast_to (NULL, val, dtp, sqt->sqt_dtp, sqt->sqt_precision, sqt->sqt_scale, &err);
 	  if (err)
-{
+	    {
 	      if (cast_ret && CP_CAST_NO_ERROR == is_already_cast)
-      {
+		{
 		  *cast_ret = KS_CAST_NULL;
 		  dk_free_tree (err);
-  return 0;
-}
+		  return 0;
+		}
 	      sqlr_resignal (err);
+	    }
 	}
     }
-}
   switch (cp->cp_type)
-{
+    {
     case CP_INT:
-{
+      {
 	boxint i = unbox_iri_int64 (val);
 	hash = cp_int_hash (cp, i, rem_ret);
 	if (cast_val)
 	  dk_free_box (cast_val);
 	return hash;
-}
+      }
     case CP_WORD:
-{
+      {
 	int len = box_length (val) - 1;
 	if (DV_ANY == cp->cp_sqt.sqt_dtp)
-{
+	  {
 	    uint32 res = cp_any_hash (cp, (dtp_t *) val, rem_ret);
 	    if (cast_val)
 	      dk_free_box (cast_val);
 	    return res;
-}
+	  }
 	if (DV_DATETIME == cp->cp_sqt.sqt_dtp || DV_DATE == cp->cp_sqt.sqt_dtp)
-{
+	  {
 	    uint32 ret = cp_string_hash (cp, cast_val ? cast_val : val, DT_COMPARE_LENGTH, rem_ret);
 	    if (cast_val)
 	      dk_free_box (cast_val);
 	    return ret;
-}
+	  }
 	if (cp->cp_n_first < 0)
-{
+	  {
 	    if (len > -cp->cp_n_first)
-    {
+	      {
 		*rem_ret = ((-cp->cp_n_first * 8) << 24) | (SHORT_REF_NA (val + len - 2) & N_ONES (8 * -cp->cp_n_first));
 		len += cp->cp_n_first;
-    }
-  else
-    {
+	      }
+	    else
+	      {
 		*rem_ret = -1;
-    }
-}
+	      }
+	  }
 	else
-	{
+	  {
 	    *rem_ret = -1;
 	    if (cp->cp_n_first > 0)
 	      len = MIN (len, cp->cp_n_first);
-	}
+	  }
 	BYTE_BUFFER_HASH (hash, val, len);
 	if (cast_val)
 	  dk_free_box (cast_val);
@@ -387,7 +389,7 @@ clrg_dml_clo (cl_req_group_t * clrg, dbe_key_t * key, int op)
 cl_op_t *
 cl_key_insert_op_vec (caddr_t * qst, dbe_key_t * key, int ins_mode,
     char **col_names, caddr_t * values, cl_req_group_t * clrg, int seq, int nth_set)
-    {
+{
   cl_op_t *clo = clrg_dml_clo (clrg, key, CLO_INSERT);
   int is_first = 0, fill = 0;
   row_delta_t *rd = clo->_.insert.rd;
@@ -411,9 +413,9 @@ cl_key_insert_op_vec (caddr_t * qst, dbe_key_t * key, int ins_mode,
       clo->clo_nth_param_row = nth_set;
       clo->_.insert.is_autocommit = clrg->clrg_no_txn;
       DO_ALL_CL (cl, key)
-	{
+      {
 	if (cl == key->key_bm_cl || CL_IS_COL_KEY_REF (cl, key))
-      continue;
+	  continue;
 	col_ssl.ssl_sqt = cl->cl_sqt;
 	col_ssl.ssl_sqt.sqt_dtp = dtp_canonical[col_ssl.ssl_sqt.sqt_col_dtp];
 	col_ssl.ssl_dc_dtp = 0;
@@ -427,7 +429,7 @@ cl_key_insert_op_vec (caddr_t * qst, dbe_key_t * key, int ins_mode,
   rd = clo->_.insert.rd;
   fill = 0;
   DO_ALL_CL (cl, key)
-      {
+  {
     caddr_t data;
     if (cl == key->key_bm_cl || CL_IS_COL_KEY_REF (cl, key))
       continue;
@@ -446,7 +448,7 @@ cl_key_insert_op_vec (caddr_t * qst, dbe_key_t * key, int ins_mode,
 cl_op_t *
 cl_key_delete_op_vec (caddr_t * qst, dbe_key_t * key,
     char **col_names, caddr_t * values, cl_req_group_t * clrg, int seq, int nth_set)
-      {
+{
   cl_op_t *clo = clrg_dml_clo (clrg, key, CLO_DELETE);
   int is_first = 0, fill = 0;
   row_delta_t *rd = clo->_.delete.rd;
@@ -492,64 +494,28 @@ cl_key_delete_op_vec (caddr_t * qst, dbe_key_t * key,
     fill++;
     if (fill == key->key_n_significant)
       break;
-	  }
-	  END_DO_SET ();
+  }
+  END_DO_SET ();
   return is_first ? clo : NULL;
 }
 
-
-void
-itc_delete_rd (it_cursor_t * itc, row_delta_t * rd)
-{
-  buffer_desc_t * buf;
-  int inx, rc;
-  dbe_key_t * key = itc->itc_insert_key;
-  itc_from (itc, itc->itc_insert_key, QI_NO_SLICE);
-  for (inx = 0; inx < key->key_n_significant; inx++)
-    ITC_SEARCH_PARAM (itc, rd->rd_values[key->key_part_in_layout_order[inx]]);
-  itc->itc_search_mode = SM_INSERT;
-  itc->itc_key_spec = key->key_insert_spec;
-  itc->itc_lock_mode = PL_EXCLUSIVE;
-  buf = itc_reset (itc);
-  rc = itc_search (itc, &buf);
-  if (rc == DVC_MATCH)
-    {
-      itc->itc_is_on_row = 1;
-      itc_set_lock_on_row (itc, &buf);
-      if (!itc->itc_is_on_row)
-	{
-	  if (itc->itc_ltrx)
-	    itc->itc_ltrx->lt_error = LTE_DEADLOCK;
-	    /* not really, but just put something there. */
-	  itc_bust_this_trx (itc, &buf, ITC_BUST_THROW);
-	}
-      itc->itc_is_on_row = 1;	/* flag not set in SM_INSERT search */
-      itc_delete (itc, &buf, NO_BLOBS);
-      itc_page_leave (itc, buf);
-      log_delete (itc->itc_ltrx, rd, LOG_KEY_ONLY);
-    }
-  else
-    itc_page_leave (itc, buf);
-}
-
-
 caddr_t
 cl_ddl (query_instance_t * qi, lock_trx_t * lt, caddr_t name, int type, caddr_t trig_table)
-	    {
+{
   return NULL;
 }
 
 
 void
 lt_expedite_1pc (lock_trx_t * lt)
-  {
+{
   GPF_T;
 }
 
 
 itc_cluster_t *
 itcl_allocate (lock_trx_t * lt, caddr_t * inst)
-  {
+{
   NEW_VARZ (itc_cluster_t, itcl);
   itcl->itcl_qst = inst;
   itcl->itcl_pool = mem_pool_alloc ();
@@ -597,9 +563,9 @@ cl_select_save_env (table_source_t * ts, itc_cluster_t * itcl, caddr_t * inst, c
 	{
 	  caddr_t new_array =
 	      mp_alloc_box_ni (itcl->itcl_pool, MAX ((ts->clb.clb_batch_size), (nth + 1)) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
-      memcpy (new_array, array, box_length (array));
-      itcl->itcl_param_rows = (cl_op_t ***) (array = (caddr_t **) new_array);
-    }
+	  memcpy (new_array, array, box_length (array));
+	  itcl->itcl_param_rows = (cl_op_t ***) (array = (caddr_t **) new_array);
+	}
     }
   n_save = 0;
   row = (caddr_t *) mp_alloc_box_ni (itcl->itcl_pool, sizeof (caddr_t) * (1 + n_save), DV_ARRAY_OF_POINTER);

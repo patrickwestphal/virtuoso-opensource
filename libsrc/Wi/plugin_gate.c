@@ -23,7 +23,7 @@
 
 #include "msdtc.h"
 
-unsigned char* export_mts_bin_encode (void *bin_array, unsigned long bin_array_len);
+unsigned char *export_mts_bin_encode (void *bin_array, unsigned long bin_array_len);
 int export_mts_bin_decode (const char *encoded_str, void **array, unsigned long *len);
 void export_mts_release_trx (void *itransact);
 
@@ -32,18 +32,17 @@ void export_mts_release_trx (void *itransact);
 
 msdtc_version_t msdtc_sample_version = {
   {
-    MSDTC_PLUGIN_TYPE,			/*!< Title of unit, filled by unit */
-    "XXXX",/*!< Version number, filled by unit */
-    "OpenLink Software",			/*!< Plugin's developer, filled by unit */
-    "MSDTC support plugin",			/*!< Any additional info, filled by unit */
-    0,					/*!< Error message, filled by unit loader */
-    0,					/*!< Name of file with unit's code, filled by unit loader */
-    0,			/*!< Pointer to connection function, cannot be 0 */
-    0,					/*!< Pointer to disconnection function, or 0 */
-    0,					/*!< Pointer to activation function, or 0 */
-    0,					/*!< Pointer to deactivation function, or 0 */
-    0
-  },
+	MSDTC_PLUGIN_TYPE,	/*!< Title of unit, filled by unit */
+	"XXXX",			/*!< Version number, filled by unit */
+	"OpenLink Software",	/*!< Plugin's developer, filled by unit */
+	"MSDTC support plugin",	/*!< Any additional info, filled by unit */
+	0,			/*!< Error message, filled by unit loader */
+	0,			/*!< Name of file with unit's code, filled by unit loader */
+	0,			/*!< Pointer to connection function, cannot be 0 */
+	0,			/*!< Pointer to disconnection function, or 0 */
+	0,			/*!< Pointer to activation function, or 0 */
+	0,			/*!< Pointer to deactivation function, or 0 */
+      0},
   export_mts_get_trx_cookie,
   export_mts_bin_encode,
   export_mts_bin_decode,
@@ -54,7 +53,6 @@ msdtc_version_t msdtc_sample_version = {
   0
 };
 
-msdtc_version_t * msdtc_plugin_gate = &msdtc_sample_version;
+msdtc_version_t *msdtc_plugin_gate = &msdtc_sample_version;
 
-msdtc_version_t * msdtc_plugin = 0;
-
+msdtc_version_t *msdtc_plugin = 0;

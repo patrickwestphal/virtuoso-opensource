@@ -79,8 +79,9 @@ static int configMode;
 /*
  *  iODBCinst error code array and macros
  */
-static DWORD ierror[ERROR_NUM] = {0};
-static LPSTR errormsg[ERROR_NUM] = {0};
+static DWORD ierror[ERROR_NUM] = { 0 };
+static LPSTR errormsg[ERROR_NUM] = { 0 };
+
 static SQLSMALLINT numerrors = -1;
 
 
@@ -195,8 +196,7 @@ SortFun (const void *p1, const void *p2)
 
 
 static int
-_iodbcinst_argv_to_buf (char **array, int num_elem,
-    LPSTR lpszRetBuffer, int cbRetBuffer)
+_iodbcinst_argv_to_buf (char **array, int num_elem, LPSTR lpszRetBuffer, int cbRetBuffer)
 {
   int i, count;
   char *ptr;
@@ -240,15 +240,13 @@ _iodbcinst_argv_to_buf (char **array, int num_elem,
 
 
 static int
-_iodbcinst_read_sections (PCONFIG pCfg,
-    LPSTR lpszRetBuffer, int cbRetBuffer)
+_iodbcinst_read_sections (PCONFIG pCfg, LPSTR lpszRetBuffer, int cbRetBuffer)
 {
   int count = 0;
   char **array;
   int i, max_elem;
 
-  Debug (("_iodbcinst_read_sections (%p, %p, %d)",
-	  pCfg, lpszRetBuffer, cbRetBuffer));
+  Debug (("_iodbcinst_read_sections (%p, %p, %d)", pCfg, lpszRetBuffer, cbRetBuffer));
 
   /*
    *  Initialize
@@ -297,15 +295,13 @@ done:
 
 
 static int
-_iodbcinst_read_keys (PCONFIG pCfg,
-    LPSTR lpszSection, LPSTR lpszRetBuffer, int cbRetBuffer)
+_iodbcinst_read_keys (PCONFIG pCfg, LPSTR lpszSection, LPSTR lpszRetBuffer, int cbRetBuffer)
 {
   int count = 0;
   char **array;
   int i, max_elem = 0;
 
-  Debug (("_iodbcinst_read_keys (%p, %s, %p, %d)",
-	  pCfg, lpszSection, lpszRetBuffer, cbRetBuffer));
+  Debug (("_iodbcinst_read_keys (%p, %s, %p, %d)", pCfg, lpszSection, lpszRetBuffer, cbRetBuffer));
 
   /*
    *  Initialize
@@ -363,20 +359,14 @@ done:
 #ifndef HIDE_CONFLICTING_IODBC_FUNCS
 
 int INSTAPI
-SQLGetPrivateProfileString (
-    LPCSTR lpszSection,
-    LPCSTR lpszEntry,
-    LPCSTR lpszDefault,
-    LPSTR lpszRetBuffer,
-    int cbRetBuffer,
-    LPCSTR lpszFilename)
+SQLGetPrivateProfileString (LPCSTR lpszSection,
+    LPCSTR lpszEntry, LPCSTR lpszDefault, LPSTR lpszRetBuffer, int cbRetBuffer, LPCSTR lpszFilename)
 {
   PCONFIG pCfg;
   char *ptr;
 
   Debug (("SQLGetPrivateProfileString('%s', '%s', '%s', %p, %d, '%s')",
-	lpszSection, lpszEntry, lpszDefault, lpszRetBuffer, cbRetBuffer,
-	lpszFilename));
+	  lpszSection, lpszEntry, lpszDefault, lpszRetBuffer, cbRetBuffer, lpszFilename));
 
   /*
    *  Initialize
@@ -429,8 +419,7 @@ SQLGetPrivateProfileString (
       /*
        *  If the Entry name is NULL we retrieve all keys within that section
        */
-      return _iodbcinst_read_keys (pCfg, (LPSTR) lpszSection, lpszRetBuffer,
-	cbRetBuffer);
+      return _iodbcinst_read_keys (pCfg, (LPSTR) lpszSection, lpszRetBuffer, cbRetBuffer);
     }
 
   /*
@@ -459,16 +448,11 @@ SQLGetPrivateProfileString (
 #endif
 
 BOOL INSTAPI
-SQLWritePrivateProfileString (
-    LPCSTR lpszSection,
-    LPCSTR lpszEntry,
-    LPCSTR lpszString,
-    LPCSTR lpszFilename)
+SQLWritePrivateProfileString (LPCSTR lpszSection, LPCSTR lpszEntry, LPCSTR lpszString, LPCSTR lpszFilename)
 {
   PCONFIG pCfg;
 
-  Debug (("SQLWritePrivateProfileString ('%s', '%s', '%s', '%s')",
-	  lpszSection, lpszEntry, lpszString, lpszFilename));
+  Debug (("SQLWritePrivateProfileString ('%s', '%s', '%s', '%s')", lpszSection, lpszEntry, lpszString, lpszFilename));
 
   if (!_iodbcinst_initialized)
     _iodbcinst_initialize ();
@@ -532,7 +516,7 @@ SQLSetConfigMode (SQLUSMALLINT wConfigMode)
   Debug (("SQLSetConfigMode (%d)", wConfigMode));
 
   if (!_iodbcinst_initialized)
-    _iodbcinst_initialize();
+    _iodbcinst_initialize ();
 
   /*
    *  Check input parameters
@@ -574,21 +558,18 @@ SQLWriteDSNToIni (LPCSTR lpszDSN, LPCSTR lpszDriver)
   /*
    *  Get the path to the driver from the odbcinst.ini file
    */
-  SQLGetPrivateProfileString (lpszDriver,
-	"Driver", "UNKNOWN", driver, sizeof (driver), "odbcinst.ini");
+  SQLGetPrivateProfileString (lpszDriver, "Driver", "UNKNOWN", driver, sizeof (driver), "odbcinst.ini");
 
   /*
    *  Add the DSN entry to [ODBC Data Sources]
    */
-  SQLWritePrivateProfileString (
-	"ODBC Data Sources", lpszDSN, lpszDriver, "odbc.ini");
+  SQLWritePrivateProfileString ("ODBC Data Sources", lpszDSN, lpszDriver, "odbc.ini");
 
   /*
    *  Add a new section for this DSN and only fill in the DRIVER key
    *  The rest must be filled in by the application
    */
-  SQLWritePrivateProfileString (
-	lpszDSN, "DRIVER", driver, "odbc.ini");
+  SQLWritePrivateProfileString (lpszDSN, "DRIVER", driver, "odbc.ini");
 #endif
 
   /*
@@ -634,8 +615,7 @@ SQLGetInstalledDrivers (LPSTR lpszBuf, WORD cbBufMax, WORD * pcbBufOut)
 {
   int count;
 
-  Debug (("SQLGetInstalledDrivers(%p, %d, %p)",
-	lpszBuf, cbBufMax, pcbBufOut));
+  Debug (("SQLGetInstalledDrivers(%p, %d, %p)", lpszBuf, cbBufMax, pcbBufOut));
 
   /*
    *  Check input parameters
@@ -646,8 +626,7 @@ SQLGetInstalledDrivers (LPSTR lpszBuf, WORD cbBufMax, WORD * pcbBufOut)
   /*
    *  Return the list of installed drivers
    */
-  count = SQLGetPrivateProfileString (
-	"ODBC Drivers", NULL, "", lpszBuf, cbBufMax, "odbcinst.ini");
+  count = SQLGetPrivateProfileString ("ODBC Drivers", NULL, "", lpszBuf, cbBufMax, "odbcinst.ini");
 #else
   strncpy (lpszBuf, "OpenLink Generic UDBC Driver", cbBufMax - 1);
   lpszBuf[cbBufMax - 1] = '\0';
@@ -664,7 +643,7 @@ SQLGetInstalledDrivers (LPSTR lpszBuf, WORD cbBufMax, WORD * pcbBufOut)
    *  If something goes wrong this function returns SQL_FALSE and the
    *  Virtuoso VSP page will show:
    *
-   *		  This function not supported in current server version
+   *              This function not supported in current server version
    */
   return count ? SQL_TRUE : SQL_FALSE;
 }
@@ -674,11 +653,9 @@ SQLGetInstalledDrivers (LPSTR lpszBuf, WORD cbBufMax, WORD * pcbBufOut)
  *  This is a stub for now
  */
 BOOL INSTAPI
-SQLWriteFileDSN (LPCSTR lpszFileName,
-    LPCSTR lpszAppName, LPCSTR lpszKeyName, LPSTR lpszString)
+SQLWriteFileDSN (LPCSTR lpszFileName, LPCSTR lpszAppName, LPCSTR lpszKeyName, LPSTR lpszString)
 {
-  Debug (("SQLWriteFileDSN (%s, %s, %s, %s)",
-	lpszFileName, lpszAppName, lpszKeyName, lpszString));
+  Debug (("SQLWriteFileDSN (%s, %s, %s, %s)", lpszFileName, lpszAppName, lpszKeyName, lpszString));
 
   /*
    *  Check input parameters
@@ -689,4 +666,3 @@ SQLWriteFileDSN (LPCSTR lpszFileName,
 }
 
 #endif /* WIN32 */
-

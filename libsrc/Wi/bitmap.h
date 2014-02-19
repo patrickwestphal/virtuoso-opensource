@@ -27,24 +27,24 @@ typedef short ce_bit_inx_t;
 #define CE_SINGLE 1
 #define CE_ARRAY 2
 #define CE_BITMAP 3
-#define CE_SINGLETON_ROW 4 /* no ce at all  */
+#define CE_SINGLETON_ROW 4	/* no ce at all  */
 
 typedef struct bm_pos_s
 {
-  bitno_t	bp_value;
-  short		bp_ce_offset; /* the ce offset from the start of bitmap */
-  short		bp_pos_in_ce; /* if array ce, index in the array of bit numbers */
-  char		bp_ce_type;
-  bitf_t        bp_is_pos_valid:1; /* true if bitmap col  was not touched since last time. Offsets inside bm string stay valid.  */
-  bitf_t        bp_at_end:1; /* true if itc on a row whose bm has no matches. Next seek must get next row in search order */
-  bitf_t        bp_below_start:1; /* itc found a ce with the right range but the search ended up below the first set bit */
-  bitf_t        bp_new_on_row:1; /* mecy time in toc_row_check, set the out cols for leading key parts.  Need not set on every iteration */
-  bitf_t        bp_just_landed:1;
-  bitf_t	bp_transiting:1; /* if set, placeholder is neither here nor there. Busy wait with sleep to wait for final position */
+  bitno_t bp_value;
+  short bp_ce_offset;		/* the ce offset from the start of bitmap */
+  short bp_pos_in_ce;		/* if array ce, index in the array of bit numbers */
+  char bp_ce_type;
+  bitf_t bp_is_pos_valid:1;	/* true if bitmap col  was not touched since last time. Offsets inside bm string stay valid.  */
+  bitf_t bp_at_end:1;		/* true if itc on a row whose bm has no matches. Next seek must get next row in search order */
+  bitf_t bp_below_start:1;	/* itc found a ce with the right range but the search ended up below the first set bit */
+  bitf_t bp_new_on_row:1;	/* mecy time in toc_row_check, set the out cols for leading key parts.  Need not set on every iteration */
+  bitf_t bp_just_landed:1;
+  bitf_t bp_transiting:1;	/* if set, placeholder is neither here nor there. Busy wait with sleep to wait for final position */
 } bitmap_pos_t;
 
 #define CE_N_VALUES 8192
-#define CE_MAX_LENGTH 1028 /* 4 byte header and bitmap for 8K bits */
+#define CE_MAX_LENGTH 1028	/* 4 byte header and bitmap for 8K bits */
 
 #define CE_OFFSET(ce) \
   (( ((ce)[0] & 0x7f) << 24) | (ce)[1] << 16 | ((ce)[2] & 0xe0) << 8)
@@ -52,7 +52,7 @@ typedef struct bm_pos_s
 #define CE_ARRAY_MASK 0x00001800
 #define CE_BITMAP_MASK 0x00001000
 
-#define CE_BITMAP_TO_ARRAY 0x08  /* value to OR to bitmap mask to make it the array flag in byte 2 of a ce */
+#define CE_BITMAP_TO_ARRAY 0x08	/* value to OR to bitmap mask to make it the array flag in byte 2 of a ce */
 #define CE_IS_SINGLE(ce)  (*(ce) & 0x80)
 #define CE_IS_ARRAY(ce) \
   (CE_ARRAY_MASK == (CE_ARRAY_MASK & LONG_REF_NA (ce)))

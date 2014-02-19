@@ -59,8 +59,7 @@
    plain, unaccented 7-bit ascii lowercase letter, or at least the closest
    match.
  */
-char iso_diacritic_to_plain[] =
-{
+char iso_diacritic_to_plain[] = {
 /* plain   dec ISO8859.1 name (some languages which I know to use this one) */
   'a',				/* 224 agrave */
   'a',				/* 225 aacute (Spanish, Irish, many others) */
@@ -159,8 +158,7 @@ char iso_diacritic_to_plain[] =
    the last character of pattern.
  */
 
-static const SLUCHAR *
-STRLIKE_NAME (group_match) (const SLUCHAR *pat, const SLUCHAR *string)
+static const SLUCHAR *STRLIKE_NAME (group_match) (const SLUCHAR * pat, const SLUCHAR * string)
 {
   SLUCHAR c, negative_flag = 0, found_matching = 0;
   int i;
@@ -187,10 +185,9 @@ STRLIKE_NAME (group_match) (const SLUCHAR *pat, const SLUCHAR *string)
 	}
       if (!found_matching)	/* Hasn't found yet the matching character. */
 	{			/* The hyphen is the range operator... */
-	  if ((*pat == STRLIKE_NAME (GROUP_RANGE_CHAR))
-	      && i		/* if it's not the first char in expr., */
-	      && (*(pat + 1) != STRLIKE_NAME (GROUP_END_CHAR))		/* and neither the last... */
-	    )
+	  if ((*pat == STRLIKE_NAME (GROUP_RANGE_CHAR)) && i	/* if it's not the first char in expr., */
+	      && (*(pat + 1) != STRLIKE_NAME (GROUP_END_CHAR))	/* and neither the last... */
+	      )
 	    {
 	      if ((c >= *(pat - 1)) && (c <= *(pat + 1)))
 		{
@@ -228,8 +225,7 @@ STRLIKE_NAME (group_match) (const SLUCHAR *pat, const SLUCHAR *string)
    expression. When this is initially called, it should be zero.
  */
 
-static int
-STRLIKE_NAME (wc_match) (const SLUCHAR *pattern, const SLUCHAR *string, SLUCHAR last_matched, SLUCHAR escape_char)
+static int STRLIKE_NAME (wc_match) (const SLUCHAR * pattern, const SLUCHAR * string, SLUCHAR last_matched, SLUCHAR escape_char)
 {
   escape_char = escape_char ? escape_char : STRLIKE_NAME (LIKE_ESCAPE_CHARACTER);
 loop:
@@ -239,13 +235,13 @@ loop:
       return (1);
     }
 
- /* this is checking for the escape character. if it's encountered skip it and check what's next.
-    If it's an SQL escape char(%_), then process is as a ordinary one, else return false
- */
+  /* this is checking for the escape character. if it's encountered skip it and check what's next.
+     If it's an SQL escape char(%_), then process is as a ordinary one, else return false
+   */
   if (*pattern == escape_char)
     {
       if (!*(pattern + 1))
-	return(0);
+	return (0);
       pattern++;
       if (*pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE_2)
 	  || *pattern == STRLIKE_NAME (MATCH_ONE_CHAR)
@@ -254,11 +250,10 @@ loop:
 	  || *pattern == STRLIKE_NAME (GROUP_NEGATE_CHAR)
 	  || *pattern == STRLIKE_NAME (GROUP_RANGE_CHAR)
 	  || *pattern == STRLIKE_NAME (MATCH_TO_LAST_CHAR)
-	  || *pattern == escape_char
-	  || *pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE))
-        goto ordinary_match;
+	  || *pattern == escape_char || *pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE))
+	goto ordinary_match;
       else
-	return(0);
+	return (0);
     }
 
   if (*pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE) || *pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE_2))
@@ -299,13 +294,12 @@ loop:
    In this way we avoid a lots of recursion done for a single asterisk.
  */
       if ((*pattern != STRLIKE_NAME (MATCH_ONE_CHAR)) &&
-	  (*pattern != STRLIKE_NAME (MATCH_TO_LAST_CHAR)) &&
-	  (*pattern != STRLIKE_NAME (GROUP_BEG_CHAR)))
+	  (*pattern != STRLIKE_NAME (MATCH_TO_LAST_CHAR)) && (*pattern != STRLIKE_NAME (GROUP_BEG_CHAR)))
 	{
 	  if (*pattern == escape_char)
 	    {
 	      if (!*(pattern + 1))
-		return(0);
+		return (0);
 	      if (NULL == (string = ((const SLUCHAR *) STRLIKE_NAME (strchr) ((const SLCHAR *) string, *(pattern + 1)))))
 		return (0);
 	    }
@@ -363,10 +357,7 @@ loop:
  */
   if (*pattern == STRLIKE_NAME (MATCH_TO_LAST_CHAR))
     {
-      if ((last_matched && (*string == last_matched))
-	  ||
-	  (!last_matched && (*string == STRLIKE_NAME (MATCH_TO_LAST_CHAR)))
-	)
+      if ((last_matched && (*string == last_matched)) || (!last_matched && (*string == STRLIKE_NAME (MATCH_TO_LAST_CHAR))))
 	{
 	  pattern++;
 	  string++;
@@ -393,12 +384,8 @@ ordinary_match:
 
 #ifndef SLCHAR_WIDE
 static int
-wc_match_coll (
-	const unsigned char *pattern,
-	const unsigned char *string,
-	unsigned char last_matched,
-	collation_t *collation,
-	unsigned char escape_char)
+wc_match_coll (const unsigned char *pattern,
+    const unsigned char *string, unsigned char last_matched, collation_t * collation, unsigned char escape_char)
 {
 
   escape_char = escape_char ? escape_char : LIKE_ESCAPE_CHARACTER;
@@ -409,18 +396,18 @@ loop:
       return (1);
     }
 
- /* this is checking for the escape character. if it's encountered skip it and check what's next.
-    If it's an SQL escape char(%_), then process is as a ordinary one, else return false
- */
+  /* this is checking for the escape character. if it's encountered skip it and check what's next.
+     If it's an SQL escape char(%_), then process is as a ordinary one, else return false
+   */
   if (*pattern == escape_char)
     {
       if (!*(pattern + 1))
-	return(0);
+	return (0);
       pattern++;
       if (*pattern == MATCH_ZERO_OR_MORE_2 || *pattern == MATCH_ONE_CHAR)
-        goto ordinary_match;
+	goto ordinary_match;
       else
-	return(0);
+	return (0);
     }
 
   if (*pattern == MATCH_ZERO_OR_MORE || *pattern == MATCH_ZERO_OR_MORE_2)
@@ -460,12 +447,9 @@ loop:
    zero to indicate that test failed.
    In this way we avoid a lots of recursion done for a single asterisk.
  */
-      if ((*pattern != MATCH_ONE_CHAR) &&
-	  (*pattern != MATCH_TO_LAST_CHAR) &&
-	  (*pattern != GROUP_BEG_CHAR))
+      if ((*pattern != MATCH_ONE_CHAR) && (*pattern != MATCH_TO_LAST_CHAR) && (*pattern != GROUP_BEG_CHAR))
 	{
-	  while (*string && collation->co_table[(unsigned char)*string] !=
-	      collation->co_table[(unsigned char)*pattern])
+	  while (*string && collation->co_table[(unsigned char) *string] != collation->co_table[(unsigned char) *pattern])
 	    string++;
 	  if (!string)
 	    {
@@ -521,10 +505,7 @@ loop:
  */
   if (*pattern == MATCH_TO_LAST_CHAR)
     {
-      if ((last_matched && (*string == last_matched))
-	  ||
-	  (!last_matched && (*string == MATCH_TO_LAST_CHAR))
-	)
+      if ((last_matched && (*string == last_matched)) || (!last_matched && (*string == MATCH_TO_LAST_CHAR)))
 	{
 	  pattern++;
 	  string++;
@@ -536,8 +517,7 @@ loop:
 	}
     }
 ordinary_match:
-  if (collation->co_table[(unsigned char)*pattern] ==
-      collation->co_table[(unsigned char)*string])	/* Same characters ? */
+  if (collation->co_table[(unsigned char) *pattern] == collation->co_table[(unsigned char) *string])	/* Same characters ? */
     {
       pattern++;
       string++;
@@ -549,7 +529,7 @@ ordinary_match:
       return (0);
     }
 }
-#endif /*SLCHAR_WIDE*/
+#endif /*SLCHAR_WIDE */
 
 
 
@@ -568,10 +548,9 @@ ordinary_match:
    some diacritic ISO-letter, and the other is the corresponding unaccented
    plain ascii letter.
  */
-static int
-STRLIKE_NAME(dfmatch) (const SLUCHAR *s1, const SLUCHAR *s2, int max_diffs)
+static int STRLIKE_NAME (dfmatch) (const SLUCHAR * s1, const SLUCHAR * s2, int max_diffs)
 {
-   SLUCHAR c1, c2;
+  SLUCHAR c1, c2;
 loop:
 
   /* If more differences than allowed: (max_diffs has come to zero) */
@@ -654,14 +633,14 @@ loop:
 
 /* Still allowed differences left, let's call recursively this same function
    to test whether the characters are just different: */
-      if (STRLIKE_NAME(dfmatch) (s1 + 1, s2 + 1, max_diffs))
+      if (STRLIKE_NAME (dfmatch) (s1 + 1, s2 + 1, max_diffs))
 	{
 	  return (1);
 	}
 
 /* If that failed, let's test whether there is one extra character in the
    datum: */
-      if (STRLIKE_NAME(dfmatch) (s1 + 1, s2, max_diffs))
+      if (STRLIKE_NAME (dfmatch) (s1 + 1, s2, max_diffs))
 	{
 	  return (1);
 	}
@@ -688,10 +667,9 @@ loop:
    addlibs argument).
  */
 
-static int
-STRLIKE_NAME (strfmatchp) (const SLUCHAR *s1, const SLUCHAR *s2, int addlibs)
+static int STRLIKE_NAME (strfmatchp) (const SLUCHAR * s1, const SLUCHAR * s2, int addlibs)
 {
-  int d, s1l;		/* s1l = s1's length */
+  int d, s1l;			/* s1l = s1's length */
   int max_diffs;
 
   d = (s1l = (int) (STRLIKE_NAME (strlen) ((const SLCHAR *) s1))) - (int) (STRLIKE_NAME (strlen) ((const SLCHAR *) s2));
@@ -730,7 +708,7 @@ STRLIKE_NAME (strfmatchp) (const SLUCHAR *s1, const SLUCHAR *s2, int addlibs)
       return (DVC_LESS);
     }
 
-  if (!(STRLIKE_NAME(dfmatch) (s1, s2, (max_diffs + 1))))
+  if (!(STRLIKE_NAME (dfmatch) (s1, s2, (max_diffs + 1))))
     {
       return (DVC_LESS);
     }
@@ -746,8 +724,7 @@ STRLIKE_NAME (strfmatchp) (const SLUCHAR *s1, const SLUCHAR *s2, int addlibs)
    string1 can contain also ISO-8859.1 diacritic vowels & consonants,
    which corresponding unaccented vowels in string2 will match against.
  */
-SLUCHAR *
-STRLIKE_NAME(nc_strstr) (const SLUCHAR *string1, const SLUCHAR *string2)
+SLUCHAR *STRLIKE_NAME (nc_strstr) (const SLUCHAR * string1, const SLUCHAR * string2)
 {
   SLUCHAR first, d = 0, e;
   const SLUCHAR *s1, *s2;
@@ -756,7 +733,7 @@ STRLIKE_NAME(nc_strstr) (const SLUCHAR *string1, const SLUCHAR *string2)
 
   if (!first)
     {
-      return (SLUCHAR *)(string1);
+      return (SLUCHAR *) (string1);
     }				/* If string2 is an empty string "" */
 
   if (is_a_letter (first))
@@ -767,8 +744,7 @@ STRLIKE_NAME(nc_strstr) (const SLUCHAR *string1, const SLUCHAR *string2)
     {				/* It's some non-letter character (e.g. a digit), then we can search
 				   it with strchr. If the first letter of string2 is not found from
 				   string1, then this surely fails: */
-      if (NULL == (string1 = (const SLUCHAR *) STRLIKE_NAME (strchr) ((const SLCHAR *) string1,
-	  first)))
+      if (NULL == (string1 = (const SLUCHAR *) STRLIKE_NAME (strchr) ((const SLCHAR *) string1, first)))
 	{
 	  return (0);
 	}
@@ -817,7 +793,7 @@ STRLIKE_NAME(nc_strstr) (const SLUCHAR *string1, const SLUCHAR *string2)
    found that the whole string2 is contained in string1: */
 	  if (!e)
 	    {
-	      return (SLUCHAR *)(string1);
+	      return (SLUCHAR *) (string1);
 	    }
 /* But if string1 was finished (although s2 still wasn't) then we return
    false, as the 'tail of string1' is now shorter than string2, so it's
@@ -830,8 +806,7 @@ STRLIKE_NAME(nc_strstr) (const SLUCHAR *string1, const SLUCHAR *string2)
    point of string1 where it would match: */
 	  if (!is_a_letter (first))	/* Can we use strchr??? */
 	    {			/* If first char of string2 wasn't found, then there's no hope: */
-	      if (NULL == (string1 = (const SLUCHAR *) STRLIKE_NAME (strchr) (
-		  (const SLCHAR *) (string1 + 1), first)))
+	      if (NULL == (string1 = (const SLUCHAR *) STRLIKE_NAME (strchr) ((const SLCHAR *) (string1 + 1), first)))
 		{
 		  return (0);
 		}
@@ -849,7 +824,7 @@ STRLIKE_NAME(nc_strstr) (const SLUCHAR *string1, const SLUCHAR *string2)
 #ifndef SLCHAR_WIDE
 /* Like the above, but handles the collation order.  */
 static const unsigned char *
-nc_strstr_coll (const unsigned char *string1, const unsigned char *string2, collation_t *collation)
+nc_strstr_coll (const unsigned char *string1, const unsigned char *string2, collation_t * collation)
 {
   unsigned char first, d = 0, e;
   const unsigned char *s1, *s2;
@@ -869,8 +844,7 @@ nc_strstr_coll (const unsigned char *string1, const unsigned char *string2, coll
     {				/* It's some non-letter character (e.g. a digit), then we can search
 				   it with strchr. If the first letter of string2 is not found from
 				   string1, then this surely fails: */
-      if (NULL == (string1 = (const unsigned char *) strchr ((const char *) string1,
-	  first)))
+      if (NULL == (string1 = (const unsigned char *) strchr ((const char *) string1, first)))
 	{
 	  return (0);
 	}
@@ -932,8 +906,7 @@ nc_strstr_coll (const unsigned char *string1, const unsigned char *string2, coll
    point of string1 where it would match: */
 	  if (!is_a_letter (first))	/* Can we use strchr??? */
 	    {			/* If first char of string2 wasn't found, then there's no hope: */
-	      if (NULL == (string1 = (const unsigned char *) strchr (
-		  (const char *) (string1 + 1), first)))
+	      if (NULL == (string1 = (const unsigned char *) strchr ((const char *) (string1 + 1), first)))
 		{
 		  return (0);
 		}
@@ -947,27 +920,24 @@ nc_strstr_coll (const unsigned char *string1, const unsigned char *string2, coll
 
   return (0);			/* Return false as we didn't find it. */
 }
-#endif /*SLCHAR_WIDE*/
+#endif /*SLCHAR_WIDE */
 
 
-int
-STRLIKE_NAME(__cmp_like) (
-	const SLCHAR *string,
-	const SLCHAR * pattern,
+int STRLIKE_NAME (__cmp_like) (const SLCHAR * string, const SLCHAR * pattern,
 #ifndef SLCHAR_WIDE
-	collation_t *collation,
+    collation_t * collation,
 #endif
-	SLCHAR escape_char)
+    SLCHAR escape_char)
 {
   if (((*pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE)) || (*pattern == STRLIKE_NAME (MATCH_ZERO_OR_MORE_2)))
       && ((*(pattern + 1) == STRLIKE_NAME (MATCH_ZERO_OR_MORE)) || (*(pattern + 1) == STRLIKE_NAME (MATCH_ZERO_OR_MORE_2))))
     {
 #ifndef SLCHAR_WIDE
       if (collation)
-	return ((!!nc_strstr_coll ((const SLUCHAR*) string, (const SLUCHAR*) (pattern + 2), collation)) ? DVC_MATCH : DVC_LESS);
+	return ((!!nc_strstr_coll ((const SLUCHAR *) string, (const SLUCHAR *) (pattern + 2), collation)) ? DVC_MATCH : DVC_LESS);
       else
 #endif
-	return ((!!STRLIKE_NAME (nc_strstr) ((const SLUCHAR*) string, (const SLUCHAR*) (pattern + 2))) ? DVC_MATCH : DVC_LESS);
+	return ((!!STRLIKE_NAME (nc_strstr) ((const SLUCHAR *) string, (const SLUCHAR *) (pattern + 2))) ? DVC_MATCH : DVC_LESS);
     }
 
   if (*pattern == STRLIKE_NAME (MATCH_TO_LAST_CHAR))	/* Call fuzzy match instead. */
@@ -980,15 +950,17 @@ STRLIKE_NAME(__cmp_like) (
 	}
       while (*pattern == STRLIKE_NAME (MATCH_TO_LAST_CHAR));
 /* The last argument should be zero, when there's only one @: */
-      return (STRLIKE_NAME (strfmatchp) ((const SLUCHAR*) string, (const SLUCHAR*) pattern, (addlibs - 1)));
+      return (STRLIKE_NAME (strfmatchp) ((const SLUCHAR *) string, (const SLUCHAR *) pattern, (addlibs - 1)));
     }
 
 #ifndef SLCHAR_WIDE
   if (collation)
-    return (wc_match_coll ((const SLUCHAR*) pattern, (const SLUCHAR*) string, 0, collation, (unsigned char)escape_char) ? DVC_MATCH : DVC_LESS);
+    return (wc_match_coll ((const SLUCHAR *) pattern, (const SLUCHAR *) string, 0, collation,
+	    (unsigned char) escape_char) ? DVC_MATCH : DVC_LESS);
   else
 #endif
-    return (STRLIKE_NAME (wc_match) ((const SLUCHAR*) pattern, (const SLUCHAR*) string, 0, (unsigned char)escape_char) ? DVC_MATCH : DVC_LESS);
+    return (STRLIKE_NAME (wc_match) ((const SLUCHAR *) pattern, (const SLUCHAR *) string, 0,
+	    (unsigned char) escape_char) ? DVC_MATCH : DVC_LESS);
 }
 
 

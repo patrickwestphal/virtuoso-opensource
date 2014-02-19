@@ -168,48 +168,6 @@ create procedure REPL_COLTYPE (in _col any) returns varchar
 }
 ;
 
-create procedure REPL_PK_COLS (in _tbl varchar)
-{
-  declare cr_pk cursor for
-      select
-          sc."COLUMN",
-          sc."COL_DTP",
-	  sc."COL_SCALE",
-	  sc."COL_PREC"
-      from
-          DB.DBA.SYS_KEYS k,
-	  DB.DBA.SYS_KEY_PARTS kp, DB.DBA.SYS_COLS sc
-      where
-          upper(k.KEY_TABLE) = upper(_tbl) and
-	  __any_grants(k.KEY_TABLE) and
-	  k.KEY_IS_MAIN = 1 and
-	  k.KEY_MIGRATE_TO is NULL and
-	  kp.KP_KEY_ID = k.KEY_ID and
-	  kp.KP_NTH < k.KEY_DECL_PARTS and
-	  sc.COL_ID = kp.KP_COL
-          and sc."COLUMN" <> '_IDN'
-      order by
-          kp.KP_NTH;
-  declare _pk_cols any;
-  declare _col_name varchar;
-  declare _col_dtp, _col_scale, _col_prec integer;
-
-  _pk_cols := vector ();
-  open cr_pk;
-  whenever not found goto done;
-  while (1)
-    {
-      fetch cr_pk into _col_name, _col_dtp, _col_scale, _col_prec;
-      _col_name := repl_undot_name (_col_name);
-      _pk_cols := vector_concat (
-          _pk_cols, vector (vector (_col_name, _col_dtp, _col_scale, _col_prec)));
-    }
-done:
-  close cr_pk;
-  return _pk_cols;
-}
-;
-
 create procedure WS.WS.HEX_DIGIT (in i integer)
 {
   if ( i >= 0 and i < 10)
@@ -2363,6 +2321,167 @@ create procedure SYS_GENERATE_ALL_VARS (in col_name varchar, in rate varchar:=nu
 }
 ;
 
+
+-- Generic VDB sampling, works for any table with int pk 1st part
+
+create procedure vdb_min_stat (in tb varchar)
+{
+  declare col, st, msg varchar;
+  declare res, md any;
+  col := (select top 1 "COLUMN" from sys_keys, sys_key_parts, sys_cols where kp_key_id = key_id and col_id = kp_col and key_is_main = 1 and key_migrate_to is null and key_table = tb order by kp_nth);
+  st := '00000';
+  exec (sprintf ('select count (*), min (%I), max (%I) from "%I"."%I"."%I"', col, col, name_part (tb, 0), name_part (tb, 1), name_part (tb, 2)), st, msg, vector (), 0, md, res);
+  if (st <> '00000')
+    signal (st, msg);
+  delete from sys_col_stat where cs_table = tb and cs_col = col;
+  insert into sys_col_stat (cs_table, cs_col, cs_n_rows, cs_n_values, cs_min, cs_max)
+    values (tb, col, res[0], res[0], serialize (res[1]), serialize (res[2]));
+}
+;
+
+
+create procedure tb_next_k (in tb varchar, in col varchar, in  guess bigint)
+{
+  declare st, msg varchar;
+  declare res, md any;
+  st := '00000';
+  exec (sprintf ('select  top 1 "%I"   from "%I"."%I"."%I" where "%I" >= ?', col, name_part (tb, 0), name_part (tb, 1), name_part (tb, 2), col), st, msg, vector (guess), 1, md, res);
+  if (st <> '00000')
+    signal (st, msg);
+  if (length (res))
+    return res[0][0];
+  return null;
+}
+;
+
+
+create procedure vdb_range (in tb varchar)
+{
+  declare col, st, msg varchar;
+  declare colv any;
+  declare res, md any;
+  declare mink, nk, guess, at_or_above, below numeric;
+ colv := (select top 1 vector ("COLUMN", col_dtp) from sys_keys, sys_key_parts, sys_cols where kp_key_id = key_id and col_id = kp_col and key_is_main = 1 and key_migrate_to is null and key_table = tb order by kp_nth);
+  if (colv is null)
+    return null;
+ col := colv[0];
+  if (colv[1] not in (189, 247, 219))
+    return null;
+  st := '00000';
+  exec (sprintf ('select  min ("%I"), max ("%I")   from "%I"."%I"."%I"', col, col, name_part (tb, 0), name_part (tb, 1), name_part (tb, 2)), st, msg, vector (), 1, md, res);
+  if (st <> '00000')
+    signal (st, msg);
+  if (0 = length (res))
+    return null;
+ return vector (res[0][0], res[0][1], col);
+
+
+  exec (sprintf ('select  "%I"   from "%I"."%I"."%I"', col, name_part (tb, 0), name_part (tb, 1), name_part (tb, 2)), st, msg, vector (), 1, md, res);
+  if (st <> '00000')
+    signal (st, msg);
+  if (0 = length (res))
+    return null;
+ mink := res[0][0];
+ at_or_above := mink;
+ below := null;
+ guess := mink + 1000000;
+ nk := mink;
+  for (;;)
+    {
+      if (guess - at_or_above < 1)
+	goto fnd;
+    nk := tb_next_k (tb, col, guess);
+      if (nk is null)
+	{
+	below := guess;
+	guess := (below + at_or_above) / 2;
+	}
+      else
+	{
+	at_or_above := nk;
+	  if (below is null)
+	  guess := guess * 2;
+	  else
+	    {
+	    guess := (guess + below) / 2;
+	    }
+	}
+    }
+ fnd:
+  return vector (mink, at_or_above, col);
+}
+;
+
+
+create procedure vdb_sample_stmt (in tb varchar, in k varchar, out col_pos int, in topk int := 100)
+{
+  declare ses any;
+  declare nth int;
+ nth := 0;
+ ses := string_output ();
+  http (sprintf ('select top %d ', topk), ses);
+  for select case when col_dtp in (125, 127) then '''''' else "COLUMN" end as cname from sys_keys, sys_key_parts, sys_cols
+								where key_id = kp_key_id and kp_col = col_id and "COLUMN" <> '_IDN' and key_is_main = 1 and key_migrate_to is null and key_table = tb order by col_id do {
+	http (sprintf ('%s "%I" ', case when 0 = nth then '' else ', ' end, cname), ses);
+	if (k = cname)
+	col_pos := nth;
+      nth := nth + 1;
+      };
+  http (sprintf (' from "%I"."%I"."%I" where "%I" >= ? and "%I" <= ?', name_part (tb, 0), name_part (tb, 1), name_part (tb, 2), k, k), ses);
+  return string_output_string (ses);
+}
+;
+
+
+create procedure vdb_sample (in tb varchar)
+{
+  declare n_samples, nth, total_res, n_res, k_col, topk int;
+  declare mink, maxk, r, delta, est numeric;
+  declare rng, samples, md, res any;
+  declare st, msg, stmt varchar;
+ topk := 100;
+ n_samples := 100;
+ rng := vdb_range (tb);
+  if (rng is null)
+    return 0;
+ mink := rng[0];
+ maxk := rng[1];
+ samples := make_array (n_samples, 'any');
+ stmt := vdb_sample_stmt (tb, rng[2], k_col);
+  for (nth := 0; nth < n_samples; nth := nth + 1)
+    {
+    st := '00000';
+    r := mink + floor ((maxk - mink ) / cast (n_samples  as float) * nth);
+      exec (stmt, st, msg, vector (r, r + 1000), topk, md, res);
+      if (st <> '00000')
+	signal (st, msg);
+      samples[nth] := res;
+    n_res := length (res);
+    if (n_res > 1)
+          delta := delta	 + res[n_res - 1][k_col] - res[0][k_col];
+    total_res := total_res + n_res;
+    }
+  if (delta <= total_res / 70 or total_res < 10)
+    {
+      exec (sprintf ('select count (*) from "%I"."%I"."%I"', name_part (tb, 0), name_part (tb, 1), name_part (tb, 2)), st, msg, vector (), 0, md, res);
+      if ('00000' <> st)
+	signal (st, msg);
+    est := res[0][0];
+    }
+  else
+  est := (maxk - mink) * (cast (total_res as float)  / delta);
+  col_set_samples (tb, samples, cast (est as float));
+  delete from sys_col_stat where cs_table = tb;
+  insert into sys_col_stat (cs_table, cs_col, cs_n_rows, cs_n_values, cs_n_distinct, cs_avg_len, cs_min, cs_max)
+    select tb,  "COLUMN", est, col_stat (col_id, 'n_values'), col_stat (col_id, 'n_distinct'), col_stat (col_id, 'avg_len'),  col_stat (col_id, 'min'),  col_stat (col_id, 'max') from sys_keys, sys_key_parts, sys_cols
+    where  key_table = tb and key_id = kp_key_id and kp_col = col_id and key_is_main = 1 and key_migrate_to is null;
+  __ddl_changed (tb);
+  return 1;
+}
+;
+
+
+
 create table SYS_STAT_VDB_MAPPERS (
    SVDM_TYPE varchar,
    SVDM_PROC varchar not null,
@@ -2633,6 +2752,8 @@ create procedure SYS_STAT_ANALYZE_VDB (
   declare _dbms_name, _dbms_ver varchar;
   _dbms_name := get_keyword (17, _ds_conn_str, '');
   _dbms_ver := get_keyword (18, _ds_conn_str, '');
+  if (vdb_sample (tb_name))
+    return;
 
   vdb_stats_mapper := NULL;
   select top 1 SVDM_PROC into vdb_stats_mapper from SYS_STAT_VDB_MAPPERS
@@ -4766,7 +4887,7 @@ create procedure REGEXP_REPLACE (in source_string any, in pattern any,
   if (regexp_parse (pattern, '', 0, match_parameter) is not null)
     signal ('22023', 'The REGEXP_REPLACE() function can not search for a pattern that can be found even in an empty string');
   if (0 = occurrence)
-		{
+    {
       hit_list := regexp_parse_list (pattern, source_string, position-1, match_parameter, 2097152);
       if (0 = length (hit_list))
         return source_string;
@@ -5063,7 +5184,7 @@ create procedure DB.DBA.VACUUM (in table_name varchar := '%', in index_name varc
 	     	 name_part (_table_name,2),
 	     	 name_part (_index_name,2)
 	     	 );
-	   stat := '00000';
+	 stat := '00000';
 	 cl := (select part_cluster from sys_partition where part_table = _table_name and (part_key = _index_name or part_key = name_part (_index_name, 2)));
 	   if (cl is not null)
 	     {
@@ -5071,15 +5192,13 @@ create procedure DB.DBA.VACUUM (in table_name varchar := '%', in index_name varc
 	     }
 	   else
 	     {
-	   exec (stmt, stat, msg, vector (), 0);
+	       exec (stmt, stat, msg, vector (), 0);
 	     }
 	   dbg_printf ('%s %s', stat, stmt);
          }
     }
 }
 ;
-
-
 
 create procedure tc_result (in n varchar, in is_cl int := 0)
 {
@@ -5277,7 +5396,7 @@ create procedure cl_exec (in str varchar, in params any := null, in txn int := 0
   else if (as_read)
     flags := 0;
   else
-  flags := 1;
+    flags := 1;
   if (best_effort)
     flags := bit_or (flags, 32);
   if (control)
@@ -5425,12 +5544,110 @@ create procedure cl_reset_seqs ()
 }
 ;
 
+create procedure cl_elastic_init ()
+{
+  declare stat, msg, ela, sl, maxsl any;
+  --return;
+  declare exit handler for sqlstate '*'
+    {
+      log_message ('Elastic setup failed, cluster cannot start');
+      cl_exec ('raw_exit ()');
+      return;
+    };
+  ela := cfg_item_value ('cluster.ini', 'ELASTIC', 'Segment1');
+  if (ela is null) return;
+  sl := atoi (coalesce (cfg_item_value ('cluster.ini', 'ELASTIC', 'Slices'), '0'));
+  if (sl < 1)
+    sl := sys_stat ('st_cpu_count');
+  maxsl := atoi (coalesce (cfg_item_value ('cluster.ini', 'ELASTIC', 'MaxSlices'), '2048'));
+  log_message ('Elastic cluster setup');
+  exec (sprintf ('create cluster ELASTIC __elastic %d %d ALL', maxsl, sl));
+
+  exec ('drop table RDF_QUAD', stat, msg);
+  exec ('drop table RDF_IRI', stat, msg);
+  exec ('drop table RDF_PREFIX', stat, msg);
+  exec ('drop table RDF_GEO', stat, msg);
+  exec ('drop table RDF_LABEL', stat, msg);
+  exec ('drop table RO_START', stat, msg);
+  exec ('alter table RDF_OBJ rename PREV_OBJ', stat, msg);
+  exec ('drop index RO_VAL', stat, msg);
+  exec ('alter table RDF_OBJ_RO_FLAGS_WORDS rename PREV_WORDS', stat, msg);
+  exec ('alter table VTLOG_DB_DBA_RDF_OBJ rename PREV_VTLOG', stat, msg);
+
+  exec ('create table RDF_QUAD (G IRI_ID_8, S IRI_ID_8, P IRI_ID_8, O any, primary key (P, S, O, G) column)
+      alter index RDF_QUAD on RDF_QUAD partition cluster ELASTIC (S int (0hexffff00))
+      create column index RDF_QUAD_POGS on RDF_QUAD (P, O, S, G) partition cluster ELASTIC (O varchar (-1, 0hexffff))
+      create distinct no primary key ref column index RDF_QUAD_SP on RDF_QUAD (S, P) partition cluster ELASTIC (S int (0hexffff00))
+      create distinct no primary key ref column index RDF_QUAD_GS on RDF_QUAD (G, S) partition cluster ELASTIC (S int (0hexffff00))
+      create distinct no primary key ref column index RDF_QUAD_OP on RDF_QUAD (O, P) partition cluster ELASTIC (O varchar (-1, 0hexffff))');
+
+  exec ('create table DB.DBA.RDF_PREFIX (RP_NAME varchar not null primary key (not column), RP_ID bigint not null unique (not column))
+      alter index RDF_PREFIX on RDF_PREFIX partition cluster ELASTIC (RP_NAME varchar (-10, 0hexffff))
+      alter index DB_DBA_RDF_PREFIX_UNQC_RP_ID on DB.DBA.RDF_PREFIX partition cluster ELASTIC (RP_ID int (0hexffff00))');
+
+  exec ('create table DB.DBA.RDF_IRI (RI_NAME varchar not null primary key (not column), RI_ID IRI_ID_8 not null unique (not column))
+      alter index RDF_IRI on RDF_IRI partition cluster ELASTIC (RI_NAME varchar (-10, 0hexffff))
+      alter index DB_DBA_RDF_IRI_UNQC_RI_ID on DB.DBA.RDF_IRI partition cluster ELASTIC (RI_ID int (0hexffff00))');
+
+  exec ('create table DB.DBA.RDF_OBJ (
+	RO_ID bigint primary key (not column),
+	RO_VAL varchar not null,
+	RO_LONG long varchar,
+	RO_FLAGS smallint not null default 0,
+	RO_DT_AND_LANG integer not null default 16843009 compress any)
+      alter index RDF_OBJ on RDF_OBJ partition cluster ELASTIC (RO_ID int (0hexffff00))
+      create not column index RO_VAL on DB.DBA.RDF_OBJ (RO_VAL, RO_DT_AND_LANG) partition cluster ELASTIC (RO_VAL varchar (-4, 0hexffff))');
+
+  exec ('create table RDF_GEO (X real no compress, Y real no compress,X2 real no compress, Y2 real no compress, ID bigint no compress, primary key (X, Y, X2, Y2, ID) not column)
+      alter index RDF_GEO on RDF_GEO partition cluster ELASTIC (ID int (0hexffff00))');
+
+  exec ('create table DB.DBA.RDF_LABEL (RL_O any primary key (not column), RL_RO_ID bigint, RL_TEXT varchar, RL_LANG int)
+      alter index RDF_LABEL on RDF_LABEL partition cluster ELASTIC (RL_O varchar (-1, 0hexffff))
+      create not column index RDF_LABEL_TEXT on RDF_LABEL (RL_TEXT, RL_O) partition cluster ELASTIC (RL_TEXT varchar (6, 0hexffff))');
+
+
+  exec ('create table DB.DBA.RO_START (RS_START varchar, RS_DT_AND_LANG int, RS_RO_ID any, primary key (RS_START, RS_DT_AND_LANG, RS_RO_ID) not column)
+      alter index RO_START on DB.DBA.RO_START partition cluster ELASTIC (RS_RO_ID varchar (-1, 0hexffff))');
+
+  exec ('create table DB.DBA.RDF_OBJ_RO_FLAGS_WORDS (VT_WORD varchar, VT_D_ID bigint, VT_D_ID_2 bigint, VT_DATA varchar, VT_LONG_DATA long varchar, primary key (VT_WORD, VT_D_ID) not column)
+      alter index RDF_OBJ_RO_FLAGS_WORDS  on RDF_OBJ_RO_FLAGS_WORDS  partition cluster ELASTIC (VT_D_ID int (0hexffff00))');
+
+  exec ('create table VTLOG_DB_DBA_RDF_OBJ (VTLOG_RO_ID bigint not null primary key (not column), SNAPTIME datetime, DMLTYPE varchar (1), VT_GZ_WORDUMP long varbinary, VT_OFFBAND_DATA long varchar)
+      alter index VTLOG_DB_DBA_RDF_OBJ on VTLOG_DB_DBA_RDF_OBJ partition cluster ELASTIC (VTLOG_RO_ID int (0hexffff00))');
+  __ddl_changed ('DB.DBA.RDF_OBJ');
+
+  exec ('create procedure DB.DBA.RDF_OBJ_INX_SLICE (in slid int)
+    {
+      cl_set_slice (''DB.DBA.RDF_OBJ_RO_FLAGS_WORDS'', ''RDF_OBJ_RO_FLAGS_WORDS'', slid);
+      DB.DBA.VT_INC_INDEX_1_DB_DBA_RDF_OBJ ();
+    }');
+
+  exec ('create procedure "DB"."DBA"."VT_INC_INDEX_SRV_DB_DBA_RDF_OBJ" ()
+    {
+      declare aq, slices any;
+      declare inx int;
+      aq := async_queue (sys_stat (''enable_qp''));
+      slices := cl_hosted_slices (''ELASTIC'', sys_stat (''cl_this_host''));
+      for (inx := 0; inx < length (slices); inx := inx + 1)
+	aq_request (aq, ''DB.DBA.RDF_OBJ_INX_SLICE'', vector (slices[inx]));
+      aq_wait_all (aq);
+    }');
+  exec ('select count (*) from SYS_DPIPE where 0 = dpipe_define_no_err (DP_NAME, DP_PART_TABLE, DP_PART_KEY, DP_SRV_PROC, DP_IS_UPD, DP_CALL_PROC, DP_CALL_BIF, DP_EXTRA)');
+  exec ('drop table PREV_OBJ', stat, msg);
+  exec ('drop table PREV_WORDS', stat, msg);
+  exec ('drop table PREV_VTLOG', stat, msg);
+  cl_exec ('checkpoint');
+  return;
+}
+;
+
 create procedure cl_new_db ()
 {
   cl_init_seqs ();
   cl_control (sys_stat ('cl_this_host'), 'ch_status', 0);
   commit work;
   cl_wait_start ();
+  cl_elastic_init ();
   log_message ('new clustered database:Init of RDF');
   rdf_dpipes ();
   rdf_cl_init ();
@@ -5840,7 +6057,7 @@ create procedure DB.DBA.TEXT_EST_TEXT (in tb varchar, in has_ext_fti integer)
   declare temp, ic, tc varchar;
 
   if (has_ext_fti)
- temp := '
+    temp := '
 create procedure "<q>"."<o>"."TEXT_EST2_<tb>" (in str varchar, in ext_fti_val varchar := null)
 {
   if (ext_fti_val is not null)
@@ -5863,17 +6080,18 @@ create procedure "<q>"."<o>"."TEXT_EST_<tb>" (in str varchar)
       fetch cr into rno;
     key_ct := key_ct + 1;
       if (key_ct = 100)
-	return cast ((( cast (key_est as double precision) / rno)  * 100) as int);
+        return cast ((( cast (key_est as double precision) / rno)  * 100) as int);
     }
  done: return key_ct;
 }';
+
   temp := replace (temp, '<q>', name_part (tb, 0));
   temp := replace (temp, '<o>', name_part (tb, 1));
   temp := replace (temp, '<tb>', name_part (tb, 2));
   whenever not found goto nf;
   select vi_col, vi_id_col into tc, ic from sys_vt_index where vi_table = tb;
- temp := replace (temp, '<tc>', tc);
- temp := replace (temp, '<idc>', ic);
+  temp := replace (temp, '<tc>', tc);
+  temp := replace (temp, '<idc>', ic);
   return temp;
   nf:
   signal ('22023', 'The table ' || tb || ' has no text index.');
@@ -6008,9 +6226,9 @@ create procedure csv_load (in s any, in _from int := 0, in _to int := null, in t
 		    }
 		  else
 		    {
-		  log_message (sprintf ('CSV import: error importing row: %d', inx));
-		  log_message (message);
-		}
+		      log_message (sprintf ('CSV import: error importing row: %d', inx));
+		      log_message (message);
+		    }
 		}
 	      else
 		nrows := nrows + 1;
@@ -6020,8 +6238,8 @@ create procedure csv_load (in s any, in _from int := 0, in _to int := null, in t
 	      if (log_error)
 		http (sprintf ('<error line="%d">different number of columns</error>', inx), log_ses);
 	      else
-	    log_message (sprintf ('CSV import: wrong number of values at line: %d', inx));
-	}
+		log_message (sprintf ('CSV import: wrong number of values at line: %d', inx));
+	    }
 	}
       if (inx > _to)
 	goto end_loop;
@@ -6392,7 +6610,7 @@ create procedure csv_vec_ins_stmt (in tb varchar, out num_cols int, out pname va
       if (cvt[i])
 	http (csv_col_cast (cols, cvt, i), ss);
       else
-       http (sprintf ('"%I_VI"', cols[i]), ss);
+	http (sprintf ('"%I_VI"', cols[i]), ss);
        if (i < length (cols) - 1)
          http (', ', ss);
     }
@@ -6430,5 +6648,113 @@ create procedure elarestore (in p varchar := 'ela')
     {
       cl_slice_from_log (sprintf ('%s.%d.trx', p, s), sprintf ('ELASTIC.%d', s));
     }
+}
+;
+
+
+create table SYS_FILE_TABLE (FST_TABLE varchar primary key, FST_FILE varchar, FST_OPTIONS any)
+alter index SYS_FILE_TABLE on SYS_FILE_TABLE partition cluster REPLICATED
+;
+
+
+create procedure ft_read_files ()
+{
+  declare c int;
+  c := (select count (ft_file_table (fst_table, fst_file, fst_options, 1)) from sys_file_table);
+}
+;
+
+ft_read_files ()
+;
+
+
+create procedure ft_sample_stmt (in tb varchar)
+{
+  declare ses any;
+  declare nth int;
+ nth := 0;
+ ses := string_output ();
+  http (sprintf ('select '), ses);
+  for select "COLUMN" as cname from sys_keys, sys_key_parts, sys_cols
+								where key_id = kp_key_id and kp_col = col_id and "COLUMN" <> '_IDN' and key_is_main = 1 and key_migrate_to is null and key_table = tb order by col_id do {
+	http (sprintf ('%s "%I" ', case when 0 = nth then '' else ', ' end, cname), ses);
+      nth := nth + 1;
+      };
+  http (sprintf (' from "%I"."%I"."%I" table option (start ?, end ?)', name_part (tb, 0), name_part (tb, 1), name_part (tb, 2)), ses);
+  return string_output_string (ses);
+}
+;
+
+
+create procedure ft_sample (in tb varchar, in file varchar, in store int := 0)
+{
+  declare n_samples, nth, total_res, n_res, k_col, topk int;
+  declare len, bytes, r, est numeric;
+  declare rng, samples, md, res any;
+  declare st, msg, stmt varchar;
+ topk := 100;
+ n_samples := 100;
+ len := cast (file_stat (file, 1) as int);
+ n_samples := len / 1000000;
+  if (n_samples < 1)
+    n_samples := 1;
+  if (n_samples > 30)
+    n_samples := 30;
+ samples := make_array (n_samples, 'any');
+ stmt := ft_sample_stmt (tb);
+  for (nth := 0; nth < n_samples; nth := nth + 1)
+    {
+    st := '00000';
+    r := floor (len / cast (n_samples  as float) * nth);
+      exec (stmt, st, msg, vector (r, r + 10000), topk, md, res);
+      if (st <> '00000')
+	signal (st, msg);
+      samples[nth] := res;
+    n_res := length (res);
+    total_res := total_res + n_res;
+    }
+
+  if (0 = total_res)
+    return;
+ bytes := case when len < 10000 then len else n_samples * 10000 end;
+ est := len / (bytes / total_res);
+  __ddl_changed (tb);
+
+  col_set_samples (tb, samples, cast (est as float));
+  if (store)
+    {
+      delete from sys_col_stat where cs_table = tb;
+      insert into sys_col_stat (cs_table, cs_col, cs_n_rows, cs_n_values, cs_n_distinct, cs_avg_len, cs_min, cs_max)
+	select tb,  "COLUMN", est, col_stat (col_id, 'n_values'), col_stat (col_id, 'n_distinct'), col_stat (col_id, 'avg_len'), col_stat (col_id, 'min'), col_stat (col_id, 'max') from sys_keys, sys_key_parts, sys_cols
+	where  key_table = tb and key_id = kp_key_id and kp_col = col_id and key_is_main = 1 and key_migrate_to is null;
+    }
+  return 1;
+}
+;
+
+
+create procedure ft_set_file (in tb varchar, in fname varchar, in delimiter varchar, in newline varchar :=  '\n', in esc varchar := null)
+{
+  declare opts any;
+  tb := complete_table_name (tb, 1);
+  if (not exists (select 1 from sys_keys where key_table = tb))
+    signal ('42000', 'FTNTB: Table must exist in order to be bound to a file');
+  if (fname is null)
+    {
+      delete from sys_file_table where fst_table = tb;
+      __ddl_changed (tb);
+    }
+  else
+    {
+      delete from sys_file_table where fst_table = tb;
+    opts := vector ('delimiter', delimiter, 'newline', newline);
+      if (esc is not null)
+      opts := vector_concat (opts, vector ('escape', esc));
+      insert into sys_file_table values (tb, fname, opts);
+      __ddl_changed (tb);
+    }
+  if (fname is not null)
+    ft_sample (tb, fname, 1);
+  commit work;
 }
 ;

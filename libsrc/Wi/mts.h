@@ -39,24 +39,18 @@ struct client_connection_s;
 #define EXE_IMPORT1(type, func, args) \
 	type func args
 
-EXE_IMPORT1 (int, enlist_transaction, (lock_trx_t * lt, unsigned char *cookie,
-	unsigned long cookie_len));
-EXE_IMPORT1 (int, mts_ms_sql_enlist, (struct rds_connection_s * rcon,
-	struct query_instance_s * qi));
-EXE_IMPORT1 (int, mts_trx_exclude, (lock_trx_t * lt,
-	struct rds_connection_s * rcon));
+EXE_IMPORT1 (int, enlist_transaction, (lock_trx_t * lt, unsigned char *cookie, unsigned long cookie_len));
+EXE_IMPORT1 (int, mts_ms_sql_enlist, (struct rds_connection_s * rcon, struct query_instance_s * qi));
+EXE_IMPORT1 (int, mts_trx_exclude, (lock_trx_t * lt, struct rds_connection_s * rcon));
 EXE_IMPORT1 (void, mts_trx_dealloc, (struct tp_dtrx_s * dtrx));
 
 
 EXE_IMPORT1 (int, mts_trx_begin, (struct query_instance_s * qi));
 
-EXE_IMPORT1 (int, mts_connection_state,
-    (struct client_connection_s * client));
+EXE_IMPORT1 (int, mts_connection_state, (struct client_connection_s * client));
 EXE_IMPORT1 (int, mts_wait_commit, (struct client_connection_s * client));
-EXE_IMPORT1 (int, mts_trx_enlist_loc,
-    (struct client_connection_s * connection, struct ITransaction * itrn));
-EXE_IMPORT1 (int, mts_trx_enlist, (lock_trx_t * lt, caddr_t tr_cookie,
-	unsigned long len));
+EXE_IMPORT1 (int, mts_trx_enlist_loc, (struct client_connection_s * connection, struct ITransaction * itrn));
+EXE_IMPORT1 (int, mts_trx_enlist, (lock_trx_t * lt, caddr_t tr_cookie, unsigned long len));
 EXE_IMPORT1 (caddr_t, mts_get_rmcookie, ());
 
 EXE_IMPORT1 (int, mts_trx_commit, (lock_trx_t * lt, int is_commit));

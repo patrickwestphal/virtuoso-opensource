@@ -31,6 +31,7 @@
 #include "sqlfn.h"
 #include "json_p.h"
 
+
 void jsonyyerror_impl(const char *s);
 int jsonyy_string_input (char *buf, int max);
 #undef YY_INPUT
@@ -64,7 +65,7 @@ HEX             ([0-9A-Fa-f])
 
 <STRLIT>[^\\\"\n\r\t]*"\"" 	{
 		   BEGIN(INITIAL);
-		   jsonyylval.box = spar_strliteral (NULL /* no sparp for JSON_LITERAL */, jsonyytext, 0, 1);
+                   jsonyylval.box = spar_strliteral (NULL /* no sparp for JSON_LITERAL */, jsonyytext, 0, 1);
 		   return STRING;
 		}
 

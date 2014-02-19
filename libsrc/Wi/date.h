@@ -31,7 +31,7 @@
 #include "widv.h"
 #include "odbcinc.h"
 
-typedef unsigned char  datetime_t[DT_LENGTH];
+typedef unsigned char datetime_t[DT_LENGTH];
 
 /*#define NO_DT_TYPE_IN_TZ*/
 
@@ -207,5 +207,6 @@ extern void dt_audit_fields (char *dt);
 #define memcmp_dt(dt1, dt2, neq)				\
   {if (*(int64*)(dt1) != *(int64*)(dt2)) goto neq;}
 #endif
+
 
 #endif /* _DATE_H */

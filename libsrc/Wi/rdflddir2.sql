@@ -131,10 +131,10 @@ ld_add (in _fname varchar, in _graph varchar)
 create procedure ld_ttlp_flags (in fname varchar, in opt varchar)
 {
   if (fname like '%/btc-20%' or fname like '%.nq%' or fname like '%.n4%')
-{
+    {
       if (lower (opt) = 'with_delete')
 	return 255 + 512 + 2048;
-    return 255 + 512;
+      return 255 + 512;
     }
    if (fname like '%.trig' or fname like '%.trig.gz')
      return 255 + 256;
@@ -230,7 +230,7 @@ create procedure ld_array ()
   declare f, g varchar;
   declare r any;
   whenever not found goto done;
- arr := make_array (100, 'any');
+  arr := make_array (100, 'any');
   fs  := make_array (100, 'any');
   fill := 0;
   len := 0;
@@ -242,7 +242,7 @@ create procedure ld_array ()
 	goto next;
       arr[fill] := vector (f, g);
       fs[fill] := f;
-    len := len + cast (file_stat (f, 1) as int);
+      len := len + cast (file_stat (f, 1) as int);
       fill := fill + 1;
       if (len > 2000000 or fill >= 100)
 	goto done;
@@ -322,7 +322,6 @@ rdf_loader_run (in max_files integer := null, in log_enable int := 2)
 	goto looks_empty;
       log_enable (ld_mode, 1);
       set isolation = 'committed';
-
       for (inx := 0; inx < 100; inx := inx + 1)
 	{
 	  if (0 = arr[inx])

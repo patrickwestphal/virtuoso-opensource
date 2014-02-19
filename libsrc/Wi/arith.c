@@ -82,6 +82,7 @@ qst_set_long (caddr_t * state, state_slot_t * sl, boxint lv)
 }
 
 
+
 void
 qst_set_float (caddr_t * state, state_slot_t * sl, float fv)
 {
@@ -117,6 +118,7 @@ qst_set_float (caddr_t * state, state_slot_t * sl, float fv)
 }
 
 
+
 void
 qst_set_double (caddr_t * state, state_slot_t * sl, double dv)
 {
@@ -149,6 +151,7 @@ qst_set_double (caddr_t * state, state_slot_t * sl, double dv)
     }
 #endif
 }
+
 
 
 void
@@ -438,6 +441,7 @@ numeric_compare_dvc (numeric_t x, numeric_t y)
  */
 
 
+
 int
 cmp_dv_box (caddr_t dv, caddr_t box)
 {
@@ -521,82 +525,82 @@ cmp_boxes_safe (ccaddr_t box1, ccaddr_t box2, collation_t * collation1, collatio
     case DV_STRING:
       n1--;
       break;
-	case DV_UNAME:
-	  n1--;
-	  dtp1 = DV_STRING;
-	  collation1 = collation2 = NULL;
-	  break;
-	case DV_LONG_WIDE:
-	  dtp1 = DV_WIDE;
-	case DV_WIDE:
-	  n1 = n1 / sizeof (wchar_t) - 1;
-	  break;
-	case DV_LONG_BIN:
-	  dtp1 = DV_BIN;
-	  collation1 = collation2 = NULL;
-	  break;
-	case DV_DATETIME:
-	  dtp1 = DV_BIN;
-	  n1 = DT_COMPARE_LENGTH;
-	  collation1 = collation2 = NULL;
-	  break;
-	default:
-	  collation1 = collation2 = NULL;
-	}
+    case DV_UNAME:
+      n1--;
+      dtp1 = DV_STRING;
+      collation1 = collation2 = NULL;
+      break;
+    case DV_LONG_WIDE:
+      dtp1 = DV_WIDE;
+    case DV_WIDE:
+      n1 = n1 / sizeof (wchar_t) - 1;
+      break;
+    case DV_LONG_BIN:
+      dtp1 = DV_BIN;
+      collation1 = collation2 = NULL;
+      break;
+    case DV_DATETIME:
+      dtp1 = DV_BIN;
+      n1 = DT_COMPARE_LENGTH;
+      collation1 = collation2 = NULL;
+      break;
+    default:
+      collation1 = collation2 = NULL;
+    }
   switch (dtp2)
-	{
+    {
     case DV_STRING:
       n2--;
       if (collation1)
-	    {
+	{
 	  if (collation2 && collation1 != collation2)
 	    collation1 = default_collation;
-	    }
-	  else
-	    collation1 = collation2;
-	  break;
-	case DV_UNAME:
-	  n2--;
-	  dtp2 = DV_STRING;
-	  collation1 = NULL;
-	  break;
-	case DV_LONG_BIN:
-	  dtp2 = DV_BIN;
-	  collation1 = NULL;
-	  break;
-	case DV_DATETIME:
-	  dtp2 = DV_BIN;
-	  n2 = DT_COMPARE_LENGTH;
-	  collation1 = NULL;
-	  break;
-	case DV_LONG_WIDE:
-	  dtp2 = DV_WIDE;
-	case DV_WIDE:
-	  n2 = n2 / sizeof (wchar_t) - 1;
-	  break;
-	default:
-	  collation1 = NULL;
 	}
+      else
+	collation1 = collation2;
+      break;
+    case DV_UNAME:
+      n2--;
+      dtp2 = DV_STRING;
+      collation1 = NULL;
+      break;
+    case DV_LONG_BIN:
+      dtp2 = DV_BIN;
+      collation1 = NULL;
+      break;
+    case DV_DATETIME:
+      dtp2 = DV_BIN;
+      n2 = DT_COMPARE_LENGTH;
+      collation1 = NULL;
+      break;
+    case DV_LONG_WIDE:
+      dtp2 = DV_WIDE;
+    case DV_WIDE:
+      n2 = n2 / sizeof (wchar_t) - 1;
+      break;
+    default:
+      collation1 = NULL;
+    }
 
-      if (IS_WIDE_STRING_DTP (dtp1) && IS_STRING_DTP (dtp2))
+  if (IS_WIDE_STRING_DTP (dtp1) && IS_STRING_DTP (dtp2))
     return compare_wide_to_narrow ((wchar_t *) box1, n1, (unsigned char *) box2, n2);
-      if (IS_STRING_DTP (dtp1) && IS_WIDE_STRING_DTP (dtp2))
-	{
+  if (IS_STRING_DTP (dtp1) && IS_WIDE_STRING_DTP (dtp2))
+    {
       int res = compare_wide_to_narrow ((wchar_t *) box2, n2, (unsigned char *) box1, n1);
       return (res == DVC_LESS ? DVC_GREATER : (res == DVC_GREATER ? DVC_LESS : res));
-	}
-      if (IS_WIDE_STRING_DTP (dtp1) && IS_WIDE_STRING_DTP (dtp2))
+    }
+  if (IS_WIDE_STRING_DTP (dtp1) && IS_WIDE_STRING_DTP (dtp2))
+    {
+      inx = 0;
+      while (1)
 	{
-          inx = 0;
-	  while (1)
+	  if (inx == n1)	/* box1 in end? */
 	    {
-	      if (inx == n1)	/* box1 in end? */
-		{
-		  if (inx == n2)
-		    return DVC_MATCH;  /* box2 of same length */
-		  else
-		    return DVC_LESS;   /* otherwise box1 is shorter than box2 */
-		}
+	      if (inx == n2)
+		return DVC_MATCH;	/* box2 of same length */
+	      else
+		return DVC_LESS;	/* otherwise box1 is shorter than box2 */
+	    }
 
 	  if (inx == n2)
 	    return DVC_GREATER;	/* box2 in end (but not box1) */
@@ -677,7 +681,6 @@ cmp_boxes_safe (ccaddr_t box1, ccaddr_t box2, collation_t * collation1, collatio
     }
   return DVC_NOORDER;
 }
-
 
 #ifdef CMP_MOREDEBUG
 int
@@ -878,7 +881,6 @@ cmp_boxes (ccaddr_t box1, ccaddr_t box2, collation_t * collation1, collation_t *
     }
   return DVC_LESS;		/* default, should not happen */
 }
-
 
 #ifdef CMP_MOREDEBUG
 int
@@ -1087,13 +1089,9 @@ null_result:
   return (dk_alloc_box (0, DV_DB_NULL));
 }
 
-ARTM_BIN_FUNC (box_add, "+", +, numeric_add		, arithm_dt_add		, 0)
-ARTM_BIN_FUNC (box_sub, "-", -, numeric_subtract	, arithm_dt_subtract	, 0)
-ARTM_BIN_FUNC (box_mpy, "*", *, numeric_multiply	, NULL			, 0)
-ARTM_BIN_FUNC (box_div, "/", /, numeric_divide		, NULL			, 1)
-
-
-caddr_t
+ARTM_BIN_FUNC (box_add, "+", +, numeric_add, arithm_dt_add, 0)
+ARTM_BIN_FUNC (box_sub, "-", -, numeric_subtract, arithm_dt_subtract, 0)
+ARTM_BIN_FUNC (box_mpy, "*", *, numeric_multiply, NULL, 0) ARTM_BIN_FUNC (box_div, "/", /, numeric_divide, NULL, 1) caddr_t
 box_identity (ccaddr_t arg, ccaddr_t ignore, caddr_t * qst, state_slot_t * target)
 {
   if (target)
@@ -1128,7 +1126,6 @@ trunc (double x)
     return ceil (x);
 }
 #endif
-
 
 int
 dvc_int_double (int64 i, double d)
@@ -1181,7 +1178,6 @@ dvc_num_double (numeric_t num1, double d2)
   return DVC_GREATER;
 }
 
-
 int
 dvc_int_num (int64 i, numeric_t n2)
 {
@@ -1193,9 +1189,9 @@ dvc_int_num (int64 i, numeric_t n2)
 
 #define REV(x) \
   { \
-    int __r = x; \
-    return __r == DVC_LESS ? DVC_GREATER : (__r == DVC_MATCH ? DVC_MATCH : DVC_LESS); \
-  }
+  int __r = x; \
+return __r == DVC_LESS ? DVC_GREATER : (__r == DVC_MATCH ? DVC_MATCH : DVC_LESS); \
+}
 
 
 int
@@ -1267,6 +1263,7 @@ dv_num_compare (numeric_t dn1, numeric_t dn2, dtp_t dtp1, dtp_t dtp2)
 /* type specific vectored ops */
 
 
+
 #include "simd.h"
 #include "date.h"
 
@@ -1335,7 +1332,7 @@ artm_const_cast (double *target, dtp_t target_dtp, caddr_t c, int n, auto_pool_t
       {
 	for (inx = 0; inx < n; inx++)
 	  {
-	    db_buf_t tgt = ((db_buf_t)target) + DT_LENGTH * inx;
+	    db_buf_t tgt = ((db_buf_t) target) + DT_LENGTH * inx;
 	    memcpy_dt (tgt, c);
 	  }
 	break;
@@ -1371,7 +1368,6 @@ artm_float_to_double (double *target, data_col_t * dc, int *sets, int first_set,
 	target[fill++] = (double) ((float *) dc->dc_values)[inx];
     }
 }
-
 
 void
 artm_int_to_int (double *target, data_col_t * dc, int *sets, int first_set, int n)
@@ -1476,6 +1472,7 @@ ssl_artm_dtp (caddr_t * inst, state_slot_t * ssl)
   return DV_ANY;
 }
 
+
 dtp_t
 ssl_cmp_dtp (caddr_t * inst, state_slot_t * ssl)
 {
@@ -1484,12 +1481,12 @@ ssl_cmp_dtp (caddr_t * inst, state_slot_t * ssl)
     dtp = DV_TYPE_OF (ssl->ssl_constant);
   else if (SSL_VEC == ssl->ssl_type || SSL_REF == ssl->ssl_type)
     {
-      data_col_t * dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
+      data_col_t *dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
       if ((DCT_BOXES & dc->dc_type) || dc->dc_any_null)
 	return DV_ARRAY_OF_POINTER;
       return dc->dc_dtp;
     }
-  else 
+  else
     {
       caddr_t d = qst_get (inst, ssl);
       dtp = DV_TYPE_OF (d);
@@ -1503,7 +1500,6 @@ ssl_cmp_dtp (caddr_t * inst, state_slot_t * ssl)
 
 
 #define ACF(target, source)  (target << 8 | source)
-
 
 dc_artm_cast_t
 dc_artm_cast_f (dtp_t target_dtp, dtp_t source_dtp)
@@ -1610,6 +1606,7 @@ artm_vec_f vec_mpys[3] = { artm_mpy_int, artm_mpy_float, artm_mpy_double };
 artm_vec_f vec_divs[3] = { artm_div_int, artm_div_float, artm_div_double };
 
 
+
 int
 artm_vec (caddr_t * inst, instruction_t * ins, artm_vec_f * ops)
 {
@@ -1668,10 +1665,15 @@ artm_vec (caddr_t * inst, instruction_t * ins, artm_vec_f * ops)
 }
 
 
+
+
 ins_dc_artm_t dc_artm_funcs[20];
 ins_dc_artm_t dc_artm_1_funcs[20];
 ins_dc_cmp_t dc_cmp_funcs[10];
 ins_dc_cmp_1_t dc_cmp_1_funcs[10];
+
+
+
 
 
 void
@@ -1701,7 +1703,6 @@ dc_add_int_1 (instruction_t * ins, caddr_t * inst)
     }
   res->dc_n_values = MAX (res->dc_n_values, qi->qi_set + 1);
 }
-
 
 void
 dc_add_int (instruction_t * ins, caddr_t * inst)
@@ -1880,7 +1881,7 @@ dc_asg_64 (instruction_t * ins, caddr_t * inst)
 
 
 
-typedef void (*vec_cmp_t)  (int64 * l, int64 * r, int n_sets, dtp_t * set_mask, dtp_t * res_bits, char * mix_ret);
+typedef void (*vec_cmp_t) (int64 * l, int64 * r, int n_sets, dtp_t * set_mask, dtp_t * res_bits, char *mix_ret);
 
 
 #define CMP_VEC(name, dtp, op) \
@@ -1915,22 +1916,14 @@ typedef void (*vec_cmp_t)  (int64 * l, int64 * r, int n_sets, dtp_t * set_mask, 
 
 
 CMP_VEC (cmp_vec_int_eq, int64, ==)
-CMP_VEC (cmp_vec_int_lt, int64, <)
-CMP_VEC (cmp_vec_int_lte, int64, <=)
-
-CMP_VEC (cmp_vec_sf_eq, float, ==)
+CMP_VEC (cmp_vec_int_lt, int64, <)CMP_VEC (cmp_vec_int_lte, int64, <=)CMP_VEC (cmp_vec_sf_eq, float, ==)
 CMP_VEC (cmp_vec_sf_lt, float, <)
 CMP_VEC (cmp_vec_sf_lte, float, <=)
-
-CMP_VEC (cmp_vec_dbl_eq, double, ==)
-CMP_VEC (cmp_vec_dbl_lt, double, <)
+CMP_VEC (cmp_vec_dbl_eq, double, ==) CMP_VEC (cmp_vec_dbl_lt, double, <)
 CMP_VEC (cmp_vec_dbl_lte, double, <=)
-
-
-
-vec_cmp_t int_cmp_ops[] = {NULL, cmp_vec_int_eq, cmp_vec_int_lt, cmp_vec_int_lte};
-vec_cmp_t sf_cmp_ops[] = {NULL, cmp_vec_sf_eq, cmp_vec_sf_lt, cmp_vec_sf_lte};
-vec_cmp_t dbl_cmp_ops[] = {NULL, cmp_vec_dbl_eq, cmp_vec_dbl_lt, cmp_vec_dbl_lte};
+     vec_cmp_t int_cmp_ops[] = { NULL, cmp_vec_int_eq, cmp_vec_int_lt, cmp_vec_int_lte };
+vec_cmp_t sf_cmp_ops[] = { NULL, cmp_vec_sf_eq, cmp_vec_sf_lt, cmp_vec_sf_lte };
+vec_cmp_t dbl_cmp_ops[] = { NULL, cmp_vec_dbl_eq, cmp_vec_dbl_lt, cmp_vec_dbl_lte };
 
 
 
@@ -1970,7 +1963,7 @@ dt_cmp_fl (db_buf_t dt1, db_buf_t dt2)
   for (inx = 0; inx < DT_COMPARE_LENGTH; inx++)
     {
       dtp_t d1 = dt1[inx], d2 = dt2[inx];
-      if (d1 < d2) 
+      if (d1 < d2)
 	return DVC_LESS;
       if (d1 > d2)
 	return DVC_GREATER;
@@ -1979,15 +1972,15 @@ dt_cmp_fl (db_buf_t dt1, db_buf_t dt2)
 }
 
 
-CMP_VEC_OP (cmp_vec_dt, dtp_t *, cmp_op & dt_cmp_fl (((db_buf_t)l) + DT_LENGTH * set, ((db_buf_t)r) + DT_LENGTH * set))
-CMP_VEC_OP (cmp_vec_any, dtp_t **, cmp_op & dv_compare (((db_buf_t*)l)[set], ((db_buf_t*)r)[set], NULL, 0))
+CMP_VEC_OP (cmp_vec_dt, dtp_t *, cmp_op & dt_cmp_fl (((db_buf_t) l) + DT_LENGTH * set, ((db_buf_t) r) + DT_LENGTH * set))
+CMP_VEC_OP (cmp_vec_any, dtp_t **, cmp_op & dv_compare (((db_buf_t *) l)[set], ((db_buf_t *) r)[set], NULL, 0))
 #define SWAP(t, l, r) { t tmp; tmp = r; r = l; l = tmp;}
 #define CMP_REV(new_op) \
   { cmp_op = new_op; SWAP (dtp_t, l_dtp, r_dtp); SWAP (state_slot_t *, l, r);}
      int cmp_vec (caddr_t * inst, instruction_t * ins, dtp_t * set_mask, dtp_t * res_bits)
 {
-  state_slot_t * l = ins->_.cmp.left;
-  state_slot_t * r = ins->_.cmp.right;
+  state_slot_t *l = ins->_.cmp.left;
+  state_slot_t *r = ins->_.cmp.right;
   unsigned char cmp_op;
   vec_cmp_t op;
   char mix = 0;
@@ -2030,12 +2023,12 @@ CMP_VEC_OP (cmp_vec_any, dtp_t **, cmp_op & dv_compare (((db_buf_t*)l)[set], ((d
       for (inx = 0; inx < n_sets; inx += ARTM_VEC_LEN)
 	{
 	  int n = MIN (ARTM_VEC_LEN, n_sets - inx);
-	  int64 * la, *ra;
+	  int64 *la, *ra;
 	  if (!inx || (SSL_VEC == l->ssl_type || SSL_REF == l->ssl_type))
 	    la = ssl_artm_param (inst, l, (int64 *) & vn_temp_1.i, target_dtp, inx, n, NULL, NULL);
 	  if (!inx || (SSL_VEC == r->ssl_type || SSL_REF == r->ssl_type))
 	    ra = ssl_artm_param (inst, r, (int64 *) & vn_temp_2.i, target_dtp, inx, n, NULL, NULL);
-	  
+
 	  op (la, ra, n, set_mask ? &set_mask[inx / 8] : NULL, &res_bits[inx / 8], &mix);
 	}
       return mix - 1;
@@ -2045,12 +2038,12 @@ CMP_VEC_OP (cmp_vec_any, dtp_t **, cmp_op & dv_compare (((db_buf_t*)l)[set], ((d
       for (inx = 0; inx < n_sets; inx += ARTM_VEC_LEN)
 	{
 	  int n = MIN (ARTM_VEC_LEN, n_sets - inx);
-	  int64 * la, *ra;
+	  int64 *la, *ra;
 	  if (!inx || (SSL_VEC == l->ssl_type || SSL_REF == l->ssl_type))
 	    la = ssl_artm_param (inst, l, (int64 *) & vn_temp_1.i, DV_DATETIME, inx, n, NULL, NULL);
 	  if (!inx || (SSL_VEC == r->ssl_type || SSL_REF == r->ssl_type))
 	    ra = ssl_artm_param (inst, r, (int64 *) & vn_temp_2.i, DV_DATETIME, inx, n, NULL, NULL);
-	  cmp_vec_dt ((db_buf_t)la, (db_buf_t)ra, n, set_mask ? &set_mask[inx / 8] : NULL, &res_bits[inx / 8], cmp_op, &mix);
+	  cmp_vec_dt ((db_buf_t) la, (db_buf_t) ra, n, set_mask ? &set_mask[inx / 8] : NULL, &res_bits[inx / 8], cmp_op, &mix);
 	}
       return mix - 1;
     }
@@ -2061,7 +2054,7 @@ CMP_VEC_OP (cmp_vec_any, dtp_t **, cmp_op & dv_compare (((db_buf_t*)l)[set], ((d
       for (inx = 0; inx < n_sets; inx += ARTM_VEC_LEN)
 	{
 	  int n = MIN (ARTM_VEC_LEN, n_sets - inx);
-	  int64 * la, *ra;
+	  int64 *la, *ra;
 	  if (!inx || (SSL_VEC == l->ssl_type || SSL_REF == l->ssl_type))
 	    la = ssl_artm_param (inst, l, (int64 *) & vn_temp_1.i, DV_ANY, inx, n, &ap, &allocd);
 	  if (!inx || (SSL_VEC == r->ssl_type || SSL_REF == r->ssl_type))

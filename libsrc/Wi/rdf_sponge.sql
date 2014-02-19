@@ -95,16 +95,16 @@ create procedure DB.DBA.RDF_GRAB_PREPARE_PRIVATE (in graph_iri varchar, in group
     signal ('RDFGS', sprintf ('A SPARQL query with get:private has failed to get data about user "%s"', uname));
   if (uid = http_nobody_uid())
     signal ('RDFGS', sprintf ('A SPARQL query with get:private is used by user "nobody", that is prohibited'));
--- If graph is virtrdf: then an error is signaled.
+-- If graph is virtrdf: then an error is signalled.
   if (graph_iri = 'http://www.openlinksw.com/schemas/virtrdf#')
     signal ('RDFGS', sprintf ('A SPARQL query with get:private tries to change access permissions of system metadata graph <%.500s>', graph_iri));
   if (group_iri in (UNAME'http://www.openlinksw.com/schemas/virtrdf#PrivateGraphs', UNAME'http://www.openlinksw.com/schemas/virtrdf#rdf_repl_graph_group'))
     signal ('RDFGS', sprintf ('A SPARQL query with get:private tries to add graph <%.500s> to special graph group <%.500s>', graph_iri, group_iri));
--- If graph name is an IRI of handshaked web service endpoint then an error is signaled.
+-- If graph name is an IRI of handshaked web service endpoint then an error is signalled.
   if (exists (sparql define input:storage "" ask from virtrdf:
       where { `iri(?:graph_iri)` virtrdf:dialect|virtrdf:isEndpointOfService|^virtrdf:isEndpointOfService ?o } ) )
     signal ('RDFGS', sprintf ('A SPARQL query with get:private tries to change access permissions of graph <%.500s> but the graph is a known web service endpoint', graph_iri));
--- If access is public by default even for private graphs then an error is signaled and sponging is not tried.
+-- If access is public by default even for private graphs then an error is signalled and sponging is not tried.
   graph_public_perms := DB.DBA.RDF_GRAPH_USER_PERMS_GET (graph_iri, http_nobody_uid());
   if (bit_and (15, graph_public_perms)
     and (bit_and (15, dict_get (__rdf_graph_default_perms_of_user_dict(1), http_nobody_uid(), 15))
@@ -112,7 +112,7 @@ create procedure DB.DBA.RDF_GRAB_PREPARE_PRIVATE (in graph_iri varchar, in group
     signal ('RDFGS', sprintf ('A SPARQL query with get:private tries to change access permissions of publicly accessible graph <%.500s>', graph_iri));
   if (group_iri <> '' and 11 <> bit_and (11, DB.DBA.RDF_GRAPH_USER_PERMS_GET (group_iri, uid)))
     signal ('RDFGS', sprintf ('A SPARQL query with get:private tries to change graph group <%.500s> and add <%.500s> there but user "%s" has not enough rights on that group', group_iri, graph_iri, uname));
--- If default is "no access" but someone (other than current user) has specifically granted read access to the graph in question AND current user is not dba then an error is signaled.
+-- If default is "no access" but someone (other than current user) has specifically granted read access to the graph in question AND current user is not dba then an error is signalled.
   if (uid <> 0)
     {
       declare other_reader varchar;
@@ -139,7 +139,7 @@ create procedure DB.DBA.RDF_GRAB_PREPARE_PRIVATE (in graph_iri varchar, in group
   if (group_iri <> '')
     {
       group_iid := iri_to_id (group_iri);
-      -- the IRI is supposed to be an IRI of "plain" graph group, error is signaled in case of nonexising graph group, group of private graphs or group of graphs to be replicated.
+      -- the IRI is supposed to be an IRI of "plain" graph group, error is signalled in case of nonexising graph group, group of private graphs or group of graphs to be replicated.
       -- - the graph is added to that group,
       -- dbg_obj_princ    ('DB.DBA.RDF_GRAB_PREPARE_PRIVATE (', graph_iri, group_iri, uname, ') will add the graph to graph group iid ', group_iid);
       DB.DBA.RDF_GRAPH_GROUP_INS (group_iri, graph_iri);
@@ -280,24 +280,24 @@ create function DB.DBA.RDF_GRAB_SEEALSO (in subj varchar, in opt_g varchar, inou
     }
   else
     {
-  foreach (varchar pred in sa_preds) do
-    {
-      foreach (varchar graph in sa_graphs) do
+      foreach (varchar pred in sa_preds) do
         {
-          for (sparql define input:storage "" select ?val where { graph ?:graph { ?:subj ?:pred ?val . filter (isIRI(?val)) } } ) do
+          foreach (varchar graph in sa_graphs) do
             {
-              -- dbg_obj_princ ('found {', graph, subj, pred, val, '}');
-              if ("val" like 'http://%')
+              for (sparql define input:storage "" select ?val where { graph ?:graph { ?:subj ?:pred ?val . filter (isIRI(?val)) } } ) do
                 {
-                  -- dbg_obj_princ ('DB.DBA.RDF_GRAB_SEEALSO () aq_request ', vector ("val", '...', env, doc_limit));
-                  --DB.DBA.RDF_GRAB_SINGLE_ASYNC ("val", grabbed, env, doc_limit);
-                  aq_request (aq, 'DB.DBA.RDF_GRAB_SINGLE_ASYNC', vector ("val", grabbed, env, doc_limit));
-                  if (dict_size (grabbed) > doc_limit)
-                    goto out_of_limit;
+                  -- dbg_obj_princ ('found {', graph, subj, pred, val, '}');
+                  if ("val" like 'http://%')
+                    {
+                      -- dbg_obj_princ ('DB.DBA.RDF_GRAB_SEEALSO () aq_request ', vector ("val", '...', env, doc_limit));
+                      --DB.DBA.RDF_GRAB_SINGLE_ASYNC ("val", grabbed, env, doc_limit);
+                      aq_request (aq, 'DB.DBA.RDF_GRAB_SINGLE_ASYNC', vector ("val", grabbed, env, doc_limit));
+                      if (dict_size (grabbed) > doc_limit)
+                        goto out_of_limit;
+                    }
                 }
             }
         }
-    }
     }
   if (opt_g is not null)
     {
@@ -425,8 +425,8 @@ DB.DBA.RDF_GRAB (
       if (old_doc_count = dict_size (grabbed))
         {
           -- dbg_obj_princ ('DB.DBA.RDF_GRAB () has reached a stable point with ', old_doc_count, ' grabbed docs');
-        goto final_exec;
-    }
+          goto final_exec;
+        }
     }
 
 final_exec:
@@ -632,7 +632,7 @@ create procedure DB.DBA.SYS_HTTP_SPONGE_GET_CACHE_PARAMS
   -- if no cache directive we say it is now
   if (http_request_header (ret_hdr, 'Pragma', null, null) = 'no-cache' or http_request_header (ret_hdr, 'Cache-Control', null, null) like 'no-cache%' )
     {
-    ret_dt_expires := now ();
+      ret_dt_expires := now ();
       ret_etag := null;
     }
   -- if not modified and no last given we take old last modified
@@ -684,8 +684,7 @@ create procedure DB.DBA.SYS_HTTP_SPONGE_GET_CACHE_PARAMS
 --#ENDIF
 create procedure DB.DBA.SYS_HTTP_SPONGE_DEP_URL_NOT_CHANGED (in local_iri varchar, in parser varchar, in explicit_refresh int)
 {
-
- for select
+  for select
        HS_LOCAL_IRI as old_local_iri,
        HS_LAST_LOAD as old_last_load,
        HS_READ_COUNT as old_read_count,
@@ -776,8 +775,8 @@ create function DB.DBA.SYS_HTTP_SPONGE_UP (in local_iri varchar, in get_uri varc
       if (default_refresh is not null)
 	{
 	  if (default_refresh >= 0)
-        {
-	  if (max_refresh >= 0)
+	  {
+	    if (max_refresh >= 0)
 	      explicit_refresh := __min (default_refresh, max_refresh);
 	    else
 	      explicit_refresh := default_refresh;
@@ -805,13 +804,13 @@ create function DB.DBA.SYS_HTTP_SPONGE_UP (in local_iri varchar, in get_uri varc
 
   if ((new_origin_uri <> old_origin_uri) and (eraser is not null))
     signal ('RDFXX',
-      sprintf ('Can not get-and-cache RDF graph <%.500s> from <%.500s> because is has been loaded from <%.500s>',
+      sprintf ('Cannot get-and-cache RDF graph <%.500s> from <%.500s> because is has been loaded from <%.500s>',
         local_iri, new_origin_uri, old_origin_uri) );
 
   if (coalesce (new_origin_login, '') <> coalesce (old_origin_login, '') and
     old_expiration is not null )
     signal ('RDFXX',
-      sprintf ('Can not get-and-cache RDF graph <%.500s> from <%.500s> using %s because is has been loaded using %s',
+      sprintf ('Cannot get-and-cache RDF graph <%.500s> from <%.500s> using %s because is has been loaded using %s',
         local_iri, new_origin_uri,
         case (isnull (new_origin_login)) when 0 then sprintf ('login "%.100s"', new_origin_login) else 'anonymous access' end,
         case (isnull (old_origin_login)) when 0 then sprintf ('login "%.100s"', old_origin_login) else 'anonymous access' end ) );
@@ -845,9 +844,9 @@ create function DB.DBA.SYS_HTTP_SPONGE_UP (in local_iri varchar, in get_uri varc
 	}
       else
         {
-      -- dbg_obj_princ ('collision in the air, return');
-      return local_iri; -- Nobody promised to resolve collisions in the air.
-    }
+          -- dbg_obj_princ ('collision in the air, return');
+          return local_iri; -- Nobody promised to resolve collisions in the air.
+	}
     }
 
 update_old_origin:
@@ -1121,7 +1120,7 @@ create function DB.DBA.SYS_FILE_SPONGE_UP (in local_iri varchar, in get_uri varc
   if (inx = 8) -- i.e., it is 'file:///'
     str := file_to_string (subseq (base_uri, inx-1));
   else
-  str := file_to_string (concat (http_root(), '/' , subseq (base_uri, inx)));
+    str := file_to_string (concat (http_root(), '/' , subseq (base_uri, inx)));
   dummy := vector ();
   tmp := vector ('OK');
   mime_type := null;
@@ -1198,12 +1197,12 @@ no_cr:
           -- dbg_obj_princ ('l = ', l);
           if (("LEFT" (l, 7) = '@prefix') or ("LEFT" (l, 5) = '@base') or ("LEFT" (l, 8) = '@keyword'))
             return 'text/turtle';
-          if ((("LEFT" (l, 1) = '<') or ("LEFT" (l, 1) = '[')) and 
+          if ((("LEFT" (l, 1) = '<') or ("LEFT" (l, 1) = '[')) and
             (
              "RIGHT" (origin_uri, 4) in ('.ttl', '.TTL')
             ))
             return 'text/turtle';
-          if ((("LEFT" (l, 1) = '<') or ("LEFT" (l, 1) = '[')) and 
+          if ((("LEFT" (l, 1) = '<') or ("LEFT" (l, 1) = '[')) and
             (
              "RIGHT" (origin_uri, 3) in ('.n3', '.N3', '.nt', '.NT')
             ))
@@ -1260,7 +1259,7 @@ create function DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (in origin_uri varchar, in 
       -- if (xpath_eval ('//*[exists(@rel) or exists(@rev) or exists(@typeof) or exists(@property) or exists(@about)]', ret_html) is not null)
       if (xpath_eval ('//*[exists(@typeof) or exists(@about)]', ret_html) is not null)
         return 'application/xhtml+xml';
-    return 'text/html';
+      return 'text/html';
     }
   if (xpath_eval ('[xmlns:rset="http://www.w3.org/2005/sparql-results#"] /rset:sparql', ret_html) is not null
     or xpath_eval ('[xmlns:rset2="http://www.w3.org/2001/sw/DataAccess/rf1/result2"] /rset2:sparql', ret_html) is not null)
@@ -1515,7 +1514,7 @@ create function DB.DBA.RDF_PROXY_GET_HTTP_HOST ()
     else if (connection_get ('__http_host') is not null)
         default_host := connection_get ('__http_host');
     else
-        default_host := virtuoso_ini_item_value ('URIQA', 'DefaultHost');
+        default_host := cfg_item_value (virtuoso_ini_path (), 'URIQA', 'DefaultHost');
     if (default_host is not null)
         cname := default_host;
     else
@@ -1614,32 +1613,32 @@ create procedure DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC (in contents varchar, in base
   proxyiri := DB.DBA.RDF_PROXY_ENTITY_IRI (graph);
   docproxyiri := DB.DBA.RDF_SPONGE_PROXY_IRI (graph);
   dociri:=DB.DBA.RM_SPONGE_DOC_IRI(graph);
-  
-  sparql define input:storage "" 
-    insert in iri(?:graph) { 
+
+  sparql define input:storage ""
+    insert in iri(?:graph) {
       `iri(?:graph)` <http://xmlns.com/foaf/0.1/topic> `iri(sql:XML_URI_RESOLVE_LIKE_GET(?:base, ?s))` .
-      `iri(sql:XML_URI_RESOLVE_LIKE_GET(?:base, ?s))` <http://www.w3.org/2007/05/powder-s#describedby> `iri(?:proxyiri)` 
+      `iri(sql:XML_URI_RESOLVE_LIKE_GET(?:base, ?s))` <http://www.w3.org/2007/05/powder-s#describedby> `iri(?:proxyiri)`
     }
-    where { { select distinct ?s 
+    where { { select distinct ?s
       where { graph `iri(?:graph)` { ?s ?p ?o .
 	filter (iri(sql:XML_URI_RESOLVE_LIKE_GET(?:base, ?s)) != iri(?:graph) && !(regex (?s, '/about/id/http') || regex (?s, '/about/id/entity/http')))
 	}
       }
     }
   };
-  sparql define input:storage "" 
-    insert in graph iri(?:graph) { 
+  sparql define input:storage ""
+    insert in graph iri(?:graph) {
       `iri(?:docproxyiri)` a <http://purl.org/ontology/bibo/Document> ;
       <http://www.w3.org/ns/formats/media_type> `?:mimetype` ;
-      <http://vocab.deri.ie/void#inDataset> `iri(?:graph)` ; 
+      <http://vocab.deri.ie/void#inDataset> `iri(?:graph)` ;
       <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://rdfs.org/sioc/ns#Container> , <http://purl.org/ontology/bibo/Document> ;
       <http://rdfs.org/sioc/ns#container_of> `iri(?:proxyiri)` .
-      `iri(?:dociri)` <http://www.w3.org/2002/07/owl#sameAs> `iri(?:proxyiri)` . 
+      `iri(?:dociri)` <http://www.w3.org/2002/07/owl#sameAs> `iri(?:proxyiri)` .
     };
   if (registry_get ('__rdf_cartridges_add_spongetime__') = '1') {
-    sparql define input:storage "" 
-      insert in graph iri(?:graph) { 
-	`iri(?:graph)` <http://www.openlinksw.com/schema/attribution#sponge_time> `bif:now()` . 
+    sparql define input:storage ""
+      insert in graph iri(?:graph) {
+	`iri(?:graph)` <http://www.openlinksw.com/schema/attribution#sponge_time> `bif:now()` .
       };
   }
 }
@@ -1654,6 +1653,9 @@ create procedure DB.DBA.RDF_LOAD_HTTP_RESPONSE (in graph_iri varchar, in new_ori
   declare aq, ps any;
   declare xd, xt any;
   declare saved_log_mode, ttl_mode, only_rdfa, retr_count, rdf_fmt integer;
+  declare individ_types_dict, individ_types any;
+  individ_types_dict := dict_new(50);
+
   aq := null;
   rdf_fmt := 0;
   ps := virtuoso_ini_item_value ('SPARQL', 'PingService');
@@ -1663,6 +1665,8 @@ create procedure DB.DBA.RDF_LOAD_HTTP_RESPONSE (in graph_iri varchar, in new_ori
     }
   -- dbg_obj_princ ('DB.DBA.RDF_LOAD_HTTP_RESPONSE (', graph_iri, new_origin_uri, ret_content_type, ret_hdr, ret_body, options, req_hdr_arr, ')');
   --!!!TBD: proper calculation of new_expiration, using data from HTTP header of the response
+
+
   declare l any;
   l := ret_body;
   if (length (l) > 3 and l[0] = 0hexEF and l[1] = 0hexBB and l[2] = 0hexBF) -- remove BOM
@@ -1678,6 +1682,7 @@ create procedure DB.DBA.RDF_LOAD_HTTP_RESPONSE (in graph_iri varchar, in new_ori
     only_rdfa := 1;
   else
     only_rdfa := 0;
+
   if (strstr (ret_content_type, 'application/sparql-results+xml') is not null)
     signal ('RDFXX', sprintf ('Unable to load RDF graph <%.500s> from <%.500s>: the sparql-results XML answer does not contain triples', graph_iri, new_origin_uri));
   if (get_keyword ('http-headers', options) is null)
@@ -1685,6 +1690,7 @@ create procedure DB.DBA.RDF_LOAD_HTTP_RESPONSE (in graph_iri varchar, in new_ori
 retry_after_deadlock:
   if (strstr (ret_content_type, 'application/rdf+xml') is not null)
     {
+
       --if (dest is null)
       --  DB.DBA.SPARUL_CLEAR (coalesce (dest, graph_iri), 1);
       declare exit handler for sqlstate '*'
@@ -1695,6 +1701,7 @@ retry_after_deadlock:
       };
       --log_enable (2, 1);
       xt := xtree_doc (ret_body);
+
       -- we test for GRDDL inside RDF/XML, if so do it inside mappers, else it will fail because of dv:transformation attr
       if (xpath_eval ('[ xmlns:dv="http://www.w3.org/2003/g/data-view#" ] /*[1]/@dv:transformation', xt) is not null)
         goto load_grddl;
@@ -1710,12 +1717,13 @@ retry_after_deadlock:
         }
         goto load_grddl;
       if (__proc_exists ('DB.DBA.RDF_LOAD_POST_PROCESS') and only_rdfa = 0) -- optional step, by default skip
-        call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options);
+        call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options, individ_types_dict );
       --log_enable (saved_log_mode, 1);
       if (aq is not null)
         aq_request (aq, 'DB.DBA.RDF_SW_PING', vector (ps, new_origin_uri));
       return 1;
     }
+
   ttl_mode := null;
   if (
     strstr (ret_content_type, 'text/rdf+n3') is not null or
@@ -1735,6 +1743,7 @@ retry_after_deadlock:
   else if (
     strstr (ret_content_type, 'text/x-nquads') is not null)
     ttl_mode := 512+255;
+
   if (ttl_mode is not null)
     {
       declare exit handler for sqlstate '*'
@@ -1746,10 +1755,12 @@ retry_after_deadlock:
       --log_enable (2, 1);
       --if (dest is null)
       --  DB.DBA.SPARUL_CLEAR (coalesce (dest, graph_iri), 1);
+
       DB.DBA.TTLP (ret_body, base, coalesce (dest, graph_iri), ttl_mode);
       if(extra<>'0')
         DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, coalesce (dest, graph_iri), ret_content_type);
       rdf_fmt := 1;
+
       if (groupdest is not null)
         {
           DB.DBA.TTLP (ret_body, base, groupdest);
@@ -1758,8 +1769,10 @@ retry_after_deadlock:
         }
       if (exists (select 1 from DB.DBA.SYS_RDF_MAPPERS where RM_TYPE = 'URL' and regexp_match (RM_PATTERN, new_origin_uri) and RM_ENABLED = 1))
         goto load_grddl;
-      if (__proc_exists ('DB.DBA.RDF_LOAD_POST_PROCESS') and only_rdfa = 0) -- optional step, by default skip
-        call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options);
+      if (__proc_exists ('DB.DBA.RDF_LOAD_POST_PROCESS') and only_rdfa = 0) { -- optional step, by default skip
+        call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options, individ_types_dict);
+	}
+
       --log_enable (saved_log_mode, 1);
       if (aq is not null)
         aq_request (aq, 'DB.DBA.RDF_SW_PING', vector (ps, new_origin_uri));
@@ -1776,16 +1789,19 @@ retry_after_deadlock:
       --log_enable (2, 1);
       --DB.DBA.RDF_LOAD_XHTML_MICRODATA (ret_body, base, coalesce (dest, graph_iri));
       rdf_fmt := 1;
+
       if (groupdest is not null and groupdest <> coalesce (dest, graph_iri))
         DB.DBA.RDF_LOAD_XHTML_MICRODATA (ret_body, base, groupdest);
       if (exists (select 1 from DB.DBA.SYS_RDF_MAPPERS where (RM_TYPE = 'URL' and regexp_match (RM_PATTERN, new_origin_uri) or
                  RM_TYPE='MIME' and regexp_match(RM_PATTERN, ret_content_type)) and RM_ENABLED = 1))
         goto load_grddl;
+
       if (__proc_exists ('DB.DBA.RDF_LOAD_POST_PROCESS') and only_rdfa = 0) -- optional step, by default skip
-        call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options);
+        call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options, individ_types_dict );
       --log_enable (saved_log_mode, 1);
       if (aq is not null)
         aq_request (aq, 'DB.DBA.RDF_SW_PING', vector (ps, new_origin_uri));
+
       return 1;
     }
   else if (only_rdfa = 1 and (strstr (ret_content_type, 'text/html') is not null or strstr (ret_content_type, 'application/xhtml+xml') is not null))
@@ -1796,9 +1812,11 @@ retry_after_deadlock:
           dbg_printf ('%s: SQL_MESSAGE: %s', current_proc_name(), __SQL_MESSAGE);
         goto load_grddl_after_error;
       };
+
       --log_enable (2, 1);
       DB.DBA.RDF_LOAD_RDFA (ret_body, base, coalesce (dest, graph_iri));
       rdf_fmt := 1;
+
       if (groupdest is not null and groupdest <> coalesce (dest, graph_iri))
         DB.DBA.RDF_LOAD_RDFA (ret_body, base, groupdest);
       --log_enable (saved_log_mode, 1);
@@ -1827,80 +1845,79 @@ load_grddl:;
   if (__proc_exists ('DB.DBA.RDF_RUN_CARTRIDGES') is not null)
     {
       rc := DB.DBA.RDF_RUN_CARTRIDGES (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options, ret_hdr, ps, aq, req_hdr_arr);
+
       if (rc)
-    return rc;
+        return rc;
     }
   else
     {
-  cset := http_request_header (ret_hdr, 'Content-Type', 'charset', null);
-  for select RM_PATTERN, RM_TYPE, RM_HOOK, RM_KEY, RM_OPTIONS, RM_DESCRIPTION from DB.DBA.SYS_RDF_MAPPERS where RM_ENABLED = 1 order by RM_ID do
-    {
-      declare val_match, pcols, new_opts any;
-      declare npars int;
-
-      if (RM_TYPE = 'MIME')
+      cset := http_request_header (ret_hdr, 'Content-Type', 'charset', null);
+      for select RM_PATTERN, RM_TYPE, RM_HOOK, RM_KEY, RM_OPTIONS, RM_DESCRIPTION from DB.DBA.SYS_RDF_MAPPERS where RM_ENABLED = 1 order by RM_ID do
 	{
-	  val_match := ret_content_type;
-	}
-      else if (RM_TYPE = 'URL' or RM_TYPE = 'HTTP')
-	{
-	  val_match := new_origin_uri;
-	}
-      else
-	val_match := null;
-
-      if (registry_get ('__sparql_mappers_debug') = '1')
-        dbg_obj_prin1 ('Trying ', RM_HOOK);
-      if (isstring (val_match) and regexp_match (RM_PATTERN, val_match) is not null)
-	{
-	  if (__proc_exists (RM_HOOK) is null)
-	    goto try_next_mapper;
-
-	  declare exit handler for sqlstate '*'
+	  declare val_match, pcols, new_opts any;
+	  declare npars int;
+	  if (RM_TYPE = 'MIME')
 	    {
-	      goto try_next_mapper;
-	    };
-          pcols := DB.DBA.RDF_PROC_COLS (RM_HOOK);
-          npars := 8;
-          if (isarray (pcols))
-	    npars := length (pcols);
-	  --!!!TBD: Carefully check what happens when dest is NULL vs dest is not NULL, then add support for groupdest.
-          if (registry_get ('__sparql_mappers_debug') = '1')
-            dbg_obj_prin1 ('Match ', RM_HOOK);
-	  new_opts := vector_concat (options, RM_OPTIONS, vector ('content-type', ret_content_type, 'charset', cset));
-	  if (__proc_exists ('DB.DBA.RDF_SPONGER_STATUS'))
-	    call ('DB.DBA.RDF_SPONGER_STATUS') (graph_iri, new_origin_uri, dest, RM_DESCRIPTION, options);
-	  if (RM_TYPE <> 'HTTP')
-	    {
-	      if (npars = 7)
-	        rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, RM_KEY);
-	      else
-	        rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, RM_KEY, new_opts);
+	      val_match := ret_content_type;
 	    }
-          else
+	  else if (RM_TYPE = 'URL' or RM_TYPE = 'HTTP')
 	    {
-	      if (npars = 7)
-	        rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, vector (req_hdr_arr, ret_hdr));
-	      else
-	        rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, vector (req_hdr_arr, ret_hdr), new_opts);
+	      val_match := new_origin_uri;
 	    }
-          if (registry_get ('__sparql_mappers_debug') = '1')
+	  else
+	    val_match := null;
+	  if (registry_get ('__sparql_mappers_debug') = '1')
+	    dbg_obj_prin1 ('Trying ', RM_HOOK);
+	  if (isstring (val_match) and regexp_match (RM_PATTERN, val_match) is not null)
 	    {
-	      dbg_obj_prin1 ('Return ', rc, RM_HOOK);
+	      if (__proc_exists (RM_HOOK) is null)
+		goto try_next_mapper;
+
+	      declare exit handler for sqlstate '*'
+		{
+		  goto try_next_mapper;
+		};
+	      pcols := DB.DBA.RDF_PROC_COLS (RM_HOOK);
+	      npars := 8;
+	      if (isarray (pcols))
+		npars := length (pcols);
+	      --!!!TBD: Carefully check what happens when dest is NULL vs dest is not NULL, then add support for groupdest.
+	      if (registry_get ('__sparql_mappers_debug') = '1')
+		dbg_obj_prin1 ('Match ', RM_HOOK);
+	      new_opts := vector_concat (options, RM_OPTIONS, vector ('content-type', ret_content_type, 'charset', cset));
+	      if (__proc_exists ('DB.DBA.RDF_SPONGER_STATUS'))
+		call ('DB.DBA.RDF_SPONGER_STATUS') (graph_iri, new_origin_uri, dest, RM_DESCRIPTION, options);
+	      if (RM_TYPE <> 'HTTP')
+		{
+		  if (npars = 7)
+		    rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, RM_KEY);
+		  else
+		    rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, RM_KEY, new_opts);
+		}
+	      else
+		{
+		  if (npars = 7)
+		    rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, vector (req_hdr_arr, ret_hdr));
+		  else
+		    rc := call (RM_HOOK) (graph_iri, new_origin_uri, dest, ret_body, aq, ps, vector (req_hdr_arr, ret_hdr), new_opts);
+		}
+	      if (registry_get ('__sparql_mappers_debug') = '1')
+		{
+		  dbg_obj_prin1 ('Return ', rc, RM_HOOK);
+		  if (__tag(rc) = 193 or rc < 0 or rc > 0)
+		    dbg_obj_prin1 ('END of mappings');
+		}
 	      if (__tag(rc) = 193 or rc < 0 or rc > 0)
-                dbg_obj_prin1 ('END of mappings');
-	    }
-	  if (__tag(rc) = 193 or rc < 0 or rc > 0)
-	    {
+		{
 		  if (rc > 0 and __proc_exists ('DB.DBA.RDF_LOAD_POST_PROCESS')) -- optional step, by default skip
-		call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options);
-              if (__tag(rc) = 193)
-                return rc;
-	      return (case when rc < 0 then 0 else 1 end);
+		    call ('DB.DBA.RDF_LOAD_POST_PROCESS') (graph_iri, new_origin_uri, dest, ret_body, ret_content_type, options, individ_types_dict );
+		  if (__tag(rc) = 193)
+		    return rc;
+		  return (case when rc < 0 then 0 else 1 end);
+		}
 	    }
+	  try_next_mapper:;
 	}
-      try_next_mapper:;
-    }
     }
 
   -- else if not handled with the above cases
@@ -1915,7 +1932,6 @@ load_grddl:;
   --  }
 
 no_cart:
-
   if (rdf_fmt) -- even cartridges didn't extracted anything more, the rdf is already loaded
     return 1;
 
@@ -1951,11 +1967,11 @@ no_cart:
   signal ('RDFZZ', sprintf (
       'Unable to load RDF graph <%.500s> from <%.500s>: returned unsupported Content-Type ''%.300s''',
       graph_iri, new_origin_uri, ret_content_type ) );
+
 resignal_parse_error:
 --  log_enable (saved_log_mode, 1);
   -- dbg_obj_princ ('DB.DBA.RDF_LOAD_HTTP_RESPONSE will resignal ', __SQL_STATE, __SQL_MESSAGE);
   resignal;
-
 load_grddl_after_error:
   first_stat := __SQL_STATE;
   first_msg := __SQL_MESSAGE;
@@ -1968,6 +1984,7 @@ load_grddl_after_error:
   goto load_grddl;
 }
 ;
+
 
 create procedure DB.DBA.RDF_FORGET_HTTP_RESPONSE (in graph_iri varchar, in new_origin_uri varchar, inout options any)
 {
@@ -1990,6 +2007,35 @@ again:
   if (dest is null)
     DB.DBA.SPARUL_CLEAR (graph_iri, 1, 0);
   commit work;
+}
+;
+
+create procedure DB.DBA.CHECK_CONNECTION_PERMISSIONS (in resource varchar, in scope varchar)
+{
+  if (__proc_exists ('DB.DBA.DBEV_CHECK_PERMISSIONS') is not null) {
+    return "DB"."DBA"."DBEV_CHECK_PERMISSIONS" (resource, scope);
+  }
+  else {
+    return vector ();
+  }
+}
+;
+
+--!
+-- Check if sponging is allowed for the current user/context.
+--/
+create procedure DB.DBA.SPONGING_ALLOWED ()
+{
+  declare r any;
+  if (registry_get ('__sponger_access_mode__') = 'acl') {
+    r := DB.DBA.CHECK_CONNECTION_PERMISSIONS ('urn:virtuoso:sponger', 'urn:virtuoso:val:scope:sponger');
+    if (position ('http://www.openlinksw.com/ontology/acl#Sponge', r) > 0)
+      return 1;
+    return 0;
+  }
+  else {
+    return 1;
+  }
 }
 ;
 
@@ -2034,6 +2080,15 @@ create function DB.DBA.RDF_SPONGE_UP_1 (in graph_iri varchar, in options any, in
   -- dbg_obj_princ ('DB.DBA.RDF_SPONGE_UP_1 (', graph_iri, options, ')');
   graph_iri := cast (graph_iri as varchar);
   --set_user_id ('dba', 1);
+
+  if (DB.DBA.SPONGING_ALLOWED() = 0)
+  {
+    if (get_keyword_ucase ('get:error-recovery', options, 'signal') = 'signal')
+      signal ('RDFZZ', 'RDF_SPONGE_UP_1: Use of the Sponger is denied for the current user');
+    -- dbg_printf ('RDF_SPONGE_UP_1: Use of the Sponger is denied for the current user');
+    return null;
+  }
+
   dest := get_keyword_ucase ('get:destination', options);
   if (dest is not null)
     local_iri := 'destMD5=' || md5(dest) || '&graphMD5=' || md5(graph_iri);

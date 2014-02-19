@@ -178,8 +178,7 @@ public:
    CResMgrSink ();
   virtual ULONG STDMETHODCALLTYPE AddRef ();
   virtual ULONG STDMETHODCALLTYPE Release ();
-  virtual HRESULT STDMETHODCALLTYPE QueryInterface (const struct _GUID &guid,
-      void **iFace);
+  virtual HRESULT STDMETHODCALLTYPE QueryInterface (const struct _GUID &guid, void **iFace);
   virtual HRESULT STDMETHODCALLTYPE TMDown ();
 };
 
@@ -194,8 +193,8 @@ public:
   {
     return trx_enlistment_;
   };
-  void *operator  new (size_t sz);
-  void operator  delete (void *);
+  void *operator   new (size_t sz);
+  void operator   delete (void *);
   void *get_connection ()
   {
     return client_connection_;
@@ -205,8 +204,7 @@ public:
   virtual void SetConnection (void *client_connection);
   virtual ULONG STDMETHODCALLTYPE AddRef ();
   virtual ULONG STDMETHODCALLTYPE Release ();
-  virtual HRESULT STDMETHODCALLTYPE QueryInterface (const struct _GUID &guid,
-      void **iFace);
+  virtual HRESULT STDMETHODCALLTYPE QueryInterface (const struct _GUID &guid, void **iFace);
   virtual HRESULT STDMETHODCALLTYPE PrepareRequest (
       /* [in] */ BOOL fRetaining,
       /* [in] */ DWORD grfRM,

@@ -63,58 +63,45 @@ typedef struct xpf_metadata_s
   ptrlong xpfm_type;
   xp_func_t xpfm_executable;
   XT *xpfm_defun;
-  ptrlong xpfm_res_dtp;			/*!< Type of the result, e.g. DV_BOOL for booleans and DV_XML_ENTITY for iters. */
-  ptrlong xpfm_min_arg_no;		/*!< Minimum allowed number of arguments in the call (maybe less or greater than xpfm_arg_no). */
-  ptrlong xpfm_main_arg_no;		/*!< Number of non-tail arguments. */
-  ptrlong xpfm_tail_arg_no;		/*!< Number of tail arguments in the tail loop. */
+  ptrlong xpfm_res_dtp;		/*!< Type of the result, e.g. DV_BOOL for booleans and DV_XML_ENTITY for iters. */
+  ptrlong xpfm_min_arg_no;	/*!< Minimum allowed number of arguments in the call (maybe less or greater than xpfm_arg_no). */
+  ptrlong xpfm_main_arg_no;	/*!< Number of non-tail arguments. */
+  ptrlong xpfm_tail_arg_no;	/*!< Number of tail arguments in the tail loop. */
   xpfm_arg_descr_t xpfm_args[1];	/*!< Args 2,3 etc. are after the structure, tail args are after plain. */
 } xpf_metadata_t;
 
 
-extern id_hash_t * xpf_metas;
-extern id_hash_t * xpf_reveng;
+extern id_hash_t *xpf_metas;
+extern id_hash_t *xpf_reveng;
 
 #define xpfma(name,dtp,iter) ((xpfm_arg_descr_t *)(list (3, ((name) ? box_dv_uname_string (name) : NULL), (ptrlong)dtp, (ptrlong)iter)))
 #define xpfmalist (xpfm_arg_descr_t **)list
 
-extern void xpfm_create_and_store_builtin (
-  const char *xpfm_name,
-  xp_func_t xpfm_executable,
-  ptrlong xpfm_res_dtp,
-  ptrlong xpfm_min_arg_no,
-  xpfm_arg_descr_t **xpfm_main_args,
-  xpfm_arg_descr_t **xpfm_tail_args,
-  const char* nmspace );
+extern void xpfm_create_and_store_builtin (const char *xpfm_name,
+    xp_func_t xpfm_executable,
+    ptrlong xpfm_res_dtp,
+    ptrlong xpfm_min_arg_no, xpfm_arg_descr_t ** xpfm_main_args, xpfm_arg_descr_t ** xpfm_tail_args, const char *nmspace);
 
-typedef void xpfm_define_builtin_t (
-  const char *xpfm_name,
-  xp_func_t xpfm_executable,
-  ptrlong xpfm_res_dtp,
-  ptrlong xpfm_min_arg_no,
-  xpfm_arg_descr_t **xpfm_main_args,
-  xpfm_arg_descr_t **xpfm_tail_args );
+typedef void xpfm_define_builtin_t (const char *xpfm_name,
+    xp_func_t xpfm_executable,
+    ptrlong xpfm_res_dtp, ptrlong xpfm_min_arg_no, xpfm_arg_descr_t ** xpfm_main_args, xpfm_arg_descr_t ** xpfm_tail_args);
 
 extern xpfm_define_builtin_t xpf_define_builtin, x2f_define_builtin, xqf_define_builtin, xsd_define_builtin, xop_define_builtin;
 
-extern void xpfm_store_alias (const char *alias_local_name, const char *alias_ns, const char *main_local_name, const char *main_ns, const char *alias_mid_chars, int insert_soft);
+extern void xpfm_store_alias (const char *alias_local_name, const char *alias_ns, const char *main_local_name, const char *main_ns,
+    const char *alias_mid_chars, int insert_soft);
 
 extern void xpf_define_alias (const char *alias_local_name, const char *alias_ns, const char *main_local_name, const char *main_ns);
 
 
-extern void
-xslt_bsort (caddr_t ** bs, int n_bufs, xslt_sort_t * specs);
+extern void xslt_bsort (caddr_t ** bs, int n_bufs, xslt_sort_t * specs);
 
-extern void
-xslt_qsort (caddr_t ** in, caddr_t ** left,
-	    int n_in, int depth, xslt_sort_t * specs);
+extern void xslt_qsort (caddr_t ** in, caddr_t ** left, int n_in, int depth, xslt_sort_t * specs);
 
 
-extern caddr_t
-xpf_arg (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe,
-	 dtp_t target_dtp, int n);
+extern caddr_t xpf_arg (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe, dtp_t target_dtp, int n);
 
-extern caddr_t
-xpf_raw_arg (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe, int n);
+extern caddr_t xpf_raw_arg (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe, int n);
 
 
 extern void xpf_call_udf (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
@@ -128,13 +115,13 @@ extern void xpf_round_number (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx
 extern void xpf_string (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 extern void xpf_true (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 extern void xpf_sum (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_normalize_space  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_translate  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_contains  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_name  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_local_name  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_namespace_uri  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
-extern void xpf_number  (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_normalize_space (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_translate (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_contains (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_name (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_local_name (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_namespace_uri (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
+extern void xpf_number (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 extern void xpf_unordered (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 extern void xpf_union (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 extern void xpf_is_before (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
@@ -147,14 +134,12 @@ extern void xpf_to_operator (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_
 extern void xpf_position (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 extern void xpf_last (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_xe);
 
-
-
-extern XT * xpf_arg_tree (XT * tree, int n);
-extern void xpf_arg_list_impl (xp_instance_t * xqi, XT * arg, xml_entity_t * ctx_xe, caddr_t *res);
+extern XT *xpf_arg_tree (XT * tree, int n);
+extern void xpf_arg_list_impl (xp_instance_t * xqi, XT * arg, xml_entity_t * ctx_xe, caddr_t * res);
 #define xpf_arg_list(xqi,tree,ctx_xe,n,res) xpf_arg_list_impl ((xqi), xpf_arg_tree ((tree), (n)), (ctx_xe), (res))
 
-extern void xpf_init(void);
+extern void xpf_init (void);
 
-extern xp_query_t *xqr_stub_for_funcall (xpf_metadata_t *metas, int argcount);
+extern xp_query_t *xqr_stub_for_funcall (xpf_metadata_t * metas, int argcount);
 
 #endif /* _XPF_H */

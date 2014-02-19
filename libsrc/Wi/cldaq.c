@@ -139,7 +139,7 @@ clib_local_autocommit (cll_in_box_t * clib, query_instance_t * qi, cl_op_t * clo
 	      || cli->cli_trx->lt_cl_main_enlisted))
 	return LTE_OK;		/* if for other reasons this has enlisted contenty do not commit the enclosing txn.  makes half transactions and really fucks over remote branches */
       if (cli->cli_trx->lt_remotes)
-	return LTE_OK; /* if local daq call, whether recursive or not there is an enclosing context hat will transact the remotes, transacting remote in mid qr w open cursor will kill the cursor */
+	return LTE_OK;		/* if local daq call, whether recursive or not there is an enclosing context hat will transact the remotes, transacting remote in mid qr w open cursor will kill the cursor */
       IN_TXN;
       detail = cli->cli_trx->lt_error_detail;
       cli->cli_trx->lt_error_detail = NULL;
@@ -162,18 +162,18 @@ extern state_slot_t ssl_set_no_dummy;
 
 cl_op_t *
 clrg_vec_call_clo (cl_req_group_t * clrg, caddr_t full_name, int add_set_no, dbe_key_t * key, int flags, int make_new)
-	{
+{
   /* make a call clo with dcs corresponding to proc params.  if add set no, add an extra int dc at the end to correlate result rows with daq/dp set nos */
   if (!make_new)
-  {
+    {
       DO_SET (cl_op_t *, clo, &clrg->clrg_vec_clos)
       {
 	if (CLO_CALL == clo->clo_op && !stricmp (full_name, clo->_.call.func))
 	  return clo;
-  }
-  END_DO_SET ();
+      }
+      END_DO_SET ();
     }
-{
+  {
     mem_pool_t *mp = clrg->clrg_pool;
     query_t *qr = sch_proc_def (wi_inst.wi_schema, full_name);
     int n;
@@ -182,12 +182,12 @@ clrg_vec_call_clo (cl_req_group_t * clrg, caddr_t full_name, int add_set_no, dbe
     if (!qr)
       sqlr_new_error ("42001", "CLVEC", "Undefd proc in vectored daq call %s", full_name);
     if (qr->qr_to_recompile)
-    {
+      {
 	caddr_t err = NULL;
 	qr = qr_recompile (qr, &err);
-      if (err)
-	sqlr_resignal (err);
-    }
+	if (err)
+	  sqlr_resignal (err);
+      }
     mp_set_push (mp, &clrg->clrg_vec_clos, (void *) clo);
     n = dk_set_length (qr->qr_parms) + add_set_no;
     clo->_.call.func = mp_full_box_copy_tree (mp, qr->qr_proc_name);
@@ -195,10 +195,10 @@ clrg_vec_call_clo (cl_req_group_t * clrg, caddr_t full_name, int add_set_no, dbe
     clo->_.call.is_update = flags & DAQ_CALL_UPD_MASK;
     clo->_.call.non_txn_insert = clrg->clrg_no_txn;
     DO_SET (state_slot_t *, par, &qr->qr_parms)
-  {
+    {
       clo->_.call.params[fill++] = (caddr_t) mp_data_col (mp, par, 1000);
-  }
-  END_DO_SET ();
+    }
+    END_DO_SET ();
     if (add_set_no)
       clo->_.call.params[fill] = (caddr_t) mp_data_col (mp, &ssl_set_no_dummy, 1000);
     clo->_.call.key = key;
@@ -208,12 +208,12 @@ clrg_vec_call_clo (cl_req_group_t * clrg, caddr_t full_name, int add_set_no, dbe
     clo->clo_nth_param_row = clrg->clrg_nth_param_row;
     mp_array_add (clrg->clrg_pool, &clrg->clrg_param_rows, &clrg->clrg_nth_param_row, (caddr_t) clo);
     return clo;
-    }
+  }
 }
 
 void
 ssl_from_dc (state_slot_t * ssl, data_col_t * dc, ssl_index_t * ctr)
-	  {
+{
   memzero (ssl, sizeof (state_slot_t));
   ssl->ssl_type = SSL_VEC;
   ssl->ssl_sqt.sqt_dtp = dc->dc_dtp;
@@ -228,7 +228,7 @@ ssl_from_dc (state_slot_t * ssl, data_col_t * dc, ssl_index_t * ctr)
 caddr_t
 cl_vec_exec (query_t * qr, client_connection_t * cli, mem_pool_t * mp, caddr_t * params, slice_id_t * slices, slice_id_t slid,
     db_buf_t * set_mask_ret, data_col_t ** dc_ret, int set_no_in_params)
-  {
+{
   char temp[sizeof (query_instance_t) + 2 * CL_MAX_PARAMS * sizeof (caddr_t)];
   state_slot_t ssls[CL_MAX_PARAMS];
   query_instance_t *qi = (query_instance_t *) & temp;
@@ -306,22 +306,22 @@ cll_in_box_t *clrg_ensure_single_clib (cl_req_group_t * clrg);
 
 void
 clrg_local_ins_del_single (cl_req_group_t * clrg)
-			{
+{
   cll_in_box_t *deflt_clib = clrg_ensure_single_clib (clrg);
   QNCAST (query_instance_t, qi, clrg->clrg_inst);
   db_buf_t set_mask = NULL;
   DO_SET (cl_op_t *, clo, &clrg->clrg_vec_clos)
-		    {
+  {
     if (CLO_INSERT == clo->clo_op || CLO_DELETE == clo->clo_op)
-	      {
+      {
 	row_delta_t *rd = clo->_.insert.rd;
 	caddr_t err = NULL;
 	query_t *qr = cl_ins_del_qr (rd->rd_key, clo->clo_op, clo->_.insert.ins_mode, &err);
 	if (err)
-		  {
+	  {
 	    clrg_dml_free (clrg);
-		sqlr_resignal (err);
-	      }
+	    sqlr_resignal (err);
+	  }
 	if (CLO_DELETE == clo->clo_op)
 	  cls_vec_del_rd_layout (clo->_.delete.rd);
 	err = NULL;
@@ -329,17 +329,16 @@ clrg_local_ins_del_single (cl_req_group_t * clrg)
 	err = cl_vec_exec (qr, qi->qi_client, clrg->clrg_pool, clo->_.insert.rd->rd_values, NULL, QI_NO_SLICE, &set_mask, NULL, 0);
 	qi->qi_client->cli_non_txn_insert = 0;
 	if (err)
-		{
+	  {
 	    clrg_dml_free (clrg);
 	    return;
 	    sqlr_resignal (err);
-	    }
-	}
-    }
+	  }
+      }
+  }
   END_DO_SET ();
   clrg_dml_free (clrg);
 }
-
 
 
 #define PART_READ 0		/* reading op, use closest or random, always use local if local has the data */
@@ -434,7 +433,6 @@ bif_partition_group (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   dk_free_tree (hosts);
   return box_num (slid);
 }
-
 
 
 
@@ -811,7 +809,7 @@ cu_clear (cucurbit_t * cu)
   clrg->clrg_vec_clos = NULL;
   DO_SET (cll_in_box_t *, clib, &clrg->clrg_clibs)
   {
-      clib->clib_keep_alive = 0;
+    clib->clib_keep_alive = 0;
     clib->clib_dc_read = NULL;
     clib->clib_vec_clos = NULL;
   }
@@ -1423,7 +1421,7 @@ bif_daq_init ()
   bif_define ("daq_buffered_bytes", bif_daq_buffered_bytes);
   bif_define ("cl_set_slice", bif_cl_set_slice);
   name_to_cu_func = id_casemode_hash_create (11);
-//  func_name_to_cu_func = id_casemode_hash_create (11);
+/*  func_name_to_cu_func = id_casemode_hash_create (11); */
   bif_define_ex ("dpipe", bif_dpipe, BMD_OUT_OF_PARTITION, BMD_DONE);
   bif_define_ex ("dpipe_input", bif_dpipe_input, BMD_OUT_OF_PARTITION, BMD_DONE);
   bif_define_ex ("dpipe_next", bif_dpipe_next, BMD_OUT_OF_PARTITION, BMD_DONE);

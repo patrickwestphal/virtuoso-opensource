@@ -41,20 +41,20 @@ int date2weekday (const int year, const int month, const int day);
 void dt_now (caddr_t dt);
 void time_t_to_dt (time_t tim, long fraction, char *dt);
 #if defined (WIN32) && (defined (_AMD64_) || defined (_FORCE_WIN32_FILE_TIME))
-int file_mtime_to_dt (const char * name, char *dt);
+int file_mtime_to_dt (const char *name, char *dt);
 #endif
 void sec2time (int sec, int *day, int *hour, int *min, int *tsec);
 int time2sec (int day, int hour, int min, int sec);
-void ts_add (TIMESTAMP_STRUCT *ts, boxint n, const char *unit);
+void ts_add (TIMESTAMP_STRUCT * ts, boxint n, const char *unit);
 int dt_validate (caddr_t dt);
-void dt_to_GMTimestamp_struct (ccaddr_t dt, GMTIMESTAMP_STRUCT *ts);
-void GMTimestamp_struct_to_dt (GMTIMESTAMP_STRUCT *ts_in, char *dt);
-void dt_to_timestamp_struct (ccaddr_t dt, TIMESTAMP_STRUCT *ts);
-void timestamp_struct_to_dt (TIMESTAMP_STRUCT *ts_in, char *dt);
-void dt_to_date_struct (char *dt, DATE_STRUCT *ots);
-void date_struct_to_dt (DATE_STRUCT *ts, char *dt);
-void dt_to_time_struct (char *dt, TIME_STRUCT *ots);
-void time_struct_to_dt (TIME_STRUCT *ts, char *dt);
+void dt_to_GMTimestamp_struct (ccaddr_t dt, GMTIMESTAMP_STRUCT * ts);
+void GMTimestamp_struct_to_dt (GMTIMESTAMP_STRUCT * ts_in, char *dt);
+void dt_to_timestamp_struct (ccaddr_t dt, TIMESTAMP_STRUCT * ts);
+void timestamp_struct_to_dt (TIMESTAMP_STRUCT * ts_in, char *dt);
+void dt_to_date_struct (char *dt, DATE_STRUCT * ots);
+void date_struct_to_dt (DATE_STRUCT * ts, char *dt);
+void dt_to_time_struct (char *dt, TIME_STRUCT * ots);
+void time_struct_to_dt (TIME_STRUCT * ts, char *dt);
 void dt_date_round (char *dt);
 void dt_init (void);
 int dt_part_ck (char *str, int min, int max, int *err);
@@ -80,7 +80,7 @@ int print_dt_to_buffer (char *buf, caddr_t arg, int mode);
 #define DTFLAG_FORMAT_SETS_FLAGS	0x2000
 #define DTFLAG_FORCE_DAY_ZERO		0x4000
 
-extern void iso8601_or_odbc_string_to_dt (const char *str, char *dt, int dtflags, int dt_type, caddr_t *err_msg_ret);
+extern void iso8601_or_odbc_string_to_dt (const char *str, char *dt, int dtflags, int dt_type, caddr_t * err_msg_ret);
 #define odbc_string_to_any_dt(str,dt,err_msg_ret) \
   iso8601_or_odbc_string_to_dt ((str), (dt), \
     (DTFLAG_DATE | DTFLAG_TIME | DTFLAG_TIMEZONE | DTFLAG_ALLOW_ODBC_SYNTAX | DTFLAG_FORMAT_SETS_FLAGS), \
@@ -104,14 +104,14 @@ int days_in_february (const int year);
 #define DT_PRINT_MODE_XML 0x1
 
 extern int dt_print_to_buffer (char *buf, caddr_t arg, int mode);
-extern int dt_scan_from_buffer (const char *buf, int mode, caddr_t *dt_ret, const char **err_msg_ret);
+extern int dt_scan_from_buffer (const char *buf, int mode, caddr_t * dt_ret, const char **err_msg_ret);
 
 extern int dt_local_tz;
 int dt_compare (caddr_t dt1, caddr_t dt2);
-unsigned int64  dt_seconds (caddr_t dt);
+unsigned int64 dt_seconds (caddr_t dt);
 void dt_print (caddr_t dt);
 
-typedef caddr_t arithm_dt_operation_t (ccaddr_t box1, ccaddr_t box2, caddr_t *err_ret);
+typedef caddr_t arithm_dt_operation_t (ccaddr_t box1, ccaddr_t box2, caddr_t * err_ret);
 extern arithm_dt_operation_t arithm_dt_add;
 extern arithm_dt_operation_t arithm_dt_subtract;
 

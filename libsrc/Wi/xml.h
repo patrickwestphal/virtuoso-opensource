@@ -31,7 +31,8 @@
 /* IvAn/ParseDTD/000721 system parser is wiped out, replaced with xmlparser.h
 #include <xmlparse.h> */
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "xmlparser.h"
 #ifdef __cplusplus
@@ -87,59 +88,57 @@ encoding_handler_t *intl_find_user_charset (const char *encname, int xml_input_i
 /* Types definition */
 #ifndef _boolean
 typedef enum
-  {
-    false, true
-  }
+{
+  false, true
+}
 _boolean;
 #endif
 #endif
 
 
-
-
-
-typedef struct close_tag_s {
-  int		ct_level;
-  dk_set_t	ct_all_explicit_ns;
-  dk_set_t	ct_all_default_ns;
-  caddr_t	 ct_trailing;
-  caddr_t	 ct_name;
-  /*caddr_t 	ct_ns;
-  int 		ct_start;*/
-  struct close_tag_s *	 ct_prev;
+typedef struct close_tag_s
+{
+  int ct_level;
+  dk_set_t ct_all_explicit_ns;
+  dk_set_t ct_all_default_ns;
+  caddr_t ct_trailing;
+  caddr_t ct_name;
+  /*caddr_t     ct_ns;
+     int                ct_start; */
+  struct close_tag_s *ct_prev;
 } close_tag_t;
 
 #define bx_std_ns_pref(name,ns_len) ((3 == ns_len) && !strnicmp (name, "xml", 3))
 #define bx_std_ns_uri(name,ns_len) ((XML_NS_URI_LEN == ns_len) && !strnicmp (name, XML_NS_URI, XML_NS_URI_LEN))
 
 
-void bx_push_ct (close_tag_t ** ct_ret, int e_level,  caddr_t e_name, caddr_t e_trailing);
+void bx_push_ct (close_tag_t ** ct_ret, int e_level, caddr_t e_name, caddr_t e_trailing);
 
-typedef int (*xml_elm_serialize_t) (caddr_t * node, dk_session_t * ses, void * xsst);
+typedef int (*xml_elm_serialize_t) (caddr_t * node, dk_session_t * ses, void *xsst);
 
 /* XML bif functions prototypes */
 struct xte_serialize_state_s
 {
-  struct xml_tree_ent_s *	xsst_entity;
-  id_hash_t *		xsst_cdata_names; /* == xsst->xsst_entity->xe_doc.xtd->xout_cdata_section_elements*/
-  xml_ns_2dict_t	xsst_ns_2dict; /* == xsst->xsst_entity->xe_doc.xtd->xd_ns_2dict */
-  close_tag_t *		xsst_ct;
-  caddr_t *		xsst_qst;
-  int			xsst_out_method;
-  struct wcharset_s *	xsst_charset;
-  int			xsst_charset_meta;
-  int			xsst_do_indent;
-  int			xsst_indent_depth;
-  int			xsst_in_block;
-  int 			xsst_dks_esc_mode;
-  int 			xsst_default_ns;
-  xml_elm_serialize_t   xsst_hook;
-  void *		xsst_data;
+  struct xml_tree_ent_s *xsst_entity;
+  id_hash_t *xsst_cdata_names;	/* == xsst->xsst_entity->xe_doc.xtd->xout_cdata_section_elements */
+  xml_ns_2dict_t xsst_ns_2dict;	/* == xsst->xsst_entity->xe_doc.xtd->xd_ns_2dict */
+  close_tag_t *xsst_ct;
+  caddr_t *xsst_qst;
+  int xsst_out_method;
+  struct wcharset_s *xsst_charset;
+  int xsst_charset_meta;
+  int xsst_do_indent;
+  int xsst_indent_depth;
+  int xsst_in_block;
+  int xsst_dks_esc_mode;
+  int xsst_default_ns;
+  xml_elm_serialize_t xsst_hook;
+  void *xsst_data;
 };
 
 typedef struct xte_serialize_state_s xte_serialize_state_t;
 
-extern void xte_serialize_1 (caddr_t * current, dk_session_t * ses, xte_serialize_state_t *xsst);
+extern void xte_serialize_1 (caddr_t * current, dk_session_t * ses, xte_serialize_state_t * xsst);
 
 caddr_t bif_xml_eid (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xml_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
@@ -157,20 +156,23 @@ caddr_t bif_xml_attr_replay (caddr_t * qst, caddr_t * err_ret, state_slot_t ** a
 caddr_t bif_xmls_element_table (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xmls_element_col (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xmls_proc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
-caddr_t xml_make_tree (query_instance_t * qi, caddr_t text, caddr_t *err_ret, const char *enc, lang_handler_t *lh, struct dtd_s **ret_dtd);
-caddr_t xml_make_tree_with_ns (query_instance_t * qi, caddr_t text, caddr_t *err_ret, const char *enc, lang_handler_t *lh, id_hash_t ** nss, id_hash_t ** id_cache);
+caddr_t xml_make_tree (query_instance_t * qi, caddr_t text, caddr_t * err_ret, const char *enc, lang_handler_t * lh,
+    struct dtd_s **ret_dtd);
+caddr_t xml_make_tree_with_ns (query_instance_t * qi, caddr_t text, caddr_t * err_ret, const char *enc, lang_handler_t * lh,
+    id_hash_t ** nss, id_hash_t ** id_cache);
 void nss_free (id_hash_t * nss);
-caddr_t xml_make_mod_tree (query_instance_t * qi, caddr_t text, caddr_t *err_ret, long mode, caddr_t uri, const char *enc, lang_handler_t *lh, caddr_t dtd_options, dtd_t **ret_dtd, id_hash_t **ret_id_cache, xml_ns_2dict_t *ret_ns_2dict);
-void xml_expand_refs (caddr_t *tree, caddr_t *err_ret);
+caddr_t xml_make_mod_tree (query_instance_t * qi, caddr_t text, caddr_t * err_ret, long mode, caddr_t uri, const char *enc,
+    lang_handler_t * lh, caddr_t dtd_options, dtd_t ** ret_dtd, id_hash_t ** ret_id_cache, xml_ns_2dict_t * ret_ns_2dict);
+void xml_expand_refs (caddr_t * tree, caddr_t * err_ret);
 caddr_t bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xmls_viewremove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
-caddr_t bif_xml_view_dtd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args); /* IvAn/ViewDTD/000718 Added */
+caddr_t bif_xml_view_dtd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);	/* IvAn/ViewDTD/000718 Added */
 caddr_t bif_xml_view_schema (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xml_auto (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xmlsql_update (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_xml_template (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
-caddr_t bif_xml_auto_dtd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args); /* IvAn/AutoDTD/000919 Added */
-caddr_t bif_xml_auto_schema (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args); /* IvAn/AutoDTD/000919 Added */
+caddr_t bif_xml_auto_dtd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);	/* IvAn/AutoDTD/000919 Added */
+caddr_t bif_xml_auto_schema (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);	/* IvAn/AutoDTD/000919 Added */
 
 void xe_box_serialize (caddr_t xe, dk_session_t * ses);
 extern void dtd_serialize (dtd_t * dtd, dk_session_t * ses);
@@ -198,8 +200,8 @@ extern const char *xml_escapes[256];
 
 #define USE_HTML_XSL_ESCAPES	-1
 #define USE_CDATA_XML_ESCAPES	-2
-#define USE_CR_ESCAPE		-3 /* the CR is encoded, SOAP/interoperability  */
-int dtd_insert_soft (dtd_t *tgt, dtd_t *src);
+#define USE_CR_ESCAPE		-3	/* the CR is encoded, SOAP/interoperability  */
+int dtd_insert_soft (dtd_t * tgt, dtd_t * src);
 void ddl_store_mapping_schema (query_instance_t * qi, caddr_t view_name, caddr_t reload_text);
 #endif /* BIF_XML */
 #endif /* _XML_H */

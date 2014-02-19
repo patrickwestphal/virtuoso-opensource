@@ -49,8 +49,7 @@
 
 
 query_t *
-sql_compile_st (ST ** ptree, client_connection_t * cli,
-		caddr_t * err, sql_comp_t *super_sc)
+sql_compile_st (ST ** ptree, client_connection_t * cli, caddr_t * err, sql_comp_t * super_sc)
 {
   ST *tree = *ptree;
   caddr_t cc_error;
@@ -111,7 +110,7 @@ sql_compile_st (ST ** ptree, client_connection_t * cli,
   }
   END_CATCH;
   tree = *ptree;
-  t_check_tree ((caddr_t)tree);
+  t_check_tree ((caddr_t) tree);
 
   sc_free (&sc);
   SCS_STATE_POP;
@@ -131,7 +130,7 @@ sqlc_cr_method (sql_comp_t * sc, ST ** ptree, int pass_state, int no_err)
   if (err)
     {
       /* do this only if is compiling update, delete or insert parts of sc */
-      if (no_err && !strncmp(ERR_STATE(err), "42000", 5))
+      if (no_err && !strncmp (ERR_STATE (err), "42000", 5))
 	{
 	  dk_free_tree (err);	/* IvAn/010411/LeakOnError */
 	  return qr;
@@ -147,12 +146,11 @@ sqlc_cr_method (sql_comp_t * sc, ST ** ptree, int pass_state, int no_err)
 int
 sqlc_is_updatable (sql_comp_t * sc, ST * tree)
 {
-  ST * tb;
+  ST *tb;
   if (sc->sc_scroll_super)
     return 0;
   if (tree->_.select_stmt.table_exp->_.table_exp.group_by
-      || SEL_IS_DISTINCT (tree)
-      || 1 < BOX_ELEMENTS (tree->_.select_stmt.table_exp->_.table_exp.from))
+      || SEL_IS_DISTINCT (tree) || 1 < BOX_ELEMENTS (tree->_.select_stmt.table_exp->_.table_exp.from))
     return 0;
   tb = tree->_.select_stmt.table_exp->_.table_exp.from[0];
   if (!ST_P (tb->_.table_ref.table, TABLE_DOTTED))
@@ -251,8 +249,7 @@ qc_make_cols (sql_comp_t * sc, query_cursor_t * qc, ST * tree)
 
     id_cols_t *idc = (id_cols_t *) dk_alloc_box (sizeof (id_cols_t), DV_ARRAY_OF_POINTER);
     idc->idc_table = box_string (ct->ct_table->tb_name);
-    idc->idc_pos = (ptrlong *) dk_alloc_box (pk->key_n_significant * sizeof (ptrlong),
-					  DV_ARRAY_OF_LONG);
+    idc->idc_pos = (ptrlong *) dk_alloc_box (pk->key_n_significant * sizeof (ptrlong), DV_ARRAY_OF_LONG);
     nth = 0;
     qc->qc_n_id_cols += pk->key_n_significant;
     DO_SET (dbe_column_t *, col, &pk->key_parts)
@@ -295,26 +292,22 @@ void
 qc_make_refresh (sql_comp_t * sc, query_cursor_t * qc)
 {
   ST **from = (ST **) t_alloc_box (sizeof (caddr_t) * BOX_ELEMENTS (sc->sc_tables),
-				    DV_ARRAY_OF_POINTER);
+      DV_ARRAY_OF_POINTER);
   int inx;
   int pinx = 1000;
   ST *texp = (ST *) t_list (9, TABLE_EXP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   qc->qc_refresh_text = (ST *)
-    t_list (5, SELECT_STMT, (ptrlong)0, t_box_copy_tree ((caddr_t) qc->qc_org_text->_.select_stmt.selection),
-	  NULL, texp);
+      t_list (5, SELECT_STMT, (ptrlong) 0, t_box_copy_tree ((caddr_t) qc->qc_org_text->_.select_stmt.selection), NULL, texp);
   DO_BOX (comp_table_t *, ct, inx, sc->sc_tables)
   {
     int nth = 0;
     from[inx] = (ST *) t_list (3, TABLE_REF, t_list (6, TABLE_DOTTED, t_box_string (ct->ct_table->tb_name),
-						 t_box_copy (ct->ct_prefix),
-						 t_box_num (ct->ct_u_id),
-						     t_box_num (ct->ct_g_id), NULL), NULL);
+	    t_box_copy (ct->ct_prefix), t_box_num (ct->ct_u_id), t_box_num (ct->ct_g_id), NULL), NULL);
     DO_SET (dbe_column_t *, col, &ct->ct_table->tb_primary_key->key_parts)
     {
       char tmp[10];
       snprintf (tmp, sizeof (tmp), ":%d", pinx++);
-      t_st_and (&texp->_.table_exp.where,
-	      (ST *) t_list (4, BOP_EQ, sqlc_ct_col_ref (ct, col->col_name), t_sym_string (tmp), NULL));
+      t_st_and (&texp->_.table_exp.where, (ST *) t_list (4, BOP_EQ, sqlc_ct_col_ref (ct, col->col_name), t_sym_string (tmp), NULL));
       nth++;
       if (nth >= ct->ct_table->tb_primary_key->key_n_significant)
 	break;
@@ -357,7 +350,7 @@ qc_make_1_continue (sql_comp_t * sc, query_cursor_t * qc, int n_specs, int is_in
       spec = qc->qc_order_by[nth];
       snprintf (tmp, sizeof (tmp), ":%d", pinx++);
       t_st_and (&tree->_.select_stmt.table_exp->_.table_exp.where,
-	      (ST *) t_list (4, BOP_EQ, t_box_copy_tree ((caddr_t) spec->_.o_spec.col), t_sym_string (tmp), NULL));
+	  (ST *) t_list (4, BOP_EQ, t_box_copy_tree ((caddr_t) spec->_.o_spec.col), t_sym_string (tmp), NULL));
     }
   spec = order_by[n_specs - 1];
   op = spec->_.o_spec.order == ORDER_ASC ? BOP_GT : BOP_LT;
@@ -370,7 +363,7 @@ qc_make_1_continue (sql_comp_t * sc, query_cursor_t * qc, int n_specs, int is_in
     }
   snprintf (tmp, sizeof (tmp), ":%d", pinx++);
   t_st_and (&tree->_.select_stmt.table_exp->_.table_exp.where,
-	  (ST *) t_list (4, op, t_box_copy_tree ((caddr_t) spec->_.o_spec.col), t_sym_string (tmp), NULL));
+      (ST *) t_list (4, op, t_box_copy_tree ((caddr_t) spec->_.o_spec.col), t_sym_string (tmp), NULL));
   return tree;
 }
 
@@ -411,21 +404,20 @@ ST *
 qc_position_texp (sql_comp_t * sc, query_cursor_t * qc)
 {
   ST **from = (ST **) t_alloc_box (sizeof (caddr_t),
-				    DV_ARRAY_OF_POINTER);
+      DV_ARRAY_OF_POINTER);
   int pinx = 0;
-  ST *texp = (ST *) t_list (9, TABLE_EXP, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL);
+  ST *texp = (ST *) t_list (9, TABLE_EXP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   comp_table_t *ct = sc->sc_tables[0];
   int nth = 0;
   from[0] = (ST *) t_list (6, TABLE_DOTTED, t_box_string (ct->ct_table->tb_name), NULL,
-			 t_box_num (ct->ct_u_id),
-			   t_box_num (ct->ct_g_id), NULL);
+      t_box_num (ct->ct_u_id), t_box_num (ct->ct_g_id), NULL);
 
   DO_SET (dbe_column_t *, col, &ct->ct_table->tb_primary_key->key_parts)
   {
     char tmp[10];
     snprintf (tmp, sizeof (tmp), ":%d", pinx++);
     t_st_and (&texp->_.table_exp.where,
-	    (ST *) t_list (4, BOP_EQ, t_list (3, COL_DOTTED, NULL, t_box_string (col->col_name)), t_sym_string (tmp), NULL));
+	(ST *) t_list (4, BOP_EQ, t_list (3, COL_DOTTED, NULL, t_box_string (col->col_name)), t_sym_string (tmp), NULL));
     nth++;
     if (nth >= ct->ct_table->tb_primary_key->key_n_significant)
       break;
@@ -465,9 +457,8 @@ qc_make_update (sql_comp_t * sc, query_cursor_t * qc)
   END_DO_BOX;
 
   upd = (ST *) t_list (5, UPDATE_SRC, t_list (6, TABLE_DOTTED, t_full_box_copy_tree (tb_name), NULL,
-					  t_full_box_copy_tree (tb_ref->_.table_ref.table->_.table.u_id),
-					      t_full_box_copy_tree (tb_ref->_.table_ref.table->_.table.g_id), NULL), cols, vals,
-		     qc_position_texp (sc, qc));
+	  t_full_box_copy_tree (tb_ref->_.table_ref.table->_.table.u_id),
+	  t_full_box_copy_tree (tb_ref->_.table_ref.table->_.table.g_id), NULL), cols, vals, qc_position_texp (sc, qc));
   qc->qc_update = sqlc_cr_method (sc, &upd, 1, 1);
   qc->qc_update_text = upd;
   return upd;
@@ -503,9 +494,9 @@ qc_make_insert (sql_comp_t * sc, query_cursor_t * qc)
   END_DO_BOX;
 
   ins = (ST *) t_list (7, INSERT_STMT, t_list (6, TABLE_DOTTED, t_box_copy (tb_name), NULL,
-					   t_box_copy (tb_ref->_.table_ref.table->_.table.u_id),
-					       t_box_copy (tb_ref->_.table_ref.table->_.table.g_id), NULL), cols,
-		       t_list (2, INSERT_VALUES, vals), (ptrlong)INS_NORMAL, NULL, NULL);
+	  t_box_copy (tb_ref->_.table_ref.table->_.table.u_id),
+	  t_box_copy (tb_ref->_.table_ref.table->_.table.g_id), NULL), cols,
+      t_list (2, INSERT_VALUES, vals), (ptrlong) INS_NORMAL, NULL, NULL);
 
   qc->qc_insert = sqlc_cr_method (sc, &ins, 1, 1);
   qc->qc_insert_text = ins;
@@ -564,8 +555,7 @@ qc_make_stmts (sql_comp_t * sc, query_cursor_t * qc)
   qc->qc_text_with_ids = (ST *) t_box_copy_tree ((caddr_t) qc->qc_org_text);
   old_sel = (ST **) qc->qc_text_with_ids->_.select_stmt.selection;
   id_copy = t_box_copy_tree ((caddr_t) qc->qc_id_order_col_refs);
-  qc->qc_text_with_ids->_.select_stmt.selection = (caddr_t *)
-    t_box_conc ((caddr_t) old_sel, id_copy);
+  qc->qc_text_with_ids->_.select_stmt.selection = (caddr_t *) t_box_conc ((caddr_t) old_sel, id_copy);
 /*  dk_free_box ((caddr_t) old_sel);
   dk_free_box (id_copy);*/
 
@@ -592,21 +582,21 @@ void
 sqlc_top_select_wrap_dt (sql_comp_t * sc, ST * tree)
 {
   /* given select top xx ...) splices it to be select ... from (select top xx... ) __ */
-  ST * top, * texp, * sel;
+  ST *top, *texp, *sel;
   if (!ST_P (tree, SELECT_STMT))
     return;
   top = SEL_TOP (tree);
   if (top)
     {
-      ST * out_names = (ST *) sqlc_selection_names (tree);
-      ST ** oby = tree->_.select_stmt.table_exp->_.table_exp.order_by;
+      ST *out_names = (ST *) sqlc_selection_names (tree);
+      ST **oby = tree->_.select_stmt.table_exp->_.table_exp.order_by;
       if (oby)
 	{
-	  sel = (ST*) /*list*/ t_list (5, SELECT_STMT, NULL, tree->_.select_stmt.selection, NULL,
+	  sel = (ST *) /*list */ t_list (5, SELECT_STMT, NULL, tree->_.select_stmt.selection, NULL,
 	      tree->_.select_stmt.table_exp);
-	  texp = (ST*) /*list*/ t_list (9, TABLE_EXP,
-	      /*list*/ t_list (1, /*list*/ t_list (3, DERIVED_TABLE, sel, t_box_string ("__"))),
-	      NULL, NULL, NULL, NULL, NULL,NULL, NULL);
+	  texp = (ST *) /*list */ t_list (9, TABLE_EXP,
+	      /*list */ t_list (1, /*list */ t_list (3, DERIVED_TABLE, sel, t_box_string ("__"))),
+	      NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	  tree->_.select_stmt.table_exp = sqlp_infoschema_redirect (texp);
 	  tree->_.select_stmt.selection = (caddr_t *) out_names;
 	  tree->_.select_stmt.top = top;
@@ -652,14 +642,12 @@ sqlc_cursor (sql_comp_t * sc, ST ** ptree, int cr_type)
 
     if (sc->sc_so)
       {
-	if (!cr_forced_static
-	    && -1 == sqlo_qc_make_cols (sc->sc_so, qc, tree))
+	if (!cr_forced_static && -1 == sqlo_qc_make_cols (sc->sc_so, qc, tree))
 	  cr_forced_static = 1;
       }
     else
       {
-	if (!cr_forced_static
-	    && -1 == qc_make_cols (sc, qc, tree))
+	if (!cr_forced_static && -1 == qc_make_cols (sc, qc, tree))
 	  cr_forced_static = 1;
       }
     if (!cr_forced_static)
@@ -698,23 +686,23 @@ qc_free (query_cursor_t * qc)
   dk_free_tree ((caddr_t) qc->qc_order_cols);
   dk_free_tree ((caddr_t) qc->qc_id_cols);
   /*dk_free_tree ((caddr_t) qc->qc_id_order_col_refs);
-  dk_free_tree ((caddr_t) qc->qc_org_text);
-  dk_free_tree ((caddr_t) qc->qc_order_by);
+     dk_free_tree ((caddr_t) qc->qc_org_text);
+     dk_free_tree ((caddr_t) qc->qc_order_by);
 
-  dk_free_tree ((caddr_t) qc->qc_referesh_text);
-  dk_free_tree ((caddr_t) qc->qc_update_text);
-  dk_free_tree ((caddr_t) qc->qc_delete_text);
-  dk_free_tree ((caddr_t) qc->qc_insert_text);
-  dk_free_tree ((caddr_t) qc->qc_pos_where);
-  dk_free_tree ((caddr_t) qc->qc_next_text);
-#if 1
-  box_tree_check ((caddr_t) qc->qc_prev_text);
-  dk_free_tree ((caddr_t) qc->qc_prev_text);
-#endif
-  dk_free_tree ((caddr_t) qc->qc_text_with_ids);
-  dk_free_tree ((caddr_t) qc->qc_refresh_text);
+     dk_free_tree ((caddr_t) qc->qc_referesh_text);
+     dk_free_tree ((caddr_t) qc->qc_update_text);
+     dk_free_tree ((caddr_t) qc->qc_delete_text);
+     dk_free_tree ((caddr_t) qc->qc_insert_text);
+     dk_free_tree ((caddr_t) qc->qc_pos_where);
+     dk_free_tree ((caddr_t) qc->qc_next_text);
+     #if 1
+     box_tree_check ((caddr_t) qc->qc_prev_text);
+     dk_free_tree ((caddr_t) qc->qc_prev_text);
+     #endif
+     dk_free_tree ((caddr_t) qc->qc_text_with_ids);
+     dk_free_tree ((caddr_t) qc->qc_refresh_text);
 
-  */
+   */
   qr_free (qc->qc_refresh);
   qr_free (qc->qc_update);
   qr_free (qc->qc_delete);
@@ -723,4 +711,3 @@ qc_free (query_cursor_t * qc)
   qr_box_free (qc->qc_next);
   dk_free ((caddr_t) qc, sizeof (query_cursor_t));
 }
-

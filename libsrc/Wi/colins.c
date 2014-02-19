@@ -1,29 +1,29 @@
 /*
- *  colins.c
- *
- *  $Id$
- *
- *  Column insert
- *
- *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
- *  project.
- *
- *  Copyright (C) 1998-2014 OpenLink Software
- *
- *  This project is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; only version 2 of the License, dated June 1991.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- *
- */
+*  colins.c
+*
+*  $Id$
+*
+*  Column insert
+*
+*  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
+*  project.
+*
+*  Copyright (C) 1998-2014 OpenLink Software
+*
+*  This project is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; only version 2 of the License, dated June 1991.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License along
+*  with this program; if not, write to the Free Software Foundation, Inc.,
+*  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+*
+*/
 
 
 #include "sqlnode.h"
@@ -164,12 +164,12 @@ itc_ce_check (it_cursor_t * itc, buffer_desc_t * buf, int leave)
 	    {
 	      if (cr->cr_pages[0].cp_buf->bd_page != expect_dp)
 		{
-		log_error ("col does not start at expected dp %d K %s C %d", expect_dp, key->key_name, nth_col);
+		  log_error ("col does not start at expected dp %d K %s C %d", expect_dp, key->key_name, nth_col);
 		  is_error = 1;
 		}
 	      if (cr->cr_first_ce != expect_ce)
 		{
-		log_error ("col seg does not start at expected ce %d K %s C %d", expect_ce, key->key_name, nth_col);
+		  log_error ("col seg does not start at expected ce %d K %s C %d", expect_ce, key->key_name, nth_col);
 		  is_error = 1;
 		}
 	    }
@@ -177,7 +177,7 @@ itc_ce_check (it_cursor_t * itc, buffer_desc_t * buf, int leave)
 	    {
 	      if (cr->cr_first_ce)
 		{
-		log_error ("seg is expected to start at ce 0 K %s C %d", key->key_name, nth_col);
+		  log_error ("seg is expected to start at ce 0 K %s C %d", key->key_name, nth_col);
 		  is_error = 1;
 		}
 	    }
@@ -388,10 +388,10 @@ itc_asc_ck (it_cursor_t * itc)
   int inx;
   if (cr)
     {
-  for (inx = 0; inx < cr->cr_n_pages; inx++)
+      for (inx = 0; inx < cr->cr_n_pages; inx++)
 	if (cr->cr_pages[inx].cp_buf)
-    buf_asc_ck (cr->cr_pages[inx].cp_buf);
-}
+	  buf_asc_ck (cr->cr_pages[inx].cp_buf);
+    }
 }
 
 
@@ -647,16 +647,16 @@ rq_check (it_cursor_t * itc)
     return;
   if (itc)
     {
-  IN_TXN;
-  lt_commit (itc->itc_ltrx, TRX_CONT);
-  LEAVE_TXN;
+      IN_TXN;
+      lt_commit (itc->itc_ltrx, TRX_CONT);
+      LEAVE_TXN;
     }
   bs = dc_batch_sz;
   dc_batch_sz = rq_batch_sz;
   if (-1 != dbf_rq_slice_only)
     cli_set_slice (qi->qi_client, itc->itc_insert_key->key_partition->kpd_map, dbf_rq_slice_only, NULL);
   if (qi)
-  qr_rec_exec (qr, qi->qi_client, &lc, qi, NULL, 0);
+    qr_rec_exec (qr, qi->qi_client, &lc, qi, NULL, 0);
   else
     {
       lt_enter (rfwd_cli->cli_trx);
@@ -882,7 +882,7 @@ col_dp_string (row_delta_t * rd, dp_addr_t dp)
 }
 
 
-int 
+int
 ff_nop (caddr_t x)
 {
   return 0;
@@ -995,7 +995,7 @@ int itc_col_initial (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
       if (rd->rd_rl && INS_NEW_RL != rd->rd_rl)
 	clk = (col_row_lock_t *) rd->rd_rl;
       else
-      clk = itc_new_clk (itc, 0);
+	clk = itc_new_clk (itc, 0);
       rl_add_clk (rl, clk, 0, 1);
       itc->itc_map_pos = 1;
       prd2->rd_rl = rl;
@@ -1655,7 +1655,7 @@ ce_merge_int (ce_ins_ctx_t * ceic, compress_state_t * cs, data_col_t * dc, int r
 	  split_at = -1;
 	  cs_reset (cs);
 	}
-}
+    }
 }
 
 
@@ -1684,7 +1684,7 @@ ce_merge (ce_ins_ctx_t * ceic, compress_state_t * cs, data_col_t * dc, int row_o
 	  if (is_upd)
 	    {
 	      if (!is_key)
-	      ceic_del_ins_rbe (ceic, nth_range, ((db_buf_t *) dc->dc_values)[inx]);
+		ceic_del_ins_rbe (ceic, nth_range, ((db_buf_t *) dc->dc_values)[inx]);
 	      inx++;
 	    }
 	  n_in++;
@@ -1694,8 +1694,8 @@ ce_merge (ce_ins_ctx_t * ceic, compress_state_t * cs, data_col_t * dc, int row_o
 	    {
 	      if (cs->cs_n_values)
 		{
-	      cs_best (cs, &best, &len);
-	      t_set_push (&cs->cs_ready_ces, (void *) best);
+		  cs_best (cs, &best, &len);
+		  t_set_push (&cs->cs_ready_ces, (void *) best);
 		}
 	      split_at = -1;
 	      cs_reset (cs);
@@ -1711,8 +1711,8 @@ ce_merge (ce_ins_ctx_t * ceic, compress_state_t * cs, data_col_t * dc, int row_o
 	{
 	  if (cs->cs_n_values)
 	    {
-	  cs_best (cs, &best, &len);
-	  t_set_push (&cs->cs_ready_ces, (void *) best);
+	      cs_best (cs, &best, &len);
+	      t_set_push (&cs->cs_ready_ces, (void *) best);
 	    }
 	  split_at = -1;
 	  cs_reset (cs);
@@ -1785,7 +1785,7 @@ ceic_init_dc (ce_ins_ctx_t * ceic, data_col_t * dc, db_buf_t ce)
   dtp_t col_dtp = dtp_canonical[ceic->ceic_col->col_sqt.sqt_col_dtp];
   if (!cs)
     cs = ceic->ceic_cs;
-  //goto any;
+  /*goto any; */
   if (ceic->ceic_is_cpt_restore > COL_UPDATE)
     goto any;
   if (ceic->ceic_col->col_sqt.sqt_non_null && (DV_IRI_ID == col_dtp || DV_LONG_INT == col_dtp))
@@ -1944,11 +1944,11 @@ ceic_merge_insert (ce_ins_ctx_t * ceic, buffer_desc_t * buf, int ice, db_buf_t o
   if (CS_INT_ONLY == cs->cs_all_int)
     ce_merge_int (ceic, cs, &dc, itc->itc_row_of_ce + start, split_at);
   else
-  ce_merge (ceic, cs, &dc, itc->itc_row_of_ce + start, split_at);
+    ce_merge (ceic, cs, &dc, itc->itc_row_of_ce + start, split_at);
   if (cs->cs_n_values)
     {
-  cs_best (cs, &last_ce, &last_ce_len);
-  mp_set_push (cs->cs_mp, &cs->cs_ready_ces, (void *) last_ce);
+      cs_best (cs, &last_ce, &last_ce_len);
+      mp_set_push (cs->cs_mp, &cs->cs_ready_ces, (void *) last_ce);
     }
   SET_THR_TMP_POOL (NULL);
   cs_reset_check (cs);
@@ -2013,8 +2013,8 @@ ce_right (ce_ins_ctx_t * ceic, db_buf_t org_ce, int start, int n_values)
     cs_compress (&cs, ((caddr_t *) dc.dc_values)[inx]);
   if (cs.cs_n_values)
     {
-  cs_best (&cs, &last_ce, &last_ce_len);
-  mp_set_push (ceic->ceic_mp, &cs.cs_ready_ces, (void *) last_ce);
+      cs_best (&cs, &last_ce, &last_ce_len);
+      mp_set_push (ceic->ceic_mp, &cs.cs_ready_ces, (void *) last_ce);
     }
   SET_THR_TMP_POOL (NULL);
   cs_distinct_ces (&cs);
@@ -2361,7 +2361,7 @@ cr_new_size (col_data_ref_t * cr, int *bytes_ret)
 		{
 		  if (bytes_ret)
 		    bytes += ce_total_bytes (delta_ce);
-	      n += ce_n_values (delta_ce);
+		  n += ce_n_values (delta_ce);
 		}
 	      CEIC_NEXT_OP (col_ceic, delta_ce, delta_op, delta_row);
 	    }
@@ -2406,7 +2406,7 @@ ceic_next_buf (ce_ins_ctx_t * ceic)
   if (ceic->ceic_is_ac)
     {
       ceic->ceic_itc->itc_insert_key->key_ac_out++;
-    ac_col_pages_out++;
+      ac_col_pages_out++;
     }
   for (inx = 0; inx < cr->cr_n_pages; inx++)
     {
@@ -2878,7 +2878,7 @@ ceic_compress (ce_ins_ctx_t * ceic, db_buf_t ce, int from, int to)
       if (CS_INT_ONLY == cs->cs_all_int)
 	cs_compress_int (cs, (int64 *) dc.dc_values, dc.dc_n_values);
       else
-      ce_recompress (ceic, cs, &dc);
+	ce_recompress (ceic, cs, &dc);
     }
 }
 
@@ -2943,7 +2943,7 @@ cr_unq_check (col_data_ref_t * cr)
       sethash (DP_ADDR2VOID (dp), unq, (void *) 1);
     }
   if (unq)
-  hash_table_free (unq);
+    hash_table_free (unq);
 }
 
 
@@ -3166,6 +3166,7 @@ cr_make_full_ceic (ce_ins_ctx_t * ceic, col_data_ref_t * cr, int *splits, int n_
   ceic->ceic_reloc = NULL;
   return ceic2;
 }
+
 
 
 int
@@ -3753,7 +3754,7 @@ itc_col_insert_rows (it_cursor_t * itc, buffer_desc_t * buf, int is_update)
       itc_fetch_col (itc, buf, &key->key_row_var[nth], 0, COL_NO_ROW);
     cr_insert (&ceic, buf, cr);
     if (!last_cr || cr->cr_n_ces < last_cr->cr_n_ces)
-    last_cr = cr;
+      last_cr = cr;
   next_col:
     nth++;
   }
@@ -4697,7 +4698,7 @@ itc_col_vec_insert (it_cursor_t * itc, insert_node_t * ins)
       if (enable_pogs_check && !col_ins_error && key_is_seg_check (itc->itc_insert_key->key_id))
 	{
 	  if (strstr (itc->itc_insert_key->key_name, "POGS"))
-	itc_pogs_seg_check (itc, buf);
+	    itc_pogs_seg_check (itc, buf);
 	  else if (strstr (itc->itc_insert_key->key_name, "QUAD_GS"))
 	    itc_gs_seg_check (itc, buf);
 	}
@@ -4726,8 +4727,8 @@ itc_col_vec_insert (it_cursor_t * itc, insert_node_t * ins)
 	    {
 	      if (bounds)
 		rq_range_check (itc, bounds);
-	    rq_check (itc);
-	}
+	      rq_check (itc);
+	    }
 	}
       else
 	{

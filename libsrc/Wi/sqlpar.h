@@ -33,6 +33,6 @@
 
 extern int sql3yylex (void);
 extern void sql3yyerror (const char *s);
-extern void yy_new_error(const char *s, const char *state, const char *native);
+extern void yy_new_error (const char *s, const char *state, const char *native);
 
 #endif /* _SQLPAR_H */

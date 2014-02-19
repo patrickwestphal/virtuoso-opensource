@@ -27,6 +27,7 @@
 
 #include "sqlnode.h"
 
+
 int cl_trx_inited;
 
 uint32 cl_last_wait_query;

@@ -25,13 +25,13 @@
 #define _RENDEZVOUS_H
 
 typedef struct zeroconfig_s
-  {
-    box_t zc_name;
-    box_t zc_dsn;
-    int zc_port;
-    int zc_ssl;
-    int zc_checked;
-  } zeroconfig_t;
+{
+  box_t zc_name;
+  box_t zc_dsn;
+  int zc_port;
+  int zc_ssl;
+  int zc_checked;
+} zeroconfig_t;
 
 extern dk_set_t zeroconfig_entries;
 

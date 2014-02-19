@@ -33,22 +33,23 @@
 /* XA ids support */
 #if !defined (XA_H)
 
-#define XIDDATASIZE	128		/* size in bytes */
+#define XIDDATASIZE	128	/* size in bytes */
 
-struct virt_xid_t {
-	int32 formatID;			/* format identifier */
-	int32 gtrid_length;		/* value not to exceed 64 */
-	int32 bqual_length;		/* value not to exceed 64 */
-	char data[XIDDATASIZE];
-  };
+struct virt_xid_t
+{
+  int32 formatID;		/* format identifier */
+  int32 gtrid_length;		/* value not to exceed 64 */
+  int32 bqual_length;		/* value not to exceed 64 */
+  char data[XIDDATASIZE];
+};
 typedef struct virt_xid_t virtXID;
 
 #endif
 
-char* uuid_bin_encode (void* uuid);
-void* uuid_bin_decode (const char* uuid_str);
+char *uuid_bin_encode (void *uuid);
+void *uuid_bin_decode (const char *uuid_str);
 
-char* xid_bin_encode (void* xid);
-void* xid_bin_decode (const char* xid_str);
+char *xid_bin_encode (void *xid);
+void *xid_bin_decode (const char *xid_str);
 
 #endif

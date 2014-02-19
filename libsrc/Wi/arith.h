@@ -37,9 +37,9 @@ int cmp_dv_box (caddr_t dv, caddr_t box);
 
 int cmp_double (double x1, double x2, double epsilon);
 
-extern int cmp_boxes (ccaddr_t box1, ccaddr_t box2, collation_t *collation1, collation_t *collation2);
-extern int cmp_boxes_safe (ccaddr_t box1, ccaddr_t box2, collation_t *collation1, collation_t *collation2);
-extern int bool_bop_boxes (int bop, ccaddr_t box1, ccaddr_t box2, collation_t *collation1, collation_t *collation2);
+extern int cmp_boxes (ccaddr_t box1, ccaddr_t box2, collation_t * collation1, collation_t * collation2);
+extern int cmp_boxes_safe (ccaddr_t box1, ccaddr_t box2, collation_t * collation1, collation_t * collation2);
+extern int bool_bop_boxes (int bop, ccaddr_t box1, ccaddr_t box2, collation_t * collation1, collation_t * collation2);
 
 caddr_t box_add (ccaddr_t l, ccaddr_t r, caddr_t * qst, state_slot_t * target);
 caddr_t box_sub (ccaddr_t l, ccaddr_t r, caddr_t * qst, state_slot_t * target);
@@ -66,16 +66,18 @@ void dc_asg_64 (instruction_t * ins, caddr_t * inst);
 
 #define ARTM_VEC_LEN 256
 
-typedef void (*artm_vec_f) (int64* res, int64 * l, int64* r, int n);
-extern  artm_vec_f vec_adds[3];
-extern  artm_vec_f vec_subs[3];
-extern  artm_vec_f vec_mpys[3];
-extern  artm_vec_f vec_divs[3];
+typedef void (*artm_vec_f) (int64 * res, int64 * l, int64 * r, int n);
+extern artm_vec_f vec_adds[3];
+extern artm_vec_f vec_subs[3];
+extern artm_vec_f vec_mpys[3];
+extern artm_vec_f vec_divs[3];
 
 int artm_vec (caddr_t * inst, instruction_t * ins, artm_vec_f * ops);
 
 int cmp_vec (caddr_t * inst, instruction_t * ins, dtp_t * set_mask, dtp_t * res_bits);
 
-#define CMP_VEC_NA 3 /* vec cmp not applicable, do items one by one */
+#define CMP_VEC_NA 3		/* vec cmp not applicable, do items one by one */
+
+
 
 #endif /* _WI_ARITH_H */

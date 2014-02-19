@@ -35,7 +35,7 @@
 #include "wi.h"
 #include "Dk.h"
 #ifndef WIN32
-#define __USE_MISC 1 /* hack for platform.h defining ulong & uint */
+#define __USE_MISC 1		/* hack for platform.h defining ulong & uint */
 #endif
 #ifdef OLD_TIDY
 #include "Tidy/html.h"
@@ -50,7 +50,7 @@
 static dk_mutex_t *tidy_mtx;
 
 #ifndef OLD_TIDY
-static void * TIDY_CALL
+static void *TIDY_CALL
 tidy_malloc (size_t len)
 {
   if (len >= MAX_BOX_LENGTH)
@@ -58,8 +58,8 @@ tidy_malloc (size_t len)
   return t_alloc_box (len, DV_CUSTOM);
 }
 
-static void * TIDY_CALL
-tidy_realloc (void * buf, size_t len)
+static void *TIDY_CALL
+tidy_realloc (void *buf, size_t len)
 {
   int buf_size = IS_BOX_POINTER (buf) ? box_length (buf) : 0;
   int copy_size = buf_size > len ? len : buf_size;
@@ -73,13 +73,13 @@ tidy_realloc (void * buf, size_t len)
 }
 
 static void TIDY_CALL
-tidy_free (void * buf)
+tidy_free (void *buf)
 {
   /* void, will release on MP_DONE */
 }
 
 static void TIDY_CALL
-tidy_panic (const char * err)
+tidy_panic (const char *err)
 {
   /* log_error ("Tidy panic: %s", err); */
   sqlr_new_error ("42000", "TIDYE", "Tidy panic: %s", err);
@@ -91,56 +91,58 @@ tidy_panic (const char * err)
 static int
 tidy_parse_config (TidyDoc doc, caddr_t config_str)
 {
-  dk_session_t * ses;
+  dk_session_t *ses;
   volatile int rc = -1, i = 0;
-  char name[64] = {0}, value[8192] = {0}, stat = READING_NAME;
+  char name[64] = { 0 }, value[8192] =
+  {
+  0}, stat = READING_NAME;
 
   ses = strses_allocate ();
   ses->dks_in_buffer = config_str;
   ses->dks_in_fill = box_length (config_str) - 1;
 
   CATCH_READ_FAIL (ses)
-    {
-      char c;
-      for (;;)
-	{
-	  c = session_buffered_read_char (ses);
-	  if (READING_VALUE == stat && (c == '\r' || c == '\n'))
-	    {
-	      value[i] = 0;
-	      rc = tidyOptParseValue (doc, name, value);
-	      i = 0;
-	      stat = READING_NAME;
-	      continue;
-	    }
-	  if (isspace (c))
+  {
+    char c;
+    for (;;)
+      {
+	c = session_buffered_read_char (ses);
+	if (READING_VALUE == stat && (c == '\r' || c == '\n'))
+	  {
+	    value[i] = 0;
+	    rc = tidyOptParseValue (doc, name, value);
+	    i = 0;
+	    stat = READING_NAME;
 	    continue;
-	  if (READING_NAME == stat && c == ':') /* delimiter */
-	    {
-	      name[i] = 0;
-	      i = 0;
-	      stat = READING_VALUE;
-	      continue;
-	    }
-	  if (READING_NAME == stat)
-	    name[i++] = c;
-	  if (READING_VALUE == stat)
-	    value[i++] = c;
-	  /* check for overflow */
-	  if (READING_NAME == stat && i >= sizeof (name))
-	    break;
-	  if (READING_VALUE == stat && i >= sizeof (value))
-	    break;
-	}
-    }
+	  }
+	if (isspace (c))
+	  continue;
+	if (READING_NAME == stat && c == ':')	/* delimiter */
+	  {
+	    name[i] = 0;
+	    i = 0;
+	    stat = READING_VALUE;
+	    continue;
+	  }
+	if (READING_NAME == stat)
+	  name[i++] = c;
+	if (READING_VALUE == stat)
+	  value[i++] = c;
+	/* check for overflow */
+	if (READING_NAME == stat && i >= sizeof (name))
+	  break;
+	if (READING_VALUE == stat && i >= sizeof (value))
+	  break;
+      }
+  }
   FAILED
-    {
-      if (READING_VALUE == stat)
-	{
-	  value[i] = 0;
-	  rc = tidyOptParseValue (doc, name, value);
-	}
-    }
+  {
+    if (READING_VALUE == stat)
+      {
+	value[i] = 0;
+	rc = tidyOptParseValue (doc, name, value);
+      }
+  }
   END_READ_FAIL (ses);
 
   ses->dks_in_buffer = NULL;
@@ -177,9 +179,9 @@ bif_tidy_html (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   TidyBuffer output;
   TidyBuffer errbuf;
   TidyDoc doc;
-  mem_pool_t * mp = THR_TMP_POOL;
+  mem_pool_t *mp = THR_TMP_POOL;
 
-  if (mp) /* do not crash if MP exists */
+  if (mp)			/* do not crash if MP exists */
     {
       SET_THR_TMP_POOL (NULL);
       log_error ("non-empty MP in bif_tidy");
@@ -211,10 +213,10 @@ bif_tidy_html (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     POP_QR_RESET;
     err = thr_get_error_code (THREAD_CURRENT_THREAD);
     MP_DONE ();
-      if (mp) /* restore */
-	{
-	  SET_THR_TMP_POOL (mp);
-	}
+    if (mp)			/* restore */
+      {
+	SET_THR_TMP_POOL (mp);
+      }
     sqlr_resignal (err);
   }
   END_QR_RESET;
@@ -224,8 +226,8 @@ bif_tidy_html (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       SET_THR_TMP_POOL (mp);
     }
   /*
-     tidyBufFree( &output );
-     tidyBufFree( &errbuf );
+     tidyBufFree (&output);
+     tidyBufFree (&errbuf);
      tidyRelease (doc);
    */
   if (res < 0)
@@ -296,7 +298,7 @@ bif_tidy_list_errors (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   END_QR_RESET;
   MP_DONE ();
   /*
-     tidyBufFree( &errbuf );
+     tidyBufFree (&errbuf);
      tidyRelease (doc);
    */
 #endif
@@ -313,7 +315,8 @@ bif_tidy_external (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 #endif
 }
 
-int bif_tidy_init(void)
+int
+bif_tidy_init (void)
 {
   tidy_mtx = mutex_allocate ();
   bif_define ("tidy_html", bif_tidy_html);

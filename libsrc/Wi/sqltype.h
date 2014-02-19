@@ -24,7 +24,7 @@
 /*#define UDT_HASH_DEBUG 1*/
 
 #ifdef UDT_HASH_DEBUG
-void dbg_udt_print_class_hash (dbe_schema_t *sc, char *msg, char *udt_name);
+void dbg_udt_print_class_hash (dbe_schema_t * sc, char *msg, char *udt_name);
 #else
 #define dbg_udt_print_class_hash(sc,msg,udt_name)
 #endif
@@ -54,7 +54,7 @@ struct sql_class_s
 
   sql_field_t **scl_member_map;
   sql_method_t **scl_method_map;
-  id_hash_t *	scl_name_to_method;
+  id_hash_t *scl_name_to_method;
 
   int scl_obsolete;
   long scl_id;
@@ -151,19 +151,16 @@ sql_domain_t;
 sql_class_t *udt_alloc_class_def (caddr_t name);
 sql_class_t *sch_name_to_type (dbe_schema_t * sc, const char *name);
 sql_class_t *udt_compile_class_def (dbe_schema_t * sc, caddr_t _tree,
-    sql_class_t * udt, caddr_t * err_ret, int store_in_hash, client_connection_t *cli,
-    long udt_id, long udt_migrate_to);
+    sql_class_t * udt, caddr_t * err_ret, int store_in_hash, client_connection_t * cli, long udt_id, long udt_migrate_to);
 void udt_ensure_init (client_connection_t * cli);
 void udt_resolve_instantiable (dbe_schema_t * sc, caddr_t * err_ret);
 
 caddr_t sqlp_udt_method_decl (int specific, int mtd_type,
-    caddr_t method_name, caddr_t params_list, caddr_t opt_ret,
-    caddr_t udt_name, caddr_t body, caddr_t alt_ret_type);
-caddr_t sqlp_udt_identifier_chain_to_member_handler (dk_set_t idents,
-    caddr_t args, int is_observer);
+    caddr_t method_name, caddr_t params_list, caddr_t opt_ret, caddr_t udt_name, caddr_t body, caddr_t alt_ret_type);
+caddr_t sqlp_udt_identifier_chain_to_member_handler (dk_set_t idents, caddr_t args, int is_observer);
 
-sql_class_t *ddl_type_to_class (caddr_t * type, sql_class_t *cls);
-extern void udt_ses_init(void);
+sql_class_t *ddl_type_to_class (caddr_t * type, sql_class_t * cls);
+extern void udt_ses_init (void);
 int udt_instance_of (sql_class_t * udt, sql_class_t * sudt);
 
 sql_class_t *bif_udt_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func);
@@ -175,8 +172,7 @@ dbe_schema_t *dbe_schema_copy (dbe_schema_t * from);
 
 sql_class_t *sch_id_to_type (dbe_schema_t * sc, long id);
 
-caddr_t udt_i_find_member_address (caddr_t *qst, state_slot_t *actual_ssl,
-    code_vec_t code_vec, instruction_t *ins);
+caddr_t udt_i_find_member_address (caddr_t * qst, state_slot_t * actual_ssl, code_vec_t code_vec, instruction_t * ins);
 
 #define UDT_IS_SAME_CLASS(cls1,cls2) \
   ((cls1)->scl_obsolete == (cls2)->scl_obsolete && \
@@ -185,16 +181,15 @@ caddr_t udt_i_find_member_address (caddr_t *qst, state_slot_t *actual_ssl,
 #define UDT_N_SIG_ELTS(sig) \
 	((int) ((sig) ? (box_length ((sig)) / sizeof (sql_type_t)) : 0))
 
-typedef caddr_t (*udt_instantiate_class_t) (caddr_t * qst, sql_class_t * udt, sql_method_t *mtd,
-         state_slot_t ** args, int n_args);
+typedef caddr_t (*udt_instantiate_class_t) (caddr_t * qst, sql_class_t * udt, sql_method_t * mtd, state_slot_t ** args, int n_args);
 typedef caddr_t (*udt_instance_copy_t) (caddr_t box);
 typedef void (*udt_instance_free_t) (caddr_t * box);
-typedef caddr_t (*udt_member_observer_t) (caddr_t *qst, caddr_t udi, sql_field_t *fld, int member_inx);
-typedef caddr_t (*udt_member_mutator_t) (caddr_t *qst, caddr_t udi, sql_field_t *fld, int member_inx, caddr_t new_val);
-typedef caddr_t (*udt_method_call_t) (caddr_t *qst, sql_class_t *udt, caddr_t udi,
-    sql_method_t *mtd, state_slot_t **args, int n_args);
+typedef caddr_t (*udt_member_observer_t) (caddr_t * qst, caddr_t udi, sql_field_t * fld, int member_inx);
+typedef caddr_t (*udt_member_mutator_t) (caddr_t * qst, caddr_t udi, sql_field_t * fld, int member_inx, caddr_t new_val);
+typedef caddr_t (*udt_method_call_t) (caddr_t * qst, sql_class_t * udt, caddr_t udi,
+    sql_method_t * mtd, state_slot_t ** args, int n_args);
 typedef int (*udt_serialize_t) (caddr_t udi, dk_session_t * session);
-typedef void *(*udt_deserialize_t) (dk_session_t * session, dtp_t dtp, sql_class_t *udt);
+typedef void *(*udt_deserialize_t) (dk_session_t * session, dtp_t dtp, sql_class_t * udt);
 
 #define UDT_I_CLASS(inst) \
    (((sql_class_t **)(inst))[0])
@@ -204,42 +199,40 @@ typedef void *(*udt_deserialize_t) (dk_session_t * session, dtp_t dtp, sql_class
 typedef struct sql_class_imp_s
 {
   udt_instantiate_class_t scli_instantiate_class;
-  udt_instance_copy_t     scli_instance_copy;
-  udt_instance_free_t     scli_instance_free;
-  udt_member_observer_t   scli_member_observer;
-  udt_member_mutator_t    scli_member_mutator;
-  udt_method_call_t       scli_method_call;
-  udt_serialize_t         scli_serialize;
-  udt_deserialize_t       scli_deserialize;
+  udt_instance_copy_t scli_instance_copy;
+  udt_instance_free_t scli_instance_free;
+  udt_member_observer_t scli_member_observer;
+  udt_member_mutator_t scli_member_mutator;
+  udt_method_call_t scli_method_call;
+  udt_serialize_t scli_serialize;
+  udt_deserialize_t scli_deserialize;
 } sql_class_imp_t;
 
 extern sql_class_imp_t imp_map[];
-sql_class_imp_t *get_imp_map_ptr(int type);
+sql_class_imp_t *get_imp_map_ptr (int type);
 
-caddr_t udt_instantiate_class (caddr_t * qst, sql_class_t * udt, long mtd_inx,
-    state_slot_t ** args, int n_args);
+caddr_t udt_instantiate_class (caddr_t * qst, sql_class_t * udt, long mtd_inx, state_slot_t ** args, int n_args);
 
 caddr_t udt_instance_copy (caddr_t box);
 
 void udt_instance_free (caddr_t * box);
 
-caddr_t udt_member_observer (caddr_t *qst, caddr_t udi, sql_field_t *fld, int member_inx);
-caddr_t udt_member_mutator (caddr_t *qst, caddr_t udi, sql_field_t *fld, int member_inx, caddr_t new_val);
-caddr_t udt_method_call (caddr_t *qst, sql_class_t *udt, caddr_t udi,
-    sql_method_t *mtd, state_slot_t **args, int n_args);
+caddr_t udt_member_observer (caddr_t * qst, caddr_t udi, sql_field_t * fld, int member_inx);
+caddr_t udt_member_mutator (caddr_t * qst, caddr_t udi, sql_field_t * fld, int member_inx, caddr_t new_val);
+caddr_t udt_method_call (caddr_t * qst, sql_class_t * udt, caddr_t udi, sql_method_t * mtd, state_slot_t ** args, int n_args);
 
 int udt_serialize (caddr_t udi, dk_session_t * session);
 void *udt_deserialize (dk_session_t * session, dtp_t dtp);
-caddr_t udt_deserialize_from_blob (caddr_t bh, lock_trx_t *lt);
+caddr_t udt_deserialize_from_blob (caddr_t bh, lock_trx_t * lt);
 
-void dbg_udt_print_object (caddr_t udi, FILE *out);
+void dbg_udt_print_object (caddr_t udi, FILE * out);
 
 /* object space stuff */
 
-object_space_t *udo_new_object_space (object_space_t *parent);
-void udo_object_space_clear (object_space_t *udo);
+object_space_t *udo_new_object_space (object_space_t * parent);
+void udo_object_space_clear (object_space_t * udo);
 caddr_t udo_find_object_by_ref (caddr_t ref);
-caddr_t udo_dbg_find_object_by_ref (query_instance_t *qi, caddr_t ref);
+caddr_t udo_dbg_find_object_by_ref (query_instance_t * qi, caddr_t ref);
 
 
 #define TA_OBJECT_SPACE_OWNER 2000
@@ -284,5 +277,5 @@ extern caddr_t xmltype_class_name;
 #define XMLTYPE_I_SCHEMA 1
 #define XMLTYPE_I_VALIDATED 2
 
-int udt_soap_struct_to_udi (caddr_t *place, dk_set_t *ret_set, caddr_t *ret_ptr, caddr_t *err_ret);
-extern query_t * qr_dotnet_get_assembly_real;
+int udt_soap_struct_to_udi (caddr_t * place, dk_set_t * ret_set, caddr_t * ret_ptr, caddr_t * err_ret);
+extern query_t *qr_dotnet_get_assembly_real;

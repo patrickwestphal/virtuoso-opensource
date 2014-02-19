@@ -91,8 +91,7 @@ sqlc_expand_col_ref (sql_comp_t * sc, ST * ref, comp_table_t * view_ct)
   int inx;
   DO_BOX (ST *, as_exp, inx, selection)
   {
-    if (0 == CASEMODESTRCMP ((caddr_t) as_exp->_.as_exp.name,
-	(caddr_t) ref->_.col_ref.name))
+    if (0 == CASEMODESTRCMP ((caddr_t) as_exp->_.as_exp.name, (caddr_t) ref->_.col_ref.name))
       {
 	return ((ST *) t_box_copy_tree ((caddr_t) sqlc_strip_as (as_exp->_.as_exp.left)));
       }
@@ -103,8 +102,7 @@ sqlc_expand_col_ref (sql_comp_t * sc, ST * ref, comp_table_t * view_ct)
 
 
 void
-sqlc_alias_non_view_ref (sql_comp_t * sc, ST * ref, col_ref_rec_t * crr,
-    dk_set_t * aliases)
+sqlc_alias_non_view_ref (sql_comp_t * sc, ST * ref, col_ref_rec_t * crr, dk_set_t * aliases)
 {
   static int alias_ctr;
   state_slot_t *ssl = sqlc_col_ref_rec_ssl (sc, crr);
@@ -113,11 +111,9 @@ sqlc_alias_non_view_ref (sql_comp_t * sc, ST * ref, col_ref_rec_t * crr,
     if (alias->crr_ssl == ssl)
       {
 	/*dk_free_tree (ref->_.col_ref.name);
-	dk_free_tree (ref->_.col_ref.prefix);*/
-	ref->_.col_ref.name =
-	    t_box_copy_tree (alias->crr_col_ref->_.col_ref.name);
-	ref->_.col_ref.prefix =
-	    t_box_copy_tree (alias->crr_col_ref->_.col_ref.prefix);
+	   dk_free_tree (ref->_.col_ref.prefix); */
+	ref->_.col_ref.name = t_box_copy_tree (alias->crr_col_ref->_.col_ref.name);
+	ref->_.col_ref.prefix = t_box_copy_tree (alias->crr_col_ref->_.col_ref.prefix);
 	return;
       }
   }
@@ -139,8 +135,7 @@ sqlc_alias_non_view_ref (sql_comp_t * sc, ST * ref, col_ref_rec_t * crr,
 
 
 void
-sqlc_alias_update_non_view_ref (sql_comp_t * sc, ST ** ref_place,
-    dk_set_t * aliases)
+sqlc_alias_update_non_view_ref (sql_comp_t * sc, ST ** ref_place, dk_set_t * aliases)
 {
   ST *ref = *ref_place;
   static int alias_ctr;
@@ -149,7 +144,7 @@ sqlc_alias_update_non_view_ref (sql_comp_t * sc, ST ** ref_place,
   {
     if (alias->crr_ssl == ssl)
       {
-	/* dk_free_tree (*ref_place);*/
+	/* dk_free_tree (*ref_place); */
 	*ref_place = (ST *) t_box_copy_tree ((caddr_t) alias->crr_col_ref);
 	return;
       }
@@ -169,8 +164,7 @@ sqlc_alias_update_non_view_ref (sql_comp_t * sc, ST ** ref_place,
 
 
 void
-sqlc_col_to_view_scope (sql_comp_t * sc, ST ** tree_place, ST * view_exp,
-    dk_set_t * aliases)
+sqlc_col_to_view_scope (sql_comp_t * sc, ST ** tree_place, ST * view_exp, dk_set_t * aliases)
 {
   /* In update / delete substitute in view name for external name.
      No correlation names and joins here */
@@ -192,21 +186,20 @@ sqlc_col_to_view_scope (sql_comp_t * sc, ST ** tree_place, ST * view_exp,
   END_DO_BOX;
   if (repl)
     {
-      /*dk_free_tree ((caddr_t) tree);*/
+      /*dk_free_tree ((caddr_t) tree); */
       *tree_place = (ST *) t_box_copy_tree ((caddr_t) repl);
     }
   else
     {
       if (!ST_P (tree, COL_DOTTED))
 	sqlc_new_error (sc->sc_cc, "37000", "SQ113", "Non-view column set in view update");
-      /*sqlc_alias_update_non_view_ref (sc, tree_place, aliases);*/
+      /*sqlc_alias_update_non_view_ref (sc, tree_place, aliases); */
     }
 }
 
 
 void
-sqlc_exp_to_view_scope (sql_comp_t * sc, ST ** tree_place,
-    comp_table_t * view_ct, ST * view_exp, dk_set_t * aliases)
+sqlc_exp_to_view_scope (sql_comp_t * sc, ST ** tree_place, comp_table_t * view_ct, ST * view_exp, dk_set_t * aliases)
 {
   ST *tree = *tree_place;
   if (!tree)
@@ -229,7 +222,7 @@ sqlc_exp_to_view_scope (sql_comp_t * sc, ST ** tree_place,
 	      ST *expansion = sqlc_expand_col_ref (sc, tree, view_ct);
 	      if (!expansion)
 		SQL_GPF_T1 (sc->sc_cc, "Derived renamed with no internal name");
-	      /*dk_free_tree ((caddr_t) tree);*/
+	      /*dk_free_tree ((caddr_t) tree); */
 	      *tree_place = expansion;
 	    }
 	  else
@@ -240,10 +233,8 @@ sqlc_exp_to_view_scope (sql_comp_t * sc, ST ** tree_place,
     }
   else if (BIN_EXP_P (tree))
     {
-      sqlc_exp_to_view_scope (sc, &tree->_.bin_exp.left, view_ct, view_exp,
-	  aliases);
-      sqlc_exp_to_view_scope (sc, &tree->_.bin_exp.right, view_ct, view_exp,
-	  aliases);
+      sqlc_exp_to_view_scope (sc, &tree->_.bin_exp.left, view_ct, view_exp, aliases);
+      sqlc_exp_to_view_scope (sc, &tree->_.bin_exp.right, view_ct, view_exp, aliases);
     }
   else if (SUBQ_P (tree))
     return;
@@ -251,8 +242,7 @@ sqlc_exp_to_view_scope (sql_comp_t * sc, ST ** tree_place,
     {
       int inx;
       if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (tree->_.call.name))
-	sqlc_exp_to_view_scope (sc, ((ST ***) &tree->_.call.name)[0],
-	    view_ct, view_exp, aliases);
+	sqlc_exp_to_view_scope (sc, ((ST ***) & tree->_.call.name)[0], view_ct, view_exp, aliases);
       _DO_BOX (inx, tree->_.call.params)
       {
 	sqlc_exp_to_view_scope (sc, &tree->_.call.params[inx], view_ct, view_exp, aliases);
@@ -270,10 +260,8 @@ sqlc_exp_to_view_scope (sql_comp_t * sc, ST ** tree_place,
     }
   else if (ST_P (tree, ASG_STMT))
     {
-      sqlc_exp_to_view_scope (sc, (ST **) &tree->_.op.arg_1,
-	  view_ct, view_exp, aliases);
-      sqlc_exp_to_view_scope (sc, (ST **) &tree->_.op.arg_2,
-	  view_ct, view_exp, aliases);
+      sqlc_exp_to_view_scope (sc, (ST **) & tree->_.op.arg_1, view_ct, view_exp, aliases);
+      sqlc_exp_to_view_scope (sc, (ST **) & tree->_.op.arg_2, view_ct, view_exp, aliases);
     }
 }
 
@@ -289,16 +277,15 @@ subq_node_free (subq_source_t * sqs)
 void
 sqlc_proc_table_cols (sql_comp_t * sc, comp_table_t * ct)
 {
-  caddr_t * cols;
+  caddr_t *cols;
   int inx;
-  ST * tree = ct->ct_derived;
+  ST *tree = ct->ct_derived;
 
   DO_BOX (caddr_t, param, inx, tree->_.proc_table.params)
   {
     t_NEW_VARZ (col_ref_rec_t, crr);
     crr->crr_ct = ct;
-    crr->crr_col_ref = (ST *) t_list (3, COL_DOTTED, ct->ct_prefix,
-				    t_box_string (param));
+    crr->crr_col_ref = (ST *) t_list (3, COL_DOTTED, ct->ct_prefix, t_box_string (param));
     crr->crr_proc_table_mode = CRR_PT_IN_EQU;
     crr->crr_ssl = sqlc_new_temp (sc, param, DV_UNKNOWN);
     t_dk_set_append_1 (&ct->ct_out_crrs, (void *) crr);
@@ -308,35 +295,34 @@ sqlc_proc_table_cols (sql_comp_t * sc, comp_table_t * ct)
   cols = (caddr_t *) ct->ct_derived->_.proc_table.cols;
   for (inx = 0; ((uint32) inx) < BOX_ELEMENTS (tree->_.proc_table.cols); inx += 2)
     {
-      state_slot_t * ssl = NULL;
+      state_slot_t *ssl = NULL;
       if (!cols[inx])
 	continue;
-      DO_SET(col_ref_rec_t *, crr, &ct->ct_out_crrs)
-	{
-	  dtp_t name_dtp = DV_TYPE_OF (crr->crr_col_ref->_.col_ref.name);
-	  dtp_t cols_dtp = DV_TYPE_OF (cols[inx]);
-	  if (((IS_STRING_DTP (name_dtp) || name_dtp == DV_SYMBOL) &&
-	      (IS_STRING_DTP (cols_dtp) || cols_dtp == DV_SYMBOL) &&
-	      0 == CASEMODESTRCMP (crr->crr_col_ref->_.col_ref.name, cols[inx])) ||
-	      box_equal (crr->crr_col_ref->_.col_ref.name, cols[inx]))
-	    {
-	      ssl = crr->crr_ssl;
-	      goto already_in;
-	    }
-	}
-      END_DO_SET();
+      DO_SET (col_ref_rec_t *, crr, &ct->ct_out_crrs)
+      {
+	dtp_t name_dtp = DV_TYPE_OF (crr->crr_col_ref->_.col_ref.name);
+	dtp_t cols_dtp = DV_TYPE_OF (cols[inx]);
+	if (((IS_STRING_DTP (name_dtp) || name_dtp == DV_SYMBOL) &&
+		(IS_STRING_DTP (cols_dtp) || cols_dtp == DV_SYMBOL) &&
+		0 == CASEMODESTRCMP (crr->crr_col_ref->_.col_ref.name, cols[inx])) ||
+	    box_equal (crr->crr_col_ref->_.col_ref.name, cols[inx]))
+	  {
+	    ssl = crr->crr_ssl;
+	    goto already_in;
+	  }
+      }
+      END_DO_SET ();
 
       {
 	t_NEW_VARZ (col_ref_rec_t, crr);
 	crr->crr_ct = ct;
-	crr->crr_col_ref = (ST *) t_list (3, COL_DOTTED, ct->ct_prefix,
-					t_box_string (cols[inx]));
+	crr->crr_col_ref = (ST *) t_list (3, COL_DOTTED, ct->ct_prefix, t_box_string (cols[inx]));
 	crr->crr_ssl = sqlc_new_temp (sc, cols[inx], DV_UNKNOWN);
 	ssl = crr->crr_ssl;
 	t_dk_set_append_1 (&ct->ct_out_crrs, (void *) crr);
 	t_set_push (&sc->sc_col_ref_recs, (void *) crr);
       }
-    already_in: ;
+    already_in:;
       ddl_type_to_sqt (&(ssl->ssl_sqt), ((caddr_t ***) cols)[inx + 1][0]);
     }
 }
@@ -346,7 +332,7 @@ void
 sqlc_insert_view (sql_comp_t * sc, ST * view, ST * tree, dbe_table_t * tb)
 {
   /*oid_t ref_g_id = unbox (tree->_.insert.table->_.table.g_id);
-  oid_t ref_u_id = unbox (tree->_.insert.table->_.table.u_id);*/
+     oid_t ref_u_id = unbox (tree->_.insert.table->_.table.u_id); */
 
   int inx;
   ST **cols = tree->_.insert.cols;
@@ -354,61 +340,53 @@ sqlc_insert_view (sql_comp_t * sc, ST * view, ST * tree, dbe_table_t * tb)
   dk_set_t new_cols = NULL, new_vals = NULL;
 
   if (!sqlc_view_is_updatable (view))
-    sqlc_new_error (sc->sc_cc, "37000", "SQ114",
-	"View %s is not updatable in insert.", tb->tb_name);
+    sqlc_new_error (sc->sc_cc, "37000", "SQ114", "View %s is not updatable in insert.", tb->tb_name);
 
-  /*dk_free_tree ((caddr_t) tree->_.insert.table);*/
-  tree->_.insert.table = (ST *) t_box_copy_tree (
-      (caddr_t) view->_.select_stmt.table_exp->_.table_exp.from[0]->_.table_ref.table);
+  /*dk_free_tree ((caddr_t) tree->_.insert.table); */
+  tree->_.insert.table = (ST *) t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.from[0]->_.table_ref.table);
 
   _DO_BOX (inx, tree->_.insert.cols)
-    {
-      sqlc_col_to_view_scope (sc, &cols[inx], view, &aliases);
-      if (!ST_P (tree->_.insert.vals, SELECT_STMT))
-	sinv_sqlo_check_col_val (&cols[inx],
-	    &(tree->_.insert.vals->_.ins_vals.vals[inx]),
-	    &new_cols, &new_vals);
-    }
+  {
+    sqlc_col_to_view_scope (sc, &cols[inx], view, &aliases);
+    if (!ST_P (tree->_.insert.vals, SELECT_STMT))
+      sinv_sqlo_check_col_val (&cols[inx], &(tree->_.insert.vals->_.ins_vals.vals[inx]), &new_cols, &new_vals);
+  }
   END_DO_BOX;
 
   if (new_cols)
     {
-      ST ** new_cols_box = (ST **) t_alloc_box (
-	  (BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
+      ST **new_cols_box = (ST **) t_alloc_box ((BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
 	  DV_ARRAY_OF_POINTER);
-      ST ** new_vals_box = (ST **) t_alloc_box (
-	  (BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
+      ST **new_vals_box = (ST **) t_alloc_box ((BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
 	  DV_ARRAY_OF_POINTER);
       memcpy (new_cols_box, cols, box_length (cols));
       memcpy (new_vals_box, tree->_.insert.vals->_.ins_vals.vals, box_length (cols));
       inx = BOX_ELEMENTS (cols);
       DO_SET (ST *, new_col, &new_cols)
-	{
-	  new_cols_box[inx] = new_col;
-	  new_vals_box[inx] = (ST *) new_vals->data;
-	  new_vals = new_vals->next;
-	  inx ++;
-	}
+      {
+	new_cols_box[inx] = new_col;
+	new_vals_box[inx] = (ST *) new_vals->data;
+	new_vals = new_vals->next;
+	inx++;
+      }
       END_DO_SET ();
       tree->_.insert.cols = cols = new_cols_box;
       tree->_.insert.vals->_.ins_vals.vals = new_vals_box;
     }
 
   _DO_BOX (inx, tree->_.insert.cols)
-    {
-      if (ST_P (cols[inx], COL_DOTTED))
-	{
-	  ST *c = (ST *) t_box_copy_tree (cols[inx]->_.col_ref.name);
-	  /*dk_free_tree (cols[inx]);*/
-	  cols[inx] = c;
-	}
-      else
-	{
-	  sqlc_new_error (sc->sc_cc, "37000", "SQ115",
-	      "Non-updatable column in view %s (expression or constant)",
-	      tb->tb_name);
-	}
-    }
+  {
+    if (ST_P (cols[inx], COL_DOTTED))
+      {
+	ST *c = (ST *) t_box_copy_tree (cols[inx]->_.col_ref.name);
+	/*dk_free_tree (cols[inx]); */
+	cols[inx] = c;
+      }
+    else
+      {
+	sqlc_new_error (sc->sc_cc, "37000", "SQ115", "Non-updatable column in view %s (expression or constant)", tb->tb_name);
+      }
+  }
   END_DO_BOX;
 
 
@@ -431,74 +409,64 @@ sqlc_update_view (sql_comp_t * sc, ST * view, ST * tree, dbe_table_t * tb)
   dk_set_t new_cols = NULL, new_vals = NULL;
 
   if (!sqlc_view_is_updatable (view))
-    sqlc_new_error (sc->sc_cc, "37000", "SQ116",
-	"View %.300s is not updatable.", tb->tb_name);
+    sqlc_new_error (sc->sc_cc, "37000", "SQ116", "View %.300s is not updatable.", tb->tb_name);
 
   if (sec_tb_check (tb, SC_G_ID (sc), SC_U_ID (sc), GR_UPDATE))
     sec_checked = 1;
-  /*dk_free_tree ((caddr_t) tree->_.update_src.table);*/
+  /*dk_free_tree ((caddr_t) tree->_.update_src.table); */
   tree->_.update_src.table = (ST *)
       t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.from[0]->_.table_ref.table);
-  /*dk_free_tree ((caddr_t) tree->_.update_src.table_exp->_.table_exp.from[0]);*/
-  tree->_.update_src.table_exp->_.table_exp.from[0]
-      = (ST *) t_box_copy_tree ((caddr_t) tree->_.update_src.table);
+  /*dk_free_tree ((caddr_t) tree->_.update_src.table_exp->_.table_exp.from[0]); */
+  tree->_.update_src.table_exp->_.table_exp.from[0] = (ST *) t_box_copy_tree ((caddr_t) tree->_.update_src.table);
 
   _DO_BOX (inx, tree->_.update_src.cols)
-    {
-      dbe_column_t * v_col = tb_name_to_column (tb, (caddr_t) cols[inx]);
-      if (!sec_checked
-	  && (!v_col || !sec_col_check (v_col, ref_g_id, ref_u_id, GR_UPDATE)))
-	sqlc_new_error (sc->sc_cc, "42000", "SQ117",
-	    "No column update privilege for %.100s in view %.300s (user ID = %lu)",
-	    v_col ? v_col->col_name : "<bad column>", tb->tb_name, ref_u_id );
-      sqlc_col_to_view_scope (sc, &cols[inx], view, &aliases);
-      sqlc_exp_to_view_scope (sc, &tree->_.update_src.vals[inx], NULL, view,
-	  &aliases);
-      sinv_sqlo_check_col_val (&cols[inx], &tree->_.update_src.vals[inx],
-	  &new_cols, &new_vals);
-    }
+  {
+    dbe_column_t *v_col = tb_name_to_column (tb, (caddr_t) cols[inx]);
+    if (!sec_checked && (!v_col || !sec_col_check (v_col, ref_g_id, ref_u_id, GR_UPDATE)))
+      sqlc_new_error (sc->sc_cc, "42000", "SQ117",
+	  "No column update privilege for %.100s in view %.300s (user ID = %lu)",
+	  v_col ? v_col->col_name : "<bad column>", tb->tb_name, ref_u_id);
+    sqlc_col_to_view_scope (sc, &cols[inx], view, &aliases);
+    sqlc_exp_to_view_scope (sc, &tree->_.update_src.vals[inx], NULL, view, &aliases);
+    sinv_sqlo_check_col_val (&cols[inx], &tree->_.update_src.vals[inx], &new_cols, &new_vals);
+  }
   END_DO_BOX;
   if (new_cols)
     {
-      ST ** new_cols_box = (ST **) t_alloc_box (
-	  (BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
+      ST **new_cols_box = (ST **) t_alloc_box ((BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
 	  DV_ARRAY_OF_POINTER);
-      ST ** new_vals_box = (ST **) t_alloc_box (
-	  (BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
+      ST **new_vals_box = (ST **) t_alloc_box ((BOX_ELEMENTS (cols) + dk_set_length (new_cols)) * sizeof (caddr_t),
 	  DV_ARRAY_OF_POINTER);
       memcpy (new_cols_box, cols, box_length (cols));
       memcpy (new_vals_box, tree->_.update_src.vals, box_length (cols));
       inx = BOX_ELEMENTS (cols);
       DO_SET (ST *, new_col, &new_cols)
-	{
-	  new_cols_box[inx] = new_col;
-	  new_vals_box[inx] = (ST *) new_vals->data;
-	  new_vals = new_vals->next;
-	  inx ++;
-	}
+      {
+	new_cols_box[inx] = new_col;
+	new_vals_box[inx] = (ST *) new_vals->data;
+	new_vals = new_vals->next;
+	inx++;
+      }
       END_DO_SET ();
       tree->_.update_src.cols = cols = new_cols_box;
       tree->_.update_src.vals = new_vals_box;
     }
 
   _DO_BOX (inx, tree->_.update_src.cols)
-    {
-      if (ST_P (cols[inx], COL_DOTTED))
-	{
-	  ST *c = (ST *) t_box_copy_tree (cols[inx]->_.col_ref.name);
-	  cols[inx] = c;
-	}
-      else
-	{
-	  sqlc_new_error (sc->sc_cc, "37000", "SQ118",
-	      "Non-updatable column in view %s (expression or constant)",
-	      tb->tb_name);
-	}
-    }
+  {
+    if (ST_P (cols[inx], COL_DOTTED))
+      {
+	ST *c = (ST *) t_box_copy_tree (cols[inx]->_.col_ref.name);
+	cols[inx] = c;
+      }
+    else
+      {
+	sqlc_new_error (sc->sc_cc, "37000", "SQ118", "Non-updatable column in view %s (expression or constant)", tb->tb_name);
+      }
+  }
   END_DO_BOX;
   sqlc_exp_to_view_scope (sc, &texp->_.table_exp.where, NULL, view, &aliases);
-  t_st_and (&texp->_.table_exp.where,
-      (ST *) t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.where));
+  t_st_and (&texp->_.table_exp.where, (ST *) t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.where));
 
   sc->sc_col_ref_recs = t_NCONC (aliases, sc->sc_col_ref_recs);
   sqlc_update_searched (sc, tree);
@@ -516,13 +484,12 @@ sqlc_delete_view (sql_comp_t * sc, ST * view, ST * tree)
 	texp && texp->_.table_exp.from[0] && texp->_.table_exp.from[0]->_.table_ref.table ?
 	(char *) texp->_.table_exp.from[0]->_.table_ref.table : "<unknown>");
 
-  /*dk_free_tree ((caddr_t) tree->_.delete_src.table_exp->_.table_exp.from[0]);*/
+  /*dk_free_tree ((caddr_t) tree->_.delete_src.table_exp->_.table_exp.from[0]); */
   tree->_.delete_src.table_exp->_.table_exp.from[0] = (ST *)
       t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.from[0]->_.table_ref.table);
 
   sqlc_exp_to_view_scope (sc, &texp->_.table_exp.where, NULL, view, &aliases);
-  t_st_and (&texp->_.table_exp.where,
-      (ST *) t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.where));
+  t_st_and (&texp->_.table_exp.where, (ST *) t_box_copy_tree ((caddr_t) view->_.select_stmt.table_exp->_.table_exp.where));
 
   sc->sc_col_ref_recs = t_NCONC (aliases, sc->sc_col_ref_recs);
   sqlc_delete_searched (sc, tree);
@@ -536,12 +503,12 @@ sqlc_union_constants (ST * sel)
 {
   int inx;
   DO_BOX (ST *, tree, inx, sel->_.select_stmt.selection)
-    {
-      if (ST_P (tree, BOP_AS) && SQLC_IS_LIT (tree->_.as_exp.left))
-	tree->_.as_exp.left = (ST*) t_list (3, CALL_STMT, t_sqlp_box_id_upcase ("__copy"), t_list (1, tree->_.as_exp.left));
-      else if (SQLC_IS_LIT (tree))
-	sel->_.select_stmt.selection[inx] = t_listbox (3, CALL_STMT, t_sqlp_box_id_upcase ("__copy"), t_list (1, tree));
-    }
+  {
+    if (ST_P (tree, BOP_AS) && SQLC_IS_LIT (tree->_.as_exp.left))
+      tree->_.as_exp.left = (ST *) t_list (3, CALL_STMT, t_sqlp_box_id_upcase ("__copy"), t_list (1, tree->_.as_exp.left));
+    else if (SQLC_IS_LIT (tree))
+      sel->_.select_stmt.selection[inx] = t_listbox (3, CALL_STMT, t_sqlp_box_id_upcase ("__copy"), t_list (1, tree));
+  }
   END_DO_BOX;
 }
 
@@ -556,8 +523,7 @@ sqlc_union_tree (sql_comp_t * sc, ST ** ptree, dk_set_t * selects)
       sqlc_union_constants (tree);
       dk_set_append_1 (selects, (void *) ptree);
     }
-  else if (ST_P (tree, UNION_ALL_ST)
-      || ST_P (tree, UNION_ST))
+  else if (ST_P (tree, UNION_ALL_ST) || ST_P (tree, UNION_ST))
     {
       sqlc_union_tree (sc, &(tree->_.bin_exp.left), selects);
       sqlc_union_tree (sc, &(tree->_.bin_exp.right), selects);
@@ -573,8 +539,7 @@ sqlc_is_all_unions (ST * tree)
   if (ST_P (tree, SELECT_STMT))
     return 1;
   if (ST_P (tree, UNION_ST) || ST_P (tree, UNION_ALL_ST))
-    return (sqlc_is_all_unions (tree->_.set_exp.left)
-	&& sqlc_is_all_unions (tree->_.set_exp.right));
+    return (sqlc_is_all_unions (tree->_.set_exp.left) && sqlc_is_all_unions (tree->_.set_exp.right));
   return 0;
 }
 
@@ -587,8 +552,7 @@ sqlc_union_all_tree (sql_comp_t * sc, ST ** ptree)
     {
       sqlc_union_constants (tree);
       sqlc_top_select_dt (sc, tree);
-      t_dk_set_append_1 (&sc->sc_union_lists,
-	  (void *) t_CONS (ptree, NULL));
+      t_dk_set_append_1 (&sc->sc_union_lists, (void *) t_CONS (ptree, NULL));
     }
   else if (ST_P (tree, UNION_ALL_ST))
     {
@@ -662,39 +626,36 @@ qr_alias_out_cols (sql_comp_t * sc, query_t * qr, select_node_t * target_sel)
 
 
 void
-qr_replace_node (query_t * qr, data_source_t * to_replace,
-		 data_source_t * replace_with, int move_after_code)
+qr_replace_node (query_t * qr, data_source_t * to_replace, data_source_t * replace_with, int move_after_code)
 {
   /* replace query's select node  with given */
   if (to_replace == qr->qr_head_node)
     qr->qr_head_node = replace_with;
   DO_SET (data_source_t *, ds, &qr->qr_nodes)
   {
-    if ((qn_input_fn)fun_ref_node_input == ds->src_input || IS_QN (ds, hash_fill_node_input))
+    if ((qn_input_fn) fun_ref_node_input == ds->src_input || IS_QN (ds, hash_fill_node_input))
       {
-	fun_ref_node_t * fref = (fun_ref_node_t  *)ds;
+	fun_ref_node_t *fref = (fun_ref_node_t *) ds;
 	if (fref->fnr_select == to_replace)
 	  fref->fnr_select = replace_with;
       }
-    if (ds->src_continuations
-	&& ds->src_continuations->data == (caddr_t) to_replace)
+    if (ds->src_continuations && ds->src_continuations->data == (caddr_t) to_replace)
       {
 	if (move_after_code)
 	  {
 	    replace_with->src_after_code = ds->src_after_code;
 	    ds->src_after_code = NULL;
 	  }
-      ds->src_continuations->data = (caddr_t) replace_with;
-  }
+	ds->src_continuations->data = (caddr_t) replace_with;
+      }
   }
   END_DO_SET ();
   if (IS_QN (qr->qr_head_node, union_node_input))
     {
       QNCAST (union_node_t, uni, qr->qr_head_node);
-      DO_SET (query_t *, uqr, &uni->uni_successors)
-	if (to_replace == uqr->qr_head_node)
-	  uqr->qr_head_node = replace_with;
-      END_DO_SET();
+      DO_SET (query_t *, uqr, &uni->uni_successors) if (to_replace == uqr->qr_head_node)
+	uqr->qr_head_node = replace_with;
+      END_DO_SET ();
     }
 }
 
@@ -821,30 +782,23 @@ sqlc_set_stmt (sql_comp_t * sc, ST * tree)
   qr_alias_out_cols (sc, right->sqc_query, sel);
   if (ST_P (tree, UNION_ALL_ST))
     {
-      qr_replace_node (right->sqc_query,
-	  (data_source_t *) right->sqc_query->qr_select_node,
-		       (data_source_t *) sel, 1);
+      qr_replace_node (right->sqc_query, (data_source_t *) right->sqc_query->qr_select_node, (data_source_t *) sel, 1);
 
     }
   else
     {
       setp_left = setp_node_keys (sc, sel, cols);
       setp_left->src_gen.src_continuations = CONS (sel, NULL);
-      qr_replace_node (left->sqc_query,
-		       (data_source_t *) sel, (data_source_t *) setp_left, 1);
+      qr_replace_node (left->sqc_query, (data_source_t *) sel, (data_source_t *) setp_left, 1);
 
       if (ST_P (tree, UNION_ST))
 	{
-	  qr_replace_node (right->sqc_query,
-	      (data_source_t *) right->sqc_query->qr_select_node,
-			   (data_source_t *) setp_left, 1);
+	  qr_replace_node (right->sqc_query, (data_source_t *) right->sqc_query->qr_select_node, (data_source_t *) setp_left, 1);
 	}
       else
 	{
 	  setp_right = setp_node_keys (sc, sel, cols);
-	  qr_replace_node (right->sqc_query,
-	      (data_source_t *) right->sqc_query->qr_select_node,
-			   (data_source_t *) setp_right, 1);
+	  qr_replace_node (right->sqc_query, (data_source_t *) right->sqc_query->qr_select_node, (data_source_t *) setp_right, 1);
 	  setp_left->setp_set_op = (int) tree->type;
 	}
     }
@@ -853,8 +807,7 @@ sqlc_set_stmt (sql_comp_t * sc, ST * tree)
   cc->cc_query->qr_select_node = sel;
   DO_SET (query_t *, u_qr, &un->uni_successors)
   {
-    cc->cc_query->qr_nodes = dk_set_conc (u_qr->qr_nodes,
-	cc->cc_query->qr_nodes);
+    cc->cc_query->qr_nodes = dk_set_conc (u_qr->qr_nodes, cc->cc_query->qr_nodes);
     u_qr->qr_nodes = NULL;
   }
   END_DO_SET ();
@@ -863,13 +816,13 @@ sqlc_set_stmt (sql_comp_t * sc, ST * tree)
 }
 
 
-ST*
+ST *
 sqlc_copy_union_as (ST * exp, ST * as, int inx)
 {
   /* copy the as and replace the exp w/ the given. Note that AS can be5 or 6 long
    * depending on xml_col declaration element */
-  ST * copy = (ST*) t_box_copy_tree ((caddr_t) as);
-  /*dk_free_tree ((caddr_t) copy->_.as_exp.left);*/
+  ST *copy = (ST *) t_box_copy_tree ((caddr_t) as);
+  /*dk_free_tree ((caddr_t) copy->_.as_exp.left); */
   copy->_.as_exp.left = exp;
   return copy;
 }
@@ -879,68 +832,62 @@ ST **
 sqlc_selection_names (ST * tree)
 {
   int inx;
-  ST ** sel = (ST **) t_box_copy ((caddr_t) tree->_.select_stmt.selection);
+  ST **sel = (ST **) t_box_copy ((caddr_t) tree->_.select_stmt.selection);
   dk_set_t double_set = NULL;
   dk_set_t names_set = NULL;
-  /*if (SQLO_ENABLE (sqlc_client()))*/
-    {
-      DO_BOX (ST *, exp, inx, sel)
-	{
-	  if (ST_P (exp, BOP_AS))
-	    {
-	      DO_SET (caddr_t, name, &names_set)
-		{
-		  if (!strcmp (name, exp->_.as_exp.name))
-		    {
-		      t_set_push (&double_set, (caddr_t) (ptrlong) inx);
-		      goto next;
-		    }
-		}
-	      END_DO_SET();
-	      t_set_push (&names_set, exp->_.as_exp.name);
-next:;
-	    }
-	}
-      END_DO_BOX;
-    }
-
-  DO_BOX (ST *, exp, inx, sel)
+  /*if (SQLO_ENABLE (sqlc_client())) */
+  {
+    DO_BOX (ST *, exp, inx, sel)
     {
       if (ST_P (exp, BOP_AS))
 	{
-	  if (dk_set_member (double_set, (caddr_t) (ptrlong) inx))
-	    {
-	      char tname[100];
-
-	      snprintf (tname, sizeof (tname), "computed%d", inx);
-	      sel[inx] = sqlc_copy_union_as (
-		  (ST*) t_list (3, COL_DOTTED,
-				NULL, t_box_string (tname)),
-		  exp, inx);
-	      exp->_.as_exp.name = t_box_string (tname);
-	    }
-	  else
-	    {
-	      sel[inx] = sqlc_copy_union_as (
-		  (ST*) t_list (3, COL_DOTTED,
-				NULL, t_box_copy_tree (exp->_.as_exp.name)),
-		  exp, inx);
-	    }
-	}
-      else if (ST_P (exp, COL_DOTTED))
-	{
-	  tree->_.select_stmt.selection[inx] = (caddr_t) t_list (5,
-	      BOP_AS, exp, NULL, t_box_string (exp->_.col_ref.name), NULL);
-	  sel[inx] = (ST*) t_list (3, COL_DOTTED, NULL, t_box_copy_tree (exp->_.col_ref.name));
-	}
-      else
-	{
-	  char tname[100];
-	  snprintf (tname, sizeof (tname), "computed%d", inx);
-	  tree->_.select_stmt.selection[inx] = (caddr_t) t_list (5, BOP_AS, tree->_.select_stmt.selection[inx], NULL, t_box_string (tname), NULL);
-	  sel[inx] = (ST*) t_list (3, COL_DOTTED, NULL, t_box_string (tname));
+	  DO_SET (caddr_t, name, &names_set)
+	  {
+	    if (!strcmp (name, exp->_.as_exp.name))
+	      {
+		t_set_push (&double_set, (caddr_t) (ptrlong) inx);
+		goto next;
+	      }
+	  }
+	  END_DO_SET ();
+	  t_set_push (&names_set, exp->_.as_exp.name);
+	next:;
 	}
     }
+    END_DO_BOX;
+  }
+
+  DO_BOX (ST *, exp, inx, sel)
+  {
+    if (ST_P (exp, BOP_AS))
+      {
+	if (dk_set_member (double_set, (caddr_t) (ptrlong) inx))
+	  {
+	    char tname[100];
+
+	    snprintf (tname, sizeof (tname), "computed%d", inx);
+	    sel[inx] = sqlc_copy_union_as ((ST *) t_list (3, COL_DOTTED, NULL, t_box_string (tname)), exp, inx);
+	    exp->_.as_exp.name = t_box_string (tname);
+	  }
+	else
+	  {
+	    sel[inx] = sqlc_copy_union_as ((ST *) t_list (3, COL_DOTTED, NULL, t_box_copy_tree (exp->_.as_exp.name)), exp, inx);
+	  }
+      }
+    else if (ST_P (exp, COL_DOTTED))
+      {
+	tree->_.select_stmt.selection[inx] = (caddr_t) t_list (5, BOP_AS, exp, NULL, t_box_string (exp->_.col_ref.name), NULL);
+	sel[inx] = (ST *) t_list (3, COL_DOTTED, NULL, t_box_copy_tree (exp->_.col_ref.name));
+      }
+    else
+      {
+	char tname[100];
+	snprintf (tname, sizeof (tname), "computed%d", inx);
+	tree->_.select_stmt.selection[inx] =
+	    (caddr_t) t_list (5, BOP_AS, tree->_.select_stmt.selection[inx], NULL, t_box_string (tname), NULL);
+	sel[inx] = (ST *) t_list (3, COL_DOTTED, NULL, t_box_string (tname));
+      }
+  }
   END_DO_BOX;
   return sel;
 }
@@ -948,21 +895,20 @@ next:;
 ST *
 sqlc_union_dt_wrap (ST * tree)
 {
-  ST * left = sqlp_union_tree_select (tree);
-  ST * right = sqlp_union_tree_right (tree);
+  ST *left = sqlp_union_tree_select (tree);
+  ST *right = sqlp_union_tree_right (tree);
   if (left != right)
     {
-      ST * texp, * sel;
-      ST ** order =right->_.select_stmt.table_exp->_.table_exp.order_by;
+      ST *texp, *sel;
+      ST **order = right->_.select_stmt.table_exp->_.table_exp.order_by;
       ptrlong flags = right->_.select_stmt.table_exp->_.table_exp.flags;
-      caddr_t * opts = right->_.select_stmt.table_exp->_.table_exp.opts;
+      caddr_t *opts = right->_.select_stmt.table_exp->_.table_exp.opts;
       right->_.select_stmt.table_exp->_.table_exp.order_by = NULL;
       right->_.select_stmt.table_exp->_.table_exp.opts = NULL;
       texp = sqlp_infoschema_redirect (t_listst (9,
-	    TABLE_EXP, t_list (1, t_list (3, DERIVED_TABLE, tree, t_box_string ("__"))),
-		   NULL, NULL, NULL, order, flags,opts, NULL));
-      sel = (ST*) t_list (5, SELECT_STMT, NULL, sqlc_selection_names (left), NULL,
-			texp);
+	      TABLE_EXP, t_list (1, t_list (3, DERIVED_TABLE, tree, t_box_string ("__"))),
+	      NULL, NULL, NULL, order, flags, opts, NULL));
+      sel = (ST *) t_list (5, SELECT_STMT, NULL, sqlc_selection_names (left), NULL, texp);
       return sel;
     }
   else
@@ -973,7 +919,7 @@ sqlc_union_dt_wrap (ST * tree)
 void
 sqlc_union_order (sql_comp_t * sc, ST ** ptree)
 {
-  ST * out = sqlc_union_dt_wrap (*ptree);
+  ST *out = sqlc_union_dt_wrap (*ptree);
   if (out != *ptree)
     {
       *ptree = out;
@@ -988,18 +934,18 @@ void
 sqlc_top_select_dt (sql_comp_t * sc, ST * tree)
 {
   /* given select top xx ...) splices it to be select ... from (select top xx... ) __ */
-  ST * top, * texp, * sel;
+  ST *top, *texp, *sel;
   if (!ST_P (tree, SELECT_STMT))
     return;
   top = SEL_TOP (tree);
   if (top)
     {
-      ST * out_names = (ST *) sqlc_selection_names (tree);
-      sel = (ST*) /*list*/ t_list (5, SELECT_STMT, top, tree->_.select_stmt.selection, NULL,
-			tree->_.select_stmt.table_exp);
-      texp = (ST*) /*list*/ t_list (9, TABLE_EXP,
-	  /*list*/ t_list (1, /*list*/ t_list (3, DERIVED_TABLE, sel, t_box_string ("__"))),
-			 NULL, NULL, NULL, NULL, NULL,NULL, NULL);
+      ST *out_names = (ST *) sqlc_selection_names (tree);
+      sel = (ST *) /*list */ t_list (5, SELECT_STMT, top, tree->_.select_stmt.selection, NULL,
+	  tree->_.select_stmt.table_exp);
+      texp = (ST *) /*list */ t_list (9, TABLE_EXP,
+	  /*list */ t_list (1, /*list */ t_list (3, DERIVED_TABLE, sel, t_box_string ("__"))),
+	  NULL, NULL, NULL, NULL, NULL, NULL, NULL);
       tree->_.select_stmt.table_exp = sqlp_infoschema_redirect (texp);
       tree->_.select_stmt.selection = (caddr_t *) out_names;
       tree->_.select_stmt.top = NULL;
@@ -1048,9 +994,7 @@ sqlc_union_stmt (sql_comp_t * sc, ST ** ptree)
     if (sel_node)
       {
 	qr_alias_out_cols (sc, sqc->sqc_query, sel_node);
-	qr_replace_node (sqc->sqc_query,
-	    (data_source_t *) sqc->sqc_query->qr_select_node,
-			 (data_source_t *) sel_node, 1);
+	qr_replace_node (sqc->sqc_query, (data_source_t *) sqc->sqc_query->qr_select_node, (data_source_t *) sel_node, 1);
       }
     else
       {
@@ -1072,15 +1016,13 @@ sqlc_union_stmt (sql_comp_t * sc, ST ** ptree)
       sel = *psel;
       dk_set_append_1 (&all_qrs, (void *) sqc->sqc_query);
       qr_alias_out_cols (sc, sqc->sqc_query, sel_node);
-      qr_replace_node (sqc->sqc_query,
-	  (data_source_t *) sqc->sqc_query->qr_select_node,
-		       (data_source_t *) distinct_node, 1);
+      qr_replace_node (sqc->sqc_query, (data_source_t *) sqc->sqc_query->qr_select_node, (data_source_t *) distinct_node, 1);
     }
     END_DO_SET ();
   }
   END_DO_SET ();
-  /*dk_set_free (sc->sc_union_lists);*/
-  /*sc->sc_union_lists = NULL;*/
+  /*dk_set_free (sc->sc_union_lists); */
+  /*sc->sc_union_lists = NULL; */
 
   cc->cc_query->qr_head_node = (data_source_t *) un;
   un->uni_successors = all_qrs;
@@ -1089,13 +1031,10 @@ sqlc_union_stmt (sql_comp_t * sc, ST ** ptree)
   cc->cc_query->qr_bunion_node = tree->_.set_exp.is_best ? un : NULL;
   DO_SET (query_t *, u_qr, &all_qrs)
   {
-    cc->cc_query->qr_nodes = dk_set_conc (u_qr->qr_nodes,
-	cc->cc_query->qr_nodes);
+    cc->cc_query->qr_nodes = dk_set_conc (u_qr->qr_nodes, cc->cc_query->qr_nodes);
     u_qr->qr_bunion_reset_nodes = u_qr->qr_bunion_reset_nodes;
     u_qr->qr_nodes = NULL;
     u_qr->qr_is_bunion_term = (char) tree->_.set_exp.is_best;
   }
   END_DO_SET ();
 }
-
-

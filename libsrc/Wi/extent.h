@@ -46,36 +46,36 @@
 
 typedef struct extent_s
 {
-  int32	ext_flags;
-  dp_addr_t	ext_dp;
-  dp_addr_t	ext_prev; /* splits overflowing from that extent come here */
-  dp_addr_t	ext_next; /* if this is full, splits here go to that extent */
-  int32	ext_pages[EXTENT_SZ / 32];
+  int32 ext_flags;
+  dp_addr_t ext_dp;
+  dp_addr_t ext_prev;		/* splits overflowing from that extent come here */
+  dp_addr_t ext_next;		/* if this is full, splits here go to that extent */
+  int32 ext_pages[EXTENT_SZ / 32];
 } extent_t;
 
 
 struct extent_map_s
 {
-  caddr_t		em_name; /* registry name, value is the 1st page  */
-  dp_addr_t		em_map_start; /* first dp of stored em */
-  dp_addr_t		em_n_pages;
-  dp_addr_t		em_n_free_pages;
-  dp_addr_t		em_n_remap_pages;
-  dp_addr_t		em_n_free_remap_pages;
-  int32		em_remap_on_hold;  /* no of pages provisionally reserved for possible delta caused by tree splitting */
-  dp_addr_t		em_n_blob_pages;
-  dp_addr_t		em_n_free_blob_pages;
-  extent_t *		em_last_remap_ext;
-  extent_t *		em_last_blob_ext;
-  buffer_desc_t *	em_buf;
-  dk_hash_t *		em_dp_to_ext;
-  dk_mutex_t *		em_mtx;
-  dbe_storage_t *	em_dbs;
-  dbe_key_frag_t *	em_kf; /*  null for general sys ext, else the kf which allocates from here */
-  dk_hash_t *		em_read_history;
-  uint32		em_last_ext_read;
-  dk_mutex_t 		em_read_history_mtx;
-  dk_hash_t *		em_uninitialized; /* just alloc'd no buffer yet, avoid these in read ahead even if they look allocd.  Not applied to system ext map. */
+  caddr_t em_name;		/* registry name, value is the 1st page  */
+  dp_addr_t em_map_start;	/* first dp of stored em */
+  dp_addr_t em_n_pages;
+  dp_addr_t em_n_free_pages;
+  dp_addr_t em_n_remap_pages;
+  dp_addr_t em_n_free_remap_pages;
+  int32 em_remap_on_hold;	/* no of pages provisionally reserved for possible delta caused by tree splitting */
+  dp_addr_t em_n_blob_pages;
+  dp_addr_t em_n_free_blob_pages;
+  extent_t *em_last_remap_ext;
+  extent_t *em_last_blob_ext;
+  buffer_desc_t *em_buf;
+  dk_hash_t *em_dp_to_ext;
+  dk_mutex_t *em_mtx;
+  dbe_storage_t *em_dbs;
+  dbe_key_frag_t *em_kf;	/*  null for general sys ext, else the kf which allocates from here */
+  dk_hash_t *em_read_history;
+  uint32 em_last_ext_read;
+  dk_mutex_t em_read_history_mtx;
+  dk_hash_t *em_uninitialized;	/* just alloc'd no buffer yet, avoid these in read ahead even if they look allocd.  Not applied to system ext map. */
 };
 
 
@@ -116,6 +116,5 @@ caddr_t em_page_list (extent_map_t * em, int type);
 
 #define END_DO_EXT } } }
 
-buffer_desc_t **  ext_read (index_tree_t * it, extent_t * ext, int keep_ts, dk_hash_t * phys_to_log);
-buffer_desc_t * page_set_last (buffer_desc_t * buf);
-
+buffer_desc_t **ext_read (index_tree_t * it, extent_t * ext, int keep_ts, dk_hash_t * phys_to_log);
+buffer_desc_t *page_set_last (buffer_desc_t * buf);

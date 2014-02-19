@@ -26,9 +26,10 @@
 
 #define CACHE_RESOURCE virt_bootstrap_cache_resource
 
-void virt_bootstrap_cache_resource (const char **src_text, const char *uri, const char *pubid, const char *dat, const char *comment)
+void
+virt_bootstrap_cache_resource (const char **src_text, const char *uri, const char *pubid, const char *dat, const char *comment)
 {
-  static char * cres_load_qr_text = "DB.DBA.SYS_CACHED_RESOURCE_ADD (?, ?, ?, cast (? as datetime), ?)";
+  static char *cres_load_qr_text = "DB.DBA.SYS_CACHED_RESOURCE_ADD (?, ?, ?, cast (? as datetime), ?)";
   static query_t *cres_load_qr;
   caddr_t text;
   char *tgt_text_tail;
@@ -41,34 +42,29 @@ void virt_bootstrap_cache_resource (const char **src_text, const char *uri, cons
     {
       const char *line_tail = src_text_tail[0];
       while ('\0' != line_tail[0])
-        (tgt_text_tail++)[0] = (line_tail++)[0];
+	(tgt_text_tail++)[0] = (line_tail++)[0];
     }
   tgt_text_tail[0] = '\0';
 #ifdef DEBUG
   if (tgt_text_tail != text + tgt_text_len)
     GPF_T;
 #endif
-    if (NULL == cres_load_qr)
-      cres_load_qr = sql_compile (cres_load_qr_text, bootstrap_cli, NULL, SQLC_DEFAULT);
-    if (NULL == cres_load_qr)
-      log_error ("Error in a server init statement %s", cres_load_qr_text);
-    else
-      {
-        caddr_t err = NULL;
-        err = qr_quick_exec (cres_load_qr, bootstrap_cli, NULL, NULL, 5,
-          ":0", uri, QRP_STR,
-	  ":1", pubid, QRP_STR,
-	  ":2", text, QRP_STR,
-	  ":3", dat, QRP_STR,
-	  ":4", comment, QRP_STR );
-        if (err) {
-          log_error ("Error loading cached resource '%s': %s: %s in %s",
-	  uri,
-          ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING],
-                      cres_load_qr_text);
-          dk_free_tree (err);
-	    }
-	  local_commit (bootstrap_cli);
-      }
-    dk_free_box (text);
-  }
+  if (NULL == cres_load_qr)
+    cres_load_qr = sql_compile (cres_load_qr_text, bootstrap_cli, NULL, SQLC_DEFAULT);
+  if (NULL == cres_load_qr)
+    log_error ("Error in a server init statement %s", cres_load_qr_text);
+  else
+    {
+      caddr_t err = NULL;
+      err = qr_quick_exec (cres_load_qr, bootstrap_cli, NULL, NULL, 5,
+	  ":0", uri, QRP_STR, ":1", pubid, QRP_STR, ":2", text, QRP_STR, ":3", dat, QRP_STR, ":4", comment, QRP_STR);
+      if (err)
+	{
+	  log_error ("Error loading cached resource '%s': %s: %s in %s",
+	      uri, ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING], cres_load_qr_text);
+	  dk_free_tree (err);
+	}
+      local_commit (bootstrap_cli);
+    }
+  dk_free_box (text);
+}

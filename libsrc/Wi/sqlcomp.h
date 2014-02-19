@@ -35,7 +35,7 @@
 #define QA_NEED_DATA	5
 #define QA_PROC_RETURN	6
 #define QA_ROWS_AFFECTED 7
-#define QA_BLOB_POS	8 /* occurs in sf_sql_get_data_ac answer array */
+#define QA_BLOB_POS	8	/* occurs in sf_sql_get_data_ac answer array */
 #define QA_LOGIN	9
 #define QA_ROW_ADDED	10
 #define QA_ROW_UPDATED	11
@@ -75,13 +75,13 @@
 
 
 typedef struct stmt_compilation_s
-  {
-    caddr_t *		sc_columns;
-    ptrlong		sc_is_select;
-    caddr_t *		sc_cursors_used;
-    caddr_t *		sc_params;
-    ptrlong		sc_hidden_columns;
-  } stmt_compilation_t;
+{
+  caddr_t *sc_columns;
+  ptrlong sc_is_select;
+  caddr_t *sc_cursors_used;
+  caddr_t *sc_params;
+  ptrlong sc_hidden_columns;
+} stmt_compilation_t;
 
 /* values for sc_is_select */
 #define QT_UPDATE 0
@@ -94,15 +94,15 @@ typedef struct stmt_compilation_s
 
 
 typedef struct param_desc_s
-  {
-    caddr_t		pd_dtp;
-    caddr_t		pd_prec;
-    caddr_t		pd_scale;
-    caddr_t		pd_nullable;
-    /* Access the fileds below only if PARAM_DESC_IS_EXTENDED() is true. */
-    caddr_t		pd_name;
-    caddr_t		pd_iotype;
-  } param_desc_t;
+{
+  caddr_t pd_dtp;
+  caddr_t pd_prec;
+  caddr_t pd_scale;
+  caddr_t pd_nullable;
+  /* Access the fileds below only if PARAM_DESC_IS_EXTENDED() is true. */
+  caddr_t pd_name;
+  caddr_t pd_iotype;
+} param_desc_t;
 
 #define PARAM_DESC_IS_EXTENDED(param) \
   (param && (box_length ((caddr_t) param) > (ptrlong) & ((param_desc_t*)0)->pd_iotype))
@@ -111,46 +111,47 @@ typedef struct param_desc_s
 /* Fields for output column */
 
 typedef struct col_desc_s
-  {
-    char *		cd_name;
-    ptrlong		cd_dtp;
-    caddr_t		cd_scale;
-    caddr_t		cd_precision;
-    caddr_t		cd_nullable;
-    caddr_t		cd_updatable;
-    caddr_t		cd_searchable;
-    /* Access the fileds below only if COL_DESC_IS_EXTENDED() is true. */
-    char *		cd_base_catalog_name;
-    char *		cd_base_column_name;
-    char *		cd_base_schema_name;
-    char *		cd_base_table_name;
-    caddr_t		cd_flags;
-  } col_desc_t;
+{
+  char *cd_name;
+  ptrlong cd_dtp;
+  caddr_t cd_scale;
+  caddr_t cd_precision;
+  caddr_t cd_nullable;
+  caddr_t cd_updatable;
+  caddr_t cd_searchable;
+  /* Access the fileds below only if COL_DESC_IS_EXTENDED() is true. */
+  char *cd_base_catalog_name;
+  char *cd_base_column_name;
+  char *cd_base_schema_name;
+  char *cd_base_table_name;
+  caddr_t cd_flags;
+} col_desc_t;
 
 #define COL_DESC_IS_EXTENDED(col) \
   (col && (box_length ((caddr_t) col) > (ptrlong) & ((col_desc_t*)0)->cd_flags))
 
 #define CDF_KEY			1
 #define CDF_AUTOINCREMENT	2
-#define CDF_XMLTYPE		4 /* the column contains XML */
+#define CDF_XMLTYPE		4	/* the column contains XML */
 
 
 /* Statement Options */
 
-typedef struct stmt_options_s {
-  ptrlong            so_concurrency;
-  ptrlong            so_is_async;
-  ptrlong            so_max_rows;
-  ptrlong            so_timeout;
-  ptrlong            so_prefetch;
-  ptrlong            so_autocommit;
-  ptrlong            so_rpc_timeout;
-  ptrlong		  so_cursor_type;
-  ptrlong		  so_keyset_size;
-  ptrlong		  so_use_bookmarks;
-  ptrlong		  so_isolation;
-  ptrlong		  so_prefetch_bytes;
-  ptrlong		so_unique_rows;
+typedef struct stmt_options_s
+{
+  ptrlong so_concurrency;
+  ptrlong so_is_async;
+  ptrlong so_max_rows;
+  ptrlong so_timeout;
+  ptrlong so_prefetch;
+  ptrlong so_autocommit;
+  ptrlong so_rpc_timeout;
+  ptrlong so_cursor_type;
+  ptrlong so_keyset_size;
+  ptrlong so_use_bookmarks;
+  ptrlong so_isolation;
+  ptrlong so_prefetch_bytes;
+  ptrlong so_unique_rows;
 } stmt_options_t;
 
 #define SO_CURSOR_TYPE(so) \
@@ -184,7 +185,7 @@ typedef struct stmt_options_s {
 #define SELECT_PREFETCH_QUOTA	20
 #define PREFETCH_ALL -1
 
-#define SO_DEFAULT_TIMEOUT	0 /* indefinite */
+#define SO_DEFAULT_TIMEOUT	0	/* indefinite */
 
 
 /* so_isolation */

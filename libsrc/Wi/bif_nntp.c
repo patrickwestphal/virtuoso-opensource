@@ -59,7 +59,7 @@
 
 static dk_session_t *
 nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t * err_ret,
-    dk_set_t * ret_val, volatile long u_first, volatile long u_end, char *id, caddr_t *qst, int error_ret)
+    dk_set_t * ret_val, volatile long u_first, volatile long u_end, char *id, caddr_t * qst, int error_ret)
 {
   volatile int rc, last, first, all, inx, ans, num;
   char resp[2048], group_name[512];
@@ -144,18 +144,16 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
 	      *ptr-- = 0;
 	    if (resp[0] != '.')
 	      {
-		sscanf (resp, "%511s %10s %10s %2s", group_name, s_last, s_first,
-		    post);
+		sscanf (resp, "%511s %10s %10s %2s", group_name, s_last, s_first, post);
 		dk_set_push (ret_val, list (4,
 			box_dv_short_string (group_name),
-			box_num (atoi (s_last)), box_num (atoi (s_first)),
-			box_dv_short_string (post)));
+			box_num (atoi (s_last)), box_num (atoi (s_first)), box_dv_short_string (post)));
 	      }
 	  }
       }
       FAILED
       {
-        strcpy_ck (resp, "Lost connection with NNTP server");
+	strcpy_ck (resp, "Lost connection with NNTP server");
 	goto error_end;
       }
       END_READ_FAIL (ses);
@@ -193,7 +191,7 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
 		tok = strtok_r (resp, "\t", &tok_s);
 		while (tok)
 		  {
-		    if (position && (position-6) && (position-7))
+		    if (position && (position - 6) && (position - 7))
 		      dk_set_push (&vr, box_dv_short_string (tok));
 		    else
 		      dk_set_push (&vr, box_num (atoi (tok)));
@@ -208,7 +206,7 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
       }
       FAILED
       {
-        strcpy_ck (resp, "Lost connection with NNTP server");
+	strcpy_ck (resp, "Lost connection with NNTP server");
 	goto error_end;
       }
       END_READ_FAIL (ses);
@@ -227,18 +225,17 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
 
       if (first < last)
 	{
-	    dk_set_push (ret_val, box_num (first));
-	    dk_set_push (ret_val, box_num (last));
+	  dk_set_push (ret_val, box_num (first));
+	  dk_set_push (ret_val, box_num (last));
 	}
       else
 	{
-	    dk_set_push (ret_val, box_num (last));
-	    dk_set_push (ret_val, box_num (first));
+	  dk_set_push (ret_val, box_num (last));
+	  dk_set_push (ret_val, box_num (first));
 	}
     }
 
-  if ((!stricmp ("body", mode) || !stricmp ("article", mode)
-	  || !stricmp ("head", mode) || !stricmp ("stat", mode)))
+  if ((!stricmp ("body", mode) || !stricmp ("article", mode) || !stricmp ("head", mode) || !stricmp ("stat", mode)))
     {
       if (!id)
 	{
@@ -272,7 +269,7 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
 	  sscanf (resp, "%3i %7i %255s %7s", &ans, &num, _id, stat);
 
 	  if (ans < 220 || ans > 223)
-	    continue;  /* Messages dont exist */
+	    continue;		/* Messages dont exist */
 
 	  strses_flush (msg);
 	  strses_enable_paging (msg, http_ses_size);
@@ -287,7 +284,7 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
 		    if (tcpses_check_disk_error (msg, qst, 0))
 		      {
 			strcpy_ck (resp, "Server error in accessing temp file");
-			SESSION_SCH_DATA(ses)->sio_read_fail_on = 0;
+			SESSION_SCH_DATA (ses)->sio_read_fail_on = 0;
 			goto error_end;
 		      }
 		  }
@@ -297,14 +294,14 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
 	    if (tcpses_check_disk_error (msg, qst, 0))
 	      {
 		strcpy_ck (resp, "Server error in accessing temp file");
-		SESSION_SCH_DATA(ses)->sio_read_fail_on = 0;
+		SESSION_SCH_DATA (ses)->sio_read_fail_on = 0;
 		goto error_end;
 	      }
 	    session_flush_1 (msg);
 	  }
 	  FAILED
 	  {
-            strcpy_ck (resp, "Lost connection with NNTP server");
+	    strcpy_ck (resp, "Lost connection with NNTP server");
 	    goto error_end;
 	  }
 	  END_READ_FAIL (ses);
@@ -323,7 +320,7 @@ nntp_get (char *host, char *user, char *pass, char *mode, char *group, caddr_t *
   if (!stricmp ("xvirtid", mode))
     {
       char nn_identifier[512];
-      nn_identifier [0] = 0;
+      nn_identifier[0] = 0;
       SEND (ses, rc, "XVIRTID", "");
       READ (ses, resp, rc);	/* 200 */
       if (!strncmp ("100", resp, 3))
@@ -372,12 +369,11 @@ bif_nntp_get_new (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   if ((!stricmp ("body", mode) || !stricmp ("article", mode)
 	  || !stricmp ("head", mode) || !stricmp ("stat", mode)
-	  || !stricmp ("list", mode) || !stricmp ("group", mode)
-	  || !stricmp ("xover", mode) || !stricmp ("xvirtid", mode)))
+	  || !stricmp ("list", mode) || !stricmp ("group", mode) || !stricmp ("xover", mode) || !stricmp ("xvirtid", mode)))
     {
       dk_set_t new_ret = NULL;
 
-      IO_SECT(qst);
+      IO_SECT (qst);
       ses = nntp_get (addr, NULL, NULL, mode, gname, &err, &list, u_first, u_end, NULL, qst, err_mode);
       END_IO_SECT (err_ret);
 
@@ -391,8 +387,8 @@ bif_nntp_get_new (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	  PrpcSessionFree (ses);
 	}
 
-      dk_set_push (&new_ret,  list_to_array (list));
-      dk_set_push (&new_ret,  err);
+      dk_set_push (&new_ret, list_to_array (list));
+      dk_set_push (&new_ret, err);
 
       ret = list_to_array (new_ret);
     }
@@ -428,17 +424,16 @@ bif_nntp_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   if ((!stricmp ("body", mode) || !stricmp ("article", mode)
 	  || !stricmp ("head", mode) || !stricmp ("stat", mode)
-	  || !stricmp ("list", mode) || !stricmp ("group", mode)
-	  || !stricmp ("xover", mode) || !stricmp ("xvirtid", mode)))
+	  || !stricmp ("list", mode) || !stricmp ("group", mode) || !stricmp ("xover", mode) || !stricmp ("xvirtid", mode)))
     {
-      IO_SECT(qst);
+      IO_SECT (qst);
       ses = nntp_get (addr, NULL, NULL, mode, gname, &err, &list, u_first, u_end, NULL, qst, 0);
       END_IO_SECT (err_ret);
 
       if (err_ret && *err_ret)
 	{
 	  if (err)
-            dk_free_tree (err);
+	    dk_free_tree (err);
 	  if (ses)
 	    {
 	      session_disconnect (ses->dks_session);
@@ -491,16 +486,16 @@ bif_nntp_auth_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   if ((!stricmp ("body", mode) || !stricmp ("article", mode)
 	  || !stricmp ("head", mode) || !stricmp ("stat", mode)
-	  || !stricmp ("list", mode) || !stricmp ("group", mode)  || !stricmp ("xover", mode)))
+	  || !stricmp ("list", mode) || !stricmp ("group", mode) || !stricmp ("xover", mode)))
     {
-      IO_SECT(qst);
+      IO_SECT (qst);
       ses = nntp_get (addr, user, pass, mode, gname, &err, &list, u_first, u_end, NULL, qst, 0);
       END_IO_SECT (err_ret);
 
       if (err_ret && *err_ret)
 	{
 	  if (err)
-            dk_free_tree (err);
+	    dk_free_tree (err);
 	  if (ses)
 	    {
 	      session_disconnect (ses->dks_session);
@@ -541,17 +536,16 @@ bif_nntp_id_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t mode = bif_string_arg (qst, args, 1, "nntp_id_get");
   caddr_t id = bif_string_arg (qst, args, 2, "nntp_id_get");
 
-  if ((!stricmp ("body", mode) || !stricmp ("article", mode)
-	  || !stricmp ("head", mode) || !stricmp ("stat", mode)))
+  if ((!stricmp ("body", mode) || !stricmp ("article", mode) || !stricmp ("head", mode) || !stricmp ("stat", mode)))
     {
-      IO_SECT(qst);
+      IO_SECT (qst);
       ses = nntp_get (addr, NULL, NULL, mode, NULL, &err, &list, 0, 1, id, qst, 0);
       END_IO_SECT (err_ret);
 
       if (err_ret && *err_ret)
 	{
 	  if (err)
-            dk_free_tree (err);
+	    dk_free_tree (err);
 	  if (ses)
 	    {
 	      session_disconnect (ses->dks_session);
@@ -622,7 +616,7 @@ nntp_post (caddr_t addr, caddr_t msg_body, caddr_t * err_ret)
   if (strncmp ("240", resp, 3))
     goto error_end;
   SEND (ses, rc, "QUIT ", "");
-/*READ (ses, resp, rc);	*/	/* BAY */
+  /*READ (ses, resp, rc);	*//* BAY */
 /*if (strncmp ("205", resp, 3))
     goto error_end;*/
 
@@ -693,11 +687,11 @@ nntp_auth_post (caddr_t addr, caddr_t user, caddr_t pass, caddr_t msg_body, cadd
   if (strncmp ("200", resp, 3))
     goto error_end;
   SEND (ses, rc, "AUTHINFO USER ", user);
-  READ (ses, resp, rc);	/* 381 */
+  READ (ses, resp, rc);		/* 381 */
   if (strncmp ("381", resp, 3))
     goto error_end;
   SEND (ses, rc, "AUTHINFO PASS ", pass);
-  READ (ses, resp, rc);	/* *** */
+  READ (ses, resp, rc);		/* *** */
   if (strncmp ("281", resp, 3))
     goto error_end;
   SEND (ses, rc, "POST", "");
@@ -709,7 +703,7 @@ nntp_auth_post (caddr_t addr, caddr_t user, caddr_t pass, caddr_t msg_body, cadd
   if (strncmp ("240", resp, 3))
     goto error_end;
   SEND (ses, rc, "QUIT ", "");
-/*READ (ses, resp, r);	*/	/* BYE */
+  /*READ (ses, resp, r);	*//* BYE */
 /*if (strncmp ("205", resp, 3))
     goto error_end; */
 
@@ -736,7 +730,7 @@ bif_nntp_auth_post (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t user = bif_string_arg (qst, args, 1, "nntp_auth_post");
   caddr_t pass = bif_string_arg (qst, args, 2, "nntp_auth_post");
   caddr_t msg_body = bif_string_arg (qst, args, 3, "nntp_auth_post");
-  IO_SECT(qst);
+  IO_SECT (qst);
   ret = nntp_auth_post (addr, user, pass, msg_body, err_ret);
   END_IO_SECT (err_ret);
   if (*err_ret)
@@ -757,4 +751,3 @@ bif_nntp_init (void)
   bif_define_ex ("nntp_post", bif_nntp_post, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
   bif_define_ex ("nntp_auth_post", bif_nntp_auth_post, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
 }
-

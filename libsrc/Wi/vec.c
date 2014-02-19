@@ -422,7 +422,7 @@ dc_append_box (data_col_t * dc, caddr_t box)
       break;
     case DV_SINGLE_FLOAT:
       if (IS_BOX_POINTER (box))
-      ((float *) dc->dc_values)[dc->dc_n_values++] = unbox_float (box);
+	((float *) dc->dc_values)[dc->dc_n_values++] = unbox_float (box);
       else
 	((float *) dc->dc_values)[dc->dc_n_values++] = (float) (int64) box;
       break;
@@ -494,6 +494,26 @@ dc_append_null (data_col_t * dc)
 }
 
 
+void
+dc_append_chars (data_col_t * dc, char *field, int field_len)
+{
+  char head[5];
+  int head_len;
+  if (field_len < 256)
+    {
+      head[0] = DV_SHORT_STRING_SERIAL;
+      head[1] = field_len;
+      head_len = 2;
+    }
+  else
+    {
+      head[0] = DV_STRING;
+      LONG_SET_NA (&head[1], field_len);
+      head_len = 5;
+    }
+  dc_append_bytes (dc, field, field_len, head, head_len);
+}
+
 caddr_t
 box_deserialize_reusing (db_buf_t string, caddr_t box)
 {
@@ -560,16 +580,16 @@ box_deserialize_reusing (db_buf_t string, caddr_t box)
     case DV_RDF:
     case DV_RDF_ID:
     case DV_RDF_ID_8:
-	{
-	  rdf_box_t * x = (rdf_box_t *)box_deserialize_string ((caddr_t)string, INT32_MAX, 0);
-	  if (old_dtp == DV_RDF && 0 != x->rb_ro_id && x->rb_ro_id == ((rdf_box_t *)box)->rb_ro_id)
-	    {
-	      dk_free_box (x);
-	      return box;
-	    }
-	  dk_free_tree (box);
-	  return (caddr_t) x;
-	}
+      {
+	rdf_box_t *x = (rdf_box_t *) box_deserialize_string ((caddr_t) string, INT32_MAX, 0);
+	if (old_dtp == DV_RDF && 0 != x->rb_ro_id && x->rb_ro_id == ((rdf_box_t *) box)->rb_ro_id)
+	  {
+	    dk_free_box (x);
+	    return box;
+	  }
+	dk_free_tree (box);
+	return (caddr_t) x;
+      }
     case DV_SHORT_STRING_SERIAL:
       len = (unsigned char) string[1];
       head_len = 2;
@@ -821,7 +841,7 @@ dc_itc_append_box (it_cursor_t * itc, buffer_desc_t * buf, dbe_col_loc_t * cl, c
   caddr_t b = itc_box_column (itc, buf, 0, cl);
   if (DCT_BOXES & dc->dc_type)
     {
-    ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = b;
+      ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = b;
       if (IS_BOX_POINTER (b) && DV_DB_NULL == box_tag (b))
 	dc->dc_any_null = 1;
     }
@@ -887,12 +907,12 @@ dc_reset_array (caddr_t * inst, data_source_t * qn, state_slot_t ** ssls, int ne
 	{
 	  int prev_size = QST_INT (inst, qn->src_batch_size);
 	  if (size > prev_size || !prev_size)
-	size = QST_INT (inst, qn->src_batch_size) = MAX (size, dc_batch_sz);
+	    size = QST_INT (inst, qn->src_batch_size) = MAX (size, dc_batch_sz);
 	  else
 	    size = prev_size;
 	}
       if (qn->src_sets)
-      QN_CHECK_SETS (qn, inst, size);
+	QN_CHECK_SETS (qn, inst, size);
     }
   if (!ssls)
     return;
@@ -1185,7 +1205,7 @@ dc_extend_2 (data_col_t * dc, int ninx)
   dc->dc_values = (db_buf_t) mp_alloc_box (dc->dc_mp, 8 + elt_sz * next_len, DV_NON_BOX);
   dc->dc_values = (db_buf_t) ALIGN_16 ((ptrlong) dc->dc_values);
   if (vs)
-  memcpy_16 (dc->dc_values, vs, elt_sz * dc->dc_n_values);
+    memcpy_16 (dc->dc_values, vs, elt_sz * dc->dc_n_values);
   dc->dc_org_values = NULL;
   dc->dc_org_nulls = NULL;
   dc->dc_org_places = 0;
@@ -1704,7 +1724,7 @@ sslr_dc_copy (caddr_t * inst, state_slot_ref_t * sslr, data_col_t * target_dc, d
 	}
       else if (8 == dc_elt_len)
 	{
-	VA_8 (n, s1);
+	  VA_8 (n, s1);
 	  if (copy_anies && DV_ANY == target_dc->dc_dtp)
 	    VA_CPY (n);
 	}
@@ -1812,7 +1832,7 @@ qst_vec_set_copy (caddr_t * inst, state_slot_t * ssl, caddr_t v)
     {
       dtp_t dtp = DV_TYPE_OF (v);
       if (dtp == dc->dc_dtp)
-      ((int64 *) dc->dc_values)[set] = unbox_inline_num (v);
+	((int64 *) dc->dc_values)[set] = unbox_inline_num (v);
       else if (DV_LONG_INT == dc->dc_dtp)
 	((int64 *) dc->dc_values)[set] = box_to_int64 (v, dtp);
       else
@@ -1858,11 +1878,11 @@ qst_vec_set_copy (caddr_t * inst, state_slot_t * ssl, caddr_t v)
 		return;
 	      }
 	    memcpy_dt (dc->dc_values + DT_LENGTH * set, (v ? v : zero));
-	  if (dc->dc_nulls)
-	    DC_CLR_NULL (dc, set);
-	  if (set >= dc->dc_n_values)
-	    dc->dc_n_values = set + 1;
-	  break;
+	    if (dc->dc_nulls)
+	      DC_CLR_NULL (dc, set);
+	    if (set >= dc->dc_n_values)
+	      dc->dc_n_values = set + 1;
+	    break;
 	  }
 	case DV_SINGLE_FLOAT:
 	  ((float *) dc->dc_values)[set] = box_to_float (v, DV_TYPE_OF (v));
@@ -1897,7 +1917,7 @@ qst_vec_set (caddr_t * inst, state_slot_t * ssl, caddr_t v)
   if ((DCT_NUM_INLINE & dc->dc_type) && DV_SINGLE_FLOAT != dc->dc_dtp)
     {
       if (dtp == dc->dc_dtp)
-      ((int64 *) dc->dc_values)[set] = unbox_inline_num (v);
+	((int64 *) dc->dc_values)[set] = unbox_inline_num (v);
       else if (DV_LONG_INT == dc->dc_dtp)
 	((int64 *) dc->dc_values)[set] = box_to_int64 (v, dtp);
       else
@@ -1982,11 +2002,11 @@ dc_set_long (data_col_t * dc, int set, boxint lv)
   if (DCT_NUM_INLINE & dc->dc_type)
     {
       if (DV_LONG_INT == dc->dc_dtp || DV_IRI_ID == dc->dc_dtp)
-    dc_append_int64 (dc, lv);
+	dc_append_int64 (dc, lv);
       else if (DV_SINGLE_FLOAT == dc->dc_dtp)
 	dc_append_float (dc, (float) lv);
-  else
-    {
+      else
+	{
 	  double df = (double) lv;
 	  dc_append_int64 (dc, *(int64 *) & df);
 	}
@@ -2017,7 +2037,7 @@ dc_set_float (data_col_t * dc, int set, float f)
   if (DCT_NUM_INLINE & dc->dc_type)
     {
       if (DV_SINGLE_FLOAT == dc->dc_dtp)
-    dc_append_float (dc, f);
+	dc_append_float (dc, f);
       else if (DV_DOUBLE_FLOAT == dc->dc_dtp)
 	{
 	  double df = (double) f;
@@ -2051,7 +2071,7 @@ dc_set_double (data_col_t * dc, int set, double df)
   if (DCT_NUM_INLINE & dc->dc_type)
     {
       if (DV_DOUBLE_FLOAT == dc->dc_dtp)
-    dc_append_int64 (dc, *(int64 *) & df);
+	dc_append_int64 (dc, *(int64 *) & df);
       else if (DV_SINGLE_FLOAT == dc->dc_dtp)
 	dc_append_float (dc, (float) df);
       else
@@ -2659,7 +2679,7 @@ dc_assign (caddr_t * inst, state_slot_t * ssl_to, int row_to, state_slot_t * ssl
       else
 	{
 	  int elt_sz = dc_elt_size (source);
-	    memcpy_16 (target->dc_values + row_to * elt_sz, source->dc_values + row_from * elt_sz, elt_sz);
+	  memcpy_16 (target->dc_values + row_to * elt_sz, source->dc_values + row_from * elt_sz, elt_sz);
 	}
       if (row_to >= target->dc_n_values)
 	target->dc_n_values = row_to + 1;
@@ -3030,8 +3050,8 @@ ssl_dcp_sm (caddr_t * inst, state_slot_t * ssl, int n1, int n2, int use_sets)
 	}
       else
 	{
-      if (!((inx2 - n1) % 10))
-	printf (" %d: ", inx2);
+	  if (!((inx2 - n1) % 10))
+	    printf (" %d: ", inx2);
 	}
       if (SSL_REF == ssl->ssl_type)
 	{

@@ -37,23 +37,22 @@ typedef unsigned int word;
 typedef unsigned char byte;
 
 typedef struct
-  {
-    int indent;
-    char *pool;
-    size_t length;
-    size_t limit;
-    int type;
-  } stream;
+{
+  int indent;
+  char *pool;
+  size_t length;
+  size_t limit;
+  int type;
+} stream;
 
 
 #ifdef __GNUC__
-static void out_printf (stream *out, const char *format, ...)
-    __attribute__((format (printf, 2, 3)));
+static void out_printf (stream * out, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 #endif
 
 
 static void
-out_init (stream *out, int type)
+out_init (stream * out, int type)
 {
   memset (out, 0, sizeof (stream));
   out->type = type;
@@ -63,7 +62,7 @@ out_init (stream *out, int type)
 
 
 static int
-out_assure (stream *out, size_t length)
+out_assure (stream * out, size_t length)
 {
   char *pool;
   int ret = 0;
@@ -89,7 +88,7 @@ out_assure (stream *out, size_t length)
 
 
 static void
-out_write (stream *out, const void *ptr, size_t length)
+out_write (stream * out, const void *ptr, size_t length)
 {
   if (out_assure (out, length) == 0)
     {
@@ -100,7 +99,7 @@ out_write (stream *out, const void *ptr, size_t length)
 
 
 static void
-out_putc (stream *out, int c)
+out_putc (stream * out, int c)
 {
   if (out_assure (out, 1) == 0)
     out->pool[out->length++] = c;
@@ -108,7 +107,7 @@ out_putc (stream *out, int c)
 
 
 static char *
-out_finish (stream *out)
+out_finish (stream * out)
 {
   char *data;
 
@@ -121,7 +120,7 @@ out_finish (stream *out)
 
 
 static void
-out_printf (stream *out, const char *format, ...)
+out_printf (stream * out, const char *format, ...)
 {
   char line[512];
   va_list ap;
@@ -142,7 +141,7 @@ out_printf (stream *out, const char *format, ...)
     utf8 = 3 (id3v2.4 only)
 */
 static void
-xml_value (stream *out, const void *content, size_t length, int encoding)
+xml_value (stream * out, const void *content, size_t length, int encoding)
 {
   const byte *dp = (const byte *) content;
   int len, i, first;
@@ -232,10 +231,9 @@ xml_value (stream *out, const void *content, size_t length, int encoding)
 
 #if 0
 static void
-xml_binary_data (stream *out, const void *value, int length)
+xml_binary_data (stream * out, const void *value, int length)
 {
-  static char b2a[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  static char b2a[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   const byte *sp = (const byte *) value;
   int count = 0;
   word w;
@@ -274,7 +272,7 @@ xml_binary_data (stream *out, const void *value, int length)
 
 
 static void
-xml_key_value (stream *out, const char *key, const char *value, int length, int encoding)
+xml_key_value (stream * out, const char *key, const char *value, int length, int encoding)
 {
   if (length <= 0)
     length = (int) strlen ((const char *) value);
@@ -336,7 +334,7 @@ static const char *id3_genres[148] = {
 
 
 static int
-disect_id3v1 (stream *out, const void *data, size_t length)
+disect_id3v1 (stream * out, const void *data, size_t length)
 {
   const byte *dp = (const byte *) data;
   char title[30 + 1];
@@ -356,11 +354,21 @@ disect_id3v1 (stream *out, const void *data, size_t length)
     return -1;
   dp += 3;
 
-  memcpy (title, dp, 30); title[30] = '\0'; dp += 30;
-  memcpy (artist, dp, 30); artist[30] = '\0'; dp += 30;
-  memcpy (album, dp, 30); album[30] = '\0'; dp += 30;
-  memcpy (year, dp, 4); year[4] = '\0'; dp += 4;
-  memcpy (buffer, dp, 30); buffer[30] = '\0'; dp += 30;
+  memcpy (title, dp, 30);
+  title[30] = '\0';
+  dp += 30;
+  memcpy (artist, dp, 30);
+  artist[30] = '\0';
+  dp += 30;
+  memcpy (album, dp, 30);
+  album[30] = '\0';
+  dp += 30;
+  memcpy (year, dp, 4);
+  year[4] = '\0';
+  dp += 4;
+  memcpy (buffer, dp, 30);
+  buffer[30] = '\0';
+  dp += 30;
   if (buffer[28] == 0 && buffer[29] != 0)
     {
       memcpy (comment, buffer, 28);
@@ -374,7 +382,7 @@ disect_id3v1 (stream *out, const void *data, size_t length)
     }
   genre = dp[0];
   if (genre < 0 || genre > 147)
-    genre = 12; /* Other */
+    genre = 12;			/* Other */
 
   if (rtrim (title))
     xml_key_value (out, "Title", title, -1, 0);
@@ -402,24 +410,24 @@ typedef struct tag_descriptor_s tag_descriptor_t;
 
 typedef struct tag_decoder_params_s tag_decoder_params_t;
 
-typedef void (*tag_decoder_t) (tag_decoder_params_t *params);
+typedef void (*tag_decoder_t) (tag_decoder_params_t * params);
 
 struct tag_descriptor_s
-  {
-    word idtag4;			/* 4 byte tag */
-    word idtag3;			/* 3 byte tag for ID3v2.2 */
-    tag_decoder_t decoder;		/* function that can parse the frame */
-    const char *xml_tag;		/* recommended XML tag */
-  };
+{
+  word idtag4;			/* 4 byte tag */
+  word idtag3;			/* 3 byte tag for ID3v2.2 */
+  tag_decoder_t decoder;	/* function that can parse the frame */
+  const char *xml_tag;		/* recommended XML tag */
+};
 
 struct tag_decoder_params_s
-  {
-    stream *out;			/* output stream */
-    byte version;			/* id3 version */
-    tag_descriptor_t *descriptor;	/* original descriptor */
-    const byte *content;		/* frame data */
-    size_t length;			/* frame length */
-  };
+{
+  stream *out;			/* output stream */
+  byte version;			/* id3 version */
+  tag_descriptor_t *descriptor;	/* original descriptor */
+  const byte *content;		/* frame data */
+  size_t length;		/* frame length */
+};
 
 #define def_decoder(X)	static void X (tag_decoder_params_t *params)
 
@@ -430,110 +438,100 @@ def_decoder (decode_URL);
 def_decoder (decode_COMM);
 
 static tag_descriptor_t id3v2_descriptors[] = {
-  { tag_COMM, tag_COM,	decode_COMM, "Comment"},
+  {tag_COMM, tag_COM, decode_COMM, "Comment"},
 
-  { tag_TALB, tag_TAL,	decode_TEXT, "Album" },			/**/
-  { tag_TBPM, tag_TBP,	decode_TEXT, "Bpm" },
-  { tag_TCMP, tag_TCP,	decode_TEXT, "Compilation" },
-  { tag_TCOM, tag_TCM,	decode_TEXT, "Composer" },		/**/
-  { tag_TCON, tag_TCO,	decode_TEXT, "Genre" },
-  { tag_TCOP, tag_TCR,	decode_TEXT, "Copyright" },		/**/
-  { tag_TDAT, tag_TDA,	decode_TEXT, "DateRecorded" },		/* v2.3.0 */
-  { tag_TDEN, 0,	decode_TEXT, "EncodingTimestamp" },	/* v2.4.0 */
-  { tag_TDLY, tag_TDY,	decode_TEXT, "PlaylistDelayMilliseconds" },
-  { tag_TDOR, 0,	decode_TEXT, "OriginalReleaseTimestamp" },/* v2.4.0 */
-  { tag_TDRC, 0,	decode_TEXT, "RecordingTimestamp" },	/* v2.4.0 */
-  { tag_TDRL, 0,	decode_TEXT, "ReleaseTimestamp" },	/* v2.4.0 */
-  { tag_TDTG, 0,	decode_TEXT, "TaggingTimestamp" },	/* v2.4.0 */
-  { tag_TENC, tag_TEN,	decode_TEXT, "Encoder" },		/**/
-  { tag_TEXT, tag_TXT,	decode_TEXT, "Lyricist" },
-  { tag_TFLT, tag_TFT,	decode_TEXT, "FileType" },
-  { tag_TIME, tag_TIM,	decode_TEXT, "TimeRecorded" },		/* v2.3.0 */
-  { tag_TIPL, tag_IPL,	decode_TEXT, "InvolvedPeople" },	/* v2.4.0 */
-  { tag_TIT1, tag_TT1,	decode_TEXT, "Grouping" },
-  { tag_TIT2, tag_TT2,	decode_TEXT, "Title" },			/**/
-  { tag_TIT3, tag_TT3,	decode_TEXT, "Subtitle" },
-  { tag_TKEY, tag_TKE,	decode_TEXT, "InitialKey" },
-  { tag_TLAN, tag_TLA,	decode_TEXT, "Languages" },
-  { tag_TLEN, tag_TLE,	decode_TEXT, "LengthMilliseconds" },
-  { tag_TMCL, 0,	decode_TEXT, "MusicianCreditsList" },	/* v2.4.0 */
-  { tag_TMED, tag_TMT,	decode_TEXT, "MediaType" },
-  { tag_TMOO, 0,	decode_TEXT, "Mood" },			/* v2.4.0 */
-  { tag_TOAL, tag_TOT,	decode_TEXT, "OriginalSourceTitle" },
-  { tag_TOFN, tag_TOF,	decode_TEXT, "OriginalFileName" },
-  { tag_TOLY, tag_TOL,	decode_TEXT, "OriginalLyricist" },
-  { tag_TOPE, tag_TOA,	decode_TEXT, "OriginalArtist" },	/**/
-  { tag_TORY, tag_TOR,	decode_TEXT, "OriginalReleaseYear" },	/* v2.3.0 */
-  { tag_TOWN, 0,	decode_TEXT, "FileOwnerName" },
-  { tag_TPE1, tag_TP1,	decode_TEXT, "Artist" },		/**/
-  { tag_TPE2, tag_TP2,	decode_TEXT, "Accompaniment" },
-  { tag_TPE3, tag_TP3,	decode_TEXT, "Conductor" },
-  { tag_TPE4, tag_TP4,	decode_TEXT, "RemixedBy" },
-  { tag_TPOS, tag_TPA,	decode_TEXT, "DiscNumber" },
-  { tag_TPRO, 0,	decode_TEXT, "ProducedNotice" },	/* v2.4.0 */
-  { tag_TPUB, tag_TPB,	decode_TEXT, "Publisher" },		/**/
-  { tag_TRCK, tag_TRK,	decode_TEXT, "TrackNumber" },		/**/
-  { tag_TRDA, tag_TRD,	decode_TEXT, "RecordingDates" },	/* v2.3.0 */
-  { tag_TRSN, 0,	decode_TEXT, "InternetRadioStationName" },
-  { tag_TRSO, 0,	decode_TEXT, "InternetRadioStationOwner" },
-  { tag_TSIZ, tag_TSI,	decode_TEXT, "FileSizeExcludingTag" },	/* v2.3.0 */
-  { tag_TSOA, 0,	decode_TEXT, "AlbumSortOrder" },	/* v2.4.0 */
-  { tag_TSOP, 0,	decode_TEXT, "ArtistSortOrder" },	/* v2.4.0 */
-  { tag_TSOT, 0,	decode_TEXT, "TitleSortOrder" },	/* v2.4.0 */
-  { tag_TSRC, tag_TRC,	decode_TEXT, "ISRC" },
-  { tag_TSSE, tag_TSS,	decode_TEXT, "EncoderSettings" },
-  { tag_TSST, 0, 	decode_TEXT, "SetSubtitle" },		/* v2.4.0 */
-  { tag_TXXX, tag_TXX,	decode_TXXX, "UserDefined" },
-  { tag_TYER, tag_TYE,	decode_TEXT, "Year" },			/* v2.3.0 */
+  {tag_TALB, tag_TAL, decode_TEXT, "Album"}, /**/ {tag_TBPM, tag_TBP, decode_TEXT, "Bpm"},
+  {tag_TCMP, tag_TCP, decode_TEXT, "Compilation"},
+  {tag_TCOM, tag_TCM, decode_TEXT, "Composer"}, /**/ {tag_TCON, tag_TCO, decode_TEXT, "Genre"},
+  {tag_TCOP, tag_TCR, decode_TEXT, "Copyright"}, /**/ {tag_TDAT, tag_TDA, decode_TEXT, "DateRecorded"},	/* v2.3.0 */
+  {tag_TDEN, 0, decode_TEXT, "EncodingTimestamp"},	/* v2.4.0 */
+  {tag_TDLY, tag_TDY, decode_TEXT, "PlaylistDelayMilliseconds"},
+  {tag_TDOR, 0, decode_TEXT, "OriginalReleaseTimestamp"},	/* v2.4.0 */
+  {tag_TDRC, 0, decode_TEXT, "RecordingTimestamp"},	/* v2.4.0 */
+  {tag_TDRL, 0, decode_TEXT, "ReleaseTimestamp"},	/* v2.4.0 */
+  {tag_TDTG, 0, decode_TEXT, "TaggingTimestamp"},	/* v2.4.0 */
+  {tag_TENC, tag_TEN, decode_TEXT, "Encoder"}, /**/ {tag_TEXT, tag_TXT, decode_TEXT, "Lyricist"},
+  {tag_TFLT, tag_TFT, decode_TEXT, "FileType"},
+  {tag_TIME, tag_TIM, decode_TEXT, "TimeRecorded"},	/* v2.3.0 */
+  {tag_TIPL, tag_IPL, decode_TEXT, "InvolvedPeople"},	/* v2.4.0 */
+  {tag_TIT1, tag_TT1, decode_TEXT, "Grouping"},
+  {tag_TIT2, tag_TT2, decode_TEXT, "Title"}, /**/ {tag_TIT3, tag_TT3, decode_TEXT, "Subtitle"},
+  {tag_TKEY, tag_TKE, decode_TEXT, "InitialKey"},
+  {tag_TLAN, tag_TLA, decode_TEXT, "Languages"},
+  {tag_TLEN, tag_TLE, decode_TEXT, "LengthMilliseconds"},
+  {tag_TMCL, 0, decode_TEXT, "MusicianCreditsList"},	/* v2.4.0 */
+  {tag_TMED, tag_TMT, decode_TEXT, "MediaType"},
+  {tag_TMOO, 0, decode_TEXT, "Mood"},	/* v2.4.0 */
+  {tag_TOAL, tag_TOT, decode_TEXT, "OriginalSourceTitle"},
+  {tag_TOFN, tag_TOF, decode_TEXT, "OriginalFileName"},
+  {tag_TOLY, tag_TOL, decode_TEXT, "OriginalLyricist"},
+  {tag_TOPE, tag_TOA, decode_TEXT, "OriginalArtist"}, /**/ {tag_TORY, tag_TOR, decode_TEXT, "OriginalReleaseYear"},	/* v2.3.0 */
+  {tag_TOWN, 0, decode_TEXT, "FileOwnerName"},
+  {tag_TPE1, tag_TP1, decode_TEXT, "Artist"}, /**/ {tag_TPE2, tag_TP2, decode_TEXT, "Accompaniment"},
+  {tag_TPE3, tag_TP3, decode_TEXT, "Conductor"},
+  {tag_TPE4, tag_TP4, decode_TEXT, "RemixedBy"},
+  {tag_TPOS, tag_TPA, decode_TEXT, "DiscNumber"},
+  {tag_TPRO, 0, decode_TEXT, "ProducedNotice"},	/* v2.4.0 */
+  {tag_TPUB, tag_TPB, decode_TEXT, "Publisher"}, /**/ {tag_TRCK, tag_TRK, decode_TEXT, "TrackNumber"}, /**/ {tag_TRDA, tag_TRD, decode_TEXT, "RecordingDates"},	/* v2.3.0 */
+  {tag_TRSN, 0, decode_TEXT, "InternetRadioStationName"},
+  {tag_TRSO, 0, decode_TEXT, "InternetRadioStationOwner"},
+  {tag_TSIZ, tag_TSI, decode_TEXT, "FileSizeExcludingTag"},	/* v2.3.0 */
+  {tag_TSOA, 0, decode_TEXT, "AlbumSortOrder"},	/* v2.4.0 */
+  {tag_TSOP, 0, decode_TEXT, "ArtistSortOrder"},	/* v2.4.0 */
+  {tag_TSOT, 0, decode_TEXT, "TitleSortOrder"},	/* v2.4.0 */
+  {tag_TSRC, tag_TRC, decode_TEXT, "ISRC"},
+  {tag_TSSE, tag_TSS, decode_TEXT, "EncoderSettings"},
+  {tag_TSST, 0, decode_TEXT, "SetSubtitle"},	/* v2.4.0 */
+  {tag_TXXX, tag_TXX, decode_TXXX, "UserDefined"},
+  {tag_TYER, tag_TYE, decode_TEXT, "Year"},	/* v2.3.0 */
 
-  { tag_USLT, tag_ULT,  decode_COMM, "Lyrics" },
+  {tag_USLT, tag_ULT, decode_COMM, "Lyrics"},
 
-  { tag_WCOM, tag_WCM,	decode_URL,  "CommercialInfoUrl" },
-  { tag_WCOP, tag_WCP,	decode_URL,  "CopyrightUrl" },
-  { tag_WOAF, tag_WAF,	decode_URL,  "AudioFileUrl" },
-  { tag_WOAR, tag_WAR,	decode_URL,  "ArtistUrl" },
-  { tag_WOAS, tag_WAS,	decode_URL,  "AudioSourceUrl" },
-  { tag_WORS, 0,	decode_URL,  "InternetRadioStationUrl" },
-  { tag_WPAY, 0,	decode_URL,  "PaymentUrl" },
-  { tag_WPUB, tag_WPB,	decode_URL,  "PublisherUrl" },
+  {tag_WCOM, tag_WCM, decode_URL, "CommercialInfoUrl"},
+  {tag_WCOP, tag_WCP, decode_URL, "CopyrightUrl"},
+  {tag_WOAF, tag_WAF, decode_URL, "AudioFileUrl"},
+  {tag_WOAR, tag_WAR, decode_URL, "ArtistUrl"},
+  {tag_WOAS, tag_WAS, decode_URL, "AudioSourceUrl"},
+  {tag_WORS, 0, decode_URL, "InternetRadioStationUrl"},
+  {tag_WPAY, 0, decode_URL, "PaymentUrl"},
+  {tag_WPUB, tag_WPB, decode_URL, "PublisherUrl"},
 
-  { tag_WXXX, 0,	decode_WXXX, "Url"}
+  {tag_WXXX, 0, decode_WXXX, "Url"}
 };
 
 #define ISFHID(X)	((X) >= '0' && (X) <= 'Z')
 
 
 static word
-read_u2 (const byte *data)
+read_u2 (const byte * data)
 {
   return (data[0] << 8) | data[1];
 }
 
 
 static word
-read_u3 (const byte *data)
+read_u3 (const byte * data)
 {
   return (data[0] << 16) | (data[1] << 8) | data[2];
 }
 
 
 static word
-read_u4 (const byte *data)
+read_u4 (const byte * data)
 {
   return (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
 }
 
 
 static word
-read_u4_sync (const byte *data)
+read_u4_sync (const byte * data)
 {
-  return ((data[0] & 0x7F) << 21) | ((data[1] & 0x7F) << 14) |
-      ((data[2] & 0x7F) << 7) | (data[3] & 0x7F);
+  return ((data[0] & 0x7F) << 21) | ((data[1] & 0x7F) << 14) | ((data[2] & 0x7F) << 7) | (data[3] & 0x7F);
 }
 
 
 static word
-read_u4_le (const byte *data)
+read_u4_le (const byte * data)
 {
   return (data[3] << 24) | (data[2] << 16) | (data[1] << 8) | data[0];
 }
@@ -550,7 +548,7 @@ tag_descriptor_cmp (const void *a, const void *b)
 
 
 static const byte *
-skip_str (const byte *content, const byte *ep, int encoding)
+skip_str (const byte * content, const byte * ep, int encoding)
 {
   if (encoding >= 1 && encoding <= 2)
     {
@@ -575,6 +573,7 @@ def_decoder (decode_TEXT)
     xml_key_value (params->out, params->descriptor->xml_tag,
 	(const char *) (params->content + 1), params->length - 1, params->content[0]);
 }
+
 def_decoder (decode_TXXX)
 {
   /* encoding[1] shortdesc 00 text */
@@ -582,9 +581,9 @@ def_decoder (decode_TXXX)
   const byte *ep = params->content + params->length;
   const byte *dp = skip_str (params->content + 1, ep, encoding);
   if (dp < ep)
-    xml_key_value (params->out, params->descriptor->xml_tag,
-	(const char *) dp, ep - dp, encoding);
+    xml_key_value (params->out, params->descriptor->xml_tag, (const char *) dp, ep - dp, encoding);
 }
+
 def_decoder (decode_COMM)
 {
   /* encoding[1] language[3] shortdesc 00 comments */
@@ -592,14 +591,14 @@ def_decoder (decode_COMM)
   const byte *ep = params->content + params->length;
   const byte *dp = skip_str (params->content + 4, ep, encoding);
   if (dp < ep)
-    xml_key_value (params->out, params->descriptor->xml_tag,
-	(const char *) dp, ep - dp, encoding);
+    xml_key_value (params->out, params->descriptor->xml_tag, (const char *) dp, ep - dp, encoding);
 }
+
 def_decoder (decode_URL)
 {
-  xml_key_value (params->out, params->descriptor->xml_tag,
-      (const char *) params->content, params->length, 0);
+  xml_key_value (params->out, params->descriptor->xml_tag, (const char *) params->content, params->length, 0);
 }
+
 def_decoder (decode_WXXX)
 {
   /* encoding[1] description 00 url */
@@ -607,13 +606,11 @@ def_decoder (decode_WXXX)
   const byte *ep = params->content + params->length;
   const byte *dp = skip_str (params->content + 1, ep, encoding);
   if (dp < ep)
-    xml_key_value (params->out, params->descriptor->xml_tag,
-	(const char *) dp, ep - dp, encoding);
+    xml_key_value (params->out, params->descriptor->xml_tag, (const char *) dp, ep - dp, encoding);
 }
 
 static void
-emit_tag_data (
-    stream *out, int version, word id, const byte *content, size_t length)
+emit_tag_data (stream * out, int version, word id, const byte * content, size_t length)
 {
   tag_descriptor_t *fp, key;
   tag_decoder_params_t params;
@@ -630,12 +627,8 @@ emit_tag_data (
   if (version != 2)
     {
       key.idtag4 = id;
-      params.descriptor = (tag_descriptor_t *) bsearch (
-	  &key,
-	  id3v2_descriptors,
-	  nelems,
-	  sizeof (tag_descriptor_t),
-	  tag_descriptor_cmp);
+      params.descriptor = (tag_descriptor_t *) bsearch (&key,
+	  id3v2_descriptors, nelems, sizeof (tag_descriptor_t), tag_descriptor_cmp);
     }
   else
     {
@@ -655,7 +648,7 @@ emit_tag_data (
 
 
 static int
-disect_id3v2_2 (stream *out, const void *data, size_t length)
+disect_id3v2_2 (stream * out, const void *data, size_t length)
 {
   const byte *dp = (const byte *) data;
   const byte *ep;
@@ -709,7 +702,7 @@ disect_id3v2_2 (stream *out, const void *data, size_t length)
 
 
 static int
-disect_id3v2_3 (stream *out, const void *data, size_t length)
+disect_id3v2_3 (stream * out, const void *data, size_t length)
 {
   const byte *dp = (const byte *) data;
   const byte *ep;
@@ -759,7 +752,7 @@ disect_id3v2_3 (stream *out, const void *data, size_t length)
 	break;
 
       f_id = read_u4 (dp);
-      f_size = read_u4 (dp + 4); /* XXX sync in v4, unsync in v3 */
+      f_size = read_u4 (dp + 4);	/* XXX sync in v4, unsync in v3 */
       f_flags = read_u2 (dp + 8);
       dp += 10;
 
@@ -777,7 +770,7 @@ disect_id3v2_3 (stream *out, const void *data, size_t length)
 
 
 static int
-disect_id3v2_4 (stream *out, const void *data, size_t length)
+disect_id3v2_4 (stream * out, const void *data, size_t length)
 {
   const byte *dp = (const byte *) data;
   const byte *ep;
@@ -829,7 +822,7 @@ disect_id3v2_4 (stream *out, const void *data, size_t length)
 	break;
 
       f_id = read_u4 (dp);
-      f_size = read_u4_sync (dp + 4); /* XXX sync in v4, unsync in v3 */
+      f_size = read_u4_sync (dp + 4);	/* XXX sync in v4, unsync in v3 */
       f_flags = read_u2 (dp + 8);
       dp += 10;
 
@@ -853,64 +846,64 @@ disect_id3v2_4 (stream *out, const void *data, size_t length)
  */
 
 typedef struct mp4_atom_s
-  {
-    struct mp4_atom_s *parent;
-    word length;
-    word tag;
-    const byte *data;
-  } mp4_atom_t;
+{
+  struct mp4_atom_s *parent;
+  word length;
+  word tag;
+  const byte *data;
+} mp4_atom_t;
 
 typedef struct
-  {
-    word parent;
-    word *set;
-  } mp4_investigate_t;
+{
+  word parent;
+  word *set;
+} mp4_investigate_t;
 
-static word inv_root[] = { tag_moov, tag_ftyp, tag_udta, 0};
+static word inv_root[] = { tag_moov, tag_ftyp, tag_udta, 0 };
 static word inv_moov[] = { tag_udta, 0 };
 static word inv_udta[] = { tag_cprt, tag_meta, tag_Ccpy, tag_Cdes, tag_Cnam, tag_Ccmt, tag_Cprd, 0 };
 static word inv_meta[] = { tag_hdlr, tag_ilst, 0 };
+
 static word inv_ilst[] = {
-    tag_Cnam, tag_CART, tag_Cwrt, tag_Calb, tag_Cday, tag_Ctoo, tag_Ccmt, tag_Cgen,
-    tag_Cgrp, tag_Clyr, tag_trkn, tag_disk, tag_gnre, tag_cpil, tag_tmpo, tag_covr, tag_aART,
-    tag_cprt, tag_rtng, tag_apID,
-    0
+  tag_Cnam, tag_CART, tag_Cwrt, tag_Calb, tag_Cday, tag_Ctoo, tag_Ccmt, tag_Cgen,
+  tag_Cgrp, tag_Clyr, tag_trkn, tag_disk, tag_gnre, tag_cpil, tag_tmpo, tag_covr, tag_aART,
+  tag_cprt, tag_rtng, tag_apID,
+  0
 };
 static word inv_data_only[] = { tag_data, 0 };
 
-static mp4_investigate_t mp4_investigates[] =
-  {
-    { tag_root, inv_root },
-    { tag_moov, inv_moov },
-    { tag_udta, inv_udta },
-    { tag_meta, inv_meta },
-    { tag_ilst, inv_ilst },
-    { tag_Cnam, inv_data_only },
-    { tag_CART, inv_data_only },
-    { tag_Cwrt, inv_data_only },
-    { tag_Calb, inv_data_only },
-    { tag_Cday, inv_data_only },
-    { tag_Ctoo, inv_data_only },
-    { tag_Ccmt, inv_data_only },
-    { tag_Cgen, inv_data_only },
-    { tag_Cgrp, inv_data_only },
-    { tag_trkn, inv_data_only },
-    { tag_disk, inv_data_only },
-    { tag_gnre, inv_data_only },
-    { tag_cpil, inv_data_only },
-    { tag_tmpo, inv_data_only },
-    { tag_covr, inv_data_only },
-    { tag_apID, inv_data_only },
-    { tag_aART, inv_data_only },
-    { tag_cprt, inv_data_only },
-    { tag_rtng, inv_data_only },
+static mp4_investigate_t mp4_investigates[] = {
+  {tag_root, inv_root},
+  {tag_moov, inv_moov},
+  {tag_udta, inv_udta},
+  {tag_meta, inv_meta},
+  {tag_ilst, inv_ilst},
+  {tag_Cnam, inv_data_only},
+  {tag_CART, inv_data_only},
+  {tag_Cwrt, inv_data_only},
+  {tag_Calb, inv_data_only},
+  {tag_Cday, inv_data_only},
+  {tag_Ctoo, inv_data_only},
+  {tag_Ccmt, inv_data_only},
+  {tag_Cgen, inv_data_only},
+  {tag_Cgrp, inv_data_only},
+  {tag_trkn, inv_data_only},
+  {tag_disk, inv_data_only},
+  {tag_gnre, inv_data_only},
+  {tag_cpil, inv_data_only},
+  {tag_tmpo, inv_data_only},
+  {tag_covr, inv_data_only},
+  {tag_apID, inv_data_only},
+  {tag_aART, inv_data_only},
+  {tag_cprt, inv_data_only},
+  {tag_rtng, inv_data_only},
 
-    { 0, NULL }
-  };
+  {0, NULL}
+};
 
 
 static const byte *
-mp4_read_atom (mp4_atom_t *atom, const byte *dp, const byte *ep)
+mp4_read_atom (mp4_atom_t * atom, const byte * dp, const byte * ep)
 {
   word length;
 
@@ -935,7 +928,7 @@ mp4_read_atom (mp4_atom_t *atom, const byte *dp, const byte *ep)
 
 
 static int
-mp4_set_contains (word *set, word tag)
+mp4_set_contains (word * set, word tag)
 {
   while (*set && *set != tag)
     set++;
@@ -943,7 +936,7 @@ mp4_set_contains (word *set, word tag)
 }
 
 static void
-disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
+disect_mp4 (stream * out, mp4_atom_t * atom, size_t apos, int level)
 {
   mp4_investigate_t *pinv;
   mp4_atom_t child;
@@ -961,38 +954,38 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
 
       switch (atom->parent->tag)
 	{
-	case tag_Cnam: /* name tag_TIT2 */
+	case tag_Cnam:		/* name tag_TIT2 */
 	  xml_key_value (out, "Title", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_CART: /* artist tag_TPE1 */
+	case tag_CART:		/* artist tag_TPE1 */
 	  xml_key_value (out, "Artist", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_Cwrt: /* writer tag_TCOM */
+	case tag_Cwrt:		/* writer tag_TCOM */
 	  xml_key_value (out, "Composer", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_Calb: /* album tag_TALB */
+	case tag_Calb:		/* album tag_TALB */
 	  xml_key_value (out, "Album", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_Cday: /* date tag_TYER */
+	case tag_Cday:		/* date tag_TYER */
 	  if (atom->length >= 4)
 	    xml_key_value (out, "Year", (const char *) atom->data, 4, 3);
 	  break;
-	case tag_Ctoo: /* tool tag_TENC */
+	case tag_Ctoo:		/* tool tag_TENC */
 	  xml_key_value (out, "Encoder", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_Ccmt: /* comment tag_COMM */
+	case tag_Ccmt:		/* comment tag_COMM */
 	  xml_key_value (out, "Comment", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_Cgen: /* customgenre tag_TCON */
+	case tag_Cgen:		/* customgenre tag_TCON */
 	  xml_key_value (out, "Genre", (const char *) atom->data, atom->length, 3);
 	  break;
-        case tag_Clyr:  /* lyrics tag_USLT */
+	case tag_Clyr:		/* lyrics tag_USLT */
 	  xml_key_value (out, "Lyrics", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_Cgrp: /* grouping tag_TIT1 */
+	case tag_Cgrp:		/* grouping tag_TIT1 */
 	  xml_key_value (out, "Grouping", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_trkn: /* tracknumber tag_TRCK */
+	case tag_trkn:		/* tracknumber tag_TRCK */
 	  if (atom->length >= 6)
 	    {
 	      word lo = read_u2 (atom->data + 2);
@@ -1005,7 +998,7 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
 	      xml_key_value (out, "TrackNumber", buffer, -1, 0);
 	    }
 	  break;
-	case tag_disk: /* discnumber tag_TPOS */
+	case tag_disk:		/* discnumber tag_TPOS */
 	  if (atom->length >= 6)
 	    {
 	      word lo = read_u2 (atom->data + 2);
@@ -1018,7 +1011,7 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
 	      xml_key_value (out, "DiscNumber", buffer, -1, 0);
 	    }
 	  break;
-	case tag_gnre: /* genre tag_TCON */
+	case tag_gnre:		/* genre tag_TCON */
 	  if (atom->length >= 2)
 	    {
 	      int genre = read_u2 (atom->data) - 1;
@@ -1026,20 +1019,20 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
 		xml_key_value (out, "Genre", id3_genres[genre], -1, 0);
 	    }
 	  break;
-	case tag_apID: /* ? tag_TOWN */
+	case tag_apID:		/* ? tag_TOWN */
 	  xml_key_value (out, "FileOwnerName", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_cprt: /* copyright tag_TCOP */
+	case tag_cprt:		/* copyright tag_TCOP */
 	  xml_key_value (out, "Copyright", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_aART: /* albumartist tag_? */
+	case tag_aART:		/* albumartist tag_? */
 	  xml_key_value (out, "AlbumArtist", (const char *) atom->data, atom->length, 3);
 	  break;
-	case tag_cpil: /* compilation tag_TCMP */
+	case tag_cpil:		/* compilation tag_TCMP */
 	  if (atom->length > 0 && atom->data[0])
 	    xml_key_value (out, "Compilation", "yes", -1, 0);
 	  break;
-	case tag_tmpo: /* tempo tag_TBPM */
+	case tag_tmpo:		/* tempo tag_TBPM */
 	  if (atom->length >= 2)
 	    {
 	      word tmpo = read_u2 (atom->data);
@@ -1051,8 +1044,8 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
 		}
 	    }
 	  break;
-	/* case tag_covr: // cover tag_APIC */
-	/* case tag_rtng: // rating tag_? */
+	  /* case tag_covr: // cover tag_APIC */
+	  /* case tag_rtng: // rating tag_? */
 	}
 
       /* just in case */
@@ -1062,7 +1055,7 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
     }
   else if (atom->tag == tag_meta)
     {
-      dp += 4; /* skip VersionAndFlags */
+      dp += 4;			/* skip VersionAndFlags */
     }
 
   /* see if we happen to look at a container we're interested in */
@@ -1090,15 +1083,15 @@ disect_mp4 (stream *out, mp4_atom_t *atom, size_t apos, int level)
 /*************************/
 
 typedef struct ogg_ctx_s
-  {
-    word serial;
-    word seq;
-    const byte *end_ptr;
-  } ogg_ctx_t;
+{
+  word serial;
+  word seq;
+  const byte *end_ptr;
+} ogg_ctx_t;
 
 
 static int
-ogg_check_header (ogg_ctx_t *ctx, const byte *dp)
+ogg_check_header (ogg_ctx_t * ctx, const byte * dp)
 {
   byte rev;
   byte flags;
@@ -1122,7 +1115,7 @@ ogg_check_header (ogg_ctx_t *ctx, const byte *dp)
   /* header_type_flag */
   flags = *dp++;
 
-  dp += 8; /* skip gpos */
+  dp += 8;			/* skip gpos */
 
   /* bitstream_serial_number - only handle 1 logical stream */
   serial = read_u4_le (dp);
@@ -1151,7 +1144,7 @@ ogg_check_header (ogg_ctx_t *ctx, const byte *dp)
 
 
 static void
-ogg_comment_packet (stream *out, const byte *dp, const byte *ep)
+ogg_comment_packet (stream * out, const byte * dp, const byte * ep)
 {
   char *k, *v;
   char *nm;
@@ -1181,22 +1174,38 @@ ogg_comment_packet (stream *out, const byte *dp, const byte *ep)
 	    continue;
 	  *v++ = 0;
 	  nm = NULL;
-	  if (!stricmp (k, "title")) nm = "Title"; /* tag_TIT2 */
-	  else if (!stricmp (k, "artist")) nm = "Artist"; /* tag_TPE1 */
-	  else if (!stricmp (k, "album")) nm = "Album"; /* tag_TALB */
-	  else if (!stricmp (k, "tracknumber")) nm = "TrackNumber"; /* tag_TRCK */
-	  else if (!stricmp (k, "discnumber")) nm = "DiscNumber"; /* tag_TPOS */
-	  else if (!stricmp (k, "composer")) nm = "Composer"; /* tag_TCOM */
-	  else if (!stricmp (k, "genre")) nm = "Genre"; /* tag_TCON */
-	  else if (!stricmp (k, "date")) nm = "Year"; /* tag_TYER */
-	  else if (!stricmp (k, "encoder")) nm = "EncodedBy"; /* tag_TENC */
-	  else if (!stricmp (k, "grouping")) nm = "Grouping"; /* tag_TIT1 */
-	  else if (!stricmp (k, "comment")) nm = "Comment"; /* tag_COMM */
-	  else if (!stricmp (k, "lyrics")) nm = "Lyrics"; /* tag_USLT */
-	  else if (!stricmp (k, "tempo")) nm = "Bpm"; /* tag_TBPM */
-	  else if (!stricmp (k, "isrc")) nm = "ISRC"; /* tag_TSRC */
-	  else if (!stricmp (k, "performer")) nm = "Conductor"; /* tag_TPE3 */
-	  else if (!stricmp (k, "copyright")) nm = "Copyright"; /* tag_TCOP */
+	  if (!stricmp (k, "title"))
+	    nm = "Title";	/* tag_TIT2 */
+	  else if (!stricmp (k, "artist"))
+	    nm = "Artist";	/* tag_TPE1 */
+	  else if (!stricmp (k, "album"))
+	    nm = "Album";	/* tag_TALB */
+	  else if (!stricmp (k, "tracknumber"))
+	    nm = "TrackNumber";	/* tag_TRCK */
+	  else if (!stricmp (k, "discnumber"))
+	    nm = "DiscNumber";	/* tag_TPOS */
+	  else if (!stricmp (k, "composer"))
+	    nm = "Composer";	/* tag_TCOM */
+	  else if (!stricmp (k, "genre"))
+	    nm = "Genre";	/* tag_TCON */
+	  else if (!stricmp (k, "date"))
+	    nm = "Year";	/* tag_TYER */
+	  else if (!stricmp (k, "encoder"))
+	    nm = "EncodedBy";	/* tag_TENC */
+	  else if (!stricmp (k, "grouping"))
+	    nm = "Grouping";	/* tag_TIT1 */
+	  else if (!stricmp (k, "comment"))
+	    nm = "Comment";	/* tag_COMM */
+	  else if (!stricmp (k, "lyrics"))
+	    nm = "Lyrics";	/* tag_USLT */
+	  else if (!stricmp (k, "tempo"))
+	    nm = "Bpm";		/* tag_TBPM */
+	  else if (!stricmp (k, "isrc"))
+	    nm = "ISRC";	/* tag_TSRC */
+	  else if (!stricmp (k, "performer"))
+	    nm = "Conductor";	/* tag_TPE3 */
+	  else if (!stricmp (k, "copyright"))
+	    nm = "Copyright";	/* tag_TCOP */
 	  if (nm)
 	    xml_key_value (out, nm, v, strlength, 3);
 	}
@@ -1205,7 +1214,7 @@ ogg_comment_packet (stream *out, const byte *dp, const byte *ep)
 
 
 static int
-ogg_packet_analyzer (stream *out, const byte *dp, size_t length)
+ogg_packet_analyzer (stream * out, const byte * dp, size_t length)
 {
   /* we're only interested in type 1 & 3 packets at the beginning
    * of the file, so this is safe */
@@ -1215,7 +1224,7 @@ ogg_packet_analyzer (stream *out, const byte *dp, size_t length)
   /* comment packet */
   if (dp[0] == 3 && length > 48)
     {
-      dp += 7; /* "\003vorbis" */
+      dp += 7;			/* "\003vorbis" */
 
       ogg_comment_packet (out, dp, dp + length);
 
@@ -1228,7 +1237,7 @@ ogg_packet_analyzer (stream *out, const byte *dp, size_t length)
 
 
 static int
-disect_ogg (stream *out, const void *data, size_t length)
+disect_ogg (stream * out, const void *data, size_t length)
 {
   const byte *dp = (const byte *) data;
   const byte *sp;
@@ -1284,8 +1293,7 @@ disect_ogg (stream *out, const void *data, size_t length)
 	      required = prevlen + thislen;
 	      if (required > maxlen)
 		{
-		  if (required > 256000 ||
-		      (npool = (byte *) realloc (pool, required)) == NULL)
+		  if (required > 256000 || (npool = (byte *) realloc (pool, required)) == NULL)
 		    {
 		      /* exit loops */
 		      last = 1;
@@ -1299,10 +1307,7 @@ disect_ogg (stream *out, const void *data, size_t length)
 
 	      /* if last segment in page, check if current packet continues
 	       * on the next page */
-	      if (last ||
-		  sp < sep ||
-		  ogg_check_header (&ctx, dp + thislen) == -1 ||
-		  (dp[thislen + 5] & 1) == 0)
+	      if (last || sp < sep || ogg_check_header (&ctx, dp + thislen) == -1 || (dp[thislen + 5] & 1) == 0)
 		{
 		  if (ogg_packet_analyzer (out, pool, prevlen) == 0)
 		    {
@@ -1326,7 +1331,7 @@ disect_ogg (stream *out, const void *data, size_t length)
 
 
 static int
-disect_flac (stream *out, const void *data, size_t length)
+disect_flac (stream * out, const void *data, size_t length)
 {
   const byte *dp = (const byte *) data;
   const byte *ep = dp + length;
@@ -1348,7 +1353,7 @@ disect_flac (stream *out, const void *data, size_t length)
       type = (blkhdr >> 24) & 0x7F;
       blklen = blkhdr & 0xFFFFFF;
 
-      if (type == 4) /* VORBIS_COMMENT */
+      if (type == 4)		/* VORBIS_COMMENT */
 	ogg_comment_packet (out, dp, dp + blklen);
 
       /* METADATA_BLOCK_DATA */
@@ -1364,15 +1369,14 @@ disect_flac (stream *out, const void *data, size_t length)
 /*************************/
 
 static void
-disect (stream *out, const byte *data, size_t length)
+disect (stream * out, const byte * data, size_t length)
 {
   mp4_atom_t atom;
 
   if (length < 16)
     return;
 
-  if (mp4_read_atom (&atom, data, data + length) != NULL &&
-      atom.tag == tag_ftyp)
+  if (mp4_read_atom (&atom, data, data + length) != NULL && atom.tag == tag_ftyp)
     {
       atom.parent = NULL;
       atom.tag = tag_root;
@@ -1407,7 +1411,7 @@ disect (stream *out, const byte *data, size_t length)
 
 
 static char *
-audio_to_xml (const byte *data, size_t length, int type)
+audio_to_xml (const byte * data, size_t length, int type)
 {
   stream out;
 

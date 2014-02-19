@@ -42,7 +42,7 @@
 
 #define SOAP_WSDL_SCHEMA20_NS 		"http://www.w3.org/ns/wsdl"
 
-#define SOAP_WSDL_SCHEMA20 		"http://www.w3.org/2006/01/wsdl" /* must be SOAP_WSDL_SCHEMA20_NS */
+#define SOAP_WSDL_SCHEMA20 		"http://www.w3.org/2006/01/wsdl"	/* must be SOAP_WSDL_SCHEMA20_NS */
 #define SOAP_BINDING_TYPE_SOAP 		SOAP_WSDL_SCHEMA20_NS "/soap"
 #define SOAP_BINDING_TYPE_HTTP 		SOAP_WSDL_SCHEMA20_NS "/http"
 #define SOAP_11_VERSION 		"1.1"
@@ -71,8 +71,8 @@
     		     (x) == 11 ? SOAP_ENC_SCHEMA11 : \
 		     (x) == 12 ? SOAP_ENC_SCHEMA12 : NULL)
 
-caddr_t * xml_find_child (caddr_t *entity, const char *szSearchName, const char *szURI, int nth, int *start_inx);
-caddr_t * xml_find_one_child (caddr_t *entity, char *szSearchName, char **szURIs, int nth, int *start_inx);
+caddr_t *xml_find_child (caddr_t * entity, const char *szSearchName, const char *szURI, int nth, int *start_inx);
+caddr_t *xml_find_one_child (caddr_t * entity, char *szSearchName, char **szURIs, int nth, int *start_inx);
 int is_in_urls (char **szURIs, const char *uri, int *idx);
 
 #define WS_ENC_NONE 0
@@ -91,13 +91,13 @@ int is_in_urls (char **szURIs, const char *uri, int *idx);
 #define SOAP_MMSG_OUT	(long)0x200
 #define SOAP_MMSG_INOUT	(long)0x300
 
-#define SOAP_MSG_HEADER  	0x01   /* an parameter is in a SOAP:Header  */
-#define SOAP_MSG_LITERAL 	0x02   /* the method is document/literal encoded */
-#define SOAP_MSG_XML     	0x04   /* the parameter is RAW XML passed to the procedure */
-#define SOAP_MSG_LITERALW 	0x08   /* the method is document/literal encoded, like RPC one */
-#define SOAP_MSG_HTTP		0x10   /* the method have HTTP/GET/POST disposition */
-#define SOAP_MSG_FAULT		0x20   /* an parameter is exposed to soap:fault */
-#define SOAP_MSG_DOC		(SOAP_MSG_LITERAL|SOAP_MSG_LITERALW) /* document */
+#define SOAP_MSG_HEADER  	0x01	/* an parameter is in a SOAP:Header  */
+#define SOAP_MSG_LITERAL 	0x02	/* the method is document/literal encoded */
+#define SOAP_MSG_XML     	0x04	/* the parameter is RAW XML passed to the procedure */
+#define SOAP_MSG_LITERALW 	0x08	/* the method is document/literal encoded, like RPC one */
+#define SOAP_MSG_HTTP		0x10	/* the method have HTTP/GET/POST disposition */
+#define SOAP_MSG_FAULT		0x20	/* an parameter is exposed to soap:fault */
+#define SOAP_MSG_DOC		(SOAP_MSG_LITERAL|SOAP_MSG_LITERALW)	/* document */
 
 #define IS_SOAP_RPCLIT(f)	((f)&SOAP_MSG_LITERALW)
 #define IS_SOAP_LIT(f)		((f)&SOAP_MSG_LITERAL && !((f)&SOAP_MSG_LITERALW))

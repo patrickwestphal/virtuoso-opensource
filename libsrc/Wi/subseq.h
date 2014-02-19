@@ -29,7 +29,7 @@
 typedef struct subseq_s
 {
   caddr_t *ss_state;		/* boxed */
-  caddr_t *ss_not_in_state;		/* boxed */
+  caddr_t *ss_not_in_state;	/* boxed */
   caddr_t *ss_array;		/* boxed */
   int ss_in_state_num;
   int ss_out_state_num;

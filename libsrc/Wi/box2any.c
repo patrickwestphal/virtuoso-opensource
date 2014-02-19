@@ -1,7 +1,7 @@
 /*
  *  box2any.c
  *
- *  $Id$
+ *  $Id:#
  *
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
@@ -81,7 +81,8 @@ name (caddr_t data, caddr_t * err_ret, MP_T * ap, int ser_flags)
 	    box[9] = 0;
 	  }
 
-	return box;}
+	return box;
+      }
     case DV_SINGLE_FLOAT:
       {
 	float f = unbox_float (data);
@@ -128,8 +129,8 @@ name (caddr_t data, caddr_t * err_ret, MP_T * ap, int ser_flags)
   }
   FAILED
   {
-      if (DKS_TO_DC & ser_flags)
-	return box_to_any_long (data, err_ret, ser_flags);
+    if (DKS_TO_DC & ser_flags)
+      return box_to_any_long (data, err_ret, ser_flags);
     *err_ret = srv_make_new_error ("22026", "SR477", "Error serializing the value into an ANY column");
     return NULL;
   }

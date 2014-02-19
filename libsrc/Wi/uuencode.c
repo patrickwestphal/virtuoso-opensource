@@ -74,11 +74,11 @@ static unsigned char uu_enctab_binhex[0x40] = {
 
 static int uu_xlat_native[0x100];	/*!< Invert of uu_enctab_native */
 static int uu_xlat_base64[0x100];	/*!< Invert of uu_enctab_base64 */
-static int uu_xlat_xx[0x100];		/*!< Invert of uu_enctab_xx */
+static int uu_xlat_xx[0x100];	/*!< Invert of uu_enctab_xx */
 static int uu_xlat_binhex[0x100];	/*!< Invert of uu_enctab_binhex */
 static int uu_qp_enc_1st[0x100];	/*!< Right of two hexdigits of QP's encoding of the byte, '\0' if no need to encode */
 static int uu_qp_enc_2nd[0x100];	/*!< Left of two hexdigits of QP's encoding of the byte, '\0' if no need to encode */
-static int uu_hexval[0x100];		/*!< Value of hex digit */
+static int uu_hexval[0x100];	/*!< Value of hex digit */
 static int uu_linelengths[0x40];	/*!< Translation of source length to encoded length */
 
 #define UUNTABLES 6
@@ -86,32 +86,36 @@ static int uu_linelengths[0x40];	/*!< Translation of source length to encoded le
 /*					| Encoding index				*/
 /*					| NO	| UU	| B64U	| B64M	| XX	| BH	*/
 /*======================================|=======|=======|=======|=======|=======|=======*/
-static int uu_bytesperline[UUNTABLES] = { 0	, 45	, 45	, 57	, 45	, 45	};
-static int uu_paddings[UUNTABLES] =	{ 0	, '`'	, '='	, '='	, '+'	, ':'	};
+static int uu_bytesperline[UUNTABLES] = { 0, 45, 45, 57, 45, 45 };
+static int uu_paddings[UUNTABLES] = { 0, '`', '=', '=', '+', ':' };
 
 static unsigned char *uu_enctabs[UUNTABLES] =
-  /*!*/					{ NULL
-  /*!*/						, uu_enctab_native
-  /*!*/							, uu_enctab_base64
-  /*!*/								, uu_enctab_base64
-  /*!*/									, uu_enctab_xx
-  /*!*/										, uu_enctab_binhex
-  /*!*/											};
+    /*! */ { NULL
+      /*! */ , uu_enctab_native
+      /*! */ , uu_enctab_base64
+      /*! */ , uu_enctab_base64
+      /*! */ , uu_enctab_xx
+      /*! */ , uu_enctab_binhex
+      /*! */
+};
+
 static int *uu_xlats[UUNTABLES] =
-  /*!*/					{ NULL
-  /*!*/						, uu_xlat_native
-  /*!*/							, uu_xlat_base64
-  /*!*/								, uu_xlat_base64
-  /*!*/									, uu_xlat_xx
-  /*!*/										, uu_xlat_binhex
-  /*!*/											};
+    /*! */ { NULL
+      /*! */ , uu_xlat_native
+      /*! */ , uu_xlat_base64
+      /*! */ , uu_xlat_base64
+      /*! */ , uu_xlat_xx
+      /*! */ , uu_xlat_binhex
+      /*! */
+};
+
 /*______________________________________|_______|_______|_______|_______|_______|_______*/
 
 
 static int tables_initialized = 0;
 
 void
-uu_initialize_tables(void)
+uu_initialize_tables (void)
 {
   int i, j;
   if (!tables_initialized)
@@ -140,17 +144,17 @@ uu_initialize_tables(void)
     }
 
   for (i = 0; i < 0xA; i++)
-    uu_hexval['0'+i] = i;
+    uu_hexval['0' + i] = i;
   for (i = 0xA; i <= 0xF; i++)
-    uu_hexval['A'+i-0xA] = uu_hexval['a'+i-0xA] = i;
+    uu_hexval['A' + i - 0xA] = uu_hexval['a' + i - 0xA] = i;
 
 
   for (i = 0; i < 0x100; i++)
     {
       if ((33 > i) || (126 < i) || ('=' == i))
 	{
-	  uu_qp_enc_1st[i] = "0123456789ABCDEF" [i >> 4];
-	  uu_qp_enc_2nd[i] = "0123456789ABCDEF" [i & 0xF];
+	  uu_qp_enc_1st[i] = "0123456789ABCDEF"[i >> 4];
+	  uu_qp_enc_2nd[i] = "0123456789ABCDEF"[i & 0xF];
 	}
       else
 	{
@@ -177,23 +181,23 @@ uu_encode_string_session_plaintext (caddr_t * out_sections, dk_session_t * input
   buffer_elt_t *input_elt;
   int offset_in_elt;
 
-  max_length_of_section = maxlinespersection * (76+2);
+  max_length_of_section = maxlinespersection * (76 + 2);
   /* if even one section is surely longer than the worst input encoded, decrease input_bytes_per_section */
-  if (max_length_of_section > (10 + 4*input_length))
-    max_length_of_section = 10 + 4*input_length;
+  if (max_length_of_section > (10 + 4 * input_length))
+    max_length_of_section = 10 + 4 * input_length;
 
   offset_in_elt = 0;
   input_elt = input->dks_buffer_chain;
   input_is_last = 0;
 
-  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section+1, DV_SHORT_STRING);
+  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section + 1, DV_SHORT_STRING);
   out_section_end = out_section + max_length_of_section;
 
 start_next_elt:
   if (0 == remaining_input_length)
     goto input_finished;
   input_len = session_buffered_read (input, (char *) input_buf,
-    ((sizeof (input_buf) < remaining_input_length) ? sizeof (input_buf) : remaining_input_length) );
+      ((sizeof (input_buf) < remaining_input_length) ? sizeof (input_buf) : remaining_input_length));
   remaining_input_length -= input_len;
   for (input_pos = 0; input_pos < input_len; input_pos++)
     {
@@ -202,7 +206,7 @@ start_next_elt:
 	{
 	  out_tail[0] = '\0';
 	  dk_set_push (&sections_set, out_section);
-	  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section+1, DV_SHORT_STRING);
+	  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section + 1, DV_SHORT_STRING);
 	  out_section_end = out_section + max_length_of_section;
 	}
       (out_tail++)[0] = chr;
@@ -217,7 +221,7 @@ input_finished:
     }
   else
     {
-      dk_set_push (&sections_set, box_dv_short_nchars ((char *)(out_section), out_tail-out_section));
+      dk_set_push (&sections_set, box_dv_short_nchars ((char *) (out_section), out_tail - out_section));
       dk_free_box ((box_t) out_section);
     }
   out_sections[0] = list_to_array (dk_set_nreverse (sections_set));
@@ -238,19 +242,19 @@ uu_encode_string_session_mime_qp (caddr_t * out_sections, dk_session_t * input,
   unsigned char *out_tail;
   int column = 0;
 
-  max_length_of_section = maxlinespersection * (76+2);
+  max_length_of_section = maxlinespersection * (76 + 2);
   /* if even one section is surely longer than the worst input encoded, decrease input_bytes_per_section */
-  if (max_length_of_section > (10 + 4*input_length))
-    max_length_of_section = 10 + 4*input_length;
+  if (max_length_of_section > (10 + 4 * input_length))
+    max_length_of_section = 10 + 4 * input_length;
 
-  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section+1, DV_SHORT_STRING);
+  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section + 1, DV_SHORT_STRING);
   out_section_end = out_section + max_length_of_section;
 
 start_next_elt:
   if (0 == remaining_input_length)
     goto input_finished;
-  input_len = session_buffered_read (input, (char *)input_buf,
-    ((sizeof (input_buf) < remaining_input_length) ? sizeof (input_buf) : remaining_input_length) );
+  input_len = session_buffered_read (input, (char *) input_buf,
+      ((sizeof (input_buf) < remaining_input_length) ? sizeof (input_buf) : remaining_input_length));
   remaining_input_length -= input_len;
 
   for (input_pos = 0; input_pos < input_len; input_pos++)
@@ -258,22 +262,22 @@ start_next_elt:
       unsigned char chr = input_buf[input_pos];
       unsigned char enc_1st = uu_qp_enc_1st[chr];
 
-try_output:
+    try_output:
       if (!enc_1st)
 	goto output_literal;
       switch (chr)
 	{
-	case ' ': case '\t':
-          if ((input_pos+1) >= input_len)
+	case ' ':
+	case '\t':
+	  if ((input_pos + 1) >= input_len)
 	    goto output_encoded;
-	  if ((ASCII_LF == input_buf[input_pos+1]) &&
-	      (UUENCTYPE_MIME_QP_TXT == uuenctype) )
+	  if ((ASCII_LF == input_buf[input_pos + 1]) && (UUENCTYPE_MIME_QP_TXT == uuenctype))
 	    goto output_encoded;
 	  goto output_literal;
 	case ASCII_LF:
 	  if (UUENCTYPE_MIME_QP_BIN == uuenctype)
 	    goto output_encoded;
-	  if ((out_tail+2) > out_section_end)
+	  if ((out_tail + 2) > out_section_end)
 	    goto start_new_section;
 	  (out_tail++)[0] = ASCII_CR;
 	  (out_tail++)[0] = ASCII_LF;
@@ -282,8 +286,8 @@ try_output:
 	}
       /* by default, goto output_encoded: */
 
-output_encoded:
-      if ((out_tail+3) > out_section_end)
+    output_encoded:
+      if ((out_tail + 3) > out_section_end)
 	goto start_new_section;
       if (73 <= column)
 	goto output_soft_break;
@@ -293,8 +297,8 @@ output_encoded:
       column += 3;
       continue;
 
-output_literal:
-      if ((out_tail+1) > out_section_end)
+    output_literal:
+      if ((out_tail + 1) > out_section_end)
 	goto start_new_section;
       if (75 <= column)
 	goto output_soft_break;
@@ -302,8 +306,8 @@ output_literal:
       column++;
       continue;
 
-output_soft_break:
-      if ((out_tail+3) > out_section_end)
+    output_soft_break:
+      if ((out_tail + 3) > out_section_end)
 	goto start_new_section;
       (out_tail++)[0] = '=';
       (out_tail++)[0] = ASCII_CR;
@@ -311,17 +315,17 @@ output_soft_break:
       column = 0;
       goto try_output;
 
-start_new_section:
+    start_new_section:
       if (out_tail == out_section_end)
 	{
 	  out_tail[0] = '\0';
 	  dk_set_push (&sections_set, out_section);
-	  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section+1, DV_SHORT_STRING);
+	  out_tail = out_section = (unsigned char *) dk_alloc_box (max_length_of_section + 1, DV_SHORT_STRING);
 	  out_section_end = out_section + max_length_of_section;
 	}
       else
 	{
-	  dk_set_push (&sections_set, box_dv_short_nchars ((char *)out_section, out_tail-out_section));
+	  dk_set_push (&sections_set, box_dv_short_nchars ((char *) out_section, out_tail - out_section));
 	  out_tail = out_section;
 	}
       goto try_output;
@@ -336,7 +340,7 @@ input_finished:
     }
   else
     {
-      dk_set_push (&sections_set, box_dv_short_nchars ((char *)out_section, out_tail-out_section));
+      dk_set_push (&sections_set, box_dv_short_nchars ((char *) out_section, out_tail - out_section));
       dk_free_box ((box_t) out_section);
     }
   out_sections[0] = list_to_array (dk_set_nreverse (sections_set));
@@ -344,8 +348,7 @@ input_finished:
 
 
 void
-uu_encode_string_session (caddr_t * out_sections, dk_session_t * input,
-    int uuenctype, int maxlinespersection)
+uu_encode_string_session (caddr_t * out_sections, dk_session_t * input, int uuenctype, int maxlinespersection)
 {
   unsigned char *enctable = uu_enctabs[uuenctype];
   int padding_char = uu_paddings[uuenctype];
@@ -382,17 +385,13 @@ uu_encode_string_session (caddr_t * out_sections, dk_session_t * input,
 
   /* if even one section is much longer than input, decrease maxlinespersection */
   if ((input_bytes_per_line * maxlinespersection) > input_length)
-    maxlinespersection =
-	(input_length + input_bytes_per_line - 1) / input_bytes_per_line;
+    maxlinespersection = (input_length + input_bytes_per_line - 1) / input_bytes_per_line;
 
   input_bytes_per_section = input_bytes_per_line * maxlinespersection;
 
-  sections_count = ((0 == input_length) ? 0 :
-      ((input_length + input_bytes_per_section - 1) / input_bytes_per_section) );
+  sections_count = ((0 == input_length) ? 0 : ((input_length + input_bytes_per_section - 1) / input_bytes_per_section));
 
-  out_sections[0] =
-      dk_alloc_box_zero (sections_count * sizeof (caddr_t),
-      DV_ARRAY_OF_POINTER);
+  out_sections[0] = dk_alloc_box_zero (sections_count * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 
   offset_in_elt = 0;
   input_elt = input->dks_buffer_chain;
@@ -419,17 +418,16 @@ uu_encode_string_session (caddr_t * out_sections, dk_session_t * input,
 	  unsigned char line_buf[60];
 	  unsigned char *line_tail;
 	  int bytes_count;
-          bytes_count = session_buffered_read (input, (char *) line_buf,
-            ((input_bytes_per_line < remaining_input_length) ? input_bytes_per_line : remaining_input_length) );
-          remaining_input_length -= bytes_count;
-          line_tail = line_buf + bytes_count;
+	  bytes_count = session_buffered_read (input, (char *) line_buf,
+	      ((input_bytes_per_line < remaining_input_length) ? input_bytes_per_line : remaining_input_length));
+	  remaining_input_length -= bytes_count;
+	  line_tail = line_buf + bytes_count;
 
 	  if (line_has_prefix)	/* Prefix byte of the input_line contains the length of input_line */
 	    (out_tail++)[0] = enctable[bytes_count];
 
 	  /* Complete input triples should be translated to complete output quads */
-	  for (line_tail = line_buf; bytes_count >= 3;
-	      bytes_count -= 3, line_tail += 3)
+	  for (line_tail = line_buf; bytes_count >= 3; bytes_count -= 3, line_tail += 3)
 	    {
 	      (out_tail++)[0] = enctable[line_tail[0] >> 2];
 	      (out_tail++)[0] = enctable[((line_tail[0] & 0x03) << 4) | (line_tail[1] >> 4)];
@@ -465,21 +463,20 @@ uu_encode_string_session (caddr_t * out_sections, dk_session_t * input,
 
 
 void
-uu_encode_string (caddr_t * out_sections, caddr_t input,
-    int uuenctype, int maxlinespersection)
+uu_encode_string (caddr_t * out_sections, caddr_t input, int uuenctype, int maxlinespersection)
 {
   dk_session_t *ses = strses_allocate ();
   CATCH_READ_FAIL (ses)
-    {
-      session_buffered_write (ses, input, box_length (input) - 1);
-    }
-  END_WRITE_FAIL (ses)
-  uu_encode_string_session (out_sections, ses, uuenctype, maxlinespersection);
+  {
+    session_buffered_write (ses, input, box_length (input) - 1);
+  }
+  END_WRITE_FAIL (ses) uu_encode_string_session (out_sections, ses, uuenctype, maxlinespersection);
   strses_free (ses);
 }
 
 
-unsigned char *uu_decode_line (uu_ctx_t *ctx, unsigned char *target, unsigned char *source)
+unsigned char *
+uu_decode_line (uu_ctx_t * ctx, unsigned char *target, unsigned char *source)
 {
   int *xlat = uu_xlats[ctx->uuc_enctype];
   int padding_char = uu_paddings[ctx->uuc_enctype];
@@ -488,7 +485,7 @@ unsigned char *uu_decode_line (uu_ctx_t *ctx, unsigned char *target, unsigned ch
 
   switch (ctx->uuc_enctype)
     {
-    /* UU and XX have prefix with the length of line thus they are always 4-bytes-aligned */
+      /* UU and XX have prefix with the length of line thus they are always 4-bytes-aligned */
     case UUENCTYPE_NATIVE:
     case UUENCTYPE_XX:
       i = xlat[(source++)[0]];
@@ -513,11 +510,11 @@ unsigned char *uu_decode_line (uu_ctx_t *ctx, unsigned char *target, unsigned ch
 	  j -= 4;
 	}
       goto eol_check;
-    /* Base64 and BinHex have no prefix and may be wrapped */
+      /* Base64 and BinHex have no prefix and may be wrapped */
     case UUENCTYPE_BASE64_UNIX:
     case UUENCTYPE_BASE64_WIDE:
     case UUENCTYPE_BINHEX:
-      hexbits[2] = hexbits[3] = 0; /* To keep gcc 4.0 happy. */
+      hexbits[2] = hexbits[3] = 0;	/* To keep gcc 4.0 happy. */
       if (0 != ctx->uuc_trail_len)
 	{
 	  while (4 > ctx->uuc_trail_len)
@@ -532,8 +529,7 @@ unsigned char *uu_decode_line (uu_ctx_t *ctx, unsigned char *target, unsigned ch
       while (
 	  (-1 != (hexbits[0] = xlat[ACAST (source[0])])) &&
 	  (-1 != (hexbits[1] = xlat[ACAST (source[1])])) &&
-	  (-1 != (hexbits[2] = xlat[ACAST (source[2])])) &&
-	  (-1 != (hexbits[3] = xlat[ACAST (source[3])])) )
+	  (-1 != (hexbits[2] = xlat[ACAST (source[2])])) && (-1 != (hexbits[3] = xlat[ACAST (source[3])])))
 	{
 	  (target++)[0] = (hexbits[0] << 2) | (hexbits[1] >> 4);
 	  (target++)[0] = (hexbits[1] << 4) | (hexbits[2] >> 2);
@@ -569,8 +565,12 @@ eol_check:
     {
       switch ((source++)[0])
 	{
-	case '\0': case ASCII_CR: case ASCII_LF: goto eol_check_passed;
-	case ' ': break;
+	case '\0':
+	case ASCII_CR:
+	case ASCII_LF:
+	  goto eol_check_passed;
+	case ' ':
+	  break;
 	default:
 	  if (UUENCTYPE_NATIVE == ctx->uuc_enctype)
 	    {
@@ -593,7 +593,7 @@ uu_validate_encoding (unsigned char *ptr, int encoding, int *bh_is_after_colon, 
   unsigned char *s = ptr;
 
   if ((s == NULL) || (s[0] & 0x80))
-      return (0);		/* bad string */
+    return (0);			/* bad string */
 
   while (*s && *s != ASCII_CR && *s != ASCII_LF)
     {
@@ -779,8 +779,7 @@ _t_UU:
    * evaluated if the first character is lowercase, which really shouldn't
    * be in uuencoded text.
    */
-  if (len != j &&
-      !(*ptr != 'M' && *ptr != 'h' && len > j && len <= uu_linelengths[uu_xlat_native['M']]))
+  if (len != j && !(*ptr != 'M' && *ptr != 'h' && len > j && len <= uu_linelengths[uu_xlat_native['M']]))
     {
       if (encoding == UUENCTYPE_NATIVE)
 	return 0;
@@ -866,13 +865,13 @@ _t_XX:				/* XX Test */
     var = (dflt)
 
 void
-uu_decode_mime_qp (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
+uu_decode_mime_qp (uu_ctx_t * ctx, caddr_t * out, caddr_t input)
 {
-  int input_len = box_length (input)-1;
-  int boundary_len = ((NULL == ctx->uuc_boundary) ? 0 : box_length (ctx->uuc_boundary)-1);
-  unsigned char *input_end = (unsigned char *)(input+input_len);
-  unsigned char *input_tail = (unsigned char *)(input);
-  unsigned char *decode_tail = (unsigned char *)(input); /* Decoded data is shorter than qp-ed, so we may decode in-place */
+  int input_len = box_length (input) - 1;
+  int boundary_len = ((NULL == ctx->uuc_boundary) ? 0 : box_length (ctx->uuc_boundary) - 1);
+  unsigned char *input_end = (unsigned char *) (input + input_len);
+  unsigned char *input_tail = (unsigned char *) (input);
+  unsigned char *decode_tail = (unsigned char *) (input);	/* Decoded data is shorter than qp-ed, so we may decode in-place */
   unsigned char *first_cr, *first_lf;
   int append_lf = 1;
   FIND_DELIM (first_cr, input, input_end, ASCII_CR);
@@ -889,11 +888,10 @@ uu_decode_mime_qp (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
       input_line_end = ((first_cr < first_lf) ? first_cr : first_lf);
       if ((NULL != ctx->uuc_boundary) &&
 	  ('-' == input_line[0]) &&
-	  ('-' == input_line[1]) &&
-	  (0 == strncmp ((const char *) (input_line + 2), ctx->uuc_boundary, boundary_len)) )
+	  ('-' == input_line[1]) && (0 == strncmp ((const char *) (input_line + 2), ctx->uuc_boundary, boundary_len)))
 	{
 	  ctx->uuc_boundary_status = (('-' == input_line[boundary_len + 2]) ? 1 : 0);
-	  if (append_lf && (decode_tail > (unsigned char *)input))
+	  if (append_lf && (decode_tail > (unsigned char *) input))
 	    decode_tail--;	/* Last CRLF is a part of boundary */
 	  break;
 	}
@@ -907,14 +905,13 @@ uu_decode_mime_qp (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 	      (decode_tail++)[0] = (input_line_tail++)[0];
 	      continue;
 	    }
-	  if ((0 <= (v1 = uu_hexval[input_line_tail[1]])) &&
-	      (0 <= (v2 = uu_hexval[input_line_tail[2]])) )
+	  if ((0 <= (v1 = uu_hexval[input_line_tail[1]])) && (0 <= (v2 = uu_hexval[input_line_tail[2]])))
 	    {
 	      (decode_tail++)[0] = (v1 << 4) | v2;
 	      input_line_tail += 3;
 	      continue;
 	    }
-	  if ((input_line_tail+3) > input_line_end)
+	  if ((input_line_tail + 3) > input_line_end)
 	    {
 	      append_lf = 0;
 	      break;
@@ -923,36 +920,34 @@ uu_decode_mime_qp (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 	  return;
 	}
       input_tail = input_line_end;
-      if ((input_tail < input_end) &&
-	  ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])) )
+      if ((input_tail < input_end) && ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])))
 	{
 	  input_tail++;
 	  if ((input_tail < input_end) &&
-	    ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])) &&
-	    (input_tail[-1] != input_tail[0]) )
-	  input_tail++;
+	      ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])) && (input_tail[-1] != input_tail[0]))
+	    input_tail++;
 	  if (append_lf)
 	    (decode_tail++)[0] = ASCII_LF;
 	}
- /* !!! Linefeeds should be added "between lines", not "after every line" !!! */
+      /* !!! Linefeeds should be added "between lines", not "after every line" !!! */
 /*
       if (append_lf && (input_tail < input_end))
 	(decode_tail++)[0] = ASCII_LF;
 */
     }
-  out[0] = box_dv_short_nchars (input, (decode_tail - (unsigned char *)input));
+  out[0] = box_dv_short_nchars (input, (decode_tail - (unsigned char *) input));
   ctx->uuc_state = UUSTATE_FINISHED;
 }
 
 
 void
-uu_decode_plaintext (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
+uu_decode_plaintext (uu_ctx_t * ctx, caddr_t * out, caddr_t input)
 {
-  int input_len = box_length (input)-1;
-  int boundary_len = ((NULL == ctx->uuc_boundary) ? 0 : box_length (ctx->uuc_boundary)-1);
-  unsigned char *input_end = (unsigned char *)(input+input_len);
-  unsigned char *input_tail = (unsigned char *)(input);
-  unsigned char *decode_tail = (unsigned char *)(input); /* Decoded data is shorter than plaintext, so we may decode in-place */
+  int input_len = box_length (input) - 1;
+  int boundary_len = ((NULL == ctx->uuc_boundary) ? 0 : box_length (ctx->uuc_boundary) - 1);
+  unsigned char *input_end = (unsigned char *) (input + input_len);
+  unsigned char *input_tail = (unsigned char *) (input);
+  unsigned char *decode_tail = (unsigned char *) (input);	/* Decoded data is shorter than plaintext, so we may decode in-place */
   unsigned char *first_cr, *first_lf;
   FIND_DELIM (first_cr, input, input_end, ASCII_CR);
   FIND_DELIM (first_lf, input, input_end, ASCII_LF);
@@ -969,11 +964,10 @@ uu_decode_plaintext (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
       input_line_end = ((first_cr < first_lf) ? first_cr : first_lf);
       if ((NULL != ctx->uuc_boundary) &&
 	  ('-' == input_line[0]) &&
-	  ('-' == input_line[1]) &&
-	  (0 == strncmp ((const char *) (input_line + 2), ctx->uuc_boundary, boundary_len)) )
+	  ('-' == input_line[1]) && (0 == strncmp ((const char *) (input_line + 2), ctx->uuc_boundary, boundary_len)))
 	{
 	  ctx->uuc_boundary_status = (('-' == input_line[boundary_len + 2]) ? 1 : 0);
-	  if (decode_tail > (unsigned char *)input)
+	  if (decode_tail > (unsigned char *) input)
 	    decode_tail--;	/* Last CRLF is a part of boundary */
 	  break;
 	}
@@ -981,13 +975,11 @@ uu_decode_plaintext (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
       memmove (decode_tail, input_line, input_line_len);
       decode_tail += input_line_len;
       input_tail = input_line_end;
-      if ((input_tail < input_end) &&
-	  ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])) )
+      if ((input_tail < input_end) && ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])))
 	{
 	  input_tail++;
 	  if ((input_tail < input_end) &&
-	      ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])) &&
-	      (input_tail[-1] != input_tail[0]) )
+	      ((ASCII_CR == input_tail[0]) || (ASCII_LF == input_tail[0])) && (input_tail[-1] != input_tail[0]))
 	    input_tail++;
 	  (decode_tail++)[0] = ASCII_LF;
 	}
@@ -997,21 +989,21 @@ uu_decode_plaintext (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
         (decode_tail++)[0] = ASCII_LF;
 */
     }
-  out[0] = box_dv_short_nchars (input, (decode_tail - (unsigned char *)input));
+  out[0] = box_dv_short_nchars (input, (decode_tail - (unsigned char *) input));
   ctx->uuc_state = UUSTATE_FINISHED;
 }
 
 void
-uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
+uu_decode_part (uu_ctx_t * ctx, caddr_t * out, caddr_t input)
 {
   int orig_enctype = ctx->uuc_enctype;
-  int input_len = box_length (input)-1;
-  int boundary_len = ((NULL == ctx->uuc_boundary) ? 0 : box_length (ctx->uuc_boundary)-1);
+  int input_len = box_length (input) - 1;
+  int boundary_len = ((NULL == ctx->uuc_boundary) ? 0 : box_length (ctx->uuc_boundary) - 1);
   int bh_is_after_colon = 0;
   int check_res;
-  unsigned char *input_end = (unsigned char *)(input+input_len);
-  unsigned char *input_tail = (unsigned char *)(input);
-  unsigned char *decode_tail = (unsigned char *)(input); /* Decoded data is shorter than plaintext, so we may decode in-place */
+  unsigned char *input_end = (unsigned char *) (input + input_len);
+  unsigned char *input_tail = (unsigned char *) (input);
+  unsigned char *decode_tail = (unsigned char *) (input);	/* Decoded data is shorter than plaintext, so we may decode in-place */
   unsigned char *first_cr, *first_lf;
 
   switch (ctx->uuc_enctype)
@@ -1037,9 +1029,9 @@ uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
       if (first_lf < input_line)
 	FIND_DELIM (first_lf, input_line, input_end, ASCII_LF);
       input_line_end = ((first_cr < first_lf) ? first_cr : first_lf);
-      input_tail = input_line_end+1;
+      input_tail = input_line_end + 1;
       /* This is not fully correct, because it would be better to ignore
-	 blank lines only in data section but it's safe enough. */
+         blank lines only in data section but it's safe enough. */
       if (input_line_end == input_line)
 	{
 	  /* Empty line terminates data encoded with prefixes.
@@ -1053,8 +1045,7 @@ uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 	}
       if ((NULL != ctx->uuc_boundary) &&
 	  ('-' == input_line[0]) &&
-	  ('-' == input_line[1]) &&
-	  (0 == strncmp ((const char *) (input_line + 2), ctx->uuc_boundary, boundary_len)) )
+	  ('-' == input_line[1]) && (0 == strncmp ((const char *) (input_line + 2), ctx->uuc_boundary, boundary_len)))
 	{
 	  ctx->uuc_boundary_status = (('-' == input_line[boundary_len + 2]) ? 1 : 0);
 	  continue;
@@ -1065,8 +1056,7 @@ uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 	  if (!strncmp ((const char *) input_line, "begin ", 6) ||
 	      !strncmp ((const char *) input_line, "<pre>begin ", 11) ||
 	      !strncmp ((const char *) input_line, "<PRE>begin ", 11) ||
-	      !strncmp ((const char *) input_line, "<pre>BEGIN ", 11) ||
-	      !strncmp ((const char *) input_line, "<PRE>BEGIN ", 11) )
+	      !strncmp ((const char *) input_line, "<pre>BEGIN ", 11) || !strncmp ((const char *) input_line, "<PRE>BEGIN ", 11))
 
 	    {
 	      ctx->uuc_state = UUSTATE_BODY;
@@ -1089,7 +1079,7 @@ uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 		}
 	      bh_is_after_colon = 0;
 	      ctx->uuc_state = UUSTATE_BODY;
-	      decode_tail = uu_decode_line (ctx, decode_tail, input_line+1);
+	      decode_tail = uu_decode_line (ctx, decode_tail, input_line + 1);
 	      if (ctx->uuc_errmsg)
 		return;
 	      continue;
@@ -1134,7 +1124,7 @@ uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 		  ctx->uuc_state = UUSTATE_FINISHED;
 		  continue;
 		}
-	    if ((UUENCTYPE_NATIVE == ctx->uuc_enctype) && ctx->uuc_bug_count)
+	      if ((UUENCTYPE_NATIVE == ctx->uuc_enctype) && ctx->uuc_bug_count)
 		{
 		  if (1 < ctx->uuc_bug_count)
 		    {
@@ -1174,12 +1164,13 @@ uu_decode_part (uu_ctx_t *ctx, caddr_t *out, caddr_t input)
 	}
     }
   if (NULL == ctx->uuc_errmsg)
-    out[0] = box_dv_short_nchars (input, (decode_tail - (unsigned char *)input));
+    out[0] = box_dv_short_nchars (input, (decode_tail - (unsigned char *) input));
 }
 
-int uudecode_base64(char * src, char * end)
+int
+uudecode_base64 (char *src, char *end)
 {
-  caddr_t input, out= NULL;
+  caddr_t input, out = NULL;
   size_t len;
   uu_ctx_t ctx;
   /* tables_initilized can be zero when
@@ -1221,7 +1212,8 @@ int uudecode_base64(char * src, char * end)
 
 #if 0
 /* NAMING CONVENTIONS!!! */
-struct _uu_section {
+struct _uu_section
+{
   int uu_nl;
   int uu_out_bytes;
   int uu_bytes_on_line;
@@ -1233,7 +1225,7 @@ struct _uu_section {
 typedef struct _uu_section uu_section_t;
 
 static int
-chk_QP_string ( caddr_t str, int len, dk_set_t *secs, int maxlines, int breakline )
+chk_QP_string (caddr_t str, int len, dk_set_t * secs, int maxlines, int breakline)
 {
   int i, c;
   uu_section_t *cs;
@@ -1243,22 +1235,22 @@ chk_QP_string ( caddr_t str, int len, dk_set_t *secs, int maxlines, int breaklin
       dk_set_push (secs, cs);
     }
   else
-    cs = (uu_section_t *)(*secs)->data;
-  for (i=0;i<len;i++)
+    cs = (uu_section_t *) (*secs)->data;
+  for (i = 0; i < len; i++)
     {
       c = str[i];
       if (breakline && c != '\n')
 	{
-	  cs->uu_out_bytes+=3;
-	  cs->uu_bytes_on_line+=3;
+	  cs->uu_out_bytes += 3;
+	  cs->uu_bytes_on_line += 3;
 	  breakline = 0;
 	}
       if (cs->uu_bytes_on_line >= 74)
 	{
 	  cs->uu_nl++;
-	  cs->uu_out_bytes+=3;
+	  cs->uu_out_bytes += 3;
 	  cs->uu_bytes_on_line = 0;
-	  if (cs->uu_nl>=maxlines)
+	  if (cs->uu_nl >= maxlines)
 	    {
 	      cs = dk_alloc_box_zero (sizeof (*cs), DV_CUSTOM);
 	      dk_set_push (secs, cs);
@@ -1274,9 +1266,9 @@ chk_QP_string ( caddr_t str, int len, dk_set_t *secs, int maxlines, int breaklin
 	{
 	  breakline = 1;
 	}
-      else if (breakline && '\n'== c)
+      else if (breakline && '\n' == c)
 	{
-	  if (cs->uu_bytes_on_line < (74-1))
+	  if (cs->uu_bytes_on_line < (74 - 1))
 	    {
 	      cs->uu_bytes_on_line += 2;
 	      cs->uu_out_bytes += 2;
@@ -1290,7 +1282,7 @@ chk_QP_string ( caddr_t str, int len, dk_set_t *secs, int maxlines, int breaklin
 	}
       else
 	{
-	  if (cs->uu_bytes_on_line < (74-3))
+	  if (cs->uu_bytes_on_line < (74 - 3))
 	    {
 	      cs->uu_bytes_on_line += 3;
 	      cs->uu_out_bytes += 3;
@@ -1307,10 +1299,10 @@ chk_QP_string ( caddr_t str, int len, dk_set_t *secs, int maxlines, int breaklin
 }
 
 static int
-fin_chk_QP_string (dk_set_t secs, int breakline )
+fin_chk_QP_string (dk_set_t secs, int breakline)
 {
   uu_section_t *cs;
-  cs = (uu_section_t *)secs->data;
+  cs = (uu_section_t *) secs->data;
   if (breakline)
     cs->uu_bytes_on_line++;
   if (cs->uu_bytes_on_line)
@@ -1320,7 +1312,7 @@ fin_chk_QP_string (dk_set_t secs, int breakline )
 }
 
 static int
-do_QP_string ( caddr_t str, int len, uu_section_t **secs, int *idx, int maxlines, int breakline )
+do_QP_string (caddr_t str, int len, uu_section_t ** secs, int *idx, int maxlines, int breakline)
 {
   static char *pps = "0123456789ABCDEF";
   int i, c;
@@ -1329,9 +1321,9 @@ do_QP_string ( caddr_t str, int len, uu_section_t **secs, int *idx, int maxlines
   if (NULL == cs->data)
     {
       cs->data = dk_alloc_box (cs->uu_out_bytes + 1, DV_LONG_STRING);
-      cs->data [cs->uu_out_bytes] = '\0';
+      cs->data[cs->uu_out_bytes] = '\0';
     }
-  for (i=0;i<len;i++)
+  for (i = 0; i < len; i++)
     {
       assert (cs->out_bytes <= cs->uu_out_bytes);
       assert (cs->nl <= cs->uu_nl);
@@ -1352,11 +1344,11 @@ do_QP_string ( caddr_t str, int len, uu_section_t **secs, int *idx, int maxlines
 	  cs->data[cs->out_bytes++] = '\r';
 	  cs->data[cs->out_bytes++] = '\n';
 	  cs->bytes_on_line = 0;
-	  if (cs->nl>=maxlines)
+	  if (cs->nl >= maxlines)
 	    {
 	      (*idx)++;
 	      cs = secs[*idx];
-	      cs->data = dk_alloc_box(cs->uu_out_bytes + 1, DV_SHORT_STRING);
+	      cs->data = dk_alloc_box (cs->uu_out_bytes + 1, DV_SHORT_STRING);
 	      cs->data[cs->uu_out_bytes] = '\0';
 	    }
 	}
@@ -1370,9 +1362,9 @@ do_QP_string ( caddr_t str, int len, uu_section_t **secs, int *idx, int maxlines
 	{
 	  breakline = 1;
 	}
-      else if (breakline && '\n'== c)
+      else if (breakline && '\n' == c)
 	{
-	  if (cs->bytes_on_line < (74-1))
+	  if (cs->bytes_on_line < (74 - 1))
 	    {
 	      cs->data[cs->out_bytes++] = '\r';
 	      cs->data[cs->out_bytes++] = '\n';
@@ -1387,10 +1379,10 @@ do_QP_string ( caddr_t str, int len, uu_section_t **secs, int *idx, int maxlines
 	}
       else
 	{
-	  if (cs->bytes_on_line < (74-3))
+	  if (cs->bytes_on_line < (74 - 3))
 	    {
 	      cs->data[cs->out_bytes++] = '=';
-	      cs->data[cs->out_bytes++] = pps[0x0f & (c>>4)];
+	      cs->data[cs->out_bytes++] = pps[0x0f & (c >> 4)];
 	      cs->data[cs->out_bytes++] = pps[0x0f & c];
 	      cs->bytes_on_line += 3;
 	      breakline = 0;
@@ -1406,8 +1398,7 @@ do_QP_string ( caddr_t str, int len, uu_section_t **secs, int *idx, int maxlines
 }
 
 void
-uu_encode_QP_string_session (caddr_t * out_sections, dk_session_t * input,
-    int uuenctype, int maxlinespersection)
+uu_encode_QP_string_session (caddr_t * out_sections, dk_session_t * input, int uuenctype, int maxlinespersection)
 {
   int padding_char = 0;
   int input_length, output_length;
@@ -1429,8 +1420,7 @@ uu_encode_QP_string_session (caddr_t * out_sections, dk_session_t * input,
 
   input_length = input->dks_out_fill;
   breakline = chk_QP_string (input->dks_out_buffer, input->dks_out_fill, &sections, maxlinespersection, 0);
-  for (input_elt = input->dks_buffer_chain; NULL != input_elt;
-      input_elt = input_elt->next)
+  for (input_elt = input->dks_buffer_chain; NULL != input_elt; input_elt = input_elt->next)
     {
       input_length += input_elt->fill;
       breakline = chk_QP_string (input_elt->data, input_elt->fill, &sections, maxlinespersection, breakline);
@@ -1444,21 +1434,18 @@ uu_encode_QP_string_session (caddr_t * out_sections, dk_session_t * input,
 
   fin_chk_QP_string (sections, breakline);
   sections = dk_set_nreverse (sections);
-  usecs = (uu_section_t **)dk_set_to_array (sections);
+  usecs = (uu_section_t **) dk_set_to_array (sections);
 
 
   section_idx = 0;
   breakline = do_QP_string (input->dks_out_buffer, input->dks_out_fill, usecs, &section_idx, maxlinespersection, 0);
-  for (input_elt = input->dks_buffer_chain; NULL != input_elt;
-      input_elt = input_elt->next)
+  for (input_elt = input->dks_buffer_chain; NULL != input_elt; input_elt = input_elt->next)
     {
       breakline = do_QP_string (input_elt->data, input_elt->fill, usecs, &section_idx, maxlinespersection, breakline);
     }
   n = dk_set_length (sections);
-  out_sections[0] =
-      dk_alloc_box_zero (n * sizeof (caddr_t),
-      DV_ARRAY_OF_POINTER);
-  for (i=0;i<n;i++)
+  out_sections[0] = dk_alloc_box_zero (n * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+  for (i = 0; i < n; i++)
     {
       ((caddr_t *) (out_sections[0]))[i] = (caddr_t) usecs[i]->data;
     }
@@ -1468,4 +1455,3 @@ uu_encode_QP_string_session (caddr_t * out_sections, dk_session_t * input,
 
 
 #endif
-

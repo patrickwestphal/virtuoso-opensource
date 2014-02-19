@@ -375,7 +375,7 @@ cs_int_high_distinct (compress_state_t * cs, int from, int to)
   for (inx = from; inx < to; inx++)
     {
       int64 i = cs->cs_numbers[inx] >> 8;
-      //DH_ADD_INT ((&dh), n, 1);
+      /*DH_ADD_INT ((&dh), n, 1); */
 
 #define nth 1
 
@@ -477,34 +477,34 @@ cs_int_type (compress_state_t * cs, int from, int to, int *best)
     {
       db_buf_t *values = (db_buf_t *) cs->cs_values;
       db_buf_t first = (db_buf_t) values[from];
-  if (!IS_INTLIKE_DTP (first[0]))
+      if (!IS_INTLIKE_DTP (first[0]))
 	{
 	  *best = cs_any_vec_bytes (cs, from, to);
-    return 0;
+	  return 0;
 	}
-  is_iri = IS_IRI_DTP (first[0]);
-  if (IS_64_DTP (first[0]))
-    {
-      n_64++;
-    }
-  for (inx = from + 1; inx < to; inx++)
-    {
-      db_buf_t xx = (db_buf_t) values[inx];
-      if (!IS_INTLIKE_DTP (xx[0]))
-	    {
-	      *best = cs_any_vec_bytes (cs, from, to);
-	return 0;
-	    }
-      if (is_iri != IS_IRI_DTP (xx[0]))
-	    {
-	      *best = cs_any_vec_bytes (cs, from, to);
-	return 0;
-	    }
-      if (IS_64_DTP (xx[0]))
+      is_iri = IS_IRI_DTP (first[0]);
+      if (IS_64_DTP (first[0]))
 	{
 	  n_64++;
 	}
-    }
+      for (inx = from + 1; inx < to; inx++)
+	{
+	  db_buf_t xx = (db_buf_t) values[inx];
+	  if (!IS_INTLIKE_DTP (xx[0]))
+	    {
+	      *best = cs_any_vec_bytes (cs, from, to);
+	      return 0;
+	    }
+	  if (is_iri != IS_IRI_DTP (xx[0]))
+	    {
+	      *best = cs_any_vec_bytes (cs, from, to);
+	      return 0;
+	    }
+	  if (IS_64_DTP (xx[0]))
+	    {
+	      n_64++;
+	    }
+	}
     }
   if (n_64)
     r = 64;
@@ -515,7 +515,7 @@ cs_int_type (compress_state_t * cs, int from, int to, int *best)
       if (misc_est < 7 * n)
 	{
 	  *best = misc_est;
-    return 0;			/* few 64's, variable length format saves */
+	  return 0;		/* few 64's, variable length format saves */
 	}
     }
   rep = n - cs_int_high_distinct (cs, from, to);
@@ -666,8 +666,8 @@ cs_write_vec_body (compress_state_t * cs, dtp_t * out, int *fill_ret, db_buf_t *
     {
       int start = (caddr_t *) values - cs->cs_values;
       int64 *numbers = &cs->cs_numbers[start];
-  if (64 == is_int)
-    {
+      if (64 == is_int)
+	{
 	  memcpy_16 (out + fill, numbers, n_values * sizeof (int64));
 	  fill += 8 * n_values;
 	}
@@ -1065,25 +1065,26 @@ int enable_ce_skip_bits_2 = 0;
    else ce_skip_bits (bits, skip, byte, bit);}
 
 #if !defined (__GNUC__)
-uint64 
+uint64
 popcount (uint64 x)
 {
   uint64 count;
-  for (count = 0; x; count += x&1, x >>= 1);
+  for (count = 0; x; count += x & 1, x >>= 1);
   return count;
 }
+
 #define __builtin_popcountl popcount
 #endif
 
 void
-ce_skip_bits_2 (db_buf_t bits, int skip, int * byte_ret, int * bit_ret)
+ce_skip_bits_2 (db_buf_t bits, int skip, int *byte_ret, int *bit_ret)
 {
   /* count skip one bits forward from byte/bit and return the byte/bit in byte/bit */
   int byte = *byte_ret, bit = *bit_ret;
   int n_ones = 0;
   dtp_t init_mask = 0xff;
   if (bit)
-    init_mask = init_mask << bit; /* ignore the bit lowest bits of first byte */
+    init_mask = init_mask << bit;	/* ignore the bit lowest bits of first byte */
   for (;;)
     {
       n_ones = __builtin_popcountl ((uint64) (init_mask & bits[byte]));
@@ -1093,7 +1094,7 @@ ce_skip_bits_2 (db_buf_t bits, int skip, int * byte_ret, int * bit_ret)
 	  dtp_t b = bits[byte] & init_mask;
 	  uint32 bit_pos = byte_bits[b];
 	  *byte_ret = byte;
-	  *bit_ret = (bit_pos >> (skip * 3))  & 7;
+	  *bit_ret = (bit_pos >> (skip * 3)) & 7;
 	  return;
 	}
       skip -= n_ones;
@@ -1104,13 +1105,13 @@ ce_skip_bits_2 (db_buf_t bits, int skip, int * byte_ret, int * bit_ret)
 	continue;
       if (skip >= 64)
 	{
-	  int n = __builtin_popcountl (*(uint64*)(bits + byte));
+	  int n = __builtin_popcountl (*(uint64 *) (bits + byte));
 	  skip -= n;
 	  byte += 8;
 	}
       else
 	{
-	  int n = __builtin_popcountl ((uint64) (*(uint32*) (bits + byte)));
+	  int n = __builtin_popcountl ((uint64) (*(uint32 *) (bits + byte)));
 	  skip -= n;
 	  byte += 4;
 	}
@@ -1768,7 +1769,7 @@ cs_decode (col_pos_t * cpo, int from, int to)
   db_buf_t first_ce = cpo->cpo_string;
   int str_bytes = cpo->cpo_bytes;
   db_buf_t ce = first_ce;
-  it_cursor_t * itc;
+  it_cursor_t *itc;
   int last_row = cpo->cpo_ce_row_no, target, ce_row;
   int init_pm_pos, pm_pos;
   page_map_t *pm = NULL;
@@ -1879,6 +1880,7 @@ new_ce:
 	  cpo->cpo_skip = skip;
 	  cpo->cpo_ce_row_no = last_row;
 	  cpo->cpo_ce = ce;
+
 	  res = ce_op (cpo, ce_first, n_values, n_bytes);
 	  if (res >= to)
 	    return res;
@@ -2262,7 +2264,7 @@ new_ce:
 	}
     next_from_pm:
       itc = cpo->cpo_itc;
-      if (itc && itc->itc_is_last_col_spec&& itc->itc_n_results + itc->itc_match_out >= itc->itc_batch_size && itc->itc_batch_size)
+      if (itc && itc->itc_is_last_col_spec && itc->itc_n_results + itc->itc_match_out >= itc->itc_batch_size && itc->itc_batch_size)
 	{
 	  int n_sps = itc->itc_n_row_specs;
 	  if (n_sps > 1)
@@ -2502,10 +2504,10 @@ cs_int_delta_bytes (compress_state_t * cs, int from, int to, int *end_ret, int i
   int64 min, base;
   if (!cs->cs_all_int)
     {
-  dtp_t dtp = values[from][0];
-  if (DV_STRING == dtp || DV_SHORT_STRING_SERIAL == dtp
-      || DV_BIN == dtp || DV_LONG_BIN == dtp || DV_SINGLE_FLOAT == dtp || DV_DOUBLE_FLOAT == dtp || DV_NUMERIC == dtp)
-    return 1000000;		/* not applied to variable len dtps */
+      dtp_t dtp = values[from][0];
+      if (DV_STRING == dtp || DV_SHORT_STRING_SERIAL == dtp
+	  || DV_BIN == dtp || DV_LONG_BIN == dtp || DV_SINGLE_FLOAT == dtp || DV_DOUBLE_FLOAT == dtp || DV_NUMERIC == dtp)
+	return 1000000;		/* not applied to variable len dtps */
     }
   if (!is_asc)
     min = cs_min (cs, from, to, &min_inx);
@@ -2627,17 +2629,17 @@ cs_write_array (compress_state_t * cs, int from, int to)
   bytes_guess = cs_non_comp_len (cs, from, to, &int_type);
   cs_length_check (&cs->cs_asc_output, cs->cs_asc_fill, cs_next_length (bytes_guess));
   cs_write_typed_vec (cs, cs->cs_asc_output, &cs->cs_asc_fill, from, to, int_type, bytes_guess);
-      return;
-    }
+  return;
+}
 
 
 void
 cs_write_rl (compress_state_t * cs, int from, int to)
-    {
+{
   dtp_t flags = cs_any_ce_flags (cs, from);
   cs_append_header (cs->cs_asc_output, &cs->cs_asc_fill, CE_RL | flags, to - from, cs_any_ce_len (cs, from));
   cs_append_any (cs, cs->cs_asc_output, &cs->cs_asc_fill, from, 0);
-    }
+}
 
 
 void
@@ -2847,8 +2849,8 @@ cs_write_int_delta (compress_state_t * cs, int from, int to, int is_asc)
   if (!cs->cs_all_int)
     {
       caddr_t *values = cs->cs_values;
-  if (DV_SINGLE_FLOAT == (dtp_t) values[from][0] || DV_DOUBLE_FLOAT == (dtp_t) values[from][0])
-    GPF_T1 ("int delta format not for float or double");
+      if (DV_SINGLE_FLOAT == (dtp_t) values[from][0] || DV_DOUBLE_FLOAT == (dtp_t) values[from][0])
+	GPF_T1 ("int delta format not for float or double");
     }
   if (!is_asc)
     min = cs_min (cs, from, to, &min_inx);
@@ -3034,11 +3036,11 @@ cs_best_rnd (compress_state_t * cs, int from, int to)
   else
     {
       caddr_t first = cs->cs_values[from];
-  for (inx = from + 1; inx < to; inx++)
-    {
-      if (first != cs->cs_values[inx])
-	break;
-    }
+      for (inx = from + 1; inx < to; inx++)
+	{
+	  if (first != cs->cs_values[inx])
+	    break;
+	}
     }
   if (inx - from > 1)
     {
@@ -3178,11 +3180,11 @@ asc_str_cmp (db_buf_t dv1, db_buf_t dv2, int len1, int len2, uint32 * num_ret, c
     {
       if (len1 > 4)
 	{
-      rc = memcmp (dv1, dv2, len1 - 4);
-      if (rc < 0)
-	return DVC_DTP_LESS;
-      if (rc > 0)
-	return DVC_DTP_GREATER;
+	  rc = memcmp (dv1, dv2, len1 - 4);
+	  if (rc < 0)
+	    return DVC_DTP_LESS;
+	  if (rc > 0)
+	    return DVC_DTP_GREATER;
 	}
       u1 = N4_REF_NA (dv1 + len1 - 4, len1);
       if (is_int_delta)
@@ -3197,11 +3199,11 @@ asc_str_cmp (db_buf_t dv1, db_buf_t dv2, int len1, int len2, uint32 * num_ret, c
     {
       if (len1 > 4)
 	{
-      rc = memcmp (dv1, dv2, len1 - 4);
-      if (rc < 0)
-	return DVC_DTP_LESS;
-      if (rc > 1)
-	return DVC_DTP_GREATER;
+	  rc = memcmp (dv1, dv2, len1 - 4);
+	  if (rc < 0)
+	    return DVC_DTP_LESS;
+	  if (rc > 1)
+	    return DVC_DTP_GREATER;
 	}
       u1 = N4_REF_NA (dv1 + len1 - 4, len1);
       u2 = N4_REF_NA (dv2 + len1 - 4, len1);
@@ -3487,7 +3489,7 @@ cs_try_asc_any (compress_state_t * cs, int from, int to, int *first_dtp_ret)
 
 int
 cs_try_asc (compress_state_t * cs, int from, int to)
-    {
+{
   db_buf_t first_ce;
   int first_dtp;
   switch (cs->cs_dtp)
@@ -3797,7 +3799,7 @@ cs_reset_check (compress_state_t * cs)
   int n_values = 0;
   cs_buf_mark_check (cs->cs_asc_output);
   cs_buf_mark_check (cs->cs_dict_output);
-  if (enable_cs_reset_cnt_check )
+  if (enable_cs_reset_cnt_check)
     {
       while (ready)
 	{
@@ -3805,10 +3807,10 @@ cs_reset_check (compress_state_t * cs)
 	  if (ready == cs->cs_prev_ready_ces)
 	    break;
 	  n_values += ce_string_n_values (ce, box_length (ce) - 1);
-      ready = ready->next;
+	  ready = ready->next;
 	}
-  if (n_values != cs->cs_n_values)
-    GPF_T1 ("pre and post compress value counts do not match");
+      if (n_values != cs->cs_n_values)
+	GPF_T1 ("pre and post compress value counts do not match");
     }
   cs->cs_prev_ready_ces = cs->cs_ready_ces;
 }
@@ -3830,7 +3832,7 @@ cs_reset (compress_state_t * cs)
   if (CS_INT_ONLY != cs->cs_all_int)
     {
       cs->cs_dtp = 0;
-  cs->cs_all_int = 0;
+      cs->cs_all_int = 0;
     }
   cs->cs_any_64 = 0;
   cs->cs_non_comp_len = 0;
@@ -3867,7 +3869,7 @@ cs_check_dict (compress_state_t * cs)
       cs->cs_asc_cutoff = cs->cs_unq_non_comp_len + (cs->cs_n_values / 2);
       cs->cs_asc_reset = &rst;
       if (0 == setjmp_splice (&rst))
-      cs_try_asc (cs, 0, cs->cs_n_values);
+	cs_try_asc (cs, 0, cs->cs_n_values);
       else
 	cs->cs_asc_fill = cs->cs_asc_cutoff;
       cs->cs_asc_reset = NULL;
@@ -3885,7 +3887,7 @@ cs_check_dict (compress_state_t * cs)
       cs->cs_asc_cutoff = cs->cs_unq_non_comp_len + cs->cs_n_values;
       cs->cs_asc_reset = &rst;
       if (0 == setjmp_splice (&rst))
-      cs_try_asc (cs, 0, cs->cs_n_values);
+	cs_try_asc (cs, 0, cs->cs_n_values);
       else
 	cs->cs_asc_fill = cs->cs_asc_cutoff;
       cs->cs_asc_reset = NULL;
@@ -3992,7 +3994,7 @@ cs_compress (compress_state_t * cs, caddr_t any)
     {
       MHASH_VAR (hash, any, box_len);
     add_dist:
-	{
+      {
 	dist_hash_t *dh = &cs->cs_dh;
 	dist_hash_elt_t *dhe = &dh->dh_array[((uint32) (hash)) % dh->dh_n_buckets];
 	if (DHE_EMPTY == dhe->dhe_next)
@@ -4003,7 +4005,7 @@ cs_compress (compress_state_t * cs, caddr_t any)
 	    dhe->dhe_next = NULL;
 	    dhe->dhe_data = (int64) any;
 	    cs->cs_unq_non_comp_len += box_len;
-	    }
+	  }
 	else if (!anydheq ((db_buf_t) any, dhe->dhe_data))
 	  {
 	    dist_hash_elt_t *next;
@@ -4020,13 +4022,13 @@ cs_compress (compress_state_t * cs, caddr_t any)
 		next->dhe_data = (int64) any;
 		next->dhe_next = NULL;
 		dhe = next;
-	  cs->cs_unq_non_comp_len += box_len;
-	}
+		cs->cs_unq_non_comp_len += box_len;
+	      }
 	    else if (dhe = next, !anydheq ((db_buf_t) any, dhe->dhe_data))
-	{
+	      {
 		goto again;
-	}
-    }
+	      }
+	  }
 	any = (caddr_t) dhe->dhe_data;
 	goto add;
       }
@@ -4038,10 +4040,10 @@ cs_compress (compress_state_t * cs, caddr_t any)
 	  return;
 	}
       if (16 == cs->cs_dh.dh_count)
-    {
+	{
 	  cs->cs_dh.dh_max = 255;
 	  goto add_dist;
-    }
+	}
       else
 	cs->cs_no_dict = 1;
     add:
@@ -4059,11 +4061,11 @@ cs_compress (compress_state_t * cs, caddr_t any)
 	cs->cs_all_int = 1;
     }
   else if (cs->cs_dtp && dtp != cs->cs_dtp)
-	{
-	  cs->cs_heterogenous = 1;
-	  cs->cs_all_int = 0;
-	  cs->cs_dtp = DV_UNKNOWN;
-	}
+    {
+      cs->cs_heterogenous = 1;
+      cs->cs_all_int = 0;
+      cs->cs_dtp = DV_UNKNOWN;
+    }
 
   if (cs->cs_non_comp_len < 2000)
     return;
@@ -4086,7 +4088,7 @@ cs_compress (compress_state_t * cs, caddr_t any)
     {
       int inx;
       if (!cs->cs_any_delta_distinct)
-      cs->cs_any_delta_distinct = t_id_hash_allocate (cs->cs_n_values + 11, sizeof (caddr_t), 0, anyhashf_head, anyhashcmp_head);
+	cs->cs_any_delta_distinct = t_id_hash_allocate (cs->cs_n_values + 11, sizeof (caddr_t), 0, anyhashf_head, anyhashcmp_head);
       for (inx = 0; inx < cs->cs_n_values; inx++)
 	{
 	  caddr_t box = cs->cs_values[inx];
@@ -4252,6 +4254,7 @@ cs_destroy (compress_state_t * cs)
   cs->cs_org_values = NULL;
 }
 
+
 int
 anyhashcmp (char *x, char *y)
 {
@@ -4356,9 +4359,9 @@ bif_cs_compress (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   else
     {
-  x = box_to_any (x, &err);
-  x = t_box_copy (x);
-  cs_compress (cs, x);
+      x = box_to_any (x, &err);
+      x = t_box_copy (x);
+      cs_compress (cs, x);
     }
   SET_THR_TMP_POOL (NULL);
   return NULL;
@@ -4374,8 +4377,8 @@ bif_cs_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   SET_THR_TMP_POOL (cs->cs_mp);
   if (cs->cs_n_values)
     {
-  cs_best (cs, &best, &len);
-  t_set_push (&cs->cs_ready_ces, (void *) best);
+      cs_best (cs, &best, &len);
+      t_set_push (&cs->cs_ready_ces, (void *) best);
     }
   cs_reset (cs);
   cs->cs_ready_ces = dk_set_nreverse (cs->cs_ready_ces);
@@ -4564,7 +4567,6 @@ ITC_INIT (itc, NUL:NULL, NULL);
   dc.dc_values = (db_buf_t) mp_alloc_box (mp, sizeof (caddr_t) * n_values, DV_ARRAY_OF_POINTER);
   cpo.cpo_dc = &dc;
   cpo.cpo_value_cb = ce_result;
-
   for (nth_page = 0; nth_page < cr->cr_n_pages; nth_page++)
     {
       page_map_t *pm = cr->cr_pages[nth_page].cp_map;
@@ -4670,6 +4672,8 @@ itc_box_col_seg (it_cursor_t * itc, buffer_desc_t * buf, dbe_col_loc_t * cl)
 	  nv = ce_n_values (cpo.cpo_string);
 	  cpo.cpo_pm = NULL;
 	  cs_decode (&cpo, 0, nv);
+	  /*if (tlsf_check (THREAD_CURRENT_THREAD->thr_tlsf, 0)) GPF_T1 ("corrupt"); */
+
 	  if (dc.dc_n_values != nv)
 	    log_error ("decode count and ce value count differ");
 	  for (inx = 0; inx < dc.dc_n_values; inx++)
@@ -5367,7 +5371,6 @@ bzero16 (long *p, int n)
 }
 
 
-#if 0
 void
 cpy16 (long *t, long *s, int n)
 {
@@ -5390,7 +5393,6 @@ cpy16 (long *t, long *s, int n)
   GPF_T;
 #endif
 }
-#endif
 
 void
 memcpy_c_inl (char *s1, char *s2, int l)
@@ -5515,6 +5517,7 @@ bif_rnd_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     ((int64 *) str)[inx] = sqlbif_rnd (&s);
   return str;
 }
+
 
 
 int
@@ -5795,6 +5798,29 @@ is_prime (int n)
       return 0;
   return 1;
 }
+
+
+void
+print_primes (int p1, int p2, int pct)
+{
+  int x, ctr = 0, prev = p1;
+  for (x = p1; x < p2; x += 2)
+    {
+      if (0 == x % 5)
+	continue;
+      if (is_prime (x))
+	{
+	  if (100 * x / prev < pct)
+	    continue;
+	  printf (", %d", x);
+	  prev = x;
+	  if (0 == (++ctr % 10))
+	    printf ("\n");
+	}
+    }
+  printf ("\n");
+}
+
 
 int ce_op_fill = 1;
 int ce_op_decode;

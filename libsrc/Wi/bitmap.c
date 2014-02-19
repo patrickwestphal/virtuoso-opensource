@@ -41,7 +41,7 @@ bm_ends (bitno_t bm_start, db_buf_t bm, int bm_len, bitno_t * start, bitno_t * e
 {
   /* Get the range of bits that can be covered by this bm.  The start is the bit no on the containing row.  The end is the start bitno of the last ce.  The values are rounded to ce boundaries.  */
   int inx = 0;
-  * start = bm_start;
+  *start = bm_start;
   inx = CE_LENGTH (bm);
   if (inx == bm_len)
     {
@@ -62,9 +62,9 @@ bm_ends (bitno_t bm_start, db_buf_t bm, int bm_len, bitno_t * start, bitno_t * e
 
 
 void
-itc_bm_ends (it_cursor_t * itc, buffer_desc_t * buf, bitno_t * start, bitno_t * end, int * is_single)
+itc_bm_ends (it_cursor_t * itc, buffer_desc_t * buf, bitno_t * start, bitno_t * end, int *is_single)
 {
-  dbe_key_t * key = itc->itc_insert_key;
+  dbe_key_t *key = itc->itc_insert_key;
   int off, len;
   bitno_t bm_start;
   itc->itc_row_data = buf->bd_buffer + buf->bd_content_map->pm_entries[itc->itc_map_pos];
@@ -151,7 +151,7 @@ itc_bm_array (it_cursor_t * itc, buffer_desc_t * buf)
   int off;
   short bm_len;
   bitno_t bm_start;
-  dbe_key_t * key = itc->itc_insert_key;
+  dbe_key_t *key = itc->itc_insert_key;
   dtp_t dtp = key->key_bit_cl->cl_sqt.sqt_dtp;
   BIT_COL (bm_start, buf, itc->itc_row_data, key);
   KEY_PRESENT_VAR_COL (itc->itc_insert_key, itc->itc_row_data, (*key->key_bm_cl), off, bm_len);
@@ -191,7 +191,7 @@ itc_bm_array (it_cursor_t * itc, buffer_desc_t * buf)
 	}
       ce += ce_len;
     }
-  return (caddr_t*)list_to_array (dk_set_nreverse (res));
+  return (caddr_t *) list_to_array (dk_set_nreverse (res));
 }
 
 
@@ -207,13 +207,13 @@ ce_array_to_bitmap (db_buf_t ce)
       short bit = SA_REF (ce + 4, inx);
       if (bit < 0 || bit >= CE_N_VALUES)
 	{
-	  log_error ("bit value in array bitmap out of range: %d.", (int)bit);
+	  log_error ("bit value in array bitmap out of range: %d.", (int) bit);
 	  continue;
 	}
       temp[4 + (bit >> 3)] |= 1 << (bit & 7);
     }
   memcpy (ce + 4, &temp[4], sizeof (temp) - 4);
-  ce[2] = ce[2] & 0xf7; /*reset the bit of 8's in byte at inx 2 */
+  ce[2] = ce[2] & 0xf7;		/*reset the bit of 8's in byte at inx 2 */
   /* the 4 first bytes stay the same, except one bit is reset to indicate that this is a bitmap and not an array */
   CE_SET_LENGTH (ce, CE_MAX_LENGTH);
   /* it was 2 over the limit when it came in */
@@ -224,14 +224,14 @@ int
 ce_array_bit_inx (db_buf_t ce, int bit)
 {
   /* return index of the given bit in the array of the ce.  If the bit itself is not there, return the index of the next higher.  If there is none higher, return the inx of the short after the end */
-  int ce_len = CE_LENGTH(ce);
-  db_buf_t  arr = ce + 4;
+  int ce_len = CE_LENGTH (ce);
+  db_buf_t arr = ce + 4;
   int n_bits = (ce_len - 4) / 2;
   int low = 0, high = n_bits, guess;
   for (;;)
     {
       if (low == high)
-	return low ;
+	return low;
       if (low + 1 == high)
 	{
 	  if (SA_REF (arr, low) >= bit)
@@ -261,10 +261,10 @@ ce_array_insert (db_buf_t ce, int bit)
       SA_SET (arr, inx, bit);
     }
   else if (SA_REF (arr, inx) == bit)
-    return ce_len; /* already set */
+    return ce_len;		/* already set */
   else
     {
-      memmove (arr + 2 * (inx+1), arr+ 2 * inx, (n_bits - inx) * 2);
+      memmove (arr + 2 * (inx + 1), arr + 2 * inx, (n_bits - inx) * 2);
       SA_SET (arr, inx, bit);
     }
   CE_SET_LENGTH (ce, ce_len + 2);
@@ -279,20 +279,21 @@ void
 bm_ck (db_buf_t bm, int bm_len)
 {
   int ce_len = CE_LENGTH (bm);
-  if (bm_len >0 && ce_len > bm_len) GPF_T1 ("ce longer than bm");
+  if (bm_len > 0 && ce_len > bm_len)
+    GPF_T1 ("ce longer than bm");
 }
 
 
 int n_bm_ins;
 
 int
-bm_insert (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value, int bytes_available, db_buf_t split_ret,
-	      short * split_len_ret)
+bm_insert (bitno_t bm_start, db_buf_t bm, short *bm_len_ret, bitno_t value, int bytes_available, db_buf_t split_ret,
+    short *split_len_ret)
 {
   /* adds a bit in place and if the string expands more than bytes_available, returns the result in expanded_ret, otherwise does it in place.  Splits if needed,
    * if there is a split then the left side is in place and the right side in expanded_ret */
   short bm_len = *bm_len_ret;
-  dtp_t ext_auto[CE_MAX_LENGTH + 10]; /*margin for overflow */
+  dtp_t ext_auto[CE_MAX_LENGTH + 10];	/*margin for overflow */
   db_buf_t ext = ext_auto;
   db_buf_t ce = bm;
   int new_ce_len = 0, old_ce_len = 0, ce_len = 0;
@@ -305,7 +306,7 @@ bm_insert (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value, int
       if (value < ce_start)
 	{
 	  /* insert a single value ce before this ce */
-	  old_ce_len = 0; /* means there is a new ce */
+	  old_ce_len = 0;	/* means there is a new ce */
 	  LONG_SET_NA (ext, (value - bm_start) | 0x80000000);
 	  new_ce_len = 4;
 	  break;
@@ -316,15 +317,15 @@ bm_insert (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value, int
 	  if (CE_IS_SINGLE (ce))
 	    {
 	      int offset1 = LONG_REF_NA (ce) & 0x7fffffff;
-	      if (value - bm_start== offset1)
+	      if (value - bm_start == offset1)
 		return BI_FITS;
-	      LONG_SET_NA (ext, (ce_start - bm_start) | CE_ARRAY_MASK | 6); /* 4 header and 2 content */
+	      LONG_SET_NA (ext, (ce_start - bm_start) | CE_ARRAY_MASK | 6);	/* 4 header and 2 content */
 	      SHORT_SET_NA (ext + 4, offset1 - (ce_start - bm_start));
-	      new_ce_len = ce_array_insert (ext, (value ) -  ce_start);
+	      new_ce_len = ce_array_insert (ext, (value) - ce_start);
 	      old_ce_len = 4;
 	      break;
 	    }
-	  if (CE_IS_ARRAY(ce))
+	  if (CE_IS_ARRAY (ce))
 	    {
 	      memcpy (ext, ce, ce_len);
 	      old_ce_len = ce_len;
@@ -395,14 +396,15 @@ bm_insert (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value, int
 	}
       return BI_SPLIT;
     }
-  if (old_ce_len > bm_len) GPF_T1 ("ce is longer than containing bm");
+  if (old_ce_len > bm_len)
+    GPF_T1 ("ce is longer than containing bm");
   /* will fit without split.  See if fits in place or row must nbe refitted */
   if (new_ce_len - old_ce_len > bytes_available)
     {
       db_buf_t target;
       memcpy (split_ret, bm, ce - bm);
       memcpy (target = split_ret + (ce - bm), ext, new_ce_len);
-      memcpy (target + new_ce_len, ce + old_ce_len, bm_len - (ce - bm)- old_ce_len);
+      memcpy (target + new_ce_len, ce + old_ce_len, bm_len - (ce - bm) - old_ce_len);
       *split_len_ret = *bm_len_ret = bm_len + new_ce_len - old_ce_len;
       return BI_EXTENDED;
     }
@@ -417,9 +419,9 @@ bm_insert (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value, int
 void
 key_make_bm_specs (dbe_key_t * key)
 {
-  search_spec_t * sp = key->key_insert_spec.ksp_spec_array;
-  search_spec_t ** bm_ins = &key->key_bm_ins_spec.ksp_spec_array;
-  search_spec_t ** bm_leading = &key->key_bm_ins_leading.ksp_spec_array;
+  search_spec_t *sp = key->key_insert_spec.ksp_spec_array;
+  search_spec_t **bm_ins = &key->key_bm_ins_spec.ksp_spec_array;
+  search_spec_t **bm_leading = &key->key_bm_ins_leading.ksp_spec_array;
   while (sp)
     {
       NEW_VARZ (search_spec_t, sp3);
@@ -434,13 +436,13 @@ key_make_bm_specs (dbe_key_t * key)
 	  bm_leading = &sp2->sp_next;
 	}
       else
-      {
-	*bm_leading = NULL;
-	sp3->sp_max_op = CMP_LTE;
-	sp3->sp_max = sp3->sp_min;
-	sp3->sp_min_op = CMP_NONE;
-	sp3->sp_min = 0;
-      }
+	{
+	  *bm_leading = NULL;
+	  sp3->sp_max_op = CMP_LTE;
+	  sp3->sp_max = sp3->sp_min;
+	  sp3->sp_min_op = CMP_NONE;
+	  sp3->sp_min = 0;
+	}
       sp = sp->sp_next;
     }
   ksp_cmp_func (&key->key_bm_ins_spec, NULL);
@@ -455,7 +457,7 @@ key_make_bm_specs (dbe_key_t * key)
 void
 itc_insert_at_lt (it_cursor_t * it, buffer_desc_t * buf, row_delta_t * rd)
 {
-  row_lock_t * rl_flag = KI_TEMP != it->itc_insert_key->key_id && !it->itc_non_txn_insert ? INS_NEW_RL : NULL;
+  row_lock_t *rl_flag = KI_TEMP != it->itc_insert_key->key_id && !it->itc_non_txn_insert ? INS_NEW_RL : NULL;
   rd->rd_keep_together_pos = ITC_AT_END;
   it->itc_row_key = it->itc_insert_key;
   it->itc_lock_mode = PL_EXCLUSIVE;
@@ -479,13 +481,13 @@ itc_bm_insert_single (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd, 
 {
   /* this makes a singleton entry.  The cursor is on the page.  prev_rc indicates on which side to insert.
    * DVC_LESSS means after the row, DVC_GREATER means before the row, all else means do a new seek */
-  dbe_key_t * key = itc->itc_insert_key;
-  caddr_t save_param = (caddr_t)(ptrlong) -1;
+  dbe_key_t *key = itc->itc_insert_key;
+  caddr_t save_param = (caddr_t) (ptrlong) - 1;
   row_delta_t upd_rd;
   caddr_t upd_vals[16];
   int rc;
 
-    /* set the length of the bm string field to 0 */
+  /* set the length of the bm string field to 0 */
 #if SINGLETON
 #error singleton bm rows not done
   CL_SET_LEN (key, cl, image + IE_FIRST_KEY, 0);
@@ -498,7 +500,8 @@ itc_bm_insert_single (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd, 
     upd_rd = *rd;
     upd_rd.rd_values = upd_vals;
     upd_rd.rd_allocated = RD_AUTO;
-    if (rd->rd_n_values > 15) GPF_T1 ("bm inx of over 16 parts notrt allowed");
+    if (rd->rd_n_values > 15)
+      GPF_T1 ("bm inx of over 16 parts notrt allowed");
     memcpy (&upd_vals, rd->rd_values, sizeof (caddr_t) * rd->rd_n_values);
     LONG_SET_NA (&bmstr[0], 0x80000000 | (value - bm_start));
     save_param = itc->itc_search_params[key->key_n_significant - 1];
@@ -506,21 +509,20 @@ itc_bm_insert_single (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd, 
     ITC_OWNS_PARAM (itc, box);
     upd_rd.rd_values[key->key_bit_cl->cl_nth] = box_iri_int64 (bm_start, key->key_bit_cl->cl_sqt.sqt_dtp);
     ITC_OWNS_PARAM (itc, upd_rd.rd_values[key->key_bit_cl->cl_nth]);
-    upd_rd.rd_values[key->key_bm_cl->cl_nth] = box_dv_short_nchars ((caddr_t)bmstr, 4);
+    upd_rd.rd_values[key->key_bm_cl->cl_nth] = box_dv_short_nchars ((caddr_t) bmstr, 4);
     ITC_OWNS_PARAM (itc, upd_rd.rd_values[key->key_bm_cl->cl_nth]);
 #endif
-    if (DVC_LESS == prev_rc
-	&& !itc->itc_write_waits)
+    if (DVC_LESS == prev_rc && !itc->itc_write_waits)
       {
-  upd_rd.rd_itc = itc;
+	upd_rd.rd_itc = itc;
 	itc_insert_at_lt (itc, buf, &upd_rd);
 	itc->itc_search_params[key->key_n_significant - 1] = save_param;
-    	return;
+	return;
       }
-      itc_page_leave  (itc, buf);
-      itc->itc_search_mode = SM_INSERT;
+    itc_page_leave (itc, buf);
+    itc->itc_search_mode = SM_INSERT;
   }
-  itc->itc_key_spec = itc->itc_insert_key->key_insert_spec; /* have insert specs, there can be other specs from prev seek */
+  itc->itc_key_spec = itc->itc_insert_key->key_insert_spec;	/* have insert specs, there can be other specs from prev seek */
   upd_rd.rd_itc = itc;
   rc = itc_insert_unq_ck (itc, &upd_rd, NULL);
   itc->itc_search_params[key->key_n_significant - 1] = save_param;
@@ -534,8 +536,8 @@ upd_truncate_row (it_cursor_t * itc, buffer_desc_t * buf, int nl)
   int bytes_left;
   int ol;
   db_buf_t page, row;
-  page_map_t * pm = buf->bd_content_map;
-  if (!buf->bd_is_write || ! buf->bd_is_dirty)
+  page_map_t *pm = buf->bd_content_map;
+  if (!buf->bd_is_write || !buf->bd_is_dirty)
     GPF_T1 ("update w/o write access");
   if (ITC_IS_LTRX (itc)
       && (itc->itc_ltrx && (buf->bd_page != itc->itc_page || (!itc->itc_non_txn_insert && itc->itc_page != itc->itc_pl->pl_page))))
@@ -565,7 +567,7 @@ upd_truncate_row (it_cursor_t * itc, buffer_desc_t * buf, int nl)
 
 
 dk_set_t transit_itc_list;
-dk_mutex_t * transit_list_mtx;
+dk_mutex_t *transit_list_mtx;
 
 #define itcs_see_different_version(itc, reg) \
   (ITC_CURSOR == registered->itc_type && itc->itc_ltrx != reg->itc_ltrx && ISO_COMMITTED == reg->itc_isolation)
@@ -573,7 +575,7 @@ dk_mutex_t * transit_list_mtx;
 void
 itc_invalidate_bm_crs (it_cursor_t * itc, buffer_desc_t * buf, int is_in_transit, dk_set_t * local_transits)
 {
-  it_cursor_t * registered;
+  it_cursor_t *registered;
   registered = buf->bd_registered;
   while (registered)
     {
@@ -581,14 +583,14 @@ itc_invalidate_bm_crs (it_cursor_t * itc, buffer_desc_t * buf, int is_in_transit
 	{
 	  if (itc->itc_bp.bp_is_pos_valid && registered->itc_bp.bp_value == itc->itc_bp.bp_value
 	      && !itcs_see_different_version (itc, registered))
-	    registered->itc_is_on_row = 0; /*marks deletion of the value at which registered was */
+	    registered->itc_is_on_row = 0;	/*marks deletion of the value at which registered was */
 	  registered->itc_bp.bp_is_pos_valid = 0;
 	  if (is_in_transit)
 	    {
 	      mutex_enter (transit_list_mtx);
-	      dk_set_push (&transit_itc_list, (void*)registered);
-	      mutex_leave  (transit_list_mtx);
-	      dk_set_push (local_transits, (void*) registered);
+	      dk_set_push (&transit_itc_list, (void *) registered);
+	      mutex_leave (transit_list_mtx);
+	      dk_set_push (local_transits, (void *) registered);
 	      registered->itc_bp.bp_transiting = 1;
 	    }
 	}
@@ -599,31 +601,31 @@ itc_invalidate_bm_crs (it_cursor_t * itc, buffer_desc_t * buf, int is_in_transit
 void
 bm_reset_transits (dk_set_t local_transits)
 {
-  dk_set_t * prev;
+  dk_set_t *prev;
   dk_set_t all_transits;
   mutex_enter (transit_list_mtx);
   DO_SET (it_cursor_t *, transiting, &local_transits)
-    {
-      prev = &transit_itc_list;
-      all_transits = transit_itc_list;
-      while (all_transits)
-	{
-	  if (transiting == (it_cursor_t*) all_transits->data)
-	    {
-	      if (!dk_set_member (all_transits->next, (void*)transiting))
-		transiting->itc_bp.bp_transiting = 0;
-	      else
-		printf ("bing. itc %p is in more than one local transit lists\n", transiting);
-	      *prev = all_transits->next;
-	      all_transits->next = NULL;
-	      dk_set_free (all_transits);
-	      break;
-	    }
-	  prev = &all_transits->next;
-	  all_transits = all_transits->next;
-	}
-    }
-  END_DO_SET();
+  {
+    prev = &transit_itc_list;
+    all_transits = transit_itc_list;
+    while (all_transits)
+      {
+	if (transiting == (it_cursor_t *) all_transits->data)
+	  {
+	    if (!dk_set_member (all_transits->next, (void *) transiting))
+	      transiting->itc_bp.bp_transiting = 0;
+	    else
+	      printf ("bing. itc %p is in more than one local transit lists\n", transiting);
+	    *prev = all_transits->next;
+	    all_transits->next = NULL;
+	    dk_set_free (all_transits);
+	    break;
+	  }
+	prev = &all_transits->next;
+	all_transits = all_transits->next;
+      }
+  }
+  END_DO_SET ();
   mutex_leave (transit_list_mtx);
   dk_set_free (local_transits);
 }
@@ -645,12 +647,12 @@ itc_bm_split_move_crs (it_cursor_t * itc, dk_set_t local_transits)
   /* the left and right sides are marked by a plh.  Enter left, take the concerned out, enter right, put them there.
    *      As the position of each becomes known, reset the transiting bit */
   bitno_t r_split = unbox_iri_int64 (itc->itc_search_params[itc->itc_search_par_fill - 1]);
-  buffer_desc_t * left_buf;
+  buffer_desc_t *left_buf;
   int fill = 0, inx;
-  it_cursor_t * cr_temp[1000];
-  placeholder_t * right = itc->itc_bm_split_right_side;
-  placeholder_t * left = itc->itc_bm_split_left_side;
-  it_cursor_t * registered;
+  it_cursor_t *cr_temp[1000];
+  placeholder_t *right = itc->itc_bm_split_right_side;
+  placeholder_t *left = itc->itc_bm_split_left_side;
+  it_cursor_t *registered;
 
   if (!right)
     {
@@ -665,12 +667,11 @@ itc_bm_split_move_crs (it_cursor_t * itc, dk_set_t local_transits)
   registered = left_buf->bd_registered;
   while (registered)
     {
-      if (registered != (it_cursor_t*) left
-	  && registered->itc_map_pos == left->itc_map_pos)
+      if (registered != (it_cursor_t *) left && registered->itc_map_pos == left->itc_map_pos)
 	{
 	  /* if it is on the split row and above the split point or if it has not yet read the splitting row because it was locked */
 	  if (registered->itc_bp.bp_just_landed || registered->itc_bp.bp_value >= r_split)
-	    cr_temp[fill++]= registered;
+	    cr_temp[fill++] = registered;
 	  if (fill > 999)
 	    GPF_T1 ("over 1000 crs registered for bm row split");
 	}
@@ -685,7 +686,7 @@ itc_bm_split_move_crs (it_cursor_t * itc, dk_set_t local_transits)
     }
   for (inx = 0; inx < fill; inx++)
     {
-      cr_temp[inx]->itc_to_reset = RWG_WAIT_SPLIT; /*if just landed, this will make it reset the search*/
+      cr_temp[inx]->itc_to_reset = RWG_WAIT_SPLIT;	/*if just landed, this will make it reset the search */
       cr_temp[inx]->itc_map_pos = right->itc_map_pos;
       cr_temp[inx]->itc_page = right->itc_page;
       cr_temp[inx]->itc_bp.bp_is_pos_valid = 0;
@@ -704,12 +705,12 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
    * the singleton and make a 2 value row with the singleton and the new row. Otherwise add the value to the ce's on the row, possibly splitting the row */
   row_delta_t upd_rd;
   caddr_t upd_values[16];
-  caddr_t save_param = (caddr_t)(ptrlong)-1;
+  caddr_t save_param = (caddr_t) (ptrlong) - 1;
   dk_set_t volatile local_transits = NULL;
   int off, len, rc, row_reserved, row_align_len, inx;
   bitno_t r_start;
   db_buf_t page, row;
-  dtp_t ext_auto[CE_MAX_LENGTH + 10]; /* space for overflow */
+  dtp_t ext_auto[CE_MAX_LENGTH + 10];	/* space for overflow */
   db_buf_t ext = ext_auto;
   bitno_t bm_start, last;
   dbe_key_t *key = itc->itc_insert_key;
@@ -718,7 +719,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
   short bm_len, ext_len = 0, space_at_end;
   int is_single;
   placeholder_t left_pl;
-  dbe_col_loc_t * value_cl, *bm_cl = itc->itc_insert_key->key_bm_cl;
+  dbe_col_loc_t *value_cl, *bm_cl = itc->itc_insert_key->key_bm_cl;
   value_cl = key->key_bit_cl;
   bmck++;
   pg_check_map (buf);
@@ -747,7 +748,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
 	  bm_insert (bm_start, bm, &bm_len, prev_value, 100, ext, &ext_len);
 	  CL_SET_LEN (key, bm_cl, image, bm_len);
 	  itc_delete (itc, &buf, 0);
-	  itc_page_leave  (itc, buf);
+	  itc_page_leave (itc, buf);
 	  {
 	    caddr_t box = box_iri_int64 (bm_start, itc->itc_insert_key->key_bit_cl->cl_sqt.sqt_dtp);
 	    ITC_OWNS_PARAM (itc, box);
@@ -766,9 +767,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
 #endif
     }
   /* now the row is a collection of ce's. Insert in there.  If the new value would make a new ce in front, make a singleton row so as not to have to reset the offsets of the c's and maybe splitting just because the start bit no changes.  */
-  if (!BITS_IN_RANGE (bm_start, value)
-      || value < bm_start
-      || IE_ISSET (row, IEF_DELETE))
+  if (!BITS_IN_RANGE (bm_start, value) || value < bm_start || IE_ISSET (row, IEF_DELETE))
     {
       itc_bm_insert_single (itc, buf, rd, DVC_INDEX_END);
       return;
@@ -803,7 +802,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
     {
       int new_row_len;
       int row_delta;
-      page_map_t * pm = buf->bd_content_map;
+      page_map_t *pm = buf->bd_content_map;
       CL_SET_LEN (key, bm_cl, row, bm_len);
       new_row_len = row_length (row, itc->itc_insert_key);
       row_delta = ROW_ALIGN (new_row_len) - ROW_ALIGN (row_reserved);
@@ -812,7 +811,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
 	pm->pm_filled_to += row_delta;
       else if (pm->pm_filled_to < pm->pm_entries[itc->itc_map_pos] + row_reserved)
 	GPF_T1 ("row in bm passes over fill limit of page");
-      space_at_end &= ~1; /* round down to even */
+      space_at_end &= ~1;	/* round down to even */
       if (space_at_end - row_delta >= 2)
 	page_write_gap (row + ROW_ALIGN (new_row_len), space_at_end - row_delta);
       pg_check_map (buf);
@@ -824,13 +823,14 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
   if (BI_EXTENDED == rc)
     {
       /* make a new row into the rd, same keys as the row here but different bm string and refit that */
-      dbe_col_loc_t * cl_array[16];
+      dbe_col_loc_t *cl_array[16];
       memset (&upd_rd, 0, sizeof (upd_rd));
       upd_rd.rd_allocated = RD_ALLOCATED_VALUES;
       upd_rd.rd_values = upd_values;
-      if (key->key_bm_cl->cl_nth >= sizeof (cl_array) / sizeof (caddr_t)) GPF_T1 ("too many leading parts in bm inx");
+      if (key->key_bm_cl->cl_nth >= sizeof (cl_array) / sizeof (caddr_t))
+	GPF_T1 ("too many leading parts in bm inx");
       page_row (buf, itc->itc_map_pos, &upd_rd, RO_LEAF);
-      upd_rd.rd_values[key->key_bm_cl->cl_nth] = box_dv_short_nchars ((caddr_t)ext, ext_len);
+      upd_rd.rd_values[key->key_bm_cl->cl_nth] = box_dv_short_nchars ((caddr_t) ext, ext_len);
       upd_rd.rd_n_values++;
       memset (&cl_array, 0, sizeof (caddr_t) * key->key_bm_cl->cl_nth);
       cl_array[key->key_bm_cl->cl_nth] = key->key_bm_cl;
@@ -855,7 +855,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
   /* now must make a row for the split part */
   memset (&upd_rd, 0, sizeof (upd_rd));
   upd_rd.rd_allocated = RD_ALLOCATED_VALUES;
-      upd_rd.rd_values = upd_values;
+  upd_rd.rd_values = upd_values;
   r_start = bm_start + CE_OFFSET (&ext[0]);
   save_param = itc->itc_search_params[key->key_n_significant - 1];
   itc->itc_search_params[key->key_n_significant - 1] = box_iri_int64 (r_start, key->key_bit_cl->cl_sqt.sqt_dtp);
@@ -864,7 +864,7 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
   loop_ce = ext;
   while (loop_ce < ext + ext_len)
     {
-      bitno_t r =  CE_OFFSET (loop_ce) - (r_start - bm_start);
+      bitno_t r = CE_OFFSET (loop_ce) - (r_start - bm_start);
       CE_SET_OFFSET (loop_ce, r);
       loop_ce += CE_LENGTH (loop_ce);
     }
@@ -875,43 +875,44 @@ itc_bm_insert_in_row (it_cursor_t * itc, buffer_desc_t * buf, row_delta_t * rd)
       else
 	upd_rd.rd_values[inx] = box_copy_tree (rd->rd_values[inx]);
     }
-  upd_rd.rd_values[key->key_bm_cl->cl_nth] = box_dv_short_nchars ((caddr_t)ext, ext_len);
+  upd_rd.rd_values[key->key_bm_cl->cl_nth] = box_dv_short_nchars ((caddr_t) ext, ext_len);
   upd_rd.rd_n_values = key->key_bm_cl->cl_nth + 1;
   memcpy (&left_pl, itc, sizeof (placeholder_t));
   left_pl.itc_type = ITC_PLACEHOLDER;
-  if (left_pl.itc_is_registered) GPF_T1 ("not supposed to be registered while inside bm_ins_on_row");
-  itc_register ((it_cursor_t *)&left_pl, buf);
+  if (left_pl.itc_is_registered)
+    GPF_T1 ("not supposed to be registered while inside bm_ins_on_row");
+  itc_register ((it_cursor_t *) & left_pl, buf);
   itc->itc_bm_split_left_side = &left_pl;
   itc->itc_bm_split_right_side = NULL;
-  itc->itc_bp.bp_is_pos_valid = 0; /* reset the flag so itc_invalidate_bm_crs does not consider the value it itc_bp.bp_value to be deleted */
-  itc_invalidate_bm_crs (itc, buf, 1, (dk_set_t *) &local_transits);
+  itc->itc_bp.bp_is_pos_valid = 0;	/* reset the flag so itc_invalidate_bm_crs does not consider the value it itc_bp.bp_value to be deleted */
+  itc_invalidate_bm_crs (itc, buf, 1, (dk_set_t *) & local_transits);
   itc->itc_app_stay_in_buf = ITC_APP_LEAVE;
   itc->itc_search_mode = SM_INSERT;
   ITC_SAVE_FAIL (itc);
   ITC_FAIL (itc)
-    {
-      itc->itc_key_spec = itc->itc_insert_key->key_insert_spec;
-      itc->itc_desc_order = 0;
-      upd_rd.rd_key = itc->itc_insert_key;
-      upd_rd.rd_make_ins_rbe = rd->rd_make_ins_rbe;
-      upd_rd.rd_itc = itc;
-      upd_rd.rd_map_pos = itc->itc_map_pos;
-      itc_insert_at_lt (itc, buf, &upd_rd);
-      itc_bm_split_move_crs (itc, local_transits);
-    }
+  {
+    itc->itc_key_spec = itc->itc_insert_key->key_insert_spec;
+    itc->itc_desc_order = 0;
+    upd_rd.rd_key = itc->itc_insert_key;
+    upd_rd.rd_make_ins_rbe = rd->rd_make_ins_rbe;
+    upd_rd.rd_itc = itc;
+    upd_rd.rd_map_pos = itc->itc_map_pos;
+    itc_insert_at_lt (itc, buf, &upd_rd);
+    itc_bm_split_move_crs (itc, local_transits);
+  }
   ITC_FAILED
-    {
-      bm_reset_transits (local_transits);
-      goto after_fail; /* do not exit, free the mem and placeholders, let the next one catch the busted transaction state */
-    }
+  {
+    bm_reset_transits (local_transits);
+    goto after_fail;		/* do not exit, free the mem and placeholders, let the next one catch the busted transaction state */
+  }
   END_FAIL (itc);
 
- after_fail:
+after_fail:
   rd_free (&upd_rd);
   itc->itc_search_params[key->key_n_significant - 1] = save_param;
   if (itc->itc_bm_split_right_side)
     plh_free (itc->itc_bm_split_right_side);
-  itc_unregister ((it_cursor_t *) &left_pl);
+  itc_unregister ((it_cursor_t *) & left_pl);
   ITC_RESTORE_FAIL (itc);
   /* now we have intercepted any reset and done the clup.  Now can throw if busted */
   CHECK_TRX_DEAD (itc, NULL, ITC_BUST_CONTINUABLE);
@@ -923,10 +924,10 @@ void
 key_bm_insert (it_cursor_t * itc, row_delta_t * rd)
 {
   /* the itc search params are filled and the rd is the normal insert rd, minus the final bit string field */
-  jmp_buf_splice * volatile prev_fail_ctx = itc->itc_fail_context;
+  jmp_buf_splice *volatile prev_fail_ctx = itc->itc_fail_context;
   int rc, rc2;
-  buffer_desc_t * buf;
-  dbe_key_t * key = itc->itc_insert_key;
+  buffer_desc_t *buf;
+  dbe_key_t *key = itc->itc_insert_key;
 
   FAILCK (itc);
 #if 0
@@ -937,51 +938,50 @@ key_bm_insert (it_cursor_t * itc, row_delta_t * rd)
     LONG_SET_NA (&tmp[1], 1002453);
     /* gspo = #i1000151         #i1000199         #i1017819         #i1002453 */
     if (1017819 == unbox_iri_id (itc->itc_search_params[0])
-	&& 1000151 == unbox_iri_id (itc->itc_search_params[1])
-	&& !memcmp (tmp, itc->itc_search_params[2], 5)
+	&& 1000151 == unbox_iri_id (itc->itc_search_params[1]) && !memcmp (tmp, itc->itc_search_params[2], 5)
 	//&& 1000199 == unbox_iri_id (itc->itc_search_params[3])
 	)
       printf ("bing\n");
   }
 #endif
   itc->itc_key_spec = key->key_bm_ins_spec;
-  itc->itc_no_bitmap = 1; /* all ops here will ignore any bitmap features of the inx */
+  itc->itc_no_bitmap = 1;	/* all ops here will ignore any bitmap features of the inx */
   itc->itc_lock_mode = PL_EXCLUSIVE;
   itc->itc_isolation = ISO_SERIALIZABLE;
   itc->itc_search_mode = SM_READ;
   itc->itc_desc_order = 1;
   ITC_FAIL (itc)
-    {
-      buf = itc_reset (itc);
-      rc = itc_next (itc, &buf);
-      if (!itc->itc_is_on_row)
-	{
-	  /* There is no row with the leading parts equal and bit field lte with the value being inserted */
-	  itc->itc_desc_order = 0;
-	  if (DVC_LESS == rc && !itc->itc_write_waits && enable_pos_bm_ins)
-	    itc_bm_insert_single (itc, buf, rd, rc);
-	  else
-	    {
-	      itc->itc_key_spec = key->key_bm_ins_leading;
-	  rc2 = itc_next (itc, &buf);
-	  if (DVC_MATCH != rc2)
-	    {
-	      /* no previous entry and no next entry.  The leading parts are unique.  Insert a singleton entry */
-		  itc_bm_insert_single (itc, buf, rd, DVC_INDEX_END);
-	    }
-	  else
-	    {
-	      itc_bm_insert_in_row (itc, buf, rd);
-	    }
-	}
-	}
-      else
-	itc_bm_insert_in_row (itc, buf, rd);
-    }
+  {
+    buf = itc_reset (itc);
+    rc = itc_next (itc, &buf);
+    if (!itc->itc_is_on_row)
+      {
+	/* There is no row with the leading parts equal and bit field lte with the value being inserted */
+	itc->itc_desc_order = 0;
+	if (DVC_LESS == rc && !itc->itc_write_waits && enable_pos_bm_ins)
+	  itc_bm_insert_single (itc, buf, rd, rc);
+	else
+	  {
+	    itc->itc_key_spec = key->key_bm_ins_leading;
+	    rc2 = itc_next (itc, &buf);
+	    if (DVC_MATCH != rc2)
+	      {
+		/* no previous entry and no next entry.  The leading parts are unique.  Insert a singleton entry */
+		itc_bm_insert_single (itc, buf, rd, DVC_INDEX_END);
+	      }
+	    else
+	      {
+		itc_bm_insert_in_row (itc, buf, rd);
+	      }
+	  }
+      }
+    else
+      itc_bm_insert_in_row (itc, buf, rd);
+  }
   ITC_FAILED
-    {
-      longjmp_splice (prev_fail_ctx, RST_DEADLOCK);
-    }
+  {
+    longjmp_splice (prev_fail_ctx, RST_DEADLOCK);
+  }
   END_FAIL (itc);
 }
 
@@ -1021,7 +1021,7 @@ bm_init ()
   int inx;
   for (inx = 0; inx < 256; inx++)
     {
-    byte_logcount[inx] = word_logcount (inx);
+      byte_logcount[inx] = word_logcount (inx);
       byte_bits[inx] = byte_bits_f (inx) | (byte_logcount[inx] << 28);
     }
 }
@@ -1033,10 +1033,7 @@ bits_count (db_buf_t bits, int n_int32, int count_max)
   int inx, res = 0;
   for (inx = 0; inx < n_int32 * 4; inx += 4)
     {
-      res += byte_logcount[bits[inx]]
-	+ byte_logcount[bits[inx + 1]]
-	+ byte_logcount[bits[inx + 2]]
-	+ byte_logcount[bits[inx + 3]];
+      res += byte_logcount[bits[inx]] + byte_logcount[bits[inx + 1]] + byte_logcount[bits[inx + 2]] + byte_logcount[bits[inx + 3]];
       if (res > count_max)
 	return res;
     }
@@ -1050,7 +1047,7 @@ bm_count (db_buf_t bm, short bm_len)
   int c = 0;
   db_buf_t ce = bm;
   if (0 == bm_len)
-    return 1; /* singleton row */
+    return 1;			/* singleton row */
   while (ce < bm + bm_len)
     {
       int ce_len = CE_LENGTH (ce);
@@ -1100,10 +1097,10 @@ ce_bitmap_to_array (db_buf_t ce)
 }
 
 int
-bm_delete (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value)
+bm_delete (bitno_t bm_start, db_buf_t bm, short *bm_len_ret, bitno_t value)
 {
   db_buf_t del_at = NULL;
-  int del_len = -1; /* will write at addr 0 if not set by accident */
+  int del_len = -1;		/* will write at addr 0 if not set by accident */
   db_buf_t ce = bm;
   short bm_len = *bm_len_ret;
   while (ce < bm + bm_len)
@@ -1133,7 +1130,7 @@ bm_delete (bitno_t bm_start, db_buf_t bm, short * bm_len_ret, bitno_t value)
 	      int bit = value - ce_start;
 	      int inx = ce_array_bit_inx (ce, bit);
 	      if (inx == (ce_len - 4) / 2)
-		return DVC_LESS; /* was at end */
+		return DVC_LESS;	/* was at end */
 	      if (bit == SA_REF (ce + 4, inx))
 		{
 		  if (6 == ce_len)
@@ -1188,24 +1185,24 @@ itc_bm_delete (it_cursor_t * itc, buffer_desc_t ** buf_ret)
   short off, bm_len;
   bitno_t bm_start;
   int rc;
-  dbe_key_t * key = itc->itc_insert_key;
+  dbe_key_t *key = itc->itc_insert_key;
   ASSERT_OUTSIDE_MAPS (itc);
   itc->itc_row_data = (*buf_ret)->bd_buffer + (*buf_ret)->bd_content_map->pm_entries[itc->itc_map_pos];
   itc->itc_is_on_row = 0;
   KEY_PRESENT_VAR_COL (itc->itc_insert_key, itc->itc_row_data, (*key->key_bm_cl), off, bm_len);
   if (0 == bm_len)
-    return BM_DEL_ROW;  /* was a singleton, del as any other row */
+    return BM_DEL_ROW;		/* was a singleton, del as any other row */
   BIT_COL (bm_start, (*buf_ret), itc->itc_row_data, itc->itc_insert_key);
   rc = bm_delete (bm_start, itc->itc_row_data + off, &bm_len, itc->itc_bp.bp_value);
   if (DVC_MATCH != rc)
-      return BM_DEL_DONE; /* the bit was not found, no change */
+    return BM_DEL_DONE;		/* the bit was not found, no change */
   upd_truncate_row (itc, *buf_ret, off + bm_len);
   CL_SET_LEN (key, key->key_bm_cl, itc->itc_row_data, bm_len);
   itc->itc_bp.bp_is_pos_valid = 1;
   itc_invalidate_bm_crs (itc, *buf_ret, 0, NULL);
   if (bm_len)
     return BM_DEL_DONE;
-  return BM_DEL_ROW; /* went empty, del as a normal row */
+  return BM_DEL_ROW;		/* went empty, del as a normal row */
 }
 
 
@@ -1226,10 +1223,10 @@ itc_bm_delete (it_cursor_t * itc, buffer_desc_t ** buf_ret)
 void
 itc_init_bm_search (it_cursor_t * itc)
 {
-  search_spec_t * sp = itc->itc_key_spec.ksp_spec_array;
+  search_spec_t *sp = itc->itc_key_spec.ksp_spec_array;
   int n_specs = 0;
-  dbe_key_t * key = itc->itc_insert_key;
-  search_spec_t * bm_spec = NULL;
+  dbe_key_t *key = itc->itc_insert_key;
+  search_spec_t *bm_spec = NULL;
   memset (&itc->itc_bp, 0, sizeof (itc->itc_bp));
   itc->itc_bm_spec_replaced = 0;
   while (sp)
@@ -1245,8 +1242,7 @@ itc_init_bm_search (it_cursor_t * itc)
       return;
     }
   if (CMP_EQ == bm_spec->sp_min_op
-      || (CMP_GT == bm_spec->sp_min_op && !itc->itc_desc_order)
-      || (CMP_GTE == bm_spec->sp_min_op && !itc->itc_desc_order))
+      || (CMP_GT == bm_spec->sp_min_op && !itc->itc_desc_order) || (CMP_GTE == bm_spec->sp_min_op && !itc->itc_desc_order))
     {
       itc->itc_bm_spec_replaced = 1;
       itc->itc_key_spec = key->key_bm_ins_spec;
@@ -1260,8 +1256,7 @@ itc_init_bm_search (it_cursor_t * itc)
       /* only lower limit and desc order.  Start at end and use row check for end. Seek with only leading parts */
       itc->itc_key_spec = itc->itc_insert_key->key_bm_ins_leading;
     }
-  else if (itc->itc_desc_order
-	   && bm_spec->sp_max_op != CMP_NONE && bm_spec->sp_min_op != CMP_NONE)
+  else if (itc->itc_desc_order && bm_spec->sp_max_op != CMP_NONE && bm_spec->sp_min_op != CMP_NONE)
     {
       /* range in desc order.  put the lower limit to minint of the right type and save the old one.  The lower limit remains minint but the bm row check will use the copy of the org here added as the last search spec. */
       caddr_t minint = box_iri_int64 (BITNO_MIN, bm_spec->sp_cl.cl_sqt.sqt_dtp);
@@ -1278,7 +1273,7 @@ itc_bm_land (it_cursor_t * itc, buffer_desc_t * buf)
 {
   /* the cursor is just landed, set the specs and direction to org if changed for the search */
   key_ver_t kv;
-  search_spec_t * bm_spec;
+  search_spec_t *bm_spec;
   db_buf_t row;
   if ((bm_spec = itc->itc_bm_col_spec))
     {
@@ -1287,10 +1282,8 @@ itc_bm_land (it_cursor_t * itc, buffer_desc_t * buf)
 	  itc->itc_desc_order = 0;
 	  itc->itc_key_spec = itc->itc_insert_key->key_bm_ins_leading;
 	}
-      else if (itc->itc_desc_order
-	       && CMP_NONE != bm_spec->sp_min_op
-	       && CMP_NONE == bm_spec->sp_max_op)
-	itc->itc_key_spec = itc->itc_insert_key->key_bm_ins_leading; /* when desc order and lower limit, do not compare bm col in landed search because this would sometimes exclude the last bitmap row */
+      else if (itc->itc_desc_order && CMP_NONE != bm_spec->sp_min_op && CMP_NONE == bm_spec->sp_max_op)
+	itc->itc_key_spec = itc->itc_insert_key->key_bm_ins_leading;	/* when desc order and lower limit, do not compare bm col in landed search because this would sometimes exclude the last bitmap row */
     }
   itc->itc_bp.bp_new_on_row = 1;
   row = buf->bd_buffer + buf->bd_content_map->pm_entries[itc->itc_map_pos];
@@ -1298,7 +1291,7 @@ itc_bm_land (it_cursor_t * itc, buffer_desc_t * buf)
   if (kv != itc->itc_insert_key->key_version)
     {
       /* left dummy, down or error */
-      itc->itc_bp.bp_at_end = 1; /*row_check will set at first/last when arrives that far */
+      itc->itc_bp.bp_at_end = 1;	/*row_check will set at first/last when arrives that far */
     }
 }
 
@@ -1310,20 +1303,20 @@ byte_bit_after (int byte, int pos)
   int n;
   for (n = pos + 1; n < 8; n++)
     {
-      if (byte & (1<<n))
+      if (byte & (1 << n))
 	return n;
     }
   return 8;
 }
 
 int
-byte_bit_before  (int byte, int pos)
+byte_bit_before (int byte, int pos)
 {
   /* returns the 1 bit in byte that is before  pos. -1 if none */
   int n;
   for (n = pos - 1; n >= 0; n--)
     {
-      if (byte & (1<<n))
+      if (byte & (1 << n))
 	return n;
     }
   return -1;
@@ -1345,7 +1338,7 @@ ce_bitmap_value (db_buf_t bits, short value, int is_fwd)
     {
       int after = is_fwd ? byte_bit_after (bits[byte], bit) : byte_bit_before (bits[byte], bit);
       if (after < 8 && after >= 0)
-	return (byte << 3)  + after;
+	return (byte << 3) + after;
     }
   if (is_fwd)
     {
@@ -1363,7 +1356,7 @@ ce_bitmap_value (db_buf_t bits, short value, int is_fwd)
 	    return (byte << 3) | byte_bit_before (bits[byte], 8);
 	}
     }
-  return CE_N_VALUES; /* out of range, no bits set in the given direction from value */
+  return CE_N_VALUES;		/* out of range, no bits set in the given direction from value */
 }
 
 
@@ -1405,7 +1398,7 @@ pl_ce_set (placeholder_t * itc, db_buf_t ce, short ce_len, bitno_t bm_start, bit
     }
   if (CE_IS_ARRAY (ce))
     {
-      int n_bits = (CE_LENGTH (ce) - 4) /2;
+      int n_bits = (CE_LENGTH (ce) - 4) / 2;
       db_buf_t arr = ce + 4;
       int inx;
       if (value < ce_start)
@@ -1494,7 +1487,7 @@ pl_ce_set (placeholder_t * itc, db_buf_t ce, short ce_len, bitno_t bm_start, bit
 	  itc->itc_bp.bp_value = ce_start + bit;
 	  itc->itc_bp.bp_at_end = 1;
 	  return DVC_GREATER;
-	    }
+	}
       itc->itc_bp.bp_value = ce_start + bit;
       return DVC_LESS;
     }
@@ -1515,7 +1508,7 @@ bm_prev_ce (db_buf_t bm, db_buf_t next_ce)
       ce += len;
       if (!len)
 	GPF_T1 ("can't have zero len ce");
-      if (ce - bm > CE_MAX_LENGTH )
+      if (ce - bm > CE_MAX_LENGTH)
 	GPF_T1 ("in prev_ce, ce lengths go over the bm end ");
     }
 }
@@ -1535,7 +1528,7 @@ bm_last_ce (db_buf_t bm, short bm_len)
       ce += len;
       if (!len)
 	GPF_T1 ("can't have zero len ce");
-      if (ce - bm > CE_MAX_LENGTH )
+      if (ce - bm > CE_MAX_LENGTH)
 	GPF_T1 ("in prev_ce, ce lengths go over the bm end ");
     }
 }
@@ -1557,7 +1550,7 @@ pl_set_at_bit (placeholder_t * pl, db_buf_t bm, short bm_len, bitno_t bm_start, 
 	{
 	  /* singleton entry */
 	  pl->itc_bp.bp_ce_type = CE_SINGLETON_ROW;
-	  if (bm_start> value)
+	  if (bm_start > value)
 	    {
 	      pl->itc_bp.bp_at_end = 1;
 	      return;
@@ -1584,7 +1577,7 @@ pl_set_at_bit (placeholder_t * pl, db_buf_t bm, short bm_len, bitno_t bm_start, 
 	    }
 	  if (value < ce_start + CE_N_VALUES)
 	    {
-	      pl_ce_set (pl,ce, ce_len, bm_start, value, 0);
+	      pl_ce_set (pl, ce, ce_len, bm_start, value, 0);
 	      if (pl->itc_bp.bp_at_end)
 		{
 		  if (prev_ce)
@@ -1610,7 +1603,7 @@ pl_set_at_bit (placeholder_t * pl, db_buf_t bm, short bm_len, bitno_t bm_start, 
 	{
 	  /* singleton entry */
 	  pl->itc_bp.bp_ce_type = CE_SINGLETON_ROW;
-	  if (bm_start>= value)
+	  if (bm_start >= value)
 	    {
 	      pl->itc_bp.bp_value = bm_start;
 	      return;
@@ -1627,7 +1620,7 @@ pl_set_at_bit (placeholder_t * pl, db_buf_t bm, short bm_len, bitno_t bm_start, 
 	  if (value >= ce_start && value < ce_start + CE_N_VALUES)
 	    {
 	      pl_ce_set (pl, ce, ce_len, bm_start, value, 1);
-	      if ( pl->itc_bp.bp_below_start)
+	      if (pl->itc_bp.bp_below_start)
 		{
 		  pl->itc_bp.bp_at_end = 0;
 		  return;
@@ -1668,7 +1661,7 @@ pl_next_bit (placeholder_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start, i
       log_error ("Invalid bit position on index: %s", itc->itc_tree->it_key->key_name);
       if (itc->itc_type == ITC_CURSOR)
 	{
-	  it_cursor_t * it = (it_cursor_t *) itc;
+	  it_cursor_t *it = (it_cursor_t *) itc;
 	  if (!wi_inst.wi_checkpoint_atomic && it->itc_ltrx)
 	    itc_bust_this_trx (it, NULL, ITC_BUST_THROW);
 	}
@@ -1717,9 +1710,10 @@ pl_next_bit (placeholder_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start, i
 	itc->itc_bp.bp_value = bm_start + bit;
 	return DVC_MATCH;
       }
-    default: GPF_T1 ("unknown ce type in bitmap next/prev");
+    default:
+      GPF_T1 ("unknown ce type in bitmap next/prev");
     }
- next_ce:
+next_ce:
   ce += CE_LENGTH (ce);
   if (ce >= bm + bm_len)
     {
@@ -1730,7 +1724,7 @@ pl_next_bit (placeholder_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start, i
   pl_ce_set (itc, ce, CE_LENGTH (ce), bm_start, BITNO_MIN, 1);
   itc->itc_bp.bp_at_end = 0;
   return DVC_MATCH;
- prev_ce:
+prev_ce:
   ce = bm_prev_ce (bm, ce);
   if (!ce)
     {
@@ -1748,12 +1742,12 @@ int64
 unbox_iri_int64 (caddr_t x)
 {
   if (!IS_BOX_POINTER (x))
-    return ((int64)((ptrlong)x));
+    return ((int64) ((ptrlong) x));
   if (DV_LONG_INT == box_tag (x))
-    return *(boxint*)x;
+    return *(boxint *) x;
   if (DV_IRI_ID == box_tag (x))
-    return *(iri_id_t*)x;
-  return (int64)((ptrlong)(x));
+    return *(iri_id_t *) x;
+  return (int64) ((ptrlong) (x));
 }
 
 
@@ -1771,36 +1765,44 @@ itc_bp_cmp (it_cursor_t * itc, int param_inx)
       n2 = unbox_iri_id (param);
       return NUM_COMPARE (n1, n2);
     case DV_SINGLE_FLOAT:
-      return cmp_double (((float)n1), *(float*) param, DBL_EPSILON);
+      return cmp_double (((float) n1), *(float *) param, DBL_EPSILON);
     case DV_DOUBLE_FLOAT:
-      return cmp_double (((double)n1),  *(double*)param, DBL_EPSILON);
+      return cmp_double (((double) n1), *(double *) param, DBL_EPSILON);
     case DV_NUMERIC:
       {
 	NUMERIC_VAR (n);
-	numeric_from_int64 ((numeric_t) &n, n1);
-	return (numeric_compare_dvc ((numeric_t) &n, (numeric_t) param));
-	  }
-	default: GPF_T;
+	numeric_from_int64 ((numeric_t) & n, n1);
+	return (numeric_compare_dvc ((numeric_t) & n, (numeric_t) param));
+      }
+    default:
+      GPF_T;
     }
-  return DVC_GREATER; /*not reached*/
+  return DVC_GREATER;		/*not reached */
 }
+
+
 int64
 dv_to_int64 (box_t x)
 {
   switch (DV_TYPE_OF (x))
     {
     case DV_IRI_ID_8:
-    case DV_IRI_ID: return *(iri_id_t *)x;
-    case DV_LONG_INT: return unbox (x);
-    case DV_SINGLE_FLOAT: return unbox_float (x);
-    case DV_DOUBLE_FLOAT: return unbox_double (x);
+    case DV_IRI_ID:
+      return *(iri_id_t *) x;
+    case DV_LONG_INT:
+      return unbox (x);
+    case DV_SINGLE_FLOAT:
+      return unbox_float (x);
+    case DV_DOUBLE_FLOAT:
+      return unbox_double (x);
     case DV_NUMERIC:
       {
 	int64 res;
-	numeric_to_int64 ((numeric_t)x, &res);
+	numeric_to_int64 ((numeric_t) x, &res);
 	return res;
       }
-    default: return 0;
+    default:
+      return 0;
     }
 }
 
@@ -1837,8 +1839,8 @@ itc_bp_col_check (it_cursor_t * itc, search_spec_t * spec)
 	    return DVC_LESS;
 	  break;
 	default:
-	  GPF_T;	 /* Bad min op in search  spec */
-	  return 0;	/* dummy */
+	  GPF_T;		/* Bad min op in search  spec */
+	  return 0;		/* dummy */
 	}
     }
 
@@ -1863,8 +1865,8 @@ itc_bp_col_check (it_cursor_t * itc, search_spec_t * spec)
 	  else
 	    return DVC_GREATER;
 	default:
-	  GPF_T;	 /* Bad max op in search  spec */
-	  return 0;	/* dummy */
+	  GPF_T;		/* Bad max op in search  spec */
+	  return 0;		/* dummy */
 	}
     }
   return DVC_MATCH;
@@ -1872,8 +1874,7 @@ itc_bp_col_check (it_cursor_t * itc, search_spec_t * spec)
 
 
 int
-itc_bm_land_seek (it_cursor_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start,
-		  buffer_desc_t * buf)
+itc_bm_land_seek (it_cursor_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start, buffer_desc_t * buf)
 {
   /* if eq, bm in range and not found, DVC_GREATER.
    * If no specs, set bp_at_end and let the next part handle this
@@ -1884,7 +1885,7 @@ itc_bm_land_seek (it_cursor_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start
    * ret dvc_greater to mean end of search, dvc_match to continue checking, dvc_less to get the next row
    */
   int64 min = 0, max;
-  search_spec_t * sp = itc->itc_bm_col_spec;
+  search_spec_t *sp = itc->itc_bm_col_spec;
   if (!sp)
     {
       pl_set_at_bit ((placeholder_t *) itc, bm, bm_len, bm_start, itc->itc_desc_order ? BITNO_MAX : BITNO_MIN, itc->itc_desc_order);
@@ -1899,14 +1900,14 @@ itc_bm_land_seek (it_cursor_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start
 	{
 	case CMP_NONE:
 	  pl_ce_set ((placeholder_t *) itc, bm, CE_LENGTH (bm), bm_start, BITNO_MIN, 0);
-	  itc->itc_bp.bp_at_end = 0; /* it is on first bit  of first row, not at end of the anything even though technically below the first bit of the first row */
+	  itc->itc_bp.bp_at_end = 0;	/* it is on first bit  of first row, not at end of the anything even though technically below the first bit of the first row */
 	  return DVC_MATCH;
 	case CMP_EQ:
 	  pl_set_at_bit ((placeholder_t *) itc, bm, bm_len, bm_start, min, 0);
 	  if (!itc->itc_bp.bp_at_end && min == itc->itc_bp.bp_value)
 	    return DVC_MATCH;
 	  else
-	    return DVC_GREATER; /* no eq, stop looking */
+	    return DVC_GREATER;	/* no eq, stop looking */
 
 	case CMP_GT:
 	  min++;
@@ -1914,21 +1915,21 @@ itc_bm_land_seek (it_cursor_t * itc, db_buf_t bm, short bm_len, bitno_t bm_start
 	  pl_set_at_bit ((placeholder_t *) itc, bm, bm_len, bm_start, min, 0);
 	  return DVC_MATCH;
 	}
-      GPF_T; /* should not have this min op */
+      GPF_T;			/* should not have this min op */
     }
   if (CMP_NONE != sp->sp_max_op)
     max = dv_to_int64 (itc->itc_search_params[sp->sp_max]);
   else
     {
       pl_set_at_bit ((placeholder_t *) itc, bm, bm_len, bm_start, BITNO_MAX, 1);
-      itc->itc_bp.bp_at_end = 0; /* on last bit of last row, even though technically placed above it */
+      itc->itc_bp.bp_at_end = 0;	/* on last bit of last row, even though technically placed above it */
       return DVC_MATCH;
     }
   if (CMP_LT == sp->sp_max_op)
     max--;
-  pl_set_at_bit ((placeholder_t *)itc, bm, bm_len, bm_start, max, 1);
+  pl_set_at_bit ((placeholder_t *) itc, bm, bm_len, bm_start, max, 1);
   if (itc->itc_bp.bp_value > max)
-    return DVC_LESS; /* if the max was below the first bit in bm, the bp_value is set to the first bit and at_end is set.  Return DVC_LESS to cause caller to get the next row in desc order */
+    return DVC_LESS;		/* if the max was below the first bit in bm, the bp_value is set to the first bit and at_end is set.  Return DVC_LESS to cause caller to get the next row in desc order */
   itc->itc_bp.bp_at_end = 0;
   /* we can be at a value or above the highest of the bm.  They match lt/lte */
   return DVC_MATCH;
@@ -1946,7 +1947,7 @@ itc_bm_row_check (it_cursor_t * itc, buffer_desc_t * buf)
   int off;
   short bm_len;
   bitno_t bm_start;
-  dbe_key_t * key = itc->itc_insert_key;
+  dbe_key_t *key = itc->itc_insert_key;
   BIT_COL (bm_start, buf, itc->itc_row_data, key);
   KEY_PRESENT_VAR_COL (itc->itc_insert_key, itc->itc_row_data, (*key->key_bm_cl), off, bm_len);
   bm = itc->itc_row_data + off;
@@ -1978,29 +1979,29 @@ itc_bm_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 	{
 	  if (itc->itc_bp.bp_new_on_row)
 	    {
-	      itc->itc_bp.bp_at_end = 1; /* this will call next case below */
+	      itc->itc_bp.bp_at_end = 1;	/* this will call next case below */
 	    }
 	  else
 	    {
 	      pl_set_at_bit ((placeholder_t *) itc, itc->itc_row_data + off, bm_len,
 		  bm_start, itc->itc_bp.bp_value, itc->itc_desc_order);
-	  if (itc->itc_bp.bp_at_end)
-	    return DVC_LESS; /* no more bits above / below the value, get the next row */
-	}
+	      if (itc->itc_bp.bp_at_end)
+		return DVC_LESS;	/* no more bits above / below the value, get the next row */
+	    }
 	}
       if (itc->itc_bp.bp_at_end)
 	{
 	  if (!itc->itc_desc_order)
 	    {
 	      itc->itc_bp.bp_ce_offset = 0;
-	      pl_ce_set  ((placeholder_t*) itc, bm, CE_LENGTH (bm), bm_start, BITNO_MIN, 1);
+	      pl_ce_set ((placeholder_t *) itc, bm, CE_LENGTH (bm), bm_start, BITNO_MIN, 1);
 	    }
 	  else
 	    {
-	      /* set at the end of the bitmap &*/
+	      /* set at the end of the bitmap & */
 	      db_buf_t last_ce = bm_last_ce (bm, bm_len);
 	      itc->itc_bp.bp_ce_offset = last_ce - bm;
-	      pl_ce_set ((placeholder_t*)itc, last_ce, CE_LENGTH (last_ce), bm_start, BITNO_MAX, 0);
+	      pl_ce_set ((placeholder_t *) itc, last_ce, CE_LENGTH (last_ce), bm_start, BITNO_MAX, 0);
 	    }
 	  itc->itc_bp.bp_at_end = 0;
 	}
@@ -2051,13 +2052,12 @@ itc_bm_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 			  itc->itc_bp.bp_at_end = 1;
 			  return DVC_LESS;
 			}
-
 		      goto next_sp;
 		    }
 		  if (sp->sp_max_op != CMP_NONE)
 		    {
 		      int res = page_col_cmp (buf, itc->itc_row_data, &sp->sp_cl, itc->itc_search_params[sp->sp_max]);
-		      if ( (0 == (sp->sp_max_op & res)) || (res & DVC_NOORDER))
+		      if ((0 == (sp->sp_max_op & res)) || (res & DVC_NOORDER))
 			{
 			  itc->itc_bp.bp_at_end = 1;
 			  return DVC_LESS;
@@ -2066,7 +2066,8 @@ itc_bm_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 		}
 	    next_sp:
 	      sp = sp->sp_next;
-	    } while (sp);
+	    }
+	  while (sp);
 	}
 
       ks = itc->itc_ks;
@@ -2075,38 +2076,37 @@ itc_bm_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 	  if (ks->ks_out_slots)
 	    {
 	      int inx = 0;
-	      out_map_t * om = itc->itc_ks->ks_out_map;
+	      out_map_t *om = itc->itc_ks->ks_out_map;
 	      DO_SET (state_slot_t *, ssl, &ks->ks_out_slots)
-		{
-		  if (om[inx].om_is_null)
-		    {
-		      if (OM_BM_COL == om[inx].om_is_null)
-			{
-			  /* we set the bitmapped col.  Note both iri ids are 64 bit boxes.  An int is 32 bit */
-			  if (DV_IRI_ID == key->key_bit_cl->cl_sqt.sqt_dtp || DV_IRI_ID_8 == key->key_bit_cl->cl_sqt.sqt_dtp)
-			    qst_set_bin_string (itc->itc_out_state, ssl, (db_buf_t) &itc->itc_bp.bp_value, sizeof (iri_id_t), DV_IRI_ID);
-			  else
-			    qst_set_long (itc->itc_out_state, ssl, itc->itc_bp.bp_value);
-			}
-		      else if (OM_NULL == om[inx].om_is_null)
-			qst_set_bin_string (itc->itc_out_state, ssl, (db_buf_t) "", 0, DV_DB_NULL);
-		      else
-			qst_set (itc->itc_out_state, ssl, itc_box_row (itc, buf));
-		    }
-		  else
-		    {
-		      /* for leading key part of bitmap inx, set them only when first time on row.  If non last ks in cluster, next ones can switch the ssls around, so then set always.  */
-		      if (itc->itc_bp.bp_new_on_row
-			  || (!ks->ks_is_last && CL_RUN_CLUSTER == cl_run_local_only))
-			itc_qst_set_column (itc, buf, &om[inx].om_cl, itc->itc_out_state, ssl);
-		    }
-		  inx++;
-		}
-	      END_DO_SET();
-	      /*itc->itc_bp.bp_new_on_row = 0;*/
+	      {
+		if (om[inx].om_is_null)
+		  {
+		    if (OM_BM_COL == om[inx].om_is_null)
+		      {
+			/* we set the bitmapped col.  Note both iri ids are 64 bit boxes.  An int is 32 bit */
+			if (DV_IRI_ID == key->key_bit_cl->cl_sqt.sqt_dtp || DV_IRI_ID_8 == key->key_bit_cl->cl_sqt.sqt_dtp)
+			  qst_set_bin_string (itc->itc_out_state, ssl, (db_buf_t) & itc->itc_bp.bp_value, sizeof (iri_id_t),
+			      DV_IRI_ID);
+			else
+			  qst_set_long (itc->itc_out_state, ssl, itc->itc_bp.bp_value);
+		      }
+		    else if (OM_NULL == om[inx].om_is_null)
+		      qst_set_bin_string (itc->itc_out_state, ssl, (db_buf_t) "", 0, DV_DB_NULL);
+		    else
+		      qst_set (itc->itc_out_state, ssl, itc_box_row (itc, buf));
+		  }
+		else
+		  {
+		    /* for leading key part of bitmap inx, set them only when first time on row.  If non last ks in cluster, next ones can switch the ssls around, so then set always.  */
+		    if (itc->itc_bp.bp_new_on_row || (!ks->ks_is_last && CL_RUN_CLUSTER == cl_run_local_only))
+		      itc_qst_set_column (itc, buf, &om[inx].om_cl, itc->itc_out_state, ssl);
+		  }
+		inx++;
+	      }
+	      END_DO_SET ();
+	      /*itc->itc_bp.bp_new_on_row = 0; */
 	    }
-	  if (ks->ks_local_test
-	      && !code_vec_run_no_catch (ks->ks_local_test, itc))
+	  if (ks->ks_local_test && !code_vec_run_no_catch (ks->ks_local_test, itc))
 	    goto next_bit;
 	  if (ks->ks_local_code)
 	    code_vec_run_no_catch (ks->ks_local_code, itc);
@@ -2128,7 +2128,7 @@ itc_bm_row_check (it_cursor_t * itc, buffer_desc_t * buf)
       if (!ks || !ks->ks_is_last)
 	return DVC_MATCH;
     next_bit:
-      pl_next_bit ((placeholder_t*) itc, bm, bm_len, bm_start, itc->itc_desc_order);
+      pl_next_bit ((placeholder_t *) itc, bm, bm_len, bm_start, itc->itc_desc_order);
       if (itc->itc_bp.bp_at_end)
 	{
 	  itc->itc_bp.bp_new_on_row = 1;
@@ -2149,9 +2149,9 @@ itc_bm_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
   int off;
   short bm_len;
   bitno_t bm_start;
-  dbe_key_t * key = itc->itc_insert_key;
-  caddr_t * inst = itc->itc_out_state;
- reset_after_del:
+  dbe_key_t *key = itc->itc_insert_key;
+  caddr_t *inst = itc->itc_out_state;
+reset_after_del:
   BIT_COL (bm_start, buf, itc->itc_row_data, key);
   KEY_PRESENT_VAR_COL (itc->itc_insert_key, itc->itc_row_data, (*key->key_bm_cl), off, bm_len);
   bm = itc->itc_row_data + off;
@@ -2183,29 +2183,29 @@ itc_bm_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 	{
 	  if (itc->itc_bp.bp_new_on_row)
 	    {
-	      itc->itc_bp.bp_at_end = 1; /* this will call next case below */
+	      itc->itc_bp.bp_at_end = 1;	/* this will call next case below */
 	    }
 	  else
 	    {
 	      pl_set_at_bit ((placeholder_t *) itc, itc->itc_row_data + off, bm_len,
 		  bm_start, itc->itc_bp.bp_value, itc->itc_desc_order);
-	  if (itc->itc_bp.bp_at_end)
-	    return DVC_LESS; /* no more bits above / below the value, get the next row */
-	}
+	      if (itc->itc_bp.bp_at_end)
+		return DVC_LESS;	/* no more bits above / below the value, get the next row */
+	    }
 	}
       if (itc->itc_bp.bp_at_end)
 	{
 	  if (!itc->itc_desc_order)
 	    {
 	      itc->itc_bp.bp_ce_offset = 0;
-	      pl_ce_set  ((placeholder_t*) itc, bm, CE_LENGTH (bm), bm_start, BITNO_MIN, 1);
+	      pl_ce_set ((placeholder_t *) itc, bm, CE_LENGTH (bm), bm_start, BITNO_MIN, 1);
 	    }
 	  else
 	    {
-	      /* set at the end of the bitmap &*/
+	      /* set at the end of the bitmap & */
 	      db_buf_t last_ce = bm_last_ce (bm, bm_len);
 	      itc->itc_bp.bp_ce_offset = last_ce - bm;
-	      pl_ce_set ((placeholder_t*)itc, last_ce, CE_LENGTH (last_ce), bm_start, BITNO_MAX, 0);
+	      pl_ce_set ((placeholder_t *) itc, last_ce, CE_LENGTH (last_ce), bm_start, BITNO_MAX, 0);
 	    }
 	  itc->itc_bp.bp_at_end = 0;
 	}
@@ -2270,7 +2270,7 @@ itc_bm_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 		  if (sp->sp_max_op != CMP_NONE)
 		    {
 		      int res = page_col_cmp (buf, itc->itc_row_data, &sp->sp_cl, itc->itc_search_params[sp->sp_max]);
-		      if ( (0 == (sp->sp_max_op & res)) || (res & DVC_NOORDER))
+		      if ((0 == (sp->sp_max_op & res)) || (res & DVC_NOORDER))
 			{
 			  itc->itc_bp.bp_at_end = 1;
 			  return DVC_LESS;
@@ -2279,23 +2279,24 @@ itc_bm_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 		}
 	    next_sp:
 	      sp = sp->sp_next;
-	    } while (sp);
+	    }
+	  while (sp);
 	}
 
       ks = itc->itc_ks;
       if (ks)
 	{
-	  table_source_t * ts = ks->ks_ts;
+	  table_source_t *ts = ks->ks_ts;
 	  if (ks->ks_v_out_map)
 	    {
 	      int inx = 0;
-	      v_out_map_t * om = itc->itc_ks->ks_v_out_map;
+	      v_out_map_t *om = itc->itc_ks->ks_v_out_map;
 	      int n_out = box_length (om) / sizeof (v_out_map_t);
 	      for (inx = 0; inx < n_out; inx++)
 		om[inx].om_ref (itc, buf, &om[inx].om_cl, itc->itc_out_state, om[inx].om_ssl);
 	    }
 	  itc->itc_n_results++;
-	  qn_result ((data_source_t*)itc->itc_ks->ks_ts, inst, itc->itc_param_order[itc->itc_set]);
+	  qn_result ((data_source_t *) itc->itc_ks->ks_ts, inst, itc->itc_param_order[itc->itc_set]);
 	  if (ks->ks_local_test)
 	    {
 	      QNCAST (query_instance_t, qi, inst);
@@ -2324,7 +2325,7 @@ itc_bm_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 	}
       if (!itc->itc_bp.bp_is_pos_valid)
 	goto reset_after_del;
-      pl_next_bit ((placeholder_t*) itc, bm, bm_len, bm_start, itc->itc_desc_order);
+      pl_next_bit ((placeholder_t *) itc, bm, bm_len, bm_start, itc->itc_desc_order);
       if (itc->itc_bp.bp_at_end)
 	{
 	  itc->itc_bp.bp_new_on_row = 1;
@@ -2336,7 +2337,7 @@ itc_bm_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 
 
 void
-itc_next_bit (it_cursor_t * itc, buffer_desc_t *buf)
+itc_next_bit (it_cursor_t * itc, buffer_desc_t * buf)
 {
   key_ver_t kv;
   int off, len;
@@ -2346,7 +2347,7 @@ itc_next_bit (it_cursor_t * itc, buffer_desc_t *buf)
   kv = IE_KEY_VERSION (row);
   if (!kv || KV_LEFT_DUMMY == kv)
     {
-      return; /* it can be that the itc has been moved as a result of deletes to the dummy or to a leaf pointer. If so, proceed as if no bitmap */
+      return;			/* it can be that the itc has been moved as a result of deletes to the dummy or to a leaf pointer. If so, proceed as if no bitmap */
     }
   KEY_PRESENT_VAR_COL (key, row, (*key->key_bm_cl), off, len);
   /* where this is called, at start of search in itc_next, itc_row_data is not up to date. */
@@ -2354,7 +2355,7 @@ itc_next_bit (it_cursor_t * itc, buffer_desc_t *buf)
   BIT_COL (bm_start, buf, row, key);
   if (!itc->itc_bp.bp_is_pos_valid)
     pl_set_at_bit ((placeholder_t *) itc, itc->itc_row_data + off, len, bm_start, itc->itc_bp.bp_value, itc->itc_desc_order);
-  pl_next_bit ((placeholder_t*)itc, row + off, len, bm_start, itc->itc_desc_order);
+  pl_next_bit ((placeholder_t *) itc, row + off, len, bm_start, itc->itc_desc_order);
 }
 
 
@@ -2372,6 +2373,3 @@ itc_bm_land_lock (it_cursor_t * itc, buffer_desc_t ** buf_ret)
     itc_landed_lock_check (itc, buf_ret);
   return itc->itc_to_reset;
 }
-
-
-

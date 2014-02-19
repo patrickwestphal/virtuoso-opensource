@@ -33,12 +33,12 @@
 #endif
 
 typedef struct lisp_stream_s
-  {
-    char		ls_unread;
-    const char *	ls_buffer;
-    int			ls_at;
-    int			ls_length;
-  } lisp_stream_t;
+{
+  char ls_unread;
+  const char *ls_buffer;
+  int ls_at;
+  int ls_length;
+} lisp_stream_t;
 
 typedef caddr_t (*mcfunc_t) (lisp_stream_t * stream, char character);
 
@@ -88,7 +88,7 @@ typedef caddr_t (*mcfunc_t) (lisp_stream_t * stream, char character);
 dtp_t lisp_type_of (caddr_t xx);
 caddr_t lisp_read (lisp_stream_t *);
 void lisp_error (char *, ...);
-void init_lisp_stream (lisp_stream_t * str, char * nts);
+void init_lisp_stream (lisp_stream_t * str, char *nts);
 void lisp_throw (int ctx, int code);
 void lisp_throw_thr (int ctx, int code, du_thread_t * thr);
 void lisp_stream_init (lisp_stream_t * ls, const char *buf);

@@ -996,7 +996,7 @@ create method xmla_dbschema_foreign_keys () for xmla_discover
     	 (KEY_SEQ + 1) as ORDINAL INTEGER,
     	 (case UPDATE_RULE when 0 then ''NO ACTION'' when 1 then ''CASCADE'' when 2 then ''SET NULL'' when 3 then ''SET DEFAULT'' else NULL end) as UPDATE_RULE varchar(20),
     	 (case DELETE_RULE when 0 then ''NO ACTION'' when 1 then ''CASCADE'' when 2 then ''SET NULL'' when 3 then ''SET DEFAULT'' else NULL end) as DELETE_RULE varchar(20),
-	 PK_NAME,
+    	 PK_NAME,
 	 FK_NAME,
     	 3 as DEFERRABILITY SMALLINT
     	from DB.DBA.SYS_FOREIGN_KEYS SYS_FOREIGN_KEYS

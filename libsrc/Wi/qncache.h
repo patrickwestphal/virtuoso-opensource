@@ -26,6 +26,11 @@
 
 /* query result cache */
 
+
+
+
+
+
 typedef struct qc_result_s
 {
   int qcr_ref_count;

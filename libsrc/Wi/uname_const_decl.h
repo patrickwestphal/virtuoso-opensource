@@ -1,8 +1,6 @@
 /*
  *  $Id$
  *
- *  Constant declarations of commonly used UNAMEs.
- *
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
@@ -25,6 +23,7 @@
 
 #ifndef UNAME_CONST_DECL_H
 #define UNAME_CONST_DECL_H
+
 #include "Dk.h"
 
 /*				 0         1         2         3        */

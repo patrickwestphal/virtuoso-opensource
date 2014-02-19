@@ -27,20 +27,11 @@
  */
 
 #include "virtpwd.h"
+#include "util/md5.h"
 #include "CLI.h"
 #include "multibyte.h"
 #include "sqlfn.h"
 #include "numeric.h"
-
-#ifdef _SSL
-#include <openssl/md5.h>
-#define MD5Init   MD5_Init
-#define MD5Update MD5_Update
-#define MD5Final  MD5_Final
-#else
-#include "util/md5.h"
-#endif /* _SSL */
-
 
 void
 bh_free (blob_handle_t * bh)
@@ -79,15 +70,14 @@ bh_serialize_compat (blob_handle_t * bh, dk_session_t * ses)
   print_long (bh->bh_frag_no, ses);
   print_long (bh->bh_dir_page, ses);
   print_long (bh->bh_timestamp, ses);
-  print_object  (bh->bh_pages, ses, NULL, NULL);
+  print_object (bh->bh_pages, ses, NULL, NULL);
 }
 
 blob_handle_t *
 bh_deserialize_compat (dk_session_t * session)
 {
   blob_handle_t *bh;
-  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (
-      sizeof (blob_handle_t), DV_BLOB_HANDLE));
+  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (sizeof (blob_handle_t), DV_BLOB_HANDLE));
   memset (bh, 0, sizeof (blob_handle_t));
 
   bh->bh_ask_from_client = read_long (session);
@@ -127,7 +117,7 @@ bh_serialize_wide_compat (blob_handle_t * bh, dk_session_t * ses)
   print_long (bh->bh_frag_no, ses);
   print_long (bh->bh_dir_page, ses);
   print_long (bh->bh_timestamp, ses);
-  print_object  (bh->bh_pages, ses, NULL, NULL);
+  print_object (bh->bh_pages, ses, NULL, NULL);
 }
 
 
@@ -136,8 +126,7 @@ bh_deserialize_wide_compat (dk_session_t * session)
 {
   blob_handle_t *bh;
 
-  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (
-      sizeof (blob_handle_t), DV_BLOB_WIDE_HANDLE));
+  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (sizeof (blob_handle_t), DV_BLOB_WIDE_HANDLE));
   memset (bh, 0, sizeof (blob_handle_t));
 
   bh->bh_ask_from_client = read_long (session);
@@ -181,10 +170,10 @@ bh_serialize (blob_handle_t * bh, dk_session_t * ses)
   print_int (bh->bh_length, ses);
   print_int (bh->bh_diskbytes, ses);
   print_int (bh->bh_key_id, ses);
-  print_int (bh->bh_frag_no + ((uint32)bh->bh_slice << 16), ses);
+  print_int (bh->bh_frag_no + ((uint32) bh->bh_slice << 16), ses);
   print_int (bh->bh_dir_page, ses);
   print_int (bh->bh_timestamp, ses);
-  print_object  (bh->bh_pages, ses, NULL, NULL);
+  print_object (bh->bh_pages, ses, NULL, NULL);
 }
 
 
@@ -199,8 +188,7 @@ bh_deserialize (dk_session_t * session)
       bh = bh_deserialize_compat (session);
       return (caddr_t) bh;
     }
-  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (
-      sizeof (blob_handle_t), DV_BLOB_HANDLE));
+  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (sizeof (blob_handle_t), DV_BLOB_HANDLE));
   memset (bh, 0, sizeof (blob_handle_t));
 
   bh->bh_ask_from_client = read_int (session);
@@ -244,7 +232,7 @@ bh_serialize_xper (blob_handle_t * bh, dk_session_t * ses)
   print_long (bh->bh_frag_no, ses);
   print_long (bh->bh_dir_page, ses);
   print_long (bh->bh_timestamp, ses);
-  print_object  (bh->bh_pages, ses, NULL, NULL);
+  print_object (bh->bh_pages, ses, NULL, NULL);
 }
 
 
@@ -252,8 +240,7 @@ caddr_t
 bh_deserialize_xper (dk_session_t * session)
 {
   blob_handle_t *bh;
-  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (
-      sizeof (blob_handle_t), DV_BLOB_XPER_HANDLE));
+  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (sizeof (blob_handle_t), DV_BLOB_XPER_HANDLE));
   memset (bh, 0, sizeof (blob_handle_t));
   bh->bh_ask_from_client = read_long (session);
   if (bh->bh_ask_from_client)
@@ -300,7 +287,7 @@ bh_serialize_wide (blob_handle_t * bh, dk_session_t * ses)
   print_int (bh->bh_frag_no, ses);
   print_int (bh->bh_dir_page, ses);
   print_int (bh->bh_timestamp, ses);
-  print_object  (bh->bh_pages, ses, NULL, NULL);
+  print_object (bh->bh_pages, ses, NULL, NULL);
 }
 
 
@@ -315,8 +302,7 @@ bh_deserialize_wide (dk_session_t * session)
       return (caddr_t) bh;
     }
 
-  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (
-      sizeof (blob_handle_t), DV_BLOB_WIDE_HANDLE));
+  MARSH_CHECK_BOX (bh = (blob_handle_t *) dk_try_alloc_box (sizeof (blob_handle_t), DV_BLOB_WIDE_HANDLE));
   memset (bh, 0, sizeof (blob_handle_t));
 
   bh->bh_ask_from_client = read_int (session);
@@ -350,11 +336,11 @@ datetime_serialize (caddr_t dt_in, dk_session_t * out)
 {
   caddr_t dt = dt_in;
 #if 0
-  unsigned char dt_loc [DT_LENGTH];
+  unsigned char dt_loc[DT_LENGTH];
   int dt_type = DT_DT_TYPE (dt);
 
   if (dt_type == DT_TYPE_DATETIME || dt_type == DT_TYPE_DATE || dt_type == DT_TYPE_TIME)
-    { /* do not pass typed dates across the wire until compatibility issues resolved */
+    {				/* do not pass typed dates across the wire until compatibility issues resolved */
       int tz = DT_TZ (dt);
       memcpy (dt_loc, dt_in, DT_LENGTH);
       dt = &(dt_loc[0]);
@@ -541,7 +527,7 @@ caddr_t
 bh_mp_copy (mem_pool_t * mp, caddr_t box)
 {
   blob_handle_t *bh = (blob_handle_t *) box;
-  blob_handle_t *bhcopy = (blob_handle_t *)mp_alloc_box (mp, sizeof (blob_handle_t), box_tag (box));
+  blob_handle_t *bhcopy = (blob_handle_t *) mp_alloc_box (mp, sizeof (blob_handle_t), box_tag (box));
   memcpy (bhcopy, bh, sizeof (*bhcopy));
   bhcopy->bh_pages = (dp_addr_t *) mp_box_copy (mp, (caddr_t) bhcopy->bh_pages);
   bh->bh_source_session = NULL;
@@ -553,7 +539,7 @@ bh_mp_copy (mem_pool_t * mp, caddr_t box)
 
 
 static int
-symbol_write (char * string, dk_session_t * session)
+symbol_write (char *string, dk_session_t * session)
 {
   size_t length = box_length (string) - 1;
   session_buffered_write_char (DV_SYMBOL, session);
@@ -563,7 +549,7 @@ symbol_write (char * string, dk_session_t * session)
 }
 
 static void *
-box_read_symbol (dk_session_t *session, dtp_t dtp)
+box_read_symbol (dk_session_t * session, dtp_t dtp)
 {
   size_t length = (size_t) read_long (session);
   char *string;
@@ -602,9 +588,10 @@ udt_client_ref_deserialize (dk_session_t * session, dtp_t dtp)
 }
 
 static char
-pass1[] = "7rLrT7iG3kWWLuSDYdS/KIXO8JF86h12KyCTG1Mh0qxWdSZ6ezHRST0UuGl6xkbMgsXj4+eZbXNyYijRmoaaJm+hQCWSOW+0OHGCnYWB4upxi0Fogdu0gb+q4VFzyUFknEpZPg==";
-static char
-pass2[] = "PCuJhpWX5eApg2mRs0bvSIdfwSDUa0kjiSdd76ORgXYyhtLbHm4Uq6afLbfROLi5pDpjKVS9Vr9aZo+F3IpyZ6Zn6m/Xf1PRtq3jdseJht4VSduxHrpocKVdRh3LixXKr6Ue6A==";
+    pass1[] =
+    "7rLrT7iG3kWWLuSDYdS/KIXO8JF86h12KyCTG1Mh0qxWdSZ6ezHRST0UuGl6xkbMgsXj4+eZbXNyYijRmoaaJm+hQCWSOW+0OHGCnYWB4upxi0Fogdu0gb+q4VFzyUFknEpZPg==";
+static char pass2[] =
+    "PCuJhpWX5eApg2mRs0bvSIdfwSDUa0kjiSdd76ORgXYyhtLbHm4Uq6afLbfROLi5pDpjKVS9Vr9aZo+F3IpyZ6Zn6m/Xf1PRtq3jdseJht4VSduxHrpocKVdRh3LixXKr6Ue6A==";
 static char the_pass[] = EMPTY_PASS;
 #define MD5_SIZE 16
 
@@ -637,8 +624,8 @@ xx_encrypt_passwd (char *thing, int thing_len, char *user_name)
     MD5Update (&ctx, (unsigned char *) user_name, (unsigned) strlen (user_name));
   MD5Update (&ctx, (unsigned char *) the_pass, sizeof (the_pass));
   MD5Final (md5, &ctx);
-  for (md5_inx = 0, thing_ptr = (unsigned char *) thing; thing_ptr - ((unsigned char *)thing) < thing_len;
-      thing_ptr++, md5_inx = (md5_inx+1) % MD5_SIZE)
+  for (md5_inx = 0, thing_ptr = (unsigned char *) thing; thing_ptr - ((unsigned char *) thing) < thing_len;
+      thing_ptr++, md5_inx = (md5_inx + 1) % MD5_SIZE)
     *thing_ptr = *thing_ptr ^ md5[md5_inx];
 }
 
@@ -686,14 +673,14 @@ box_read_iri_id (dk_session_t * ses, dtp_t dtp)
   iri_id_t l, h = 0;
   if (DV_IRI_ID == dtp)
     {
-      l = (unsigned int32)read_long (ses);
+      l = (unsigned int32) read_long (ses);
     }
   else
     {
-      h = (unsigned int32)read_long (ses);
-      l = (unsigned int32)read_long (ses);
+      h = (unsigned int32) read_long (ses);
+      l = (unsigned int32) read_long (ses);
     }
-  return (void*) box_iri_id (h << 32 | l);
+  return (void *) box_iri_id (h << 32 | l);
 }
 
 
@@ -751,7 +738,7 @@ blobio_init (void)
   rt[DV_OBJECT] = udt_client_deserialize;
   rt[DV_REFERENCE] = udt_client_ref_deserialize;
   rt[DV_SHORT_REF] = udt_client_ref_deserialize;
-  calculate_pass();
+  calculate_pass ();
 }
 
 #undef MD5_CTX

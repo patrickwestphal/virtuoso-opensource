@@ -29,21 +29,21 @@
 #define _SQLOFN_H
 
 void sqlo_top_select (sql_comp_t * sc, ST ** tree);
-void sqlo_query_spec (sql_comp_t *sc, ptrlong is_distinct, caddr_t * selection,
+void sqlo_query_spec (sql_comp_t * sc, ptrlong is_distinct, caddr_t * selection,
     sql_tree_t * table_exp, data_source_t ** head_ret, state_slot_t *** sel_out_ret);
-caddr_t sqlo_top (sql_comp_t * sc, ST ** volatile ptree, float * volatile score_ptr);
+caddr_t sqlo_top (sql_comp_t * sc, ST ** volatile ptree, float *volatile score_ptr);
 
-void sqlo_calculate_view_scope (query_instance_t *qi, ST **tree, char *view_name);
-void sqlo_calculate_subq_view_scope (sql_comp_t *super_sc, ST **tree);
+void sqlo_calculate_view_scope (query_instance_t * qi, ST ** tree, char *view_name);
+void sqlo_calculate_subq_view_scope (sql_comp_t * super_sc, ST ** tree);
 
-void sqlo_expand_group_by (caddr_t *selection, ST ***p_group_by, ptrlong *p_is_distinct);
+void sqlo_expand_group_by (caddr_t * selection, ST *** p_group_by, ptrlong * p_is_distinct);
 
 int ssl_is_special (state_slot_t * ssl);
 
 extern int sqlo_print_debug_output;
 
-extern query_t *DBG_NAME(sql_compile_1) (DBG_PARAMS const char *string2, client_connection_t * cli,
-	     caddr_t * err, volatile int cr_type, ST *the_parse_tree, char *view_name);
+extern query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connection_t * cli,
+    caddr_t * err, volatile int cr_type, ST * the_parse_tree, char *view_name);
 #ifdef MALLOC_DEBUG
 #define sql_compile_1(s,c,e,ct,tpt,vn) dbg_sql_compile_1(__FILE__, __LINE__, (s),(c),(e),(ct),(tpt),(vn))
 #endif

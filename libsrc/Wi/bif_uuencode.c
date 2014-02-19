@@ -54,42 +54,41 @@ bif_uuencode (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       break;
     default:
       sqlr_new_error ("22023", "UUE01",
-	"Function uuencode needs a string output or a string as argument 1, not an arg of type %s (%d)",
-	dv_type_title (input_dtp), input_dtp);
+	  "Function uuencode needs a string output or a string as argument 1, not an arg of type %s (%d)",
+	  dv_type_title (input_dtp), input_dtp);
     }
   switch (uuenctype)
     {
-      case UUENCTYPE_NATIVE:
-      case UUENCTYPE_XX:
-      case UUENCTYPE_BASE64_UNIX:
-      case UUENCTYPE_BASE64_WIDE:
-      case UUENCTYPE_BINHEX:
-      case UUENCTYPE_PLAINTEXT:
-      case UUENCTYPE_MIME_QP_TXT:
-      case UUENCTYPE_MIME_QP_BIN:
-	break;
-      default:
-	sqlr_new_error ("22003", "UUE02", "Unsupported type of UU-encoding (%ld)", uuenctype);
+    case UUENCTYPE_NATIVE:
+    case UUENCTYPE_XX:
+    case UUENCTYPE_BASE64_UNIX:
+    case UUENCTYPE_BASE64_WIDE:
+    case UUENCTYPE_BINHEX:
+    case UUENCTYPE_PLAINTEXT:
+    case UUENCTYPE_MIME_QP_TXT:
+    case UUENCTYPE_MIME_QP_BIN:
+      break;
+    default:
+      sqlr_new_error ("22003", "UUE02", "Unsupported type of UU-encoding (%ld)", uuenctype);
     }
   if (DV_STRING_SESSION == input_dtp)
     {
       int failed = 0;
       IO_SECT (qst);
-      CATCH_READ_FAIL ((dk_session_t *)input)
-        {
-          uu_encode_string_session (&res, (dk_session_t *)input, uuenctype, maxlinespersection);
-        }
+      CATCH_READ_FAIL ((dk_session_t *) input)
+      {
+	uu_encode_string_session (&res, (dk_session_t *) input, uuenctype, maxlinespersection);
+      }
       FAILED
-	{
-	  failed = 1;
-	}
-      END_READ_FAIL ((dk_session_t *)input)
-      END_IO_SECT (err_ret);
+      {
+	failed = 1;
+      }
+      END_READ_FAIL ((dk_session_t *) input) END_IO_SECT (err_ret);
       if (failed)
-        {
-          dk_free_tree (res);
-          sqlr_new_error ("22003", "UUE10", "Error reading source data of UU-encoding (%ld)", uuenctype);
-        }
+	{
+	  dk_free_tree (res);
+	  sqlr_new_error ("22003", "UUE10", "Error reading source data of UU-encoding (%ld)", uuenctype);
+	}
     }
   else
     uu_encode_string (&res, input, uuenctype, maxlinespersection);
@@ -101,23 +100,23 @@ caddr_t
 bif_uuvalidate (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t string = bif_string_arg (qst, args, 0, "uuvalidate");
-  long uuenctype = ((BOX_ELEMENTS(args) > 1) ? (long) bif_long_arg (qst, args, 1, "uuvalidate") : 0);
-  int bhflag = ((BOX_ELEMENTS(args) > 2) ? (int) bif_long_arg (qst, args, 2, "uuvalidate") : 0);
+  long uuenctype = ((BOX_ELEMENTS (args) > 1) ? (long) bif_long_arg (qst, args, 1, "uuvalidate") : 0);
+  int bhflag = ((BOX_ELEMENTS (args) > 2) ? (int) bif_long_arg (qst, args, 2, "uuvalidate") : 0);
   int bug_count = 0;
   int res;
   switch (uuenctype)
     {
-      case UUENCTYPE_UNKNOWN:
-      case UUENCTYPE_NATIVE:
-      case UUENCTYPE_XX:
-      case UUENCTYPE_BASE64_UNIX:
-      case UUENCTYPE_BASE64_WIDE:
-      case UUENCTYPE_BINHEX:
-	break;
-      default:
-	sqlr_new_error ("22003", "UUV01", "Unsupported type of UU-encoding (%ld)", uuenctype);
+    case UUENCTYPE_UNKNOWN:
+    case UUENCTYPE_NATIVE:
+    case UUENCTYPE_XX:
+    case UUENCTYPE_BASE64_UNIX:
+    case UUENCTYPE_BASE64_WIDE:
+    case UUENCTYPE_BINHEX:
+      break;
+    default:
+      sqlr_new_error ("22003", "UUV01", "Unsupported type of UU-encoding (%ld)", uuenctype);
     }
-  res = uu_validate_encoding ((unsigned char *)string, uuenctype, &bhflag, &bug_count);
+  res = uu_validate_encoding ((unsigned char *) string, uuenctype, &bhflag, &bug_count);
   return box_num (res);
 }
 
@@ -126,23 +125,23 @@ bif_uudecode (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t string = bif_string_arg (qst, args, 0, "uudecode");
   long uuenctype = (long) bif_long_arg (qst, args, 1, "uudecode");
-  caddr_t boundary = ((BOX_ELEMENTS(args) > 2) ? bif_string_arg (qst, args, 2, "uudecode") : NULL);
+  caddr_t boundary = ((BOX_ELEMENTS (args) > 2) ? bif_string_arg (qst, args, 2, "uudecode") : NULL);
   caddr_t input, out = NULL;
   uu_ctx_t ctx;
   switch (uuenctype)
     {
-      case UUENCTYPE_UNKNOWN:
-      case UUENCTYPE_NATIVE:
-      case UUENCTYPE_XX:
-      case UUENCTYPE_BASE64_UNIX:
-      case UUENCTYPE_BASE64_WIDE:
-      case UUENCTYPE_BINHEX:
-      case UUENCTYPE_PLAINTEXT:
-      case UUENCTYPE_MIME_QP_TXT:
-      case UUENCTYPE_MIME_QP_BIN:
-	break;
-      default:
-	sqlr_new_error ("22003", "UUD01", "Unsupported type of UU-encoding (%ld)", uuenctype);
+    case UUENCTYPE_UNKNOWN:
+    case UUENCTYPE_NATIVE:
+    case UUENCTYPE_XX:
+    case UUENCTYPE_BASE64_UNIX:
+    case UUENCTYPE_BASE64_WIDE:
+    case UUENCTYPE_BINHEX:
+    case UUENCTYPE_PLAINTEXT:
+    case UUENCTYPE_MIME_QP_TXT:
+    case UUENCTYPE_MIME_QP_BIN:
+      break;
+    default:
+      sqlr_new_error ("22003", "UUD01", "Unsupported type of UU-encoding (%ld)", uuenctype);
     }
   memset (&ctx, 0, sizeof (uu_ctx_t));
   ctx.uuc_boundary = boundary;
@@ -172,12 +171,12 @@ bif_uudecode (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return out;
 }
 
-int bif_uuencode_init(void)
+int
+bif_uuencode_init (void)
 {
-  uu_initialize_tables();
+  uu_initialize_tables ();
   bif_define ("uuencode", bif_uuencode);
   bif_define ("uuvalidate", bif_uuvalidate);
   bif_define ("uudecode", bif_uudecode);
   return 0;
 }
-

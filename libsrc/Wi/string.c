@@ -28,7 +28,8 @@
 #include "wi.h"
 #include "strlike.h"
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "langfunc.h"
 #ifdef __cplusplus
@@ -58,7 +59,7 @@ extern "C" {
 
 
 size_t
-strlen__wide (const wchar_t *str)
+strlen__wide (const wchar_t * str)
 {
   int ret = 0;
   while (0 != str[ret])
@@ -68,12 +69,12 @@ strlen__wide (const wchar_t *str)
 
 
 const wchar_t *
-strchr__wide (const wchar_t *str, int c )
+strchr__wide (const wchar_t * str, int c)
 {
   int ret = 0;
-  while ((wchar_t)c != str[ret] && 0 != str[ret])
+  while ((wchar_t) c != str[ret] && 0 != str[ret])
     ret++;
-  return (0 == str[ret])? NULL : (str+ret);
+  return (0 == str[ret]) ? NULL : (str + ret);
 }
 
 #define SLPREFIX
@@ -106,14 +107,14 @@ __convert_arg (const char *str, int type, int *need_free)
   if (LIKE_ARG_UTF == type || LIKE_ARG_CHAR == type)
     {
       *need_free = 1;
-      return (wchar_t *)(box_utf8_as_wide_char (str, NULL, strlen (str), 0, DV_WIDE));
+      return (wchar_t *) (box_utf8_as_wide_char (str, NULL, strlen (str), 0, DV_WIDE));
     }
   *need_free = 0;
-  return (wchar_t *)str;
+  return (wchar_t *) str;
 }
 
 int
-cmp_like (const char *string, const char * pattern, collation_t *collation, char escape_char, int strtype, int patterntype )
+cmp_like (const char *string, const char *pattern, collation_t * collation, char escape_char, int strtype, int patterntype)
 {
   int ret = DVC_LESS;
 
@@ -132,7 +133,7 @@ cmp_like (const char *string, const char * pattern, collation_t *collation, char
       if (NULL == wstr || NULL == wpat)
 	return ret;
 
-      ret = __cmp_like__wide (wstr, wpat, (wchar_t)escape_char);
+      ret = __cmp_like__wide (wstr, wpat, (wchar_t) escape_char);
 
       if (free1)
 	dk_free_box ((box_t) wstr);

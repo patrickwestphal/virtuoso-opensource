@@ -5,23 +5,23 @@
  *
  *  SQL Parser
  *
- *   This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
- *   project.
+ *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
+ *  project.
  *
  *  Copyright (C) 1998-2014 OpenLink Software
  *
- *   This project is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License as published by the
- *   Free Software Foundation; only version 2 of the License, dated June 1991.
+ *  This project is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the
+ *  Free Software Foundation; only version 2 of the License, dated June 1991.
  *
- *   This program is distributed in the hope that it will be useful, but
- *   WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *   General Public License for more details.
+ *  This program is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *  General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License along
- *   with this program; if not, write to the Free Software Foundation, Inc.,
- *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  */
 
@@ -647,6 +647,7 @@
 %token WS_PRAGMA_C_ESC WS_PGRAGMA_UTF8_ESC WS_PRAGMA_PL_DEBUG WS_PRAGMA_SRC
 %token WS_COMMENT_EOL WS_COMMENT_BEGIN WS_COMMENT_END WS_COMMENT_LONG __COST
 
+
 /* Important! Do NOT add meaningful SQL tokens at the end of this list!
 Instead, add them _before_ WS_WHITESPACE. Tokens after WS_WHITESPACE is
 treated as garbage by sql_split_text(). */
@@ -930,7 +931,7 @@ column_def_opt
 	| NULLX			{ $$ = (ST *) NULL; }
 	| IDENTITY		{ $$ = (ST *) CO_IDENTITY; }
 	| IDENTITY '(' identity_opt_list ')'		{ $$ = t_listst (2, CO_IDENTITY, t_list_to_array ($3)); }
-	| PRIMARY KEY '('opt_index_option_list ')'	{ $$ = t_listst (5, INDEX_DEF, NULL, NULL, NULL, $4); }
+	| PRIMARY KEY '('opt_index_option_list ')'		 { $$ = t_listst (5, INDEX_DEF, NULL, NULL, NULL, $4); }
 	| PRIMARY KEY 		 { dk_set_t opts = sqlp_index_default_opts (NULL); caddr_t * oa = opts ? (caddr_t*)t_list_to_array (opts) : NULL; $$ = t_listst (5, INDEX_DEF, NULL, NULL, NULL, oa); }
 	| compression_spec { $$ = $1; }
 	| DEFAULT signed_literal	{ $$ = t_listst (2, COL_DEFAULT, $2); }
@@ -1001,7 +1002,9 @@ index_option
 	| OBJECT_ID	{ $$ = t_box_string ("object_id"); }
 	| BITMAPPED 	{ $$ = t_box_string ("bitmap"); }
 	| DISTINCT { $$ = t_box_string ("distinct"); }
-	| COLUMN { $$ = t_box_string ("column"); }
+	| COLUMN 		{
+				    $$ = t_box_string (sqlp_inx_col_opt ());
+				}
 	| NOT COLUMN { $$ = t_box_string ("not_column"); }
 	| NOT NULLX { $$ = t_box_string ("not_null"); }
 	| NO_L PRIMARY KEY REF { $$ = t_box_string ("no_pk"); }
@@ -1705,7 +1708,7 @@ sql_option
 	| INTERSECT { $$ = t_CONS (OPT_JOIN, t_CONS (OPT_INTERSECT, NULL)); }
 	| NO_L __LOCK { $$ = t_CONS (OPT_NO_LOCK, t_CONS (1, NULL)); }
 	|  FOR UPDATE { $$ = t_CONS (OPT_NO_LOCK, t_CONS (2, NULL)); }
-	| __LOCK { $$ = t_CONS (OPT_NO_LOCK, t_CONS (3, NULL)); }
+| __LOCK { $$ = t_CONS (OPT_NO_LOCK, t_CONS (3, NULL)); }
 	| LOOP { $$ = t_CONS (OPT_JOIN, t_CONS (OPT_LOOP, NULL)); }
 	| LOOP EXISTS { $$ = t_CONS (OPT_SUBQ_LOOP, t_CONS (SUBQ_LOOP, NULL)); }
 	| DO NOT LOOP EXISTS { $$ = t_CONS (OPT_SUBQ_LOOP, t_CONS (SUBQ_NO_LOOP, NULL)); }
@@ -2476,7 +2479,7 @@ scalar_exp
 	| scalar_exp '/' scalar_exp	{ BIN_OP ($$, BOP_DIV, $1, $3) }
 	| '+' scalar_exp %prec UMINUS	{ $$ = $2; }
 	| '-' scalar_exp %prec UMINUS	{ if (sqlp_is_num_lit ((caddr_t)($2))) $$ = (ST *) sqlp_minus ((caddr_t)($2));
-				          else BIN_OP ($$, BOP_MINUS, (ST*) t_box_num (0), $2) }
+					  else BIN_OP ($$, BOP_MINUS, (ST*) t_box_num (0), $2) }
 	| assignment_statement
 	| string_concatenation_operator
 	| column_ref			{ $$ = (sql_tree_t *) $1; }
@@ -3730,7 +3733,7 @@ for_statement
 	| FOREACH '(' data_type_ref identifier IN_L scalar_exp ')' DO statement
 		{ $$ = sqlp_foreach_statement ($3, $4, $6, $9); }
 	| FOR VECTORED opt_modify '(' vectored_list ')' compound_statement { $$ = t_listst (4, FOR_VEC_STMT, t_list_to_array ($5), $7, (ptrlong) $3); }
-	| NOT VECTORED compound_statement { $$ = t_listst (4, NOT_VEC_STMT, NULL, $3, NULL); }
+| NOT VECTORED  compound_statement { $$ = t_listst (4, NOT_VEC_STMT, NULL, $3, NULL); }
 	;
 
 trigger_def
@@ -3892,7 +3895,7 @@ opt_xml_child
 
 
 top_xml_child
-	: query_spec  { $$ = $1; }
+	: query_spec { $$ = $1; }
 	| BEGINX xml_join_list ENDX { ST * tmp  = (ST*) t_list_to_array ($2);
 /*mapping schema*/
 	$$ = (ST *) t_list (12, NULL, NULL, NULL, NULL, NULL, (ptrlong) 1, NULL, tmp, NULL, NULL, NULL, NULL); }

@@ -26,7 +26,7 @@
 #ifndef SQLCSTATE_H
 #define SQLCSTATE_H
 
-typedef struct sql_compile_state_s /* serialized in parse_sem */
+typedef struct sql_compile_state_s	/* serialized in parse_sem */
 {
   oid_t scs_v_u_id;
   oid_t scs_v_g_id;
@@ -38,7 +38,7 @@ typedef struct sql_compile_state_s /* serialized in parse_sem */
   int scs_parse_utf8_execs;
   int scs_parse_pldbg;
   caddr_t scs_pl_file;
-  int 	scs_pl_file_offs;
+  int scs_pl_file_offs;
   dk_set_t scs_sql3_breaks;
   dk_set_t scs_sql3_pbreaks;
   dk_set_t scs_sql3_ppbreaks;
@@ -49,11 +49,11 @@ typedef struct sql_compile_state_s /* serialized in parse_sem */
   char *scs_sql_text;
   int scs_param_inx;
   int scs_sqlp_have_infoschema_views;
-  char * scs_inside_view;
-  char	scs_count_qr_global_refs; /*   qr global ssl's will be counted as refs in cv_refd_slots etc. */
-  char	scs_inside_sem;
-  sql_comp_t *	scs_current_sc;
-  sql_comp_t *	scs_top_sc;
+  char *scs_inside_view;
+  char scs_count_qr_global_refs;	/*   qr global ssl's will be counted as refs in cv_refd_slots etc. */
+  char scs_inside_sem;
+  sql_comp_t *scs_current_sc;
+  sql_comp_t *scs_top_sc;
 } sql_compile_state_t;
 
 

@@ -22,7 +22,7 @@
 --
 
 
-create procedure L_O_LOOK (inout  val_str varchar, inout dt_lang int, inout lng varchar, inout is_text int, inout id int)
+create procedure L_O_LOOK (inout val_str varchar, inout dt_lang int, inout lng varchar, inout is_text int, inout id int)
 {
   vectored;
   -- dbg_obj_princ ('L_O_LOOK (', val_str, dt_lang, lng, is_text, id, ')');
@@ -377,7 +377,7 @@ create procedure DB.DBA.TTLP_RL_GS_TRIPLE (
   connection_set ('g_iid', g_iid);
  dp := app_env[1];
   dpipe_input (dp, s_uri, p_uri, o_uri, null, g_iid);
-  if ((daq_buffered_bytes (dp) > 30000000 or dpipe_count (app_env[1]) >= sys_stat ('dc_max_batch_sz')) 
+  if ((daq_buffered_bytes (dp) > 30000000 or dpipe_count (app_env[1]) >= sys_stat ('dc_max_batch_sz'))
       and 0 = bit_and (4, dpipe_rdf_load_mode (dp)))
     rl_send_gs (app_env, g_iid);
 }
@@ -527,9 +527,9 @@ create procedure DB.DBA.TTLP_V (in strg varchar, in base varchar, in graph varch
   declare exit handler for sqlstate '37000' {
     if (app_env <> 0)
       {
-    rl_send (app_env, g_iid);
-    commit work;
-    aq_wait_all (app_env[0]);
+        rl_send (app_env, g_iid);
+        commit work;
+        aq_wait_all (app_env[0]);
       }
     connection_set ('g_dict', null);
     log_enable (old_log_mode, 1);
@@ -539,7 +539,7 @@ create procedure DB.DBA.TTLP_V (in strg varchar, in base varchar, in graph varch
   if (transactional = 0)
     {
       if (log_enable = 0 or log_enable = 1)
-    log_enable (2 + log_enable, 1);
+	log_enable (2 + log_enable, 1);
     }
   else
     threads := 0;
@@ -549,7 +549,7 @@ create procedure DB.DBA.TTLP_V (in strg varchar, in base varchar, in graph varch
   if (bit_and (flags, 512))
     return TTLP_V_GS (strg, base, graph, flags, threads, log_enable, old_log_mode);
 
- app_env := vector (async_queue (threads, 1),rl_local_dpipe (), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  app_env := vector (async_queue (threads, 1), rl_local_dpipe (), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   g_iid := iri_to_id (graph);
   rdf_load_turtle (strg, base, graph, flags,
     vector (
@@ -651,7 +651,6 @@ create procedure ID_TO_IRI_VEC (in id iri_id)
 ;
 
 
-
 create procedure ID_TO_IRI_VEC_NS (in id any array)
 {
   vectored;
@@ -709,7 +708,7 @@ create procedure DB.DBA.RDF_TRIPLES_BATCH_COMPLETE (inout triples any)
       obj := oo[inx];
       if (isstring (obj) and __box_flags (obj) = 1)
 	triples[inx][2] := uriqa_dynamic_local_replace (obj);
-      else	
+      else
 	triples[inx][2] := obj;
     }
 }

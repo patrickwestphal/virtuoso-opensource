@@ -28,24 +28,179 @@
 -- Mail Messages (users is valid DAV users)
 create table MAIL_MESSAGE (
     MM_ID		integer,            	-- Unique id of message (per user)
+	MM_SEQ_ID		integer,            	-- Seq id of message (per user and per mailbox)
     MM_OWN		varchar (128),      	-- local receiver (if receiver is non local should be null)
     MM_FLD		varchar (128),      	-- Message Folder (initial 'Inbox')
     MM_FROM		varchar (512),	    	-- From: field
     MM_TO		varchar (512),	    	-- To: field
     MM_CC		varchar (512),	    	-- Cc: field
     MM_BCC		varchar (512),		-- Bcc: field
+    MM_DCC varchar(512),            -- Dcc: field (conversation identifier)
     MM_SUBJ		varchar (512),		-- Subject
     MM_REC_DATE		varchar (50),		-- Received
     MM_SND_TIME		varchar (50),		-- Sent
-    MM_IS_READED	integer,		-- Readed flag (0/1)
-    MM_BODY		long varchar, 		-- message content
+    MM_SCHEDULE_TIME  datetime,      -- Sent At
+    MM_FLD_ID		integer,      		-- Message Folder ID (initial 'Inbox')
+    MM_IS_READED	integer,		-- Readed or Seen flag (0/1)
+    MM_IS_ANSWERED integer,
+    MM_IS_FLAGGED	 integer,
+    MM_IS_DELETED  integer,
+    MM_IS_DRAFT		 integer,
+    MM_IS_RECENT	 integer,
+    MM_BODY		    long varchar, 		-- message content
     MM_BODY_ID		integer identity,
     MM_MOBLOG		varchar(50) default NULL,
     MM_MSG_ID		varchar default NULL,
-    primary key (MM_OWN, MM_FLD, MM_ID))
-create index MAIL_MESSAGE_MSG_ID on MAIL_MESSAGE (MM_MSG_ID, MM_OWN)
+    MM_TAGS varchar,                -- tags
+    MM_ATTACHED integer default 0,  -- 0 no attachments
+    MM_PRIORITY integer default 3,  -- message priority (3 = normal)
+    MM_SIZE integer default 0,      -- message size
+    MM_PARAMS long varchar,         -- message params (webID, encrypted and etc.)
+    MM_MEA_ID integer,              -- external account ID
+    MM_MEA_MSG_ID varchar,          -- external ID
+    MM_MSG_REFERENCES varchar default NULL,
+    MM_MSG_HEADER long varchar default NULL,
+    MM_ACL long varchar,            -- ACL
+
+    primary key (MM_OWN, MM_FLD, MM_ID)
+)
+-- create index MAIL_MESSAGE_MSG_ID on MAIL_MESSAGE (MM_MSG_ID, MM_OWN)
 ;
 
+alter table MAIL_MESSAGE add MM_FLD_ID		integer
+;
+
+alter table MAIL_MESSAGE add MM_SEQ_ID		integer
+;
+
+alter table MAIL_MESSAGE add    MM_IS_READED	integer
+;
+
+alter table MAIL_MESSAGE add    MM_IS_ANSWERED	integer
+;
+
+alter table MAIL_MESSAGE add    MM_IS_FLAGGED	integer
+;
+
+alter table MAIL_MESSAGE add    MM_IS_DELETED   integer
+;
+
+alter table MAIL_MESSAGE add    MM_IS_DRAFT	integer
+;
+
+alter table MAIL_MESSAGE add    MM_IS_RECENT	integer
+;
+
+alter table MAIL_MESSAGE add MM_PARENT_ID integer default 0
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_DCC varchar
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_TAGS varchar
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_ATTACHED integer default 0
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_PRIORITY integer default 3
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_SIZE integer default 0
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_PARAMS LONG VARCHAR
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_MEA_ID integer
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_MEA_MSG_ID varchar
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_MSG_REFERENCES varchar default NULL
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_MSG_HEADER long varchar default NULL
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_ACL long varchar
+;
+
+alter table DB.DBA.MAIL_MESSAGE add MM_SCHEDULE_TIME datetime
+;
+
+create table MAIL_FOLDER (
+    MF_ID			integer,            	-- Unique id of folder
+    MF_PARENT_ID	integer default 0, 	-- Unique id of parent folder, 0 if ROOT
+	MF_OWN			varchar (128),      	-- local receiver (if receiver is non local should be null)
+	MF_NAME			varchar (128),      	-- Message Folder (initial Inbox)
+    MF_IS_READED	integer,		-- Readed or Seen flag (0/1)
+    MF_IS_ANSWERED	integer,
+    MF_IS_FLAGGED	integer,
+    MF_IS_DELETED   integer,
+    MF_IS_DRAFT		integer,
+    MF_IS_NOINFERIORS	integer,
+    MF_IS_NOSELECT		integer,
+    MF_IS_MARKED		integer,
+    MF_IS_UNMARKED 		integer,
+    MF_IS_ACTIVE 		integer,
+    MF_IS_SYSTEM integer default 0,
+    MF_IS_SMART integer default 0,
+	MF_UID_ID			integer identity,
+    MF_SEQ_NO integer default 10,    -- sequense number in folder list
+    MF_MEA_ID integer,               -- external account ID
+    MF_PARAMS	long varchar, 		      -- folder params (smart folders params or external folder path)
+    MF_ACL long varchar,            -- ACL
+
+    primary key (MF_OWN, MF_ID, MF_NAME, MF_PARENT_ID)
+)
+;
+
+alter table DB.DBA.MAIL_FOLDER add MF_PARAMS	long varchar
+;
+
+alter table DB.DBA.MAIL_FOLDER add MF_SEQ_NO integer default 10
+;
+
+alter table DB.DBA.MAIL_FOLDER add MF_IS_SYSTEM integer default 0
+;
+
+alter table DB.DBA.MAIL_FOLDER add MF_IS_SMART integer default 0
+;
+
+alter table DB.DBA.MAIL_FOLDER add MF_MEA_ID integer
+;
+
+alter table DB.DBA.MAIL_FOLDER add MF_ACL long varchar
+;
+
+create trigger MAIL_FOLDER_AI after insert on DB.DBA.MAIL_FOLDER
+{
+    if ((MF_OWN like 'IMAP_%') and (coalesce (MF_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_INSERT'))
+      DB.DBA.IMAP__WAC_INSERT (MF_OWN, MF_ID, 'C', MF_ACL);
+}
+;
+
+create trigger MAIL_FOLDER_AU after update on DB.DBA.MAIL_FOLDER referencing old as O, new as N
+{
+    if ((N.MF_OWN like 'IMAP_%') and (coalesce (O.MF_ACL, '') <> coalesce (N.MF_ACL, '')))
+    {
+      if ((coalesce (O.MF_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_DELETE'))
+        DB.DBA.IMAP__WAC_DELETE (O.MF_OWN, O.MF_ID, 'C');
+
+      if ((coalesce (N.MF_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_INSERT'))
+        DB.DBA.IMAP__WAC_INSERT (N.MF_OWN, N.MF_ID, 'C', N.MF_ACL);
+    }
+}
+;
+
+create trigger MAIL_FOLDER_AD after delete on DB.DBA.MAIL_FOLDER
+{
+    if ((MF_OWN like 'IMAP_%') and (coalesce (MF_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_INSERT'))
+      DB.DBA.IMAP__WAC_DELETE (MF_OWN, MF_ID, 'C');
+}
+;
 
 create table MAIL_ATTACHMENT (
 	MA_ID integer identity,
@@ -55,10 +210,23 @@ create table MAIL_ATTACHMENT (
 	MA_PUBLISHED int default 0,
 	MA_NAME varchar,
 	MA_MIME varchar,
+  MA_TYPE integer default 0,                -- 0 = no attachment (message content)
+  MA_CONTENT_ID varchar default NULL,
+  MA_CONTENT_ENCODING varchar default NULL,
 	MA_CONTENT long varbinary,
 	MA_BLOG_ID varchar,
+
 	primary key (MA_M_OWN, MA_M_FLD, MA_M_ID, MA_ID)
-   	)
+)
+;
+
+alter table DB.DBA.MAIL_ATTACHMENT add MA_TYPE integer default 0
+;
+
+alter table DB.DBA.MAIL_ATTACHMENT add MA_CONTENT_ID varchar default NULL
+;
+
+alter table DB.DBA.MAIL_ATTACHMENT add MA_CONTENT_ENCODING varchar default NULL
 ;
 
 --#IF VER=5
@@ -97,94 +265,102 @@ alter table MAIL_MESSAGE add MM_MSG_ID varchar default NULL
 --!AFTER_AND_BEFORE DB.DBA.MAIL_MESSAGE MM_MSG_ID !
 --#ENDIF
 create trigger MAIL_MESSAGE_I after insert on DB.DBA.MAIL_MESSAGE
-  {
+{
     if (__proc_exists ('BLOG.DBA.BLOG_MOBLOG_PROCESS_MSG'))
       BLOG.DBA.BLOG_MOBLOG_PROCESS_MSG (MM_OWN, MM_ID, MM_FLD, MM_BODY, MM_MOBLOG);
-  }
+
+    if ((MM_OWN like 'IMAP_%') and (coalesce (MM_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_INSERT'))
+      DB.DBA.IMAP__WAC_INSERT (MM_OWN, MM_ID, 'R', MM_ACL);
+}
 ;
 
 --#IF VER=5
 --!AFTER_AND_BEFORE DB.DBA.MAIL_MESSAGE MM_MSG_ID !
 --#ENDIF
 create trigger MAIL_MESSAGE_U after update on DB.DBA.MAIL_MESSAGE referencing old as O, new as N
-  {
+{
     if (__proc_exists ('BLOG.DBA.BLOG_MOBLOG_PROCESS_MSG'))
       BLOG.DBA.BLOG_MOBLOG_PROCESS_MSG (N.MM_OWN, N.MM_ID, N.MM_FLD, N.MM_BODY, N.MM_MOBLOG);
-  }
+
+    if ((N.MM_OWN like 'IMAP_%') and (coalesce (O.MM_ACL, '') <> coalesce (N.MM_ACL, '')))
+    {
+      if ((coalesce (O.MM_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_DELETE'))
+        DB.DBA.IMAP__WAC_DELETE (O.MM_OWN, O.MM_ID, 'R');
+
+      if ((coalesce (N.MM_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_INSERT'))
+        DB.DBA.IMAP__WAC_INSERT (N.MM_OWN, N.MM_ID, 'R', N.MM_ACL);
+    }
+}
 ;
 
 create trigger MAIL_MESSAGE_D after delete on DB.DBA.MAIL_MESSAGE
-  {
+{
     delete from MAIL_ATTACHMENT where MA_M_ID = MM_ID and MA_M_OWN = MM_OWN and MA_M_FLD = MM_FLD;
-  }
-;
 
+    if ((MM_OWN like 'IMAP_%') and (coalesce (MM_ACL, '') <> '') and __proc_exists ('DB.DBA.IMAP__WAC_INSERT'))
+      DB.DBA.IMAP__WAC_DELETE (MM_OWN, MM_ID, 'R');
+}
+;
 
 create procedure DB.DBA.MAIL_MESSAGE_MM_BODY_INDEX_HOOK (inout vtb any, inout d_id integer)
 {
-  declare data, own, offset any;
-  declare _subj, _from, _to, _trf varchar;
-  declare cr cursor for select blob_to_string (MM_BODY), MM_OWN from DB.DBA.MAIL_MESSAGE where MM_BODY_ID = d_id;
-  whenever not found goto err_exit;
-  open cr (prefetch 1);
-  fetch cr into data, own;
-  if (data is not null)
-    {
-      offset := aref (aref (mime_tree (data), 1), 0);
-      if (offset > 1)
-        offset := offset - 1;
-      _trf := lower (substring (mail_header (data, 'Content-Transfer-Encoding'), 1, 512));
-      if (_trf <> 'base64')
-	{
-	  declare mtree  any;
-          mtree := mime_tree (data);
-	  DB.DBA.MM_FEED_PART (vtb, mtree, data, d_id, 0);
-	}
-      --vt_batch_feed (vtb, substring (data, offset, length (data)), 0);
-      _subj := substring (mail_header (data, 'Subject'), 1, 512);
-      _from := substring (mail_header (data, 'From'), 1, 512);
-      _to := substring (mail_header (data, 'To'), 1, 512);
-      vt_batch_feed (vtb, _subj, 0);
-      vt_batch_feed (vtb, _from, 0);
-      vt_batch_feed (vtb, _to, 0);
-    }
-  if (own is not null)
-    vt_batch_feed (vtb, own, 0);
-  close cr;
-  return 1;
-err_exit:
-  close cr;
-  return 0;
+  return DB.DBA.MM_MESSAGE_PART (vtb, d_id, 0);
 }
 ;
 
 create procedure DB.DBA.MAIL_MESSAGE_MM_BODY_UNINDEX_HOOK (inout vtb any, inout d_id integer)
 {
+  return DB.DBA.MM_MESSAGE_PART (vtb, d_id, 1);
+}
+;
+
+create procedure DB.DBA.MM_MESSAGE_PART (
+  inout vtb any,
+  inout d_id integer,
+  in flag integer)
+{
   declare data, own, offset any;
-  declare _subj, _from, _to, _trf varchar;
-  declare cr cursor for select blob_to_string (MM_BODY), MM_OWN, MM_SUBJ, MM_TO, MM_FROM from DB.DBA.MAIL_MESSAGE where MM_BODY_ID = d_id;
-  whenever not found goto err_exit;
+  declare _subj, _from, _to, _cc, _bcc, _tags, _trf varchar;
+  declare mtree  any;
+  declare cr cursor for select blob_to_string (MM_BODY), MM_OWN, MM_SUBJ, MM_FROM, MM_TO, MM_CC, MM_BCC, MM_TAGS from DB.DBA.MAIL_MESSAGE where MM_BODY_ID = d_id;
+  declare exit handler for not found
+  {
+    goto err_exit;
+  };
   open cr (prefetch 1);
-  fetch cr into data, own, _subj, _from, _to;
+  fetch cr into data, own, _subj, _from, _to, _cc, _bcc, _tags;
+  -- body
   if (data is not null)
     {
-      offset := aref (aref (mime_tree (data), 1), 0);
+    mtree := mime_tree (blob_to_string (data));
+    if (isarray (mtree))
+    {
+      offset := aref (aref (mtree, 1), 0);
       if (offset > 1)
         offset := offset - 1;
+
       _trf := lower (substring (mail_header (data, 'Content-Transfer-Encoding'), 1, 512));
       if (_trf <> 'base64')
-	{
-	  declare mtree  any;
-          mtree := mime_tree (data);
-	  DB.DBA.MM_FEED_PART (vtb, mtree, data, d_id, 1);
-	  --vt_batch_feed (vtb, substring (data, offset, length (data)), 1);
+  	    DB.DBA.MM_FEED_PART (vtb, mtree, data, d_id, flag);
 	}
     }
   if (own is not null)
-    vt_batch_feed (vtb, own, 1);
-  vt_batch_feed (vtb, _subj, 1);
-  vt_batch_feed (vtb, _from, 1);
-  vt_batch_feed (vtb, _to,   1);
+    vt_batch_feed (vtb, own, flag);
+
+  vt_batch_feed (vtb, _subj, flag);
+  -- addresses
+  vt_batch_feed (vtb, _from, flag);
+  vt_batch_feed (vtb, _to,   flag);
+  vt_batch_feed (vtb, _cc, flag);
+  vt_batch_feed (vtb, _bcc, flag);
+  -- tags
+  _tags := split_and_decode (_tags, 0, '\0\0,');
+  foreach (any _tag in _tags) do
+  {
+    _tag := replace (replace (concat ('^T', trim (_tag)), ' ', '_'), '+', '_');
+    vt_batch_feed (vtb, _tag, flag);
+  }
+
   close cr;
   return 1;
 err_exit:
@@ -193,29 +369,54 @@ err_exit:
 }
 ;
 
-create procedure
-MM_FEED_PART (inout vb any, inout mb any, inout body varchar, inout id integer, in flag int)
+create procedure DB.DBA.MM_FEED_PART (
+  inout vb any,
+  inout mb any,
+  inout body varchar,
+  inout id integer,
+  in flag integer)
 {
   declare txt varchar;
-  declare tp, enc, disp varchar;
+  declare tp, enc, cset varchar;
   declare i, l integer;
+
   if (not isarray (mb[0]))
     return;
+
   tp := get_keyword_ucase ('CONTENT-TYPE', mb[0], 'application/octet-stream');
-  enc := get_keyword_ucase ('CONTENT-TRANSFER-ENCODING', mb[0], '');
 
   if (tp like 'text/%' and (mb[1][0] < mb[1][1]))
     {
+      enc := get_keyword_ucase ('CONTENT-TRANSFER-ENCODING', mb[0], '');
+      cset := get_keyword_ucase ('CHARSET', mb[0], '');
       txt := subseq (body, mb[1][0], mb[1][1]);
       if (lower (enc) = 'base64')
-	txt := decode_base64(txt);
+	      txt := decode_base64(txt);
+
+      else if (lower (enc) = 'quoted-printable')
+        {
+          txt := replace (txt, '\r\n', '\n');
+          txt := replace (txt, '=\n', '');
+          txt := split_and_decode (txt, 0, '=');
+        }
+
+      if ((cset <> '') and (cset <> 'UTF-8'))
+      {
+        declare exit handler for sqlstate '2C000'
+	      {
+	        goto _skip;
+	      };
+        txt := charset_recode (txt, cset, 'UTF-8');
+      _skip:;
+      }
       vt_batch_feed (vb, txt, flag);
     }
 
   if (not isarray (mb[2]))
     return;
 
-  i := 0; l := length (mb[2]);
+  i := 0;
+  l := length (mb[2]);
   while (i < l)
     {
       DB.DBA.MM_FEED_PART (vb, mb[2][i], body, id, flag);
@@ -224,11 +425,27 @@ MM_FEED_PART (inout vb any, inout mb any, inout body varchar, inout id integer, 
 }
 ;
 
+create procedure DB.DBA.mail_index_update ()
+{
+  declare st, msg any;
+  if (registry_get ('mail_index_update') = '1')
+    return;
+  if (exists (select 1 from SYS_KEYS where KEY_TABLE = 'DB.DBA.MAIL_MESSAGE_MM_BODY_WORDS'))
+    {
+      log_message ('Upgrading free text on mailboxes');
+      exec ('drop table DB.DBA.MAIL_MESSAGE_MM_BODY_WORDS', st, msg);
+    }
+  registry_set ('mail_index_update', '1');
+}
+;
+
+DB.DBA.mail_index_update ()
+;
 
 --#IF VER=5
 --!AFTER __PROCEDURE__ DB.DBA.VT_CREATE_TEXT_INDEX !
 --#ENDIF
-DB.DBA.vt_create_text_index ('DB.DBA.MAIL_MESSAGE', 'MM_BODY', 'MM_BODY_ID', 2, 0, null, 1, '*ini*', '*ini*')
+DB.DBA.vt_create_text_index ('DB.DBA.MAIL_MESSAGE', 'MM_BODY', 'MM_BODY_ID', 0, 0, vector ('MM_FROM', 'MM_TO', 'MM_CC', 'MM_BCC', 'MM_TAGS'), 1, 'x-ViDoc', '*ini*', 1)
 ;
 
 --#IF VER=5

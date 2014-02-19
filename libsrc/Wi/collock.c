@@ -28,6 +28,7 @@
 #include "sqlnode.h"
 
 
+
 int
 itc_is_own_lock (it_cursor_t * itc, col_row_lock_t * clk)
 {
@@ -213,7 +214,7 @@ itc_new_clk (it_cursor_t * itc, int row)
   else if (itc->itc_ks->ks_is_deleting)
     {
       itc->itc_ltrx->lt_n_col_locks++;
-    clk->clk_change = CLK_DELETE_AT_COMMIT;
+      clk->clk_change = CLK_DELETE_AT_COMMIT;
     }
   return clk;
 }
@@ -294,7 +295,7 @@ itc_col_lock_1 (it_cursor_t * itc, buffer_desc_t * buf, int row, row_no_t * poin
 	  if (itc->itc_ks->ks_is_deleting && !before_range)
 	    {
 	      itc->itc_ltrx->lt_n_col_locks++;
-	    clk->clk_change |= CLK_DELETE_AT_COMMIT;
+	      clk->clk_change |= CLK_DELETE_AT_COMMIT;
 	    }
 	  *point = inx;
 	  return;
@@ -324,12 +325,12 @@ itc_col_lock (it_cursor_t * itc, buffer_desc_t * buf, int n_used, int may_delete
   row_no_t point = 0;
   int inx, n_done = 0;
   itc->itc_lock_lt = NO_LOCK_LT;
-      if (itc->itc_ks->ks_is_deleting && BUF_NEEDS_DELTA (buf))
-	{
-	  ITC_IN_KNOWN_MAP (itc, buf->bd_page);
-	  itc_delta_this_buffer (itc, buf, DELTA_MAY_LEAVE);
-	  ITC_LEAVE_MAP_NC (itc);
-	}
+  if (itc->itc_ks->ks_is_deleting && BUF_NEEDS_DELTA (buf))
+    {
+      ITC_IN_KNOWN_MAP (itc, buf->bd_page);
+      itc_delta_this_buffer (itc, buf, DELTA_MAY_LEAVE);
+      ITC_LEAVE_MAP_NC (itc);
+    }
   if (itc->itc_n_matches)
     {
       for (inx = 0; inx < n_used; inx++)
@@ -605,9 +606,9 @@ ceic_del_ins_rbe (ce_ins_ctx_t * ceic, int nth_range, db_buf_t dv)
     }
   if (!wi_inst.wi_checkpoint_atomic)
     {
-  if (clk->clk_rbe[ceic->ceic_nth_col])
-    return;
-  clk->clk_change |= CLK_REVERT_AT_ROLLBACK;
+      if (clk->clk_rbe[ceic->ceic_nth_col])
+	return;
+      clk->clk_change |= CLK_REVERT_AT_ROLLBACK;
     }
   else
     {
@@ -760,7 +761,7 @@ ceic_delete_direct (ce_ins_ctx_t * ceic, buffer_desc_t * buf, int ice)
       CE_2_LENGTH (ce, ce_first, ce_bytes, n_values);
       space_after = ce_space_after (buf, ce);
       if (!ce_del_int_delta (ceic, ce, &new_len))
-  return 0;
+	return 0;
       bytes_delta = ce_bytes - new_len;
       goto deleted;
     default:
@@ -896,7 +897,7 @@ ceic_complement (ce_ins_ctx_t * ceic, buffer_desc_t * buf, int ice, int n_values
 	    }
 	  else if (deletes)
 	    {
-	    deletes[del_fill++] = row;
+	      deletes[del_fill++] = row;
 	    }
 	  nth_clk++;
 	  if (nth_clk < last_for_ce)
@@ -913,7 +914,7 @@ ceic_complement (ce_ins_ctx_t * ceic, buffer_desc_t * buf, int ice, int n_values
   if (RB_CPT == ceic->ceic_is_rb)
     {
       if (del_fill)
-      ceic_save_uci (ceic, buf, ice, deletes, del_fill);
+	ceic_save_uci (ceic, buf, ice, deletes, del_fill);
     }
   return fill;
 }
@@ -924,6 +925,7 @@ ceic_complement (ce_ins_ctx_t * ceic, buffer_desc_t * buf, int ice, int n_values
   if (!col_ceic) \
     col_ceic = *col_ceic_ret = ceic_col_ceic (top_ceic); \
 }
+
 
 void
 ceic_merge_finalize (ce_ins_ctx_t * top_ceic, ce_ins_ctx_t ** col_ceic_ret, buffer_desc_t * buf, int ice)
@@ -962,7 +964,7 @@ ceic_merge_finalize (ce_ins_ctx_t * top_ceic, ce_ins_ctx_t ** col_ceic_ret, buff
     {
       if (matches != &matches_auto[0])
 	dk_free_box ((caddr_t) matches);
-    return;
+      return;
     }
   NEED_CEIC;
   top_ceic->ceic_finalize_needs_update = 1;
@@ -1023,9 +1025,9 @@ ceic_merge_finalize (ce_ins_ctx_t * top_ceic, ce_ins_ctx_t ** col_ceic_ret, buff
   ce_recompress (col_ceic, cs, &dc);
   if (cs->cs_n_values)
     {
-  cs_best (cs, &last_ce, &last_ce_len);
-  mp_set_push (cs->cs_mp, &cs->cs_ready_ces, (void *) last_ce);
-  cs_reset_check (cs);
+      cs_best (cs, &last_ce, &last_ce_len);
+      mp_set_push (cs->cs_mp, &cs->cs_ready_ces, (void *) last_ce);
+      cs_reset_check (cs);
     }
   SET_THR_TMP_POOL (NULL);
   cs_distinct_ces (cs);
@@ -1098,7 +1100,7 @@ done:
   if (nth_range < itc->itc_range_fill)
     {
       if (!dbf_ignore_uneven_col)
-    GPF_T1 ("Too few rows in seg for insert");
+	GPF_T1 ("Too few rows in seg for insert");
     }
   itc->itc_set = itc_set_save;
 }
@@ -1445,13 +1447,13 @@ pl_col_finalize_page (page_lock_t * pl, it_cursor_t * itc, int is_rb)
     ceic_del_leaf (&ceic, buf);
   else
     {
-  for (irl = 0; irl < rl_fill; irl++)
-    {
-      row_lock_t *rl = rls[irl];
-      itc->itc_map_pos = rl->rl_pos;
-      itc->itc_rl = rl;
-      ceic_col_finalize_row (&ceic, buf, is_rb);
-    }
+      for (irl = 0; irl < rl_fill; irl++)
+	{
+	  row_lock_t *rl = rls[irl];
+	  itc->itc_map_pos = rl->rl_pos;
+	  itc->itc_rl = rl;
+	  ceic_col_finalize_row (&ceic, buf, is_rb);
+	}
     }
   rds = ceic.ceic_rds;
   if (!rds || 0 == BOX_ELEMENTS (rds))

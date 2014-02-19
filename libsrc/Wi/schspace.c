@@ -50,12 +50,11 @@ strihash (char *strp)
 static int
 strihashcmp (char *x, char *y)
 {
-  return 0 == stricmp(((char **)x)[0], ((char **)y)[0]);
+  return 0 == stricmp (((char **) x)[0], ((char **) y)[0]);
 }
 
 
-id_hash_t *
-DBG_HASHEXT_NAME (id_casemode_hash_create) (DBG_PARAMS id_hashed_key_t buckets)
+id_hash_t *DBG_HASHEXT_NAME (id_casemode_hash_create) (DBG_PARAMS id_hashed_key_t buckets)
 {
   if (!casemode_strhash)
     {
@@ -63,27 +62,26 @@ DBG_HASHEXT_NAME (id_casemode_hash_create) (DBG_PARAMS id_hashed_key_t buckets)
       casemode_strhashcmp = case_mode == CM_MSSQL ? strihashcmp : strhashcmp;
     }
 
-  return (DBG_HASHEXT_NAME(id_hash_allocate) (DBG_ARGS buckets,
-	sizeof (void *), sizeof (void *),
-	casemode_strhash, casemode_strhashcmp));
+  return (DBG_HASHEXT_NAME (id_hash_allocate) (DBG_ARGS buckets,
+	  sizeof (void *), sizeof (void *), casemode_strhash, casemode_strhashcmp));
 }
 
 
 static int
-id_casemode_hit_next_inner (id_casemode_hash_iterator_t * hit, caddr_t *data, caddr_t *k, caddr_t *k2)
+id_casemode_hit_next_inner (id_casemode_hash_iterator_t * hit, caddr_t * data, caddr_t * k, caddr_t * k2)
 {
   id_casemode_entry_llist_t **ptr = NULL;
   while (1)
     {
       if (hit->iter)
 	{
-	  *data = (caddr_t) &(hit->iter->data);
-	  *k2 = (caddr_t) &hit->iter->owner;
+	  *data = (caddr_t) & (hit->iter->data);
+	  *k2 = (caddr_t) & hit->iter->owner;
 	  hit->iter = hit->iter->next;
 	  return 1;
 	}
 
-      if (!hit_next (&(hit->hit), k, (caddr_t *) &ptr))
+      if (!hit_next (&(hit->hit), k, (caddr_t *) & ptr))
 	{
 	  return 0;
 	}
@@ -93,8 +91,7 @@ id_casemode_hit_next_inner (id_casemode_hash_iterator_t * hit, caddr_t *data, ca
 }
 
 
-void
-DBG_HASHEXT_NAME (id_casemode_hash_copy) (DBG_PARAMS id_hash_t *to, id_hash_t * from)
+void DBG_HASHEXT_NAME (id_casemode_hash_copy) (DBG_PARAMS id_hash_t * to, id_hash_t * from)
 {
   id_casemode_hash_iterator_t hit;
   char **kp;
@@ -103,15 +100,14 @@ DBG_HASHEXT_NAME (id_casemode_hash_copy) (DBG_PARAMS id_hash_t *to, id_hash_t * 
 
   id_casemode_hash_iterator (&hit, from);
 
-  while (id_casemode_hit_next_inner (&hit, (caddr_t *) &dp, (caddr_t *)&kp, (caddr_t *)&kp2))
+  while (id_casemode_hit_next_inner (&hit, (caddr_t *) & dp, (caddr_t *) & kp, (caddr_t *) & kp2))
     {
-      id_casemode_hash_set (to, (caddr_t) *kp, (caddr_t) *kp2, (caddr_t) dp);
+      id_casemode_hash_set (to, (caddr_t) * kp, (caddr_t) * kp2, (caddr_t) dp);
     }
 }
 
 
-void
-DBG_HASHEXT_NAME(id_casemode_hash_free) (DBG_PARAMS id_hash_t * hash)
+void DBG_HASHEXT_NAME (id_casemode_hash_free) (DBG_PARAMS id_hash_t * hash)
 {
   id_hash_iterator_t hit;
   char *kp;
@@ -131,12 +127,12 @@ DBG_HASHEXT_NAME(id_casemode_hash_free) (DBG_PARAMS id_hash_t * hash)
 	    }
 	}
     }
-  DBG_HASHEXT_NAME(id_hash_free) (DBG_ARGS hash);
+  DBG_HASHEXT_NAME (id_hash_free) (DBG_ARGS hash);
 }
 
 
 void
-id_casemode_hash_print_dbx (id_hash_t *it, caddr_t qn, caddr_t o)
+id_casemode_hash_print_dbx (id_hash_t * it, caddr_t qn, caddr_t o)
 {
   id_casemode_hash_iterator_t hit;
   caddr_t *k1 = NULL;
@@ -145,7 +141,7 @@ id_casemode_hash_print_dbx (id_hash_t *it, caddr_t qn, caddr_t o)
 
   id_casemode_hash_iterator (&hit, it);
   fprintf (stderr, "***ht\n");
-  while (id_casemode_hit_next_inner (&hit, &data, (caddr_t *) &k1, (caddr_t *) &k2))
+  while (id_casemode_hit_next_inner (&hit, &data, (caddr_t *) & k1, (caddr_t *) & k2))
     {
       fprintf (stderr, "QN:[%s] O:[%s]\n", *k1, *k2);
     }
@@ -153,13 +149,12 @@ id_casemode_hash_print_dbx (id_hash_t *it, caddr_t qn, caddr_t o)
 }
 
 
-caddr_t
-DBG_HASHEXT_NAME(id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o, caddr_t data)
+caddr_t DBG_HASHEXT_NAME (id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o, caddr_t data)
 {
   id_casemode_entry_llist_t **list;
   caddr_t ret;
 
-  list = (id_casemode_entry_llist_t **) id_hash_get (ht, (caddr_t) &_qn);
+  list = (id_casemode_entry_llist_t **) id_hash_get (ht, (caddr_t) & _qn);
   if (list)
     {
       id_casemode_entry_llist_t *iter = *list;
@@ -167,7 +162,7 @@ DBG_HASHEXT_NAME(id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, 
 	{
 	  if (casemode_strhashcmp ((char *) &(iter->owner), (char *) &_o))
 	    {
-	      caddr_t old_value = *((caddr_t *)iter->data);
+	      caddr_t old_value = *((caddr_t *) iter->data);
 	      iter->data = data;
 	      ret = old_value;
 	      break;
@@ -178,7 +173,7 @@ DBG_HASHEXT_NAME(id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, 
 	{
 	  NEW_VARZ (id_casemode_entry_llist_t, new_iter);
 	  new_iter->owner = _o;
-	  new_iter->data = *((caddr_t *)data);
+	  new_iter->data = *((caddr_t *) data);
 	  new_iter->next = *list;
 	  *list = new_iter;
 	  ret = NULL;
@@ -188,9 +183,9 @@ DBG_HASHEXT_NAME(id_casemode_hash_set) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, 
     {
       NEW_VARZ (id_casemode_entry_llist_t, new_iter);
       new_iter->owner = _o;
-      new_iter->data = *((caddr_t *)data);
+      new_iter->data = *((caddr_t *) data);
 
-      DBG_HASHEXT_NAME (id_hash_set) (DBG_ARGS ht, (caddr_t)&_qn, (caddr_t) &new_iter);
+      DBG_HASHEXT_NAME (id_hash_set) (DBG_ARGS ht, (caddr_t) & _qn, (caddr_t) & new_iter);
       ret = NULL;
     }
 
@@ -203,7 +198,7 @@ id_casemode_hash_get (id_hash_t * ht, caddr_t _qn, caddr_t _o)
 {
   id_casemode_entry_llist_t **list;
 
-  list = (id_casemode_entry_llist_t **) id_hash_get (ht, (caddr_t) &_qn);
+  list = (id_casemode_entry_llist_t **) id_hash_get (ht, (caddr_t) & _qn);
 
   if (list && *list)
     {
@@ -211,7 +206,7 @@ id_casemode_hash_get (id_hash_t * ht, caddr_t _qn, caddr_t _o)
       while (iter)
 	{
 	  if (casemode_strhashcmp ((char *) &_o, (char *) &(iter->owner)))
-	    return (caddr_t) &(iter->data);
+	    return (caddr_t) & (iter->data);
 	  iter = iter->next;
 	}
     }
@@ -219,12 +214,11 @@ id_casemode_hash_get (id_hash_t * ht, caddr_t _qn, caddr_t _o)
 }
 
 
-int
-DBG_HASHEXT_NAME(id_casemode_hash_remove) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o)
+int DBG_HASHEXT_NAME (id_casemode_hash_remove) (DBG_PARAMS id_hash_t * ht, caddr_t _qn, caddr_t _o)
 {
   id_casemode_entry_llist_t **list;
 
-  list = (id_casemode_entry_llist_t **) id_hash_get (ht, (caddr_t) &_qn);
+  list = (id_casemode_entry_llist_t **) id_hash_get (ht, (caddr_t) & _qn);
 
   if (list && *list)
     {
@@ -249,14 +243,13 @@ DBG_HASHEXT_NAME(id_casemode_hash_remove) (DBG_PARAMS id_hash_t * ht, caddr_t _q
 
 
 void *
-sch_name_to_object_sc (dbe_schema_t * sc, sc_object_type type, char *o_default,
-    char *o, char *qn, int find_many)
+sch_name_to_object_sc (dbe_schema_t * sc, sc_object_type type, char *o_default, char *o, char *qn, int find_many)
 {
   id_casemode_entry_llist_t **list_ptr;
   id_casemode_entry_llist_t *found = NULL;
   int n_found = 0;
 
-  if (NULL != (list_ptr = (id_casemode_entry_llist_t **) id_hash_get (sc->sc_name_to_object[type], (caddr_t) &qn))
+  if (NULL != (list_ptr = (id_casemode_entry_llist_t **) id_hash_get (sc->sc_name_to_object[type], (caddr_t) & qn))
       && NULL != *list_ptr)
     {
       id_casemode_entry_llist_t *iter = *list_ptr;
@@ -297,15 +290,14 @@ sch_name_to_object_sc (dbe_schema_t * sc, sc_object_type type, char *o_default,
 
 
 void *
-sch_name_to_object (dbe_schema_t *sc, sc_object_type type, const char *name, char *q_def, char *o_default,
-    int find_many)
+sch_name_to_object (dbe_schema_t * sc, sc_object_type type, const char *name, char *q_def, char *o_default, int find_many)
 {
   void *obj;
 
   char q[MAX_NAME_LEN];
   char o[MAX_NAME_LEN];
   char n[MAX_NAME_LEN];
-  char qn[2*MAX_NAME_LEN + 1];
+  char qn[2 * MAX_NAME_LEN + 1];
   q[0] = 0;
   o[0] = 0;
   n[0] = 0;
@@ -333,5 +325,5 @@ int
 id_casemode_hit_next (id_casemode_hash_iterator_t * hit, char **data)
 {
   char **k = NULL, **k2 = NULL;
-  return id_casemode_hit_next_inner (hit, (caddr_t *) data, (caddr_t *) &k, (caddr_t *) &k2);
+  return id_casemode_hit_next_inner (hit, (caddr_t *) data, (caddr_t *) & k, (caddr_t *) & k2);
 }

@@ -28,7 +28,6 @@
 %option 8bit
 %option case-sensitive
 %option never-interactive
-
 %{
 #include "Dk.h"
 #include "sqlnode.h"

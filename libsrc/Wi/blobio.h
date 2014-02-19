@@ -31,50 +31,50 @@
 #include "multibyte.h"
 
 struct blob_state_s
-  {
-    unsigned char utf8_chr;	/* this is for reading utf8 data from client */
-    unsigned char count;	/* this is for prefetch in utf8 page read from client */
-    dtp_t ask_tag;		/* previously read data chunk tag (for bh_get_data_from_user) */
-    dtp_t need_tag;		/* column type (for bh_get_data_from_user) */
-    caddr_t buffer;		/* this is necessary for blob2blob conversion with recoding */
-    int bufpos;			/* current position in buffer */
-    int buflen;			/* data bytes read in buflen*/
-  };
+{
+  unsigned char utf8_chr;	/* this is for reading utf8 data from client */
+  unsigned char count;		/* this is for prefetch in utf8 page read from client */
+  dtp_t ask_tag;		/* previously read data chunk tag (for bh_get_data_from_user) */
+  dtp_t need_tag;		/* column type (for bh_get_data_from_user) */
+  caddr_t buffer;		/* this is necessary for blob2blob conversion with recoding */
+  int bufpos;			/* current position in buffer */
+  int buflen;			/* data bytes read in buflen */
+};
 
 typedef struct blob_state_s blob_state_t;
 
 typedef unsigned char wblob_state_t;
 
 struct blob_handle_s
-  {
-    dp_addr_t bh_page;		/* if blob is on disk as chained pages */
-    dp_addr_t 	bh_current_page;	/* Keep track of position over SQLGetData calls */
-    dp_addr_t 	bh_dir_page;	/* points at first directory page */
-    int32	bh_position;		/* -- */ /* point on page or string */
-    short	bh_frag_no;
-    unsigned short	bh_slice;
-    caddr_t bh_string;		/* if BLOB is in RAM as DV string */
-    int64 bh_length;		/* Number of symbols in BLOB (either char-s or wchar_t-s */
-    int64 bh_diskbytes;	/* Number of bytes required to store BLOB on disk
-				    equal to bh_length for narrow-char BLOBs,
-				    length of UTF8-ed string for DV_BLOB_WIDE_HANDLE */
+{
+  dp_addr_t bh_page;		/* if blob is on disk as chained pages */
+  dp_addr_t bh_current_page;	/* Keep track of position over SQLGetData calls */
+  dp_addr_t bh_dir_page;	/* points at first directory page */
+  int32 bh_position;		/* -- *//* point on page or string */
+  short bh_frag_no;
+  unsigned short bh_slice;
+  caddr_t bh_string;		/* if BLOB is in RAM as DV string */
+  int64 bh_length;		/* Number of symbols in BLOB (either char-s or wchar_t-s */
+  int64 bh_diskbytes;		/* Number of bytes required to store BLOB on disk
+				   equal to bh_length for narrow-char BLOBs,
+				   length of UTF8-ed string for DV_BLOB_WIDE_HANDLE */
 
-    char bh_ask_from_client;	/* true when coming from log or from client by PutData */
-    int 	bh_page_dir_complete;	/* true if bh_pages is complete, e.g. not only those dps ref'd on the row */
-    char	bh_all_received;	/* true when client has sent end mark */
-    char	bh_send_as_bh; /*do not inline as string over serialization, use for blob req in cluster */
-    uint32	bh_bytes_coming;	/* byte count being sent by client */
-    long	bh_param_index;	/* Use this index when asking from client */
-    dp_addr_t *bh_pages;	/* a contiguous array of pages IDs, allocated as a DV_CUSTOM. */
-    struct index_tree_s *	bh_it;
-    uint32		bh_key_id;
-    uint32		bh_timestamp;
-    blob_state_t	bh_state;
-    caddr_t 		bh_source_session; /* used when bh_get_data_from_client is 3 */
-  };
+  char bh_ask_from_client;	/* true when coming from log or from client by PutData */
+  int bh_page_dir_complete;	/* true if bh_pages is complete, e.g. not only those dps ref'd on the row */
+  char bh_all_received;		/* true when client has sent end mark */
+  char bh_send_as_bh;		/*do not inline as string over serialization, use for blob req in cluster */
+  uint32 bh_bytes_coming;	/* byte count being sent by client */
+  long bh_param_index;		/* Use this index when asking from client */
+  dp_addr_t *bh_pages;		/* a contiguous array of pages IDs, allocated as a DV_CUSTOM. */
+  struct index_tree_s *bh_it;
+  uint32 bh_key_id;
+  uint32 bh_timestamp;
+  blob_state_t bh_state;
+  caddr_t bh_source_session;	/* used when bh_get_data_from_client is 3 */
+};
 
 
-#define BH_CLUSTER_DAE 5 /* in bh_ask_from_client to indicate that this is a data at exec blob made as temp before use on anothr partition */
+#define BH_CLUSTER_DAE 5	/* in bh_ask_from_client to indicate that this is a data at exec blob made as temp before use on anothr partition */
 typedef struct blob_handle_s blob_handle_t;
 
 #define BH_ANY		((uint32)(-1))
@@ -94,23 +94,23 @@ typedef struct blob_handle_s blob_handle_t;
 
 /*#define BL_DEBUG*/
 struct blob_layout_s
-  {
-    dtp_t bl_blob_handle_dtp;	/*!< Type of BLOB handle, to pay special attention to the length of wide BLOBs */
-    dp_addr_t bl_start;		/*!< First page of blob sequence */
-    dp_addr_t bl_dir_start;	/*!< First page of blob directory sequence, if unknown = 0 and it will be tried to fetch it from DP_PARENT offset of the first blob page */
-    int64 bl_length;		/*!< Number of symbols in BLOB, 0 if unknown */
-    int64 bl_diskbytes;	/*!< Number of bytes required to store BLOB on disk, 0 if unknown */
-    dp_addr_t * bl_pages;	/*!< Page directory or NULL if not yet known. */
-    int	bl_page_dir_complete;	/*!< Flags if we have to read bl_page_dir in order to get all pages */
-    int bl_delete_later;	/*!< Flags if this blob should be deleted later in case of commit and/or rollback */
-    struct index_tree_s * bl_it;	/*!< Index tree of the row that contains the field with this blob. */
+{
+  dtp_t bl_blob_handle_dtp;	/*!< Type of BLOB handle, to pay special attention to the length of wide BLOBs */
+  dp_addr_t bl_start;		/*!< First page of blob sequence */
+  dp_addr_t bl_dir_start;	/*!< First page of blob directory sequence, if unknown = 0 and it will be tried to fetch it from DP_PARENT offset of the first blob page */
+  int64 bl_length;		/*!< Number of symbols in BLOB, 0 if unknown */
+  int64 bl_diskbytes;		/*!< Number of bytes required to store BLOB on disk, 0 if unknown */
+  dp_addr_t *bl_pages;		/*!< Page directory or NULL if not yet known. */
+  int bl_page_dir_complete;	/*!< Flags if we have to read bl_page_dir in order to get all pages */
+  int bl_delete_later;		/*!< Flags if this blob should be deleted later in case of commit and/or rollback */
+  struct index_tree_s *bl_it;	/*!< Index tree of the row that contains the field with this blob. */
 #ifdef BL_DEBUG
-    const char *file_alloc;
-    int line_alloc;
-    const char *file_free;
-    int line_free;
+  const char *file_alloc;
+  int line_alloc;
+  const char *file_free;
+  int line_free;
 #endif
-  };
+};
 
 typedef struct blob_layout_s blob_layout_t;
 
@@ -125,7 +125,7 @@ typedef struct blob_layout_s blob_layout_t;
 
 void bh_free (blob_handle_t * bh);
 
-void iri_id_write (iri_id_t *iid, dk_session_t * ses);
+void iri_id_write (iri_id_t * iid, dk_session_t * ses);
 
 void blobio_init (void);
 caddr_t datetime_serialize (caddr_t dt, dk_session_t * out);
@@ -148,12 +148,12 @@ int bh_read_ahead (struct lock_trx_s *lt, blob_handle_t * bh, unsigned from, uns
 
 
 int rbs_length (db_buf_t rbs);
-void rbs_hash_range (dtp_t ** buf, int * len, int * is_string);
+void rbs_hash_range (dtp_t ** buf, int *len, int *is_string);
 int64 rbs_ro_id (db_buf_t rbs);
 
 extern caddr_t rb_copy (rdf_box_t * rb);
-extern void rb_complete (rdf_box_t * rb, struct lock_trx_s * lt, void * /*actually query_instance_t * */ caller_qi);
-extern void rb_complete_1 (rdf_box_t * rb, struct lock_trx_s * lt, void * /*actually query_instance_t * */ caller_qi, int is_local);
+extern void rb_complete (rdf_box_t * rb, struct lock_trx_s *lt, void * /*actually query_instance_t * */ caller_qi);
+extern void rb_complete_1 (rdf_box_t * rb, struct lock_trx_s *lt, void * /*actually query_instance_t * */ caller_qi, int is_local);
 
 #define RDF_POP(dtp, data, lt)			\
 { \

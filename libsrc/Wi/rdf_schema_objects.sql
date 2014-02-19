@@ -23,7 +23,6 @@
 --
 --
 
-
 --
 --TODO: use string session
 --
@@ -1230,8 +1229,8 @@ RDF_VIEW_SYNC_TO_PHYSICAL (in vgraph varchar, in load_data int := 0, in pgraph v
 	}
       nextp:;
     }
-      if (load_data)
-	{
+  if (load_data)
+    {
       declare aq, n any;
       n := atoi (coalesce (virtuoso_ini_item_value ('Parameters','AsyncQueueMaxThreads'), '10')) / 2;
       aq := async_queue (n);
@@ -1307,7 +1306,6 @@ DB.DBA.R2RML_CREATE_DATASET (in nth int, in qualifier varchar, in qual_ns varcha
    declare ret, qual, qual_l, tbl_name, tbl_name_l, pks, pk_text, uriqa_str, graph_def any;
    declare suffix, tname, tbl, own, pref_l any;
    declare cols_arr, inx, col_name, owner, owner_l any;
-
    ret := '';
    suffix := '_s';
    uriqa_str := registry_get ('URIQADefaultHost');
@@ -1354,29 +1352,29 @@ DB.DBA.R2RML_CREATE_DATASET (in nth int, in qualifier varchar, in qual_ns varcha
        ret := ret || sprintf ('rr:predicateObjectMap [ rr:predicateMap [ rr:constant %s ] ; rr:objectMap [ rr:termtype "IRI" ; rr:template "http://%s/%s/%s%s" ]; ] ;\n',
          DB.DBA.R2RML_QUAL_NOTATION (qualifier, qual_ns, concat (tbl_name_l, '_has_', lower (name_part (pkt, 3)))),
          uriqa_str, qual, lower (name_part (pkt, 3)), pk_text );
-	 }
+     }
    for select distinct FK_TABLE as fkt from SYS_FOREIGN_KEYS where PK_TABLE = tbl and position (FK_TABLE, _tbls)  do
      {
        declare jc varchar;
        jc := '';
        pk_text := '';
        for select FKCOLUMN_NAME, PKCOLUMN_NAME from SYS_FOREIGN_KEYS where FK_TABLE = fkt and PK_TABLE = tbl order by KEY_SEQ do
-   	 {
-   	   jc := jc || sprintf (' rr:joinCondition [ rr:child "%s" ; rr:parent "%s" ] ;', PKCOLUMN_NAME, FKCOLUMN_NAME);
+         {
+           jc := jc || sprintf (' rr:joinCondition [ rr:child "%s" ; rr:parent "%s" ] ;', PKCOLUMN_NAME, FKCOLUMN_NAME);
            pk_text := pk_text || sprintf ('/%U={%s}', FKCOLUMN_NAME, FKCOLUMN_NAME);
-   	 }
+         }
        if (tbl <> fkt)
-	 {
+         {
            ret := ret || sprintf ('rr:predicateObjectMap [ rr:predicateMap [ rr:constant %s ] ; rr:objectMap [ rr:parentTriplesMap <#TriplesMap%U>; %s ]; ] ;\n',
              DB.DBA.R2RML_QUAL_NOTATION (qualifier, qual_ns, concat (tbl_name_l, '_of_', lower (name_part (fkt, 3)))),
              name_part (fkt, 3), jc );
-	 }
+         }
        else
-	 {
+         {
            ret := ret || sprintf ('rr:predicateObjectMap [ rr:predicateMap [ rr:constant %s ] ; rr:objectMap [ rr:termtype "IRI" ; rr:template "http://%s/%s/%s%s" ]; ] ;\n',
              DB.DBA.R2RML_QUAL_NOTATION (qualifier, qual_ns, concat (tbl_name_l, '_has_', lower (name_part (fkt, 3)))),
              uriqa_str, qual, lower (name_part (fkt, 3)), pk_text );
-	 }
+         }
      }
 
    ret := rtrim (ret, ';\n') || '.\n';
@@ -1398,14 +1396,14 @@ TBOX_URL_REWRITE (in prefix varchar, in graph varchar, in url_pattern varchar)
     if(regexp_match ('#\x24', graph) is null)
     {
         graph_uri := graph;
-        graph_path := concat (graph, '/');        
+        graph_path := concat (graph, '/');
     }
     -- otherwise, we remove the # from the end of the graph, but add it to graph_path as %23 (for HTTP purposes)
-    else 
-    {        
+    else
+    {
         graph_uri := regexp_replace(graph, '#\x24', '', 1, null);
         graph_path := concat(graph_uri, '%23');
-    }        
+    }
 
 
     h := rfc1808_parse_uri (url_pattern);
@@ -1414,8 +1412,8 @@ TBOX_URL_REWRITE (in prefix varchar, in graph varchar, in url_pattern varchar)
     --iri_vd := regexp_replace(h[2], '/[^/]+/?$', '', 1, null);
     iri_vd := h[2];
     if(regexp_match ('(/.+)+/', h[2]) is not null)
-        iri_st := concat('/', regexp_replace(h[2], '(/.+)+/', '', 1, null));        
-        
+        iri_st := concat('/', regexp_replace(h[2], '(/.+)+/', '', 1, null));
+
     dbg_obj_print ('---');
     dbg_obj_print_vars (url_pattern);
     dbg_obj_print_vars (h);
@@ -1454,7 +1452,7 @@ TBOX_URL_REWRITE (in prefix varchar, in graph varchar, in url_pattern varchar)
     -- create vectors with property values for each Rule
     rule_1_prop := vector(
         concat(iri_st, '/.*/classes/([^/]+)/superclasses'),
-        'vector(\'class\')',        
+        'vector(\'class\')',
         --concat ('/sparql?default-graph-uri=', graph_uri, '&query=select+distinct+%%3Ftype+%%7B+%%3C', graph_path, '%U%%3E+rdf%%3Atype%%2Frdfs%%3AsubClassOf*+%%3Ftype+%%7D+order+by+asc+%%28%%3Ftype%%29&format=%U'),
         concat ('/sparql?default-graph-uri=', graph_uri, '&query=prefix+pr%%3A+<', graph_path, '>+select+distinct+%%3Ftype+%%7B+pr%%3A%U+rdf%%3Atype%%2Frdfs%%3AsubClassOf*+%%3Ftype+%%7D+order+by+asc+%%28%%3Ftype%%29&format=%U'),
         'vector(\'class\', \'\*accept\*\')',
@@ -1463,7 +1461,7 @@ TBOX_URL_REWRITE (in prefix varchar, in graph varchar, in url_pattern varchar)
 
     rule_2_prop := vector(
         concat(iri_st, '/.*/classes/([^/]+)/subclasses'),
-        'vector(\'class\')',        
+        'vector(\'class\')',
         --concat ('/sparql?default-graph-uri=', graph_uri, '&query=select+distinct+%%3Ftype+%%7B+%%3C', graph_path, '%U%%3E+rdf%%3Atype%%2F%%5Erdfs%%3AsubClassOf*+%%3Ftype+%%7D+order+by+asc+%%28%%3Ftype%%29&format=%U'),
         concat ('/sparql?default-graph-uri=', graph_uri, '&query=prefix+pr%%3A+<', graph_path, '>+select+distinct+%%3Ftype+%%7B+pr%%3A%U+rdf%%3Atype%%2F%%5Erdfs%%3AsubClassOf*+%%3Ftype+%%7D+order+by+asc+%%28%%3Ftype%%29&format=%U'),
         'vector(\'class\', \'\*accept\*\')',

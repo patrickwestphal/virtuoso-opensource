@@ -37,14 +37,14 @@
 #define _WISERVIC_H
 
 #ifdef WIN32
-#include "wi.h" /* Includes widisk.h in turn. */
-#include <windows.h> /* Includes winsvc.h in turn. */
+#include "wi.h"			/* Includes widisk.h in turn. */
+#include <windows.h>		/* Includes winsvc.h in turn. */
 #endif
 
 
 #define WISVC_SEND_WAIT_HINT_EVERY_N_MSEC 500
 
-#define WISVC_DEFAULT_SERVICE_NAME "Kubl" /* For Windows NT services. */
+#define WISVC_DEFAULT_SERVICE_NAME "Kubl"	/* For Windows NT services. */
 
 /* Added to the end of the file path of binary executable of Kubl
    by -S option, and this is then transferred in argv[0] to started
@@ -53,10 +53,9 @@
  */
 #define WISVC_EXE_EXTENSION_FOR_SERVICE ".eXe"
 
-int main_the_rest(void); /* Actually in chil.c */
+int main_the_rest (void);	/* Actually in chil.c */
 
-int wisvc_Handle_W_option(int argc, char **argv,
-                    char *s, int *i_ptr, int called_as_service);
+int wisvc_Handle_W_option (int argc, char **argv, char *s, int *i_ptr, int called_as_service);
 
 
 #ifdef WIN32
@@ -66,23 +65,19 @@ int ftruncate (int fh, long sz);
 \c err_printf macro. Thus it should return int. */
 int wisvc_err_printf (const char *str, ...);
 
-int wisvc_Handle_I_and_J_options(int argc, char **argv,
-                            char *s, int i, int autostart);
+int wisvc_Handle_I_and_J_options (int argc, char **argv, char *s, int i, int autostart);
 
 void wisvc_start_kubl_service_dispatcher (int argc, char **argv);
 VOID wisvc_KublServiceCtrlHandler (IN DWORD opcode);
-VOID wisvc_KublServiceStart (DWORD argc, LPTSTR *argv);
-VOID wisvc_KublServiceCtrlHandler (IN  DWORD  Opcode);
-void wisvc_CreateKublService (int argc, char ** argv,
-                        char *service_name, char *BinaryPathName,
-                        int autostart, int start_now);
-int wisvc_StartKublService(int argc, char **argv, SC_HANDLE schService,
-              char *service_name, char *BinaryPathName,int discard_argv);
-SC_HANDLE wisvc_OpenKublService(char **argv, char *service_name,
-                          char *what_for, DWORD access_code);
-void wisvc_UninstallKublService(char **argv, char *service_name);
+VOID wisvc_KublServiceStart (DWORD argc, LPTSTR * argv);
+VOID wisvc_KublServiceCtrlHandler (IN DWORD Opcode);
+void wisvc_CreateKublService (int argc, char **argv, char *service_name, char *BinaryPathName, int autostart, int start_now);
+int wisvc_StartKublService (int argc, char **argv, SC_HANDLE schService,
+    char *service_name, char *BinaryPathName, int discard_argv);
+SC_HANDLE wisvc_OpenKublService (char **argv, char *service_name, char *what_for, DWORD access_code);
+void wisvc_UninstallKublService (char **argv, char *service_name);
 
-int is_started_as_service(void);
+int is_started_as_service (void);
 
 /* THEN FEW MACROS, NEEDED IN WISERVIC.C and CHIL.C */
 
@@ -92,10 +87,9 @@ int is_started_as_service(void);
  ( ( (is_started_as_service() ? (wisvc_err_printf) : (printf)) ARGS),\
  (!is_started_as_service() ? fflush(stdout) : 0))
 
-unsigned long wisvc_send_wait_hint(unsigned long every_n_msec,
-                                   unsigned long wait_n_secs);
+unsigned long wisvc_send_wait_hint (unsigned long every_n_msec, unsigned long wait_n_secs);
 
-void wisvc_send_service_running_status(void);
+void wisvc_send_service_running_status (void);
 
 #else /* Unix platforms. */
 

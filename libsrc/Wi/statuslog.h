@@ -33,15 +33,15 @@ extern unsigned long log_file_line;
 #define LOG_DDL			4	/* DDLC */
 #define LOG_CLIENT_SQL		5	/* CSLQ */
 #define LOG_SRV_ERROR		6	/* ERRS */
-#define LOG_DSN			7	/* DSNL	*/
-#define LOG_SQL_SEND		8	/* DSNS	*/
-#define LOG_TRANSACT		9	/* LTRS	*/
-#define LOG_R_TRANSACT		10	/* RTRS	*/
-#define LOG_EXEC		11	/* EXEC	*/
-#define LOG_SOAP		12	/* SOAP	*/
-#define LOG_THR			13	/* SOAP	*/
-#define LOG_CURSOR		14	/* CURS	*/
-#define LOG_SOAP_CLI		15	/* SOAP	*/
+#define LOG_DSN			7	/* DSNL */
+#define LOG_SQL_SEND		8	/* DSNS */
+#define LOG_TRANSACT		9	/* LTRS */
+#define LOG_R_TRANSACT		10	/* RTRS */
+#define LOG_EXEC		11	/* EXEC */
+#define LOG_SOAP		12	/* SOAP */
+#define LOG_THR			13	/* SOAP */
+#define LOG_CURSOR		14	/* CURS */
+#define LOG_SOAP_CLI		15	/* SOAP */
 
 #define DO_LOG1(cond) (log_stat & (1 << (cond)))
 
@@ -62,8 +62,8 @@ extern unsigned long log_file_line;
 	        ((usr && usr->usr_id) ? usr->log_usr_name : "0")
 
 #ifndef _THREAD_INT_HS
-void dks_client_ip (client_connection_t *cli, char *buf, char *user, char *peer, int buf_len, int user_len, int peer_len);
-int is_internal_user (client_connection_t *cli);
+void dks_client_ip (client_connection_t * cli, char *buf, char *user, char *peer, int buf_len, int user_len, int peer_len);
+int is_internal_user (client_connection_t * cli);
 #endif
 
 #define LOG_STR_D const char * str [] = {"user_names", "user_log", "failed_log", "compile", \
@@ -72,4 +72,3 @@ int is_internal_user (client_connection_t *cli);
 #define LOG_STR_L (sizeof (str)/sizeof (char *))
 #define LOG_PRINT_STR_L 500
 #define LOG_PRINT_SOAP_STR_L 1500
-

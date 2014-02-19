@@ -44,25 +44,17 @@
 #include "sqlpar.h"
 #include "security.h"
 #include "util/fnmatch.h"
+#include "util/md5.h"
 #include "util/strfuns.h"
 #include "statuslog.h"
 #include "sqltype.h"
 #include "virtpwd.h"
 
-#ifdef _SSL
-#include <openssl/md5.h>
-#define MD5Init   MD5_Init
-#define MD5Update MD5_Update
-#define MD5Final  MD5_Final
-#else
-#include "util/md5.h"
-#endif /* _SSL */
-
-extern caddr_t bif_arg (caddr_t * qst, state_slot_t ** args, int nth, const char * func);
+extern caddr_t bif_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func);
 
 id_hash_t *sec_users;
-dk_hash_t *sec_user_by_id; /*!< Dictionary of all users and groups. Key is U_ID as ptrlong, value is the pointer to user_t */
-dk_set_t sec_pending_memberships_on_read = NULL; /*!< List of memberships that are waiting for the end of reading of all groups. First dk_set_pop returns group id, second returns member id. */
+dk_hash_t *sec_user_by_id;	/*!< Dictionary of all users and groups. Key is U_ID as ptrlong, value is the pointer to user_t */
+dk_set_t sec_pending_memberships_on_read = NULL;	/*!< List of memberships that are waiting for the end of reading of all groups. First dk_set_pop returns group id, second returns member id. */
 
 user_t *user_t_dba;
 user_t *user_t_nobody;
@@ -87,17 +79,15 @@ bif_user_id_or_name_arg (caddr_t * qst, state_slot_t ** args, int nth, const cha
   if (dtp != DV_SHORT_INT && dtp != DV_LONG_INT)
     {
       sqlr_new_error ("22023", "SR609",
-      "Function %s needs a string (user name) or an integer (user ID) as argument %d, "
-      "not an arg of type %s (%d)",
-      func, nth + 1, dv_type_title (dtp), dtp);
+	  "Function %s needs a string (user name) or an integer (user ID) as argument %d, "
+	  "not an arg of type %s (%d)", func, nth + 1, dv_type_title (dtp), dtp);
     }
   uid = unbox (arg);
   if ((0 > uid) || (uid > INT32_MAX))
     {
       sqlr_new_error ("22023", "SR610",
-      "Function %s needs a string (user name) or a positive small integer (user ID) as argument %d, "
-      "the passed value " BOXINT_FMT " is not valid",
-      func, nth + 1, uid);
+	  "Function %s needs a string (user name) or a positive small integer (user ID) as argument %d, "
+	  "the passed value " BOXINT_FMT " is not valid", func, nth + 1, uid);
     }
   return arg;
 }
@@ -110,60 +100,76 @@ bif_user_t_arg_int (caddr_t uid_or_uname, int nth, const char *func, int flags, 
   if (DV_STRING == DV_TYPE_OF (uid_or_uname))
     u = sec_name_to_user (uid_or_uname);
   else
-    u = sec_id_to_user ((oid_t) unbox(uid_or_uname));
+    u = sec_id_to_user ((oid_t) unbox (uid_or_uname));
   if (0 == (flags & (USER_SHOULD_EXIST | USER_SHOULD_BE_LOGIN_ENABLED | USER_SHOULD_BE_SQL_ENABLED | USER_SHOULD_BE_DAV_ENABLED)))
     return u;
   if (NULL == u)
     {
-      switch (error_level) { case 0: goto ret_null; }
+      switch (error_level)
+	{
+	case 0:
+	  goto ret_null;
+	}
       if (DV_STRING == DV_TYPE_OF (uid_or_uname))
-        {
-          sqlr_new_error ("22023", "SR617",
-              "Function %s needs a valid user ID in argument %d, "
-              "the passed value \"%.200s\" is not valid username or the user is not enabled",
-              func, nth + 1, uid_or_uname);
-        }
+	{
+	  sqlr_new_error ("22023", "SR617",
+	      "Function %s needs a valid user ID in argument %d, "
+	      "the passed value \"%.200s\" is not valid username or the user is not enabled", func, nth + 1, uid_or_uname);
+	}
       sqlr_new_error ("22023", "SR618",
-          "Function %s needs a valid user ID in argument %d, "
-          "the passed value %ld is not valid or user is not enabled",
-          func, nth + 1, (long)unbox(uid_or_uname));
+	  "Function %s needs a valid user ID in argument %d, "
+	  "the passed value %ld is not valid or user is not enabled", func, nth + 1, (long) unbox (uid_or_uname));
     }
   uid = u->usr_id;
   if (u->usr_is_role)
     {
-      switch (error_level) { case 0: goto ret_null; case 1: goto generic_error; }
+      switch (error_level)
+	{
+	case 0:
+	  goto ret_null;
+	case 1:
+	  goto generic_error;
+	}
       sqlr_new_error ("22023", "SR613",
-          "Function %s needs a valid user ID in argument %d, "
-          "but the passed UID %ld (\"%.200s\") belongs to a group, not a user",
-      func, nth + 1, (long)uid, u->usr_name);
+	  "Function %s needs a valid user ID in argument %d, "
+	  "but the passed UID %ld (\"%.200s\") belongs to a group, not a user", func, nth + 1, (long) uid, u->usr_name);
     }
   if ((USER_NOBODY_IS_PERMITTED & flags) && (U_ID_NOBODY == uid))
     return u;
-     if ((USER_SPARQL_IS_PERMITTED & flags) && !strcmp (u->usr_name, "SPARQL"))
-       return u;
+  if ((USER_SPARQL_IS_PERMITTED & flags) && !strcmp (u->usr_name, "SPARQL"))
+    return u;
   if ((USER_SHOULD_BE_LOGIN_ENABLED & flags) && u->usr_disabled)
     {
-      switch (error_level) { case 0: goto ret_null; case 1: goto generic_error; }
+      switch (error_level)
+	{
+	case 0:
+	  goto ret_null;
+	case 1:
+	  goto generic_error;
+	}
       sqlr_new_error ("22023", "SR614",
-          "Function %s needs an ID of a user with enabled login in argument %d, "
-          "but the passed UID %ld (\"%.200s\") belongs to a user with the login disabled",
-      func, nth + 1, (long)uid, u->usr_name);
+	  "Function %s needs an ID of a user with enabled login in argument %d, "
+	  "but the passed UID %ld (\"%.200s\") belongs to a user with the login disabled", func, nth + 1, (long) uid, u->usr_name);
     }
   if ((USER_SHOULD_BE_SQL_ENABLED & flags) && !(u->usr_is_sql))
     {
-      switch (error_level) { case 0: goto ret_null; case 1: goto generic_error; }
+      switch (error_level)
+	{
+	case 0:
+	  goto ret_null;
+	case 1:
+	  goto generic_error;
+	}
       sqlr_new_error ("22023", "SR615",
-          "Function %s needs a valid SQL user ID in argument %d, "
-          "but the passed UID %ld (\"%.200s\") belongs to a DAV-only user",
-      func, nth + 1, (long)uid, u->usr_name);
+	  "Function %s needs a valid SQL user ID in argument %d, "
+	  "but the passed UID %ld (\"%.200s\") belongs to a DAV-only user", func, nth + 1, (long) uid, u->usr_name);
     }
   return u;
 
 generic_error:
   sqlr_new_error ("22023", "SR611",
       "Function %s needs a valid user ID in argument %d, "
-      "the passed UID %ld (\"%.200s\") is not valid or user is not enabled",
-      func, nth + 1, (long)uid, u->usr_name);
+      "the passed UID %ld (\"%.200s\") is not valid or user is not enabled", func, nth + 1, (long) uid, u->usr_name);
 
 ret_null:
   return NULL;
@@ -177,16 +183,16 @@ bif_user_t_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func, 
 }
 
 int
-sec_tb_is_owner (dbe_table_t * tb, query_instance_t * qi, char * tb_name, oid_t g_id, oid_t u_id)
+sec_tb_is_owner (dbe_table_t * tb, query_instance_t * qi, char *tb_name, oid_t g_id, oid_t u_id)
 {
-  char q_tmp [100];
-  char o_tmp [100];
-  char n_tmp [100];
-  char * owner = NULL;
+  char q_tmp[100];
+  char o_tmp[100];
+  char n_tmp[100];
+  char *owner = NULL;
   /* either give dbe_table_t or qi+name to resolve the name */
   if (!tb)
     {
-      char * name;
+      char *name;
       name = ddl_complete_table_name (qi, tb_name);
       owner = &o_tmp[0];
       if (!name)
@@ -315,8 +321,7 @@ sec_proc_check (query_t * proc, oid_t group, oid_t user)
 
 
 void
-sec_dd_grant (dbe_schema_t * sc, const char *object, const char *column,
-    int is_grant, int op, oid_t grantee)
+sec_dd_grant (dbe_schema_t * sc, const char *object, const char *column, int is_grant, int op, oid_t grantee)
 {
   dk_hash_t *g_hash;
   long flags;
@@ -330,7 +335,7 @@ sec_dd_grant (dbe_schema_t * sc, const char *object, const char *column,
 	  if (!udt->scl_grants)
 	    udt->scl_grants = hash_table_allocate (G_HASH_SZ);
 
-	  UPDATE_GRANTS (grantee,op,udt->scl_grants);
+	  UPDATE_GRANTS (grantee, op, udt->scl_grants);
 	}
       else
 	{
@@ -341,7 +346,7 @@ sec_dd_grant (dbe_schema_t * sc, const char *object, const char *column,
 	    return;
 	  if (!proc->qr_proc_grants)
 	    proc->qr_proc_grants = hash_table_allocate (G_HASH_SZ);
-	  SET_GRANTS (grantee,1,proc->qr_proc_grants);
+	  SET_GRANTS (grantee, 1, proc->qr_proc_grants);
 	}
     }
   else if (op == GR_UDT_UNDER)
@@ -352,7 +357,7 @@ sec_dd_grant (dbe_schema_t * sc, const char *object, const char *column,
 	  if (!udt->scl_grants)
 	    udt->scl_grants = hash_table_allocate (G_HASH_SZ);
 
-	  UPDATE_GRANTS (grantee,op,udt->scl_grants);
+	  UPDATE_GRANTS (grantee, op, udt->scl_grants);
 	}
     }
   else if (op == GR_REXECUTE)
@@ -378,7 +383,7 @@ sec_dd_grant (dbe_schema_t * sc, const char *object, const char *column,
 	    tb->tb_grants = hash_table_allocate (G_HASH_SZ);
 	  g_hash = tb->tb_grants;
 	}
-      UPDATE_GRANTS (grantee,op,g_hash);
+      UPDATE_GRANTS (grantee, op, g_hash);
     }
 }
 
@@ -388,7 +393,7 @@ query_t *revoke_qr;
 
 
 char *
-sec_full_object_name (query_instance_t * qi, char *name, int op, sql_class_t **pudt)
+sec_full_object_name (query_instance_t * qi, char *name, int op, sql_class_t ** pudt)
 {
   dbe_table_t *tb;
   if (pudt)
@@ -405,13 +410,11 @@ sec_full_object_name (query_instance_t * qi, char *name, int op, sql_class_t **p
 	  return udt->scl_name;
 	}
 
-      full = sch_full_proc_name (isp_schema (qi->qi_space), name,
-	  qi->qi_client->cli_qualifier, CLI_OWNER (qi->qi_client));
+      full = sch_full_proc_name (isp_schema (qi->qi_space), name, qi->qi_client->cli_qualifier, CLI_OWNER (qi->qi_client));
       if (!full)
-	full = sch_full_module_name (isp_schema (qi->qi_space), name,
-	    qi->qi_client->cli_qualifier, CLI_OWNER (qi->qi_client));
+	full = sch_full_module_name (isp_schema (qi->qi_space), name, qi->qi_client->cli_qualifier, CLI_OWNER (qi->qi_client));
       /* TODO: if procedure/module does not exist make a SQL error,
-               for now it's a hidden error */
+         for now it's a hidden error */
       return (full ? full : name);
     }
   else if (GR_UDT_UNDER == op)
@@ -439,32 +442,40 @@ sec_grant_code_to_name (int op)
 {
   switch (op)
     {
-      case GR_SELECT:  return "SELECT";
-      case GR_INSERT:  return "INSERT";
-      case GR_DELETE:  return "DELETE";
-      case GR_UPDATE:  return "UPDATE";
-      case GR_EXECUTE: return "EXECUTE";
-      case GR_REXECUTE: return "REXECUTE";
-      case GR_REFERENCES: return "REFERENCES";
-      case GR_UDT_UNDER: return "UNDER";
-      default: return "";
+    case GR_SELECT:
+      return "SELECT";
+    case GR_INSERT:
+      return "INSERT";
+    case GR_DELETE:
+      return "DELETE";
+    case GR_UPDATE:
+      return "UPDATE";
+    case GR_EXECUTE:
+      return "EXECUTE";
+    case GR_REXECUTE:
+      return "REXECUTE";
+    case GR_REFERENCES:
+      return "REFERENCES";
+    case GR_UDT_UNDER:
+      return "UNDER";
+    default:
+      return "";
     }
 }
 
 void
-sec_db_grant (query_instance_t * qi, char *object, char *column,
-    int is_grant, int op, oid_t grantee)
+sec_db_grant (query_instance_t * qi, char *object, char *column, int is_grant, int op, oid_t grantee)
 {
   client_connection_t *cli = qi->qi_client;
   caddr_t err, log_array;
   char szBuffer[4096];
-  char quoted_user_name[MAX_NAME_LEN+3];
+  char quoted_user_name[MAX_NAME_LEN + 3];
   user_t *user = grantee == U_ID_PUBLIC ? NULL : sec_id_to_user (grantee);
   caddr_t *old_log = qi ? qi->qi_trx->lt_replicate : NULL;
   sql_class_t *udt;
 
   /*fprintf (stderr, "%s obj=%s column=%s op=%d grantee=%s",
-      is_grant ? "grant" : "revoke", object, column, op, user ? user->usr_name : "PUBLIC");*/
+     is_grant ? "grant" : "revoke", object, column, op, user ? user->usr_name : "PUBLIC"); */
   object = sec_full_object_name (qi, object, op, &udt);
 
   if (user)
@@ -479,8 +490,7 @@ sec_db_grant (query_instance_t * qi, char *object, char *column,
 	  ":0", (ptrlong) grantee, QRP_INT,
 	  ":1", (ptrlong) op, QRP_INT,
 	  ":2", object, QRP_STR,
-	  ":3", column, QRP_STR,
-	  ":4", qi->qi_client->cli_user ? qi->qi_client->cli_user->usr_id : U_ID_DBA, QRP_INT);
+	  ":3", column, QRP_STR, ":4", qi->qi_client->cli_user ? qi->qi_client->cli_user->usr_id : U_ID_DBA, QRP_INT);
       if (qi)
 	qi->qi_trx->lt_replicate = old_log;
       if (err != SQL_SUCCESS)
@@ -491,27 +501,17 @@ sec_db_grant (query_instance_t * qi, char *object, char *column,
       char tmp[300];
       sprintf_escaped_str_literal (object, tmp, NULL);
       snprintf (szBuffer, sizeof (szBuffer), "%s REXECUTE ON '%s' %s %s",
-	  is_grant ? "GRANT" : "REVOKE",
-	  tmp,
-	  is_grant ? "TO" : "FROM",
-	  user ? quoted_user_name : "PUBLIC");
+	  is_grant ? "GRANT" : "REVOKE", tmp, is_grant ? "TO" : "FROM", user ? quoted_user_name : "PUBLIC");
     }
   else if (!strcmp (column, "_all"))
     snprintf (szBuffer, sizeof (szBuffer), "%s %s ON %s %s %s",
 	is_grant ? "GRANT" : "REVOKE",
-	sec_grant_code_to_name (op),
-	object,
-	is_grant ? "TO" : "FROM",
-	user ? quoted_user_name : "PUBLIC");
+	sec_grant_code_to_name (op), object, is_grant ? "TO" : "FROM", user ? quoted_user_name : "PUBLIC");
   else
     snprintf (szBuffer, sizeof (szBuffer), "%s %s (%s) ON %s %s %s",
 	is_grant ? "GRANT" : "REVOKE",
-	sec_grant_code_to_name (op),
-	column,
-	object,
-	is_grant ? "TO" : "FROM",
-	user ? quoted_user_name : "PUBLIC");
-  /*fprintf (stderr, "\n%s\n", szBuffer);*/
+	sec_grant_code_to_name (op), column, object, is_grant ? "TO" : "FROM", user ? quoted_user_name : "PUBLIC");
+  /*fprintf (stderr, "\n%s\n", szBuffer); */
   log_array = list (1, box_string (szBuffer));
   log_text_array (qi->qi_trx, log_array);
   dk_free_tree (log_array);
@@ -544,7 +544,7 @@ sec_normalize_user_name (char *name, size_t max_name)
     {
 /* A check is needed to prevent writing bytes "DBA" over bytes "DBA" that are in code segment */
       if (strcmp (name, "DBA"))
-        strcpy_size_ck (name, "DBA", max_name);
+	strcpy_size_ck (name, "DBA", max_name);
     }
   else if (sec_users)
     {
@@ -553,7 +553,7 @@ sec_normalize_user_name (char *name, size_t max_name)
       id_hash_iterator_t it;
 
       id_hash_iterator (&it, sec_users);
-      while (!name_normalized && hit_next (&it, (caddr_t *) &name_found, (caddr_t *) &place))
+      while (!name_normalized && hit_next (&it, (caddr_t *) & name_found, (caddr_t *) & place))
 	{
 	  if (!stricmp (*name_found, name))
 	    {
@@ -583,10 +583,10 @@ sec_set_user_data (char *u_name, char *data)
     }
 }
 
-static query_t * user_grant_role_qr;
-static query_t * user_revoke_role_qr;
-static query_t * user_create_role_qr;
-static query_t * user_drop_role_qr;
+static query_t *user_grant_role_qr;
+static query_t *user_revoke_role_qr;
+static query_t *user_create_role_qr;
+static query_t *user_drop_role_qr;
 
 static void
 sec_run_grant_revoke_role (query_instance_t * qi, ST * tree)
@@ -595,32 +595,31 @@ sec_run_grant_revoke_role (query_instance_t * qi, ST * tree)
   caddr_t *grants = (caddr_t *) tree->_.op.arg_1;
   caddr_t *grantees = (caddr_t *) tree->_.op.arg_2;
   long opt = (long) (ptrlong) tree->_.op.arg_3;
-  client_connection_t * cli = qi->qi_client;
+  client_connection_t *cli = qi->qi_client;
   caddr_t err = NULL;
   DO_BOX (char *, role, inx, grants)
+  {
+    DO_BOX (char *, user, inx1, grantees)
     {
-      DO_BOX (char *, user, inx1, grantees)
+      if (tree->type == GRANT_ROLE_STMT)
 	{
-	  if (tree->type == GRANT_ROLE_STMT)
-	    {
-	      err = qr_rec_exec (user_grant_role_qr, cli, NULL, qi, NULL, 3,
-		  ":0", user == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : user, QRP_STR,
-		  ":1", role == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : role, QRP_STR,
-		  ":2", (ptrlong) opt, QRP_INT);
-	      if (err != SQL_SUCCESS)
-		sqlr_resignal (err);
-	    }
-	  else
-	    {
-	      err = qr_rec_exec (user_revoke_role_qr, cli, NULL, qi, NULL, 2,
-		  ":0", user == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : user, QRP_STR,
-		  ":1", role == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : role, QRP_STR);
-	      if (err != SQL_SUCCESS)
-		sqlr_resignal (err);
-	    }
+	  err = qr_rec_exec (user_grant_role_qr, cli, NULL, qi, NULL, 3,
+	      ":0", user == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : user, QRP_STR,
+	      ":1", role == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : role, QRP_STR, ":2", (ptrlong) opt, QRP_INT);
+	  if (err != SQL_SUCCESS)
+	    sqlr_resignal (err);
 	}
-      END_DO_BOX;
+      else
+	{
+	  err = qr_rec_exec (user_revoke_role_qr, cli, NULL, qi, NULL, 2,
+	      ":0", user == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : user, QRP_STR,
+	      ":1", role == (caddr_t) U_ID_PUBLIC ? "PUBLIC" : role, QRP_STR);
+	  if (err != SQL_SUCCESS)
+	    sqlr_resignal (err);
+	}
     }
+    END_DO_BOX;
+  }
   END_DO_BOX;
 }
 
@@ -628,7 +627,7 @@ static void
 sec_run_create_drop_role (query_instance_t * qi, ST * tree)
 {
   caddr_t *name = (caddr_t *) tree->_.op.arg_1;
-  client_connection_t * cli = qi->qi_client;
+  client_connection_t *cli = qi->qi_client;
   caddr_t err = NULL;
   if (tree->type == CREATE_ROLE_STMT)
     {
@@ -647,11 +646,11 @@ sec_run_create_drop_role (query_instance_t * qi, ST * tree)
 void
 sec_run_grant_revoke (query_instance_t * qi, ST * tree)
 {
-  /*client_connection_t *cli = qi->qi_client;*/
+  /*client_connection_t *cli = qi->qi_client; */
   char *tname = tree->_.grant.table->_.table.name;
   int is_grant = tree->type == GRANT_STMT ? 1 : 0;
   int uinx, pinx, cinx;
-  /*lock_trx_t *lt = cli->cli_trx;*/
+  /*lock_trx_t *lt = cli->cli_trx; */
   dbe_schema_t *sc = wi_inst.wi_schema;
   DO_BOX (char *, grantee, uinx, tree->_.grant.grantees)
   {
@@ -693,7 +692,7 @@ sec_run_grant_revoke (query_instance_t * qi, ST * tree)
 
 typedef struct failed_login_s
 {
-  char fl_from [16];
+  char fl_from[16];
   long fl_last;
   int fl_count;
 } failed_login_t;
@@ -702,7 +701,7 @@ static id_hash_t *failed_login_hash;
 static dk_mutex_t *failed_login_mtx;
 
 
-#define LOGIN_FAILED_INACTIVITY_PERIOD_MSEC (60L * 1000) /* one minute */
+#define LOGIN_FAILED_INACTIVITY_PERIOD_MSEC (60L * 1000)	/* one minute */
 #define LOGIN_FAILED_TRESHOLD 4
 
 
@@ -715,7 +714,7 @@ failed_login_init ()
 
 
 void
-failed_login_from (dk_session_t *ses)
+failed_login_from (dk_session_t * ses)
 {
   char from[16] = "", *fromp = &(from[0]);
   if (ses && ses->dks_session)
@@ -727,9 +726,9 @@ failed_login_from (dk_session_t *ses)
 
       mutex_enter (failed_login_mtx);
 
-      plogin = (failed_login_t **) id_hash_get (failed_login_hash, (caddr_t ) &fromp);
+      plogin = (failed_login_t **) id_hash_get (failed_login_hash, (caddr_t) & fromp);
       if (plogin && *plogin)
-        {
+	{
 	  login = *plogin;
 	}
       else
@@ -738,7 +737,7 @@ failed_login_from (dk_session_t *ses)
 	  memset (login, 0, sizeof (failed_login_t));
 	  strcpy_ck (login->fl_from, from);
 	  fromp = &(login->fl_from[0]);
-	  id_hash_set (failed_login_hash, (caddr_t) &fromp, (caddr_t) &login);
+	  id_hash_set (failed_login_hash, (caddr_t) & fromp, (caddr_t) & login);
 	}
       login->fl_count++;
       login->fl_last = now;
@@ -746,11 +745,12 @@ failed_login_from (dk_session_t *ses)
       mutex_leave (failed_login_mtx);
     }
 }
+
 void sec_call_find_user_hook (caddr_t uname, dk_session_t * ses);
 
 
 int
-failed_login_to_disconnect (dk_session_t *ses)
+failed_login_to_disconnect (dk_session_t * ses)
 {
   char from[16] = "", *fromp = &(from[0]);
   if (ses && ses->dks_session)
@@ -761,13 +761,13 @@ failed_login_to_disconnect (dk_session_t *ses)
       tcpses_print_client_ip (ses->dks_session, from, sizeof (from));
 
       mutex_enter (failed_login_mtx);
-      plogin = (failed_login_t **) id_hash_get (failed_login_hash, (caddr_t ) &fromp);
+      plogin = (failed_login_t **) id_hash_get (failed_login_hash, (caddr_t) & fromp);
       if (plogin && *plogin)
 	{
 	  login = *plogin;
 	  if (now - login->fl_last > LOGIN_FAILED_INACTIVITY_PERIOD_MSEC)
 	    {
-	      id_hash_remove (failed_login_hash, (caddr_t ) &fromp);
+	      id_hash_remove (failed_login_hash, (caddr_t) & fromp);
 	      mutex_leave (failed_login_mtx);
 	      dk_free (login, sizeof (failed_login_t));
 	      login = NULL;
@@ -777,11 +777,9 @@ failed_login_to_disconnect (dk_session_t *ses)
       if (login && login->fl_count >= LOGIN_FAILED_TRESHOLD)
 	{
 	  mutex_leave (failed_login_mtx);
-	  log_error (
-	      "Too many (%d) failed connection attempts from IP [%s]. "
+	  log_error ("Too many (%d) failed connection attempts from IP [%s]. "
 	      "Disabled logging in from that IP for %d sec.",
-	      login->fl_count, login->fl_from,
-	      LOGIN_FAILED_INACTIVITY_PERIOD_MSEC / 1000);
+	      login->fl_count, login->fl_from, LOGIN_FAILED_INACTIVITY_PERIOD_MSEC / 1000);
 	  return 1;
 	}
       mutex_leave (failed_login_mtx);
@@ -791,7 +789,7 @@ failed_login_to_disconnect (dk_session_t *ses)
 
 
 void
-failed_login_remove (dk_session_t *ses)
+failed_login_remove (dk_session_t * ses)
 {
   char from[16] = "", *fromp = &(from[0]);
   failed_login_t *login = NULL, **plogin;
@@ -800,11 +798,11 @@ failed_login_remove (dk_session_t *ses)
       tcpses_print_client_ip (ses->dks_session, from, sizeof (from));
       mutex_enter (failed_login_mtx);
 
-      plogin = (failed_login_t **) id_hash_get (failed_login_hash, (caddr_t ) &fromp);
+      plogin = (failed_login_t **) id_hash_get (failed_login_hash, (caddr_t) & fromp);
       if (plogin && *plogin)
 	{
 	  login = *plogin;
-	  id_hash_remove (failed_login_hash, (caddr_t ) &fromp);
+	  id_hash_remove (failed_login_hash, (caddr_t) & fromp);
 	  mutex_leave (failed_login_mtx);
 
 	  dk_free (login, sizeof (failed_login_t));
@@ -818,34 +816,34 @@ failed_login_remove (dk_session_t *ses)
 void
 failed_login_purge (void)
 {
-   id_hash_iterator_t hit;
-   char **key;
-   failed_login_t *login = NULL, **plogin;
-   long now = approx_msec_real_time ();
-   static long last_start_time = 0;
+  id_hash_iterator_t hit;
+  char **key;
+  failed_login_t *login = NULL, **plogin;
+  long now = approx_msec_real_time ();
+  static long last_start_time = 0;
 
-   if (now - last_start_time > LOGIN_FAILED_INACTIVITY_PERIOD_MSEC)
-     {
-       if (mutex_try_enter (failed_login_mtx))
-	 {
-	   last_start_time = now;
-	   id_hash_iterator (&hit, failed_login_hash);
+  if (now - last_start_time > LOGIN_FAILED_INACTIVITY_PERIOD_MSEC)
+    {
+      if (mutex_try_enter (failed_login_mtx))
+	{
+	  last_start_time = now;
+	  id_hash_iterator (&hit, failed_login_hash);
 
-	   while (hit_next (&hit, (char **) &key, (char **) &plogin))
-	     {
-	       if (plogin && *plogin)
-		 {
-		   login = *plogin;
-		   if (now - login->fl_last > LOGIN_FAILED_INACTIVITY_PERIOD_MSEC)
-		     {
-		       id_hash_remove (failed_login_hash, (caddr_t) key);
-		       dk_free (login, sizeof (failed_login_t));
-		     }
-		 }
-	     }
-	   mutex_leave (failed_login_mtx);
-	 }
-     }
+	  while (hit_next (&hit, (char **) &key, (char **) &plogin))
+	    {
+	      if (plogin && *plogin)
+		{
+		  login = *plogin;
+		  if (now - login->fl_last > LOGIN_FAILED_INACTIVITY_PERIOD_MSEC)
+		    {
+		      id_hash_remove (failed_login_hash, (caddr_t) key);
+		      dk_free (login, sizeof (failed_login_t));
+		    }
+		}
+	    }
+	  mutex_leave (failed_login_mtx);
+	}
+    }
 }
 
 
@@ -908,7 +906,7 @@ sec_check_login (char *name, char *pass, dk_session_t * ses)
     }
 
 failed:
-  sec_log_login_failed(name, ses, log_mod);
+  sec_log_login_failed (name, ses, log_mod);
   return NULL;
 }
 
@@ -939,10 +937,10 @@ query_t *read_tb_rls_qr;
 
 
 typedef struct _grkeystruct
-  {
-    long gk_super_key;
-    char *gk_user;
-  }
+{
+  long gk_super_key;
+  char *gk_user;
+}
 grant_key_t;
 
 
@@ -956,8 +954,7 @@ gk_hash (grant_key_t * gk)
 int
 gk_cmp (grant_key_t * k1, grant_key_t * k2)
 {
-  if (k1->gk_super_key == k2->gk_super_key &&
-      0 == strcmp (k1->gk_user, k2->gk_user))
+  if (k1->gk_super_key == k2->gk_super_key && 0 == strcmp (k1->gk_user, k2->gk_user))
     return 1;
   else
     return 0;
@@ -1007,11 +1004,12 @@ sec_new_u_id (query_instance_t * qi)
   return (u_id + 1);
 }
 
-void fill_log_user (user_t * usr)
+void
+fill_log_user (user_t * usr)
 {
-  char temp [8];
+  char temp[8];
 
-  if (!IS_BOX_POINTER(usr))
+  if (!IS_BOX_POINTER (usr))
     return;
 
   if (usr->usr_id)
@@ -1129,34 +1127,29 @@ sec_set_user (query_instance_t * qi, char *name, char *pass, int is_update)
       caddr_t err = NULL;
       if (upd_user_qr->qr_to_recompile)
 	{
-	  query_t * new_qr = qr_recompile (upd_user_qr, &err);
+	  query_t *new_qr = qr_recompile (upd_user_qr, &err);
 	  if (!err)
 	    upd_user_qr = new_qr;
-	  PRINT_ERR(err);
+	  PRINT_ERR (err);
 	}
       qr_rec_exec (upd_user_qr, cli, NULL, qi, NULL, 3,
-	  ":0", enc_pass, QRP_RAW,
-	  ":1", (ptrlong) user->usr_g_id, QRP_INT,
-	  ":2", name, QRP_STR);
+	  ":0", enc_pass, QRP_RAW, ":1", (ptrlong) user->usr_g_id, QRP_INT, ":2", name, QRP_STR);
     }
   else
     {
       caddr_t err = NULL;
       if (set_user_qr->qr_to_recompile)
 	{
-	  query_t * new_qr = qr_recompile (set_user_qr, &err);
+	  query_t *new_qr = qr_recompile (set_user_qr, &err);
 	  if (!err)
 	    set_user_qr = new_qr;
-	  PRINT_ERR(err);
+	  PRINT_ERR (err);
 	}
       err = qr_rec_exec (set_user_qr, cli, NULL, qi, NULL, 5,
 	  ":0", name, QRP_STR,
 	  ":1", enc_pass, QRP_RAW,
-	  ":2", (ptrlong) user->usr_id, QRP_INT,
-	  ":3", (ptrlong) user->usr_g_id, QRP_INT,
-	  ":4", name, QRP_STR
-	  );
-      PRINT_ERR(err);
+	  ":2", (ptrlong) user->usr_id, QRP_INT, ":3", (ptrlong) user->usr_g_id, QRP_INT, ":4", name, QRP_STR);
+      PRINT_ERR (err);
     }
   return user;
 }
@@ -1168,11 +1161,10 @@ sec_set_user (query_instance_t * qi, char *name, char *pass, int is_update)
 void
 /*sec_set_user_struct (caddr_t u_name, caddr_t u_pwd,
 		  long u_id, long u_g_id, caddr_t u_dta, int is_role)*/
-
 sec_set_user_struct (caddr_t u_name, caddr_t u_pwd,
-		  long u_id, long u_g_id, caddr_t u_dta, int is_role, caddr_t u_sys_name, caddr_t u_sys_pwd)
+    long u_id, long u_g_id, caddr_t u_dta, int is_role, caddr_t u_sys_name, caddr_t u_sys_pwd)
 {
-  user_t * user = sec_id_to_user (u_id);
+  user_t *user = sec_id_to_user (u_id);
 
   if (user)
     {
@@ -1180,23 +1172,22 @@ sec_set_user_struct (caddr_t u_name, caddr_t u_pwd,
 	sqlr_new_error ("22023", "U0001", "Conflicting type of existing security object.");
       user->usr_pass = box_copy (u_pwd);
       user->usr_g_id = u_g_id;
-      user->usr_data = box_copy_tree(u_dta);
+      user->usr_data = box_copy_tree (u_dta);
     }
   else
     {
 
       NEW_VARZ (user_t, new_user);
 
-      new_user->usr_name = box_copy(u_name);
-      new_user->usr_pass = box_copy(u_pwd);
+      new_user->usr_name = box_copy (u_name);
+      new_user->usr_pass = box_copy (u_pwd);
 #ifdef WIN32
-      new_user->usr_sys_name = box_copy(u_sys_name);
-      new_user->usr_sys_pass = box_copy(u_sys_pwd);
+      new_user->usr_sys_name = box_copy (u_sys_name);
+      new_user->usr_sys_pass = box_copy (u_sys_pwd);
 #endif
       fill_log_user (new_user);
 
-      id_hash_set (sec_users, (caddr_t) & new_user->usr_name,
-		   (caddr_t) & new_user);
+      id_hash_set (sec_users, (caddr_t) & new_user->usr_name, (caddr_t) & new_user);
       sethash ((void *) (ptrlong) u_id, sec_user_by_id, (void *) new_user);
 
       new_user->usr_id = u_id;
@@ -1213,14 +1204,14 @@ sec_set_user_os_struct (caddr_t u_name, caddr_t u_sys_name, caddr_t u_sys_pwd)
 {
   user_t *user = sec_name_to_user (u_name);
 
-  if (!user) /* FIXME sec_name_to_user and "dav" return null */
+  if (!user)			/* FIXME sec_name_to_user and "dav" return null */
     return 0;
 /*  sqlr_new_error ("42000", "SR...", "No user %s", u_name);*/
 
   if (init_os_users (user, u_sys_name, u_sys_pwd))
     {
-      user->usr_sys_name = box_copy(u_sys_name);
-      user->usr_sys_pass = box_copy(u_sys_pwd);
+      user->usr_sys_name = box_copy (u_sys_name);
+      user->usr_sys_pass = box_copy (u_sys_pwd);
       return 1;
     }
   return 0;
@@ -1252,7 +1243,7 @@ caddr_t
 sec_get_user_by_cert (caddr_t u_cert)
 {
   user_t **user1;
-  char ** pk;
+  char **pk;
   id_hash_iterator_t it;
   id_hash_iterator (&it, sec_users);
 
@@ -1262,10 +1253,10 @@ sec_get_user_by_cert (caddr_t u_cert)
       if (!user->usr_certs)
 	continue;
       DO_SET (caddr_t, cfp, &(user->usr_certs))
-	{
-	  if (cfp && !strcmp (cfp, u_cert))
-	    return box_dv_short_string (user->usr_name);
-	}
+      {
+	if (cfp && !strcmp (cfp, u_cert))
+	  return box_dv_short_string (user->usr_name);
+      }
       END_DO_SET ();
     }
 
@@ -1280,13 +1271,13 @@ sec_user_remove_cert (caddr_t u_name, caddr_t u_cert)
     return;
 
   DO_SET (caddr_t, cfp, &(user->usr_certs))
-    {
-      if (cfp && !strcmp (cfp, u_cert))
-	{
-	  dk_set_delete (&(user->usr_certs), (void *)cfp);
-	  return;
-	}
-    }
+  {
+    if (cfp && !strcmp (cfp, u_cert))
+      {
+	dk_set_delete (&(user->usr_certs), (void *) cfp);
+	return;
+      }
+  }
   END_DO_SET ();
 }
 
@@ -1294,7 +1285,7 @@ query_t *set_g_id_qr;
 
 
 void
-cli_flush_stmt_cache (user_t *user)
+cli_flush_stmt_cache (user_t * user)
 {
   dk_set_t clients = NULL;
   if (!user)
@@ -1302,25 +1293,25 @@ cli_flush_stmt_cache (user_t *user)
   mutex_enter (thread_mtx);
   clients = srv_get_logons ();
   DO_SET (dk_session_t *, ses, &clients)
-    {
-      client_connection_t *cli = DKS_DB_DATA (ses);
-      if (cli && cli->cli_user && cli->cli_user->usr_id == user->usr_id)
-	{
-	  query_t *curr = cli->cli_first_query;
-	  while (curr)
-	    {
-	      curr->qr_to_recompile = 1;
-	      curr = curr->qr_next;
-	    }
-	}
-    }
-  END_DO_SET();
+  {
+    client_connection_t *cli = DKS_DB_DATA (ses);
+    if (cli && cli->cli_user && cli->cli_user->usr_id == user->usr_id)
+      {
+	query_t *curr = cli->cli_first_query;
+	while (curr)
+	  {
+	    curr->qr_to_recompile = 1;
+	    curr = curr->qr_next;
+	  }
+      }
+  }
+  END_DO_SET ();
   dk_set_free (clients);
   mutex_leave (thread_mtx);
 }
 
 static void
-sec_usr_flatten_g_ids_merge (oid_t *dest, int *dest_len_ptr, oid_t *addon, int addon_len, int dest_maxlen)
+sec_usr_flatten_g_ids_merge (oid_t * dest, int *dest_len_ptr, oid_t * addon, int addon_len, int dest_maxlen)
 {
   int dest_len = dest_len_ptr[0];
   int dupes = 0;
@@ -1332,35 +1323,51 @@ sec_usr_flatten_g_ids_merge (oid_t *dest, int *dest_len_ptr, oid_t *addon, int a
   while ((dest_iter < dest_end) && (addon_iter < addon_end))
     {
       if (dest_iter[0] == addon_iter[0])
-        { dupes++; dest_iter++; addon_iter++; }
+	{
+	  dupes++;
+	  dest_iter++;
+	  addon_iter++;
+	}
       else if (dest_iter[0] < addon_iter[0])
-        dest_iter++;
+	dest_iter++;
       else
-        addon_iter++;
+	addon_iter++;
     }
   if (dupes == addon_len)
     return;
   write_iter = dest_end + addon_len - dupes;
   dest_len_ptr[0] = write_iter - dest;
   if (write_iter > dest + dest_maxlen)
-    GPF_T1 ("Corrupted user permissions are detected. To stay on safe side, the server is terminated immediately without making a checkpoint (code 1348)");
-  dest_iter = dest_end-1;
-  addon_iter = addon_end-1;
+    GPF_T1
+	("Corrupted user permissions are detected. To stay on safe side, the server is terminated immediately without making a checkpoint (code 1348)");
+  dest_iter = dest_end - 1;
+  addon_iter = addon_end - 1;
   while (addon_iter >= addon)
     {
       if (write_iter <= dest)
-        GPF_T1 ("Corrupted user permissions are detected. To stay on safe side, the server is terminated immediately without making a checkpoint (code 1354)");
+	GPF_T1
+	    ("Corrupted user permissions are detected. To stay on safe side, the server is terminated immediately without making a checkpoint (code 1354)");
       if ((dest_iter < dest) || (dest_iter[0] < addon_iter[0]))
-        { (--write_iter)[0] = addon_iter[0]; addon_iter--; }
+	{
+	  (--write_iter)[0] = addon_iter[0];
+	  addon_iter--;
+	}
       else if (dest_iter[0] == addon_iter[0])
-        { (--write_iter)[0] = addon_iter[0]; dest_iter--; addon_iter--; }
+	{
+	  (--write_iter)[0] = addon_iter[0];
+	  dest_iter--;
+	  addon_iter--;
+	}
       else
-        { (--write_iter)[0] = dest_iter[0]; dest_iter--; }
+	{
+	  (--write_iter)[0] = dest_iter[0];
+	  dest_iter--;
+	}
     }
 }
 
 int
-sec_usr_flatten_g_ids_refill (user_t *user)
+sec_usr_flatten_g_ids_refill (user_t * user)
 {
   user_t *grp;
   int g_ctr, flatten_count = 0, estimate = 1, usr_g_id_is_valid = 0;
@@ -1375,70 +1382,70 @@ sec_usr_flatten_g_ids_refill (user_t *user)
     {
       grp = sec_id_to_user (user->usr_g_id);
       if (NULL != grp)
-        {
-          estimate += sec_usr_flatten_g_ids_refill (grp);
-          usr_g_id_is_valid = 1;
-        }
+	{
+	  estimate += sec_usr_flatten_g_ids_refill (grp);
+	  usr_g_id_is_valid = 1;
+	}
     }
   DO_BOX_FAST (ptrlong, g_id, g_ctr, user->usr_g_ids)
-    {
-      grp = sec_id_to_user (g_id);
-      if (NULL != grp)
-        estimate += sec_usr_flatten_g_ids_refill (grp);
-      else
-        estimate += 1;
-    }
+  {
+    grp = sec_id_to_user (g_id);
+    if (NULL != grp)
+      estimate += sec_usr_flatten_g_ids_refill (grp);
+    else
+      estimate += 1;
+  }
   END_DO_BOX_FAST;
   buflen = ((NULL == user->usr_flatten_g_ids) ? 0 : (box_length (user->usr_flatten_g_ids) / sizeof (oid_t)));
   if (buflen < estimate)
     {
-      dk_free_box ((caddr_t)(user->usr_flatten_g_ids));
-      user->usr_flatten_g_ids = (oid_t *)dk_alloc_box (estimate * sizeof (oid_t), DV_CUSTOM);
+      dk_free_box ((caddr_t) (user->usr_flatten_g_ids));
+      user->usr_flatten_g_ids = (oid_t *) dk_alloc_box (estimate * sizeof (oid_t), DV_CUSTOM);
       buflen = estimate;
     }
   buf = user->usr_flatten_g_ids;
   DO_BOX_FAST (ptrlong, g_id, g_ctr, user->usr_g_ids)
-    {
-      buf [flatten_count++] = g_id;
-    }
+  {
+    buf[flatten_count++] = g_id;
+  }
   END_DO_BOX_FAST;
   sec_usr_flatten_g_ids_merge (buf, &flatten_count, &(user->usr_id), 1, buflen);
   if (usr_g_id_is_valid)
     sec_usr_flatten_g_ids_merge (buf, &flatten_count, &(user->usr_g_id), 1, buflen);
   DO_BOX_FAST (ptrlong, g_id, g_ctr, user->usr_g_ids)
-    {
-      grp = sec_id_to_user (g_id);
-      if (NULL != grp)
-        sec_usr_flatten_g_ids_merge (buf, &flatten_count, grp->usr_flatten_g_ids, grp->usr_flatten_g_ids_len, buflen);
-      else
-        {
-          oid_t sized_g_id = g_id;
-          sec_usr_flatten_g_ids_merge (buf, &flatten_count, &sized_g_id, 1, buflen);
-        }
-    }
+  {
+    grp = sec_id_to_user (g_id);
+    if (NULL != grp)
+      sec_usr_flatten_g_ids_merge (buf, &flatten_count, grp->usr_flatten_g_ids, grp->usr_flatten_g_ids_len, buflen);
+    else
+      {
+	oid_t sized_g_id = g_id;
+	sec_usr_flatten_g_ids_merge (buf, &flatten_count, &sized_g_id, 1, buflen);
+      }
+  }
   END_DO_BOX_FAST;
   user->usr_flatten_g_ids_len = flatten_count;
   return flatten_count;
 }
 
 void
-sec_usr_flatten_g_ids_stale (user_t *user)
+sec_usr_flatten_g_ids_stale (user_t * user)
 {
   int ctr;
   if (0 == user->usr_flatten_g_ids_len)
     return;
   user->usr_flatten_g_ids_len = 0;
   DO_BOX_FAST (ptrlong, memb_id, ctr, user->usr_member_ids)
-    {
-      user_t *memb = sec_id_to_user (memb_id);
-      if (NULL != memb)
-        sec_usr_flatten_g_ids_stale (memb);
-    }
+  {
+    user_t *memb = sec_id_to_user (memb_id);
+    if (NULL != memb)
+      sec_usr_flatten_g_ids_stale (memb);
+  }
   END_DO_BOX_FAST;
 }
 
 int
-sec_usr_member_ids_add (user_t *gr, user_t *memb)
+sec_usr_member_ids_add (user_t * gr, user_t * memb)
 {
   oid_t memb_id = memb->usr_id;
   int len, ctr;
@@ -1447,26 +1454,26 @@ sec_usr_member_ids_add (user_t *gr, user_t *memb)
   for (ctr = 0; ctr < len; ctr++)
     {
       if (gr->usr_member_ids[ctr] < memb_id)
-        continue;
+	continue;
       if (gr->usr_member_ids[ctr] == memb_id)
-        return 0;
+	return 0;
       break;
     }
-  new_buf = (ptrlong *)dk_alloc_box (len+1, DV_CUSTOM);
+  new_buf = (ptrlong *) dk_alloc_box (len + 1, DV_CUSTOM);
   if (len)
     {
       memcpy (new_buf, gr->usr_member_ids, ctr * sizeof (ptrlong));
       memcpy (new_buf + ctr + 1, gr->usr_member_ids + ctr, (len - ctr) * sizeof (ptrlong));
     }
   new_buf[ctr] = memb_id;
-  dk_free_box ((caddr_t)(gr->usr_member_ids));
+  dk_free_box ((caddr_t) (gr->usr_member_ids));
   gr->usr_member_ids = new_buf;
   sec_usr_flatten_g_ids_stale (gr);
   return 1;
 }
 
 int
-sec_usr_member_ids_del (user_t *gr, user_t *memb)
+sec_usr_member_ids_del (user_t * gr, user_t * memb)
 {
   oid_t memb_id = memb->usr_id;
   int len, ctr;
@@ -1475,18 +1482,18 @@ sec_usr_member_ids_del (user_t *gr, user_t *memb)
   for (ctr = 0; ctr < len; ctr++)
     {
       if (gr->usr_member_ids[ctr] < memb_id)
-        continue;
+	continue;
       if (gr->usr_member_ids[ctr] == memb_id)
-        goto del_at_ctr;
+	goto del_at_ctr;
       return 0;
     }
   return 0;
 del_at_ctr:
   sec_usr_flatten_g_ids_stale (gr);
-  new_buf = (ptrlong *)dk_alloc_box (len-1, DV_CUSTOM);
+  new_buf = (ptrlong *) dk_alloc_box (len - 1, DV_CUSTOM);
   memcpy (new_buf, gr->usr_member_ids, ctr * sizeof (ptrlong));
-  memcpy (new_buf + ctr, gr->usr_member_ids + ctr + 1, (len - (ctr+1)) * sizeof (ptrlong));
-  dk_free_box ((caddr_t)(gr->usr_member_ids));
+  memcpy (new_buf + ctr, gr->usr_member_ids + ctr + 1, (len - (ctr + 1)) * sizeof (ptrlong));
+  dk_free_box ((caddr_t) (gr->usr_member_ids));
   gr->usr_member_ids = new_buf;
   return 1;
 }
@@ -1503,29 +1510,25 @@ sec_set_user_group (query_instance_t * qi, char *name, char *group)
   user = sec_name_to_user (name);
   if (NULL == user)
     sqlr_new_error ("42000", "SR141", "No user %s", name);
-      gr = sec_name_to_user (group);
-      if (!gr)
-	sqlr_new_error ("42000", "SR139", "No group %s", group);
-      if (user->usr_g_ids)
-	{
-	  int inx;
-	  _DO_BOX (inx, user->usr_g_ids)
-	    {
-	      oid_t grp = (oid_t) (ptrlong) user->usr_g_ids[inx];
-
-	      if (gr->usr_id == grp)
-		sqlr_new_error ("42000", "SR140",
-		    "The group %s is already a secondary group for the user %s."
-		    " Delete it first with DELETE USER GROUP", group, name);
-	    }
-	  END_DO_BOX;
-	}
+  gr = sec_name_to_user (group);
+  if (!gr)
+    sqlr_new_error ("42000", "SR139", "No group %s", group);
+  if (user->usr_g_ids)
+    {
+      int inx;
+      _DO_BOX (inx, user->usr_g_ids)
+      {
+	oid_t grp = (oid_t) (ptrlong) user->usr_g_ids[inx];
+	if (gr->usr_id == grp)
+	  sqlr_new_error ("42000", "SR140",
+	      "The group %s is already a secondary group for the user %s." " Delete it first with DELETE USER GROUP", group, name);
+      }
+      END_DO_BOX;
+    }
   sec_usr_member_ids_add (gr, user);
-      user->usr_g_id = gr->usr_id;
+  user->usr_g_id = gr->usr_id;
   cli_flush_stmt_cache (user);
-  qr_rec_exec (set_g_id_qr, cli, NULL, qi, NULL, 2,
-      ":0", (ptrlong) gr->usr_g_id, QRP_INT,
-      ":1", name, QRP_STR);
+  qr_rec_exec (set_g_id_qr, cli, NULL, qi, NULL, 2, ":0", (ptrlong) gr->usr_g_id, QRP_INT, ":1", name, QRP_STR);
 }
 
 query_t *add_g_id_qr;
@@ -1547,40 +1550,38 @@ sec_grant_single_role (user_t * user, user_t * gr, int make_err)
 	{
 	  int inx, found = 0;
 	  _DO_BOX (inx, user->usr_g_ids)
-	    {
-	      oid_t grp = (oid_t) (ptrlong) user->usr_g_ids[inx];
-	      if (grp < gr->usr_id)
-                continue;
-	      if (grp == gr->usr_id)
-		  found = 1;
-		  break;
-		}
+	  {
+	    oid_t grp = (oid_t) (ptrlong) user->usr_g_ids[inx];
+	    if (grp < gr->usr_id)
+	      continue;
+	    if (grp == gr->usr_id)
+	      found = 1;
+	    break;
+	  }
 	  END_DO_BOX;
 	  if (!found)
 	    {
 	      long len = BOX_ELEMENTS (user->usr_g_ids);
-	      ptrlong *res = (ptrlong *)dk_alloc_box ((len + 1) * sizeof (caddr_t), DV_ARRAY_OF_LONG);
+	      ptrlong *res = (ptrlong *) dk_alloc_box ((len + 1) * sizeof (caddr_t), DV_ARRAY_OF_LONG);
 	      memcpy (res, user->usr_g_ids, inx * sizeof (caddr_t));
-	      memcpy (res + inx + 1, user->usr_g_ids, (len-inx) * sizeof (caddr_t));
-	      ((caddr_t *)res)[inx] = (caddr_t) (ptrlong) gr->usr_id;
+	      memcpy (res + inx + 1, user->usr_g_ids, (len - inx) * sizeof (caddr_t));
+	      ((caddr_t *) res)[inx] = (caddr_t) (ptrlong) gr->usr_id;
 	      dk_free_box ((box_t) user->usr_g_ids);
 	      user->usr_g_ids = res;
 	      sec_usr_member_ids_add (gr, user);
 	    }
 	  else if (make_err)
-	    sqlr_new_error ("42000", "SR144",
-		"Group %s already assigned as a secondary group of %s", group, name);
+	    sqlr_new_error ("42000", "SR144", "Group %s already assigned as a secondary group of %s", group, name);
 	}
       else
 	{
-	  user->usr_g_ids = (ptrlong *)dk_alloc_box (sizeof (caddr_t), DV_ARRAY_OF_LONG);
+	  user->usr_g_ids = (ptrlong *) dk_alloc_box (sizeof (caddr_t), DV_ARRAY_OF_LONG);
 	  user->usr_g_ids[0] = gr->usr_id;
 	  sec_usr_member_ids_add (gr, user);
 	}
     }
   else
-    sqlr_new_error ("42000", "SR145",
-	"Group %s already is a primary group of %s", group, name);
+    sqlr_new_error ("42000", "SR145", "Group %s already is a primary group of %s", group, name);
 }
 
 void
@@ -1601,16 +1602,14 @@ sec_add_user_group (query_instance_t * qi, char *name, char *group)
     sqlr_new_error ("42000", "SR143", "No group %s", group);
 
   sec_grant_single_role (user, gr, 1);
-  qr_rec_exec (add_g_id_qr, cli, NULL, qi, NULL, 2,
-      ":0", (ptrlong) user->usr_id, QRP_INT,
-      ":1", (ptrlong) gr->usr_id, QRP_INT);
+  qr_rec_exec (add_g_id_qr, cli, NULL, qi, NULL, 2, ":0", (ptrlong) user->usr_id, QRP_INT, ":1", (ptrlong) gr->usr_id, QRP_INT);
 }
 
 
 query_t *del_g_id_qr;
 
 void
-sec_revoke_single_role (user_t *user, user_t *gr, int make_err)
+sec_revoke_single_role (user_t * user, user_t * gr, int make_err)
 {
   char *name, *group;
 
@@ -1627,24 +1626,21 @@ sec_revoke_single_role (user_t *user, user_t *gr, int make_err)
 	  int inx, foundinx = -1;
 	  caddr_t src = (caddr_t) user->usr_g_ids;
 	  _DO_BOX (inx, user->usr_g_ids)
-	    {
-	      oid_t grp = (oid_t) (ptrlong) user->usr_g_ids[inx];
-	      if (grp == gr->usr_id)
-		{
-		  foundinx = inx * sizeof (caddr_t);
-		  break;
-		}
-	    }
+	  {
+	    oid_t grp = (oid_t) (ptrlong) user->usr_g_ids[inx];
+	    if (grp == gr->usr_id)
+	      {
+		foundinx = inx * sizeof (caddr_t);
+		break;
+	      }
+	  }
 	  END_DO_BOX;
 	  if (foundinx > -1)
 	    {
 	      long len = box_length (src);
 	      caddr_t res = dk_alloc_box (len - sizeof (caddr_t), DV_ARRAY_OF_LONG);
 	      memcpy (res, src, foundinx);
-	      memcpy (
-		  res + foundinx,
-		  src + foundinx + sizeof (caddr_t),
-		  len - foundinx - sizeof (caddr_t));
+	      memcpy (res + foundinx, src + foundinx + sizeof (caddr_t), len - foundinx - sizeof (caddr_t));
 	      dk_free_box (src);
 	      user->usr_g_ids = (ptrlong *) res;
 	      sec_usr_member_ids_del (gr, user);
@@ -1656,8 +1652,7 @@ sec_revoke_single_role (user_t *user, user_t *gr, int make_err)
 	sqlr_new_error ("42000", "SR150", "No Group %s granted to %s", group, name);
     }
   else
-    sqlr_new_error ("42000", "SR151",
-	"Group %s is a primary group of %s. Use SET USER GROUP instead", group, name);
+    sqlr_new_error ("42000", "SR151", "Group %s is a primary group of %s. Use SET USER GROUP instead", group, name);
 }
 
 void
@@ -1679,9 +1674,7 @@ sec_del_user_group (query_instance_t * qi, char *name, char *group)
   sec_revoke_single_role (user, gr, 1);
 
   cli_flush_stmt_cache (user);
-  qr_rec_exec (del_g_id_qr, cli, NULL, qi, NULL, 2,
-      ":0", (ptrlong) user->usr_id, QRP_INT,
-      ":1", (ptrlong) gr->usr_id, QRP_INT);
+  qr_rec_exec (del_g_id_qr, cli, NULL, qi, NULL, 2, ":0", (ptrlong) user->usr_id, QRP_INT, ":1", (ptrlong) gr->usr_id, QRP_INT);
 }
 
 
@@ -1689,10 +1682,9 @@ int sec_initialized = 0;
 
 /* if only_execute_gr flag passed then do only executable grants */
 caddr_t
-sec_read_grants (client_connection_t * cli, query_instance_t * caller_qi,
-    char *table, int only_execute_gr)
+sec_read_grants (client_connection_t * cli, query_instance_t * caller_qi, char *table, int only_execute_gr)
 {
-  dbe_schema_t * sc;
+  dbe_schema_t *sc;
   caddr_t err;
   local_cursor_t *lc = NULL;
   sqlc_set_client (cli);
@@ -1710,13 +1702,12 @@ sec_read_grants (client_connection_t * cli, query_instance_t * caller_qi,
       else
 	sc = wi_inst.wi_schema;
       err = qr_rec_exec (only_execute_gr ? read_exec_grants_qr : read_grants_qr, cli, &lc, caller_qi, NULL, 1,
-			 ":0", table, QRP_STR);
+	  ":0", table, QRP_STR);
     }
   else
     {
       sc = wi_inst.wi_schema;
-      err = qr_quick_exec (only_execute_gr ? read_exec_grants_qr : read_grants_qr, cli, "", &lc, 1,
-			   ":0", table, QRP_STR);
+      err = qr_quick_exec (only_execute_gr ? read_exec_grants_qr : read_grants_qr, cli, "", &lc, 1, ":0", table, QRP_STR);
     }
   if (err)
     {
@@ -1738,47 +1729,32 @@ sec_read_grants (client_connection_t * cli, query_instance_t * caller_qi,
   if (!caller_qi)
     local_commit (bootstrap_cli);
   else
-    return NULL; /* do not do default grants when picking a single table from qi_read_table_schema or such */
+    return NULL;		/* do not do default grants when picking a single table from qi_read_table_schema or such */
 
-  if (only_execute_gr) /* If called after read procs do not do default grants */
+  if (only_execute_gr)		/* If called after read procs do not do default grants */
     return err;
 
-  sec_dd_grant (isp_schema (NULL), "SYS_COLS", "_all", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_KEYS", "_all", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_KEY_PARTS", "_all", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_CHARSETS", "CS_NAME", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_CHARSETS", "CS_ALIASES", 1, GR_SELECT,
-      U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_COLS", "_all", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_KEYS", "_all", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_KEY_PARTS", "_all", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_CHARSETS", "CS_NAME", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_CHARSETS", "CS_ALIASES", 1, GR_SELECT, U_ID_PUBLIC);
 
 /* Grant privileges to all columns of SYS_PROCEDURES except P_TEXT
    and P_MORE, so that the API-function SQLProcedures shall work,
    but the ordinary mortals still do not see the source code itself.
    Added by AK 17-APR-1997.
  */
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_QUAL", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_OWNER", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_NAME", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_N_IN", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_N_OUT", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_N_R_SETS", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_COMMENT", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_TYPE", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_FOREIGN_KEYS", "_all", 1, GR_SELECT,
-      U_ID_PUBLIC);
-  sec_dd_grant (isp_schema (NULL), "SYS_USER_TYPES", "_all", 1, GR_SELECT,
-      U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_QUAL", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_OWNER", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_NAME", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_N_IN", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_N_OUT", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_N_R_SETS", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_COMMENT", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_PROCEDURES", "P_TYPE", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_FOREIGN_KEYS", "_all", 1, GR_SELECT, U_ID_PUBLIC);
+  sec_dd_grant (isp_schema (NULL), "SYS_USER_TYPES", "_all", 1, GR_SELECT, U_ID_PUBLIC);
   return err;
 }
 
@@ -1786,27 +1762,25 @@ query_t *delete_user_qr;
 
 #ifdef UPDATE_SYS_USERS_TO_ENCRYPTED
 static void
-update_users (dk_set_t *users_to_set)
+update_users (dk_set_t * users_to_set)
 {
   caddr_t err = NULL;
   client_connection_t *cli = bootstrap_cli;
   query_t *set_pass_qr = sql_compile ("update SYS_USERS set U_PASSWORD = ? where U_NAME = ?",
       cli, &err, SQLC_DEFAULT);
   DO_SET (caddr_t *, user, users_to_set)
-    {
-      int passwd_len = box_length (user[1]);
-      caddr_t enc_passwd = dk_alloc_box (passwd_len + 1, DV_SHORT_STRING);
-      enc_passwd[0] = 0;
-      memcpy (enc_passwd + 1, user[1], passwd_len);
-      xx_encrypt_passwd (enc_passwd + 1, passwd_len, user[0]);
-      dk_free_box (user[1]);
-      user[1] = NULL;
-      err = qr_quick_exec (set_pass_qr, cli, "", NULL, 2,
-	  ":0", enc_passwd, QRP_RAW,
-	  ":1", user[0], QRP_RAW);
-      dk_free_box (user);
-    }
-  END_DO_SET();
+  {
+    int passwd_len = box_length (user[1]);
+    caddr_t enc_passwd = dk_alloc_box (passwd_len + 1, DV_SHORT_STRING);
+    enc_passwd[0] = 0;
+    memcpy (enc_passwd + 1, user[1], passwd_len);
+    xx_encrypt_passwd (enc_passwd + 1, passwd_len, user[0]);
+    dk_free_box (user[1]);
+    user[1] = NULL;
+    err = qr_quick_exec (set_pass_qr, cli, "", NULL, 2, ":0", enc_passwd, QRP_RAW, ":1", user[0], QRP_RAW);
+    dk_free_box (user);
+  }
+  END_DO_SET ();
   local_commit (bootstrap_cli);
   qr_free (set_pass_qr);
 }
@@ -1830,11 +1804,11 @@ sec_user_has_group (oid_t CheckGroup, oid_t user)
 	  if (u->usr_g_ids)
 	    {
 	      _DO_BOX (inx, u->usr_g_ids)
-		{
-		  oid_t grp = (oid_t) (ptrlong) u->usr_g_ids[inx];
-		  if (CheckGroup == grp)
-		    return 1;
-		}
+	      {
+		oid_t grp = (oid_t) (ptrlong) u->usr_g_ids[inx];
+		if (CheckGroup == grp)
+		  return 1;
+	      }
 	      END_DO_BOX;
 	    }
 	}
@@ -1844,7 +1818,7 @@ sec_user_has_group (oid_t CheckGroup, oid_t user)
 
 
 int
-sec_user_has_group_name (char * name, oid_t user)
+sec_user_has_group_name (char *name, oid_t user)
 {
   int inx;
   user_t *u = sec_id_to_user (user), *g;
@@ -1858,12 +1832,12 @@ sec_user_has_group_name (char * name, oid_t user)
       if (u->usr_g_ids)
 	{
 	  _DO_BOX (inx, u->usr_g_ids)
-	    {
-	      oid_t grp = (oid_t) (ptrlong) u->usr_g_ids[inx];
-	      g = sec_id_to_user (grp);
-	      if (g && !strcmp (g->usr_name, name))
-		return 1;
-	    }
+	  {
+	    oid_t grp = (oid_t) (ptrlong) u->usr_g_ids[inx];
+	    g = sec_id_to_user (grp);
+	    if (g && !strcmp (g->usr_name, name))
+	      return 1;
+	  }
 	  END_DO_BOX;
 	}
     }
@@ -1872,7 +1846,7 @@ sec_user_has_group_name (char * name, oid_t user)
 
 
 int
-sec_user_is_in_hash (dk_hash_t *ht, oid_t user, int op)
+sec_user_is_in_hash (dk_hash_t * ht, oid_t user, int op)
 {
   int inx, flags;
   flags = (long) (ptrlong) gethash ((void *) (ptrlong) user, ht);
@@ -1889,12 +1863,12 @@ sec_user_is_in_hash (dk_hash_t *ht, oid_t user, int op)
 	  if (u->usr_g_ids)
 	    {
 	      _DO_BOX (inx, u->usr_g_ids)
-		{
-		  oid_t grp = (oid_t) (ptrlong) u->usr_g_ids[inx];
-		  flags = (long) (ptrlong) gethash ((void *) (ptrlong) grp, ht);
-		  if (flags & op)
-		    return 1;
-		}
+	      {
+		oid_t grp = (oid_t) (ptrlong) u->usr_g_ids[inx];
+		flags = (long) (ptrlong) gethash ((void *) (ptrlong) grp, ht);
+		if (flags & op)
+		  return 1;
+	      }
 	      END_DO_BOX;
 	    }
 	}
@@ -1913,8 +1887,7 @@ sec_user_read_groups (char *name)
 
   if (!user)
     return;
-  err = qr_quick_exec (read_groups_qr, bootstrap_cli, "", &lc, 1,
-      ":0", (ptrlong) user->usr_id, QRP_INT);
+  err = qr_quick_exec (read_groups_qr, bootstrap_cli, "", &lc, 1, ":0", (ptrlong) user->usr_id, QRP_INT);
   while (lc_next (lc))
     {
       oid_t gid = (oid_t) unbox (lc_nth_col (lc, 0));
@@ -1944,18 +1917,18 @@ sec_user_read_groups (char *name)
     {
       user->usr_g_ids = (ptrlong *) dk_alloc_box (elts * sizeof (caddr_t), DV_ARRAY_OF_LONG);
       DO_SET (oid_t, gid, &groups_set)
-	{
-          user_t *group = sec_id_to_user (gid);
-	  user->usr_g_ids[--elts] = gid;
-          if (NULL != group)
-            sec_usr_member_ids_add (group, user);
-          else
-            {
-              dk_set_push (&sec_pending_memberships_on_read, (void *)((ptrlong)(user->usr_id)));
-              dk_set_push (&sec_pending_memberships_on_read, (void *)((ptrlong)(gid)));
-            }
-	}
-      END_DO_SET();
+      {
+	user_t *group = sec_id_to_user (gid);
+	user->usr_g_ids[--elts] = gid;
+	if (NULL != group)
+	  sec_usr_member_ids_add (group, user);
+	else
+	  {
+	    dk_set_push (&sec_pending_memberships_on_read, (void *) ((ptrlong) (user->usr_id)));
+	    dk_set_push (&sec_pending_memberships_on_read, (void *) ((ptrlong) (gid)));
+	  }
+      }
+      END_DO_SET ();
     }
   else
     user->usr_g_ids = NULL;
@@ -1978,96 +1951,85 @@ sec_read_users (void)
       sec_users = id_str_hash_create (101);
       sec_user_by_id = hash_table_allocate (101);
 
-      read_users_qr = sql_compile_static (
-	  "select U_NAME, U_PASSWORD, U_GROUP, U_ID, U_DATA, U_ACCOUNT_DISABLED, U_SQL_ENABLE, U_IS_ROLE, U_DAV_ENABLE "
+      read_users_qr =
+	  sql_compile_static
+	  ("select U_NAME, U_PASSWORD, U_GROUP, U_ID, U_DATA, U_ACCOUNT_DISABLED, U_SQL_ENABLE, U_IS_ROLE, U_DAV_ENABLE "
 	  "from SYS_USERS", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
-      read_grants_qr = sql_compile_static (
-	"select G_USER, G_OP, G_OBJECT, G_COL "
-	"from SYS_GRANTS "
-	"where G_OBJECT like ?", cli, &err, 0);
+      read_grants_qr = sql_compile_static ("select G_USER, G_OP, G_OBJECT, G_COL "
+	  "from SYS_GRANTS " "where G_OBJECT like ?", cli, &err, 0);
 
-      read_tb_rls_qr = sql_compile_static (
-	"select RLSP_TABLE, RLSP_FUNC, RLSP_OP "
-	"from DB.DBA.SYS_RLS_POLICY "
-	"where RLSP_TABLE like ?", cli, &err, 0);
+      read_tb_rls_qr = sql_compile_static ("select RLSP_TABLE, RLSP_FUNC, RLSP_OP "
+	  "from DB.DBA.SYS_RLS_POLICY " "where RLSP_TABLE like ?", cli, &err, 0);
 
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
-      read_exec_grants_qr = sql_compile_static (
-	"select G_USER, G_OP, G_OBJECT, G_COL "
-	"from SYS_GRANTS "
-	"where G_OBJECT like ? AND G_OP = 32", cli, &err, 0);
-      PRINT_ERR(err);
+      read_exec_grants_qr = sql_compile_static ("select G_USER, G_OP, G_OBJECT, G_COL "
+	  "from SYS_GRANTS " "where G_OBJECT like ? AND G_OP = 32", cli, &err, 0);
+      PRINT_ERR (err);
 
-      set_user_qr = sql_compile_static (
-	  "insert replacing SYS_USERS (U_NAME, U_PASSWORD, U_ID, U_GROUP, U_ACCOUNT_DISABLED, U_IS_ROLE, U_SQL_ENABLE, U_DAV_ENABLE) "
+      set_user_qr =
+	  sql_compile_static
+	  ("insert replacing SYS_USERS (U_NAME, U_PASSWORD, U_ID, U_GROUP, U_ACCOUNT_DISABLED, U_IS_ROLE, U_SQL_ENABLE, U_DAV_ENABLE) "
 	  "values (?, ?, ?, ?, 0, 0, 1, case when ? = 'dba' then 1 else 0 end)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
-      upd_user_qr = sql_compile_static ("update SYS_USERS set U_PASSWORD = ?, U_GROUP = ? where U_NAME = ?",
-	  cli, &err, 0);
-      PRINT_ERR(err);
+      upd_user_qr = sql_compile_static ("update SYS_USERS set U_PASSWORD = ?, U_GROUP = ? where U_NAME = ?", cli, &err, 0);
+      PRINT_ERR (err);
 
-      set_g_id_qr = sql_compile_static (
-	  "update SYS_USERS set U_GROUP = ? where U_NAME = ?", cli, &err, 0);
-      PRINT_ERR(err);
+      set_g_id_qr = sql_compile_static ("update SYS_USERS set U_GROUP = ? where U_NAME = ?", cli, &err, 0);
+      PRINT_ERR (err);
 
-      add_g_id_qr = sql_compile_static (
-	  "insert replacing SYS_ROLE_GRANTS (GI_SUPER, GI_SUB) values (?, ?)", cli, &err, 0);
-      PRINT_ERR(err);
+      add_g_id_qr = sql_compile_static ("insert replacing SYS_ROLE_GRANTS (GI_SUPER, GI_SUB) values (?, ?)", cli, &err, 0);
+      PRINT_ERR (err);
 
-      del_g_id_qr = sql_compile_static (
-	  "delete from SYS_ROLE_GRANTS where GI_SUPER = ? and GI_SUB = ?", cli, &err, 0);
-      PRINT_ERR(err);
+      del_g_id_qr = sql_compile_static ("delete from SYS_ROLE_GRANTS where GI_SUPER = ? and GI_SUB = ?", cli, &err, 0);
+      PRINT_ERR (err);
 
-      last_id_qr = sql_compile_static (
-	  "select U_ID from SYS_USERS order by U_ID desc", cli, &err, 0);
-      PRINT_ERR(err);
+      last_id_qr = sql_compile_static ("select U_ID from SYS_USERS order by U_ID desc", cli, &err, 0);
+      PRINT_ERR (err);
 
-      grant_qr = sql_compile_static (
-	  "insert soft SYS_GRANTS (G_USER, G_OP, G_OBJECT, G_COL, G_GRANTOR) "
+      grant_qr = sql_compile_static ("insert soft SYS_GRANTS (G_USER, G_OP, G_OBJECT, G_COL, G_GRANTOR) "
 	  "values (?,?,?,?,?)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
       revoke_qr = sql_compile_static ("revoke_proc (?,?,?,?,?)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
       /* XXX: this is a some sort of a hack !!! */
-      null_users_qr = sql_compile_static (
-	  "update SYS_USERS set U_ID = 0, U_GROUP = 0 "
+      null_users_qr = sql_compile_static ("update SYS_USERS set U_ID = 0, U_GROUP = 0 "
 	  "where (U_ID is null or U_GROUP is null) and U_IS_ROLE = 0 and U_SQL_ENABLE = 1", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
-      delete_user_qr = sql_compile_static ("USER_DROP (?, ?)", cli, &err, 0); /* was del_user */
-      PRINT_ERR(err);
+      delete_user_qr = sql_compile_static ("USER_DROP (?, ?)", cli, &err, 0);	/* was del_user */
+      PRINT_ERR (err);
 
-      read_groups_qr = sql_compile_static (
-	  "select distinct GI_SUB as GI_SUB from SYS_ROLE_GRANTS where GI_SUPER = ?", cli, &err, 0);
-      PRINT_ERR(err);
+      read_groups_qr =
+	  sql_compile_static ("select distinct GI_SUB as GI_SUB from SYS_ROLE_GRANTS where GI_SUPER = ?", cli, &err, 0);
+      PRINT_ERR (err);
 
       user_grant_role_qr = sql_compile_static ("USER_GRANT_ROLE (?, ?, ?)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
       user_revoke_role_qr = sql_compile_static ("USER_REVOKE_ROLE (?, ?)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
       user_create_role_qr = sql_compile_static ("USER_ROLE_CREATE (?, 0)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
 
       user_drop_role_qr = sql_compile_static ("USER_ROLE_DROP (?)", cli, &err, 0);
-      PRINT_ERR(err);
+      PRINT_ERR (err);
     }
 
   /* separate txn for this.
      May fuck up on non-unique key in recovery of old databases */
   err = qr_quick_exec (null_users_qr, cli, "", NULL, 0);
-  PRINT_ERR(err);
+  PRINT_ERR (err);
   local_commit (bootstrap_cli);
 
   err = qr_quick_exec (read_users_qr, cli, "", &lc, 0);
-  PRINT_ERR(err);
+  PRINT_ERR (err);
   while (lc_next (lc))
     {
       caddr_t name = lc_nth_col (lc, 0);
@@ -2076,7 +2038,7 @@ sec_read_users (void)
       int is_sql = (int) unbox (lc_nth_col (lc, 6));
       int is_role = (int) unbox (lc_nth_col (lc, 7));
       int is_dav = (int) unbox (lc_nth_col (lc, 8));
-      if (is_dav && !is_sql) /* disable web accounts for SQL/ODBC login */
+      if (is_dav && !is_sql)	/* disable web accounts for SQL/ODBC login */
 	disabled = 1;
       if (!DV_STRINGP (pass))
 	{
@@ -2093,7 +2055,7 @@ sec_read_users (void)
       else
 	{
 #ifdef UPDATE_SYS_USERS_TO_ENCRYPTED
-	  caddr_t *set = (caddr_t *)dk_alloc_box (2 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	  caddr_t *set = (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 	  set[0] = box_string (name);
 	  set[1] = box_string (pass);
 	  dk_set_push (&users_to_set, (caddr_t) set);
@@ -2101,11 +2063,7 @@ sec_read_users (void)
 	  pass = box_string (pass);
 	}
       sec_make_dd_user (box_string (name), pass,
-	  (oid_t) unbox (lc_nth_col (lc, 2)),
-	  (oid_t) unbox (lc_nth_col (lc, 3)),
-	  disabled,
-	  is_sql,
-	  is_role);
+	  (oid_t) unbox (lc_nth_col (lc, 2)), (oid_t) unbox (lc_nth_col (lc, 3)), disabled, is_sql, is_role);
       sec_set_user_data (name, lc_nth_col (lc, 4));
       sec_user_read_groups (name);
     }
@@ -2137,23 +2095,23 @@ sec_read_users (void)
   user_t_nobody->usr_disabled = 1;
   user_t_nobody->usr_is_role = 0;
   user_t_nobody->usr_is_sql = 1;
-  if (!user_t_ws) /* this is a trick to have WS.WS. views compiled */
+  if (!user_t_ws)		/* this is a trick to have WS.WS. views compiled */
     user_t_ws = sec_new_user (NULL, box_string ("WS"), box_string ("WS"));
-  user_t_ws->usr_disabled = 1; /* make it disabled */
-  user_t_ws->usr_g_id = 0;         /* from DBA group*/
-  if (!user_t_public) /* this is a trick to have public as a role */
+  user_t_ws->usr_disabled = 1;	/* make it disabled */
+  user_t_ws->usr_g_id = 0;	/* from DBA group */
+  if (!user_t_public)		/* this is a trick to have public as a role */
     user_t_public = sec_new_user (NULL, box_string ("public"), box_string ("public"));
   user_t_public->usr_disabled = 1;
   user_t_public->usr_is_role = 1;
   user_t_public->usr_g_id = U_ID_PUBLIC;
   while (NULL != sec_pending_memberships_on_read)
     {
-      ptrlong gid = (ptrlong)dk_set_pop (&sec_pending_memberships_on_read);
-      ptrlong member_id = (ptrlong)dk_set_pop (&sec_pending_memberships_on_read);
+      ptrlong gid = (ptrlong) dk_set_pop (&sec_pending_memberships_on_read);
+      ptrlong member_id = (ptrlong) dk_set_pop (&sec_pending_memberships_on_read);
       user_t *grp = sec_id_to_user (gid);
       user_t *memb = sec_id_to_user (member_id);
       if ((NULL != grp) && (NULL != memb))
-        sec_usr_member_ids_add (grp, memb);
+	sec_usr_member_ids_add (grp, memb);
     }
   sec_initialized = 1;
   local_commit (bootstrap_cli);
@@ -2174,18 +2132,18 @@ sec_remove_user_struct (query_instance_t * qi, user_t * user, caddr_t uname)
   user_t **puser;
 
   id_hash_iterator (&it, sec_users);
-  while (hit_next (&it, (caddr_t *) &nuser, (caddr_t *) &puser))
+  while (hit_next (&it, (caddr_t *) & nuser, (caddr_t *) & puser))
     {
       if (puser && *puser && (*puser)->usr_id != user->usr_id)
 	{
 	  if ((*puser)->usr_g_id == user->usr_id)
-	    { /* if it's a other user's primary group set it to the user name */
+	    {			/* if it's a other user's primary group set it to the user name */
 	      sec_set_user_group (qi, (*puser)->usr_name, (*puser)->usr_name);
 	      id_hash_iterator (&it, sec_users);
 	      continue;
 	    }
 	  else if (sec_user_has_group (user->usr_id, (*puser)->usr_id))
-	    { /* if it's a other user's secondary group delete it */
+	    {			/* if it's a other user's secondary group delete it */
 	      sec_del_user_group (qi, (*puser)->usr_name, user->usr_name);
 	      id_hash_iterator (&it, sec_users);
 	      continue;
@@ -2212,8 +2170,8 @@ sec_delete_user (query_instance_t * qi, ST * tree)
   if (err != SQL_SUCCESS)
     sqlr_resignal (err);
 
-#if 0 /* these are in the USER_DROP PL function */
-  user = sec_name_to_user ((char *)tree->_.op.arg_1);
+#if 0				/* these are in the USER_DROP PL function */
+  user = sec_name_to_user ((char *) tree->_.op.arg_1);
 
   if (!user)
     sqlr_new_error ("28000", "SR153", "No user in delete user");
@@ -2225,11 +2183,11 @@ sec_delete_user (query_instance_t * qi, ST * tree)
 int
 sec_is_owner_ddl (query_instance_t * qi, ST * tree, oid_t g_id, oid_t u_id)
 {
-  char * obj = NULL;
+  char *obj = NULL;
   switch (tree->type)
     {
     case TABLE_DEF:
-      obj =tree->_.table_def.name;
+      obj = tree->_.table_def.name;
       break;
 
     case INDEX_DEF:
@@ -2239,7 +2197,7 @@ sec_is_owner_ddl (query_instance_t * qi, ST * tree, oid_t g_id, oid_t u_id)
       obj = tree->_.op.arg_1;
       break;
     case INDEX_DROP:
-      return 1; /* check later */
+      return 1;			/* check later */
     case DROP_COL:
     case TABLE_RENAME:
     case ADD_COLUMN:
@@ -2251,9 +2209,8 @@ sec_is_owner_ddl (query_instance_t * qi, ST * tree, oid_t g_id, oid_t u_id)
       break;
     case GRANT_STMT:
     case REVOKE_STMT:
-      if (tree->_.grant.ops && BOX_ELEMENTS (tree->_.grant.ops) == 1 &&
-	  ((ST **)tree->_.grant.ops)[0]->_.priv_op.op == GR_REXECUTE)
-	{ /* rexecute checked right here */
+      if (tree->_.grant.ops && BOX_ELEMENTS (tree->_.grant.ops) == 1 && ((ST **) tree->_.grant.ops)[0]->_.priv_op.op == GR_REXECUTE)
+	{			/* rexecute checked right here */
 	  if (sec_user_has_group (0, u_id))
 	    return 1;
 	  return 0;
@@ -2273,7 +2230,7 @@ void
 sec_check_ddl (query_instance_t * qi, ST * tree)
 {
   client_connection_t *cli = qi->qi_client;
-  user_t * usr;
+  user_t *usr;
 
   if (tree->type == SET_PASS_STMT)
     return;
@@ -2282,29 +2239,31 @@ sec_check_ddl (query_instance_t * qi, ST * tree)
   else if (ST_P (tree, UDT_DEF) || ST_P (tree, UDT_DROP))
     return;
 
-  if (!cli->cli_user ||
-      sec_user_has_group (0, cli->cli_user->usr_g_id))
+  if (!cli->cli_user || sec_user_has_group (0, cli->cli_user->usr_g_id))
     return;
   usr = cli->cli_user;
   if (sec_is_owner_ddl (qi, tree, usr->usr_g_id, usr->usr_id))
     return;
   else if (ST_P (tree, ADD_COLUMN) || ST_P (tree, MODIFY_COLUMN) ||
-      ST_P (tree, DROP_COL) || ST_P (tree, TABLE_RENAME) ||
-      ST_P (tree, TABLE_DROP))
+      ST_P (tree, DROP_COL) || ST_P (tree, TABLE_RENAME) || ST_P (tree, TABLE_DROP))
     {
       dbe_table_t *tb = qi_name_to_table (qi, tree->_.op.arg_1);
       if (!tb)
 	switch (tree->type)
 	  {
-	    case TABLE_DROP: sqlr_new_error ("42S02", "SR154", "No table or view in drop table");
-	    case DROP_COL: sqlr_new_error ("42S02", "SR155", "No table in alter table drop column");
-	    case TABLE_RENAME: sqlr_new_error ("42S02", "SR156", "No table in table rename");
-	    case ADD_COLUMN: sqlr_new_error ("42S02", "SR157", "No table in alter table add column");
-	    case MODIFY_COLUMN: sqlr_new_error ("42S02", "SR157", "No in table alter table modify column");
+	  case TABLE_DROP:
+	    sqlr_new_error ("42S02", "SR154", "No table or view in drop table");
+	  case DROP_COL:
+	    sqlr_new_error ("42S02", "SR155", "No table in alter table drop column");
+	  case TABLE_RENAME:
+	    sqlr_new_error ("42S02", "SR156", "No table in table rename");
+	  case ADD_COLUMN:
+	    sqlr_new_error ("42S02", "SR157", "No table in alter table add column");
+	  case MODIFY_COLUMN:
+	    sqlr_new_error ("42S02", "SR157", "No in table alter table modify column");
 	  }
     }
-  sqlr_new_error ("42000", "SR158",
-      "Permission denied. Must be owner of object or member of dba group.");
+  sqlr_new_error ("42000", "SR158", "Permission denied. Must be owner of object or member of dba group.");
 }
 
 oid_t
@@ -2333,7 +2292,7 @@ sec_bif_caller_is_dba (query_instance_t * qi)
 
 
 void
-sec_check_dba (query_instance_t * qi, const char * func)
+sec_check_dba (query_instance_t * qi, const char *func)
 {
   if (!sec_bif_caller_is_dba (qi))
     sqlr_new_error ("42000", "SR159", "Function %.300s restricted to dba group.", func);
@@ -2354,17 +2313,16 @@ sec_stmt_exec (query_instance_t * qi, ST * tree)
 	sqlr_new_error ("42000", "SR160", "Incorrect old password in set password");
       qi->qi_trx->lt_replicate = REPL_NO_LOG;
       QR_RESET_CTX_T (qi->qi_thread)
-	{
-	  sec_set_user (qi, cli->cli_user->usr_name, tree->_.op.arg_2, 1);
-	}
+      {
+	sec_set_user (qi, cli->cli_user->usr_name, tree->_.op.arg_2, 1);
+      }
       QR_RESET_CODE
-	{
-	  POP_QR_RESET;
-	  qi->qi_trx->lt_replicate = old_log;
-	  longjmp_splice (THREAD_CURRENT_THREAD->thr_reset_ctx, reset_code);
-	}
-      END_QR_RESET
-      qi->qi_trx->lt_replicate = old_log;
+      {
+	POP_QR_RESET;
+	qi->qi_trx->lt_replicate = old_log;
+	longjmp_splice (THREAD_CURRENT_THREAD->thr_reset_ctx, reset_code);
+      }
+      END_QR_RESET qi->qi_trx->lt_replicate = old_log;
 
       log_array = (caddr_t *) dk_alloc_box (6 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
       log_array[0] = box_string ("sec_set_user_struct (?, ?, ?, ?, ?)");
@@ -2379,57 +2337,57 @@ sec_stmt_exec (query_instance_t * qi, ST * tree)
     }
 
   QR_RESET_CTX_T (qi->qi_thread)
-    {
-      szBuffer[0] = 0;
-      switch (tree->type)
-	{
-	  case CREATE_USER_STMT:
-	      qi->qi_trx->lt_replicate = REPL_NO_LOG;
-	      sec_set_user (qi, tree->_.op.arg_1, tree->_.op.arg_1, 0);
-	      snprintf (szBuffer, sizeof (szBuffer), "CREATE USER %s", tree->_.op.arg_1);
-	      break;
-	  case SET_GROUP_STMT:
-	      qi->qi_trx->lt_replicate = REPL_NO_LOG;
-	      sec_set_user_group (qi, tree->_.op.arg_1, tree->_.op.arg_2);
-	      snprintf (szBuffer, sizeof (szBuffer), "SET USER GROUP %s %s", tree->_.op.arg_1, tree->_.op.arg_2);
-	      break;
-	  case REVOKE_STMT:
-	  case GRANT_STMT:
-	      sec_run_grant_revoke (qi, tree);
-	      break;
-	  case DELETE_USER_STMT:
-	      qi->qi_trx->lt_replicate = REPL_NO_LOG;
-	      sec_delete_user (qi, tree);
-	      snprintf (szBuffer, sizeof (szBuffer), "DELETE USER %s", tree->_.op.arg_1);
-	      break;
-	  case ADD_GROUP_STMT:
-	      qi->qi_trx->lt_replicate = REPL_NO_LOG;
-	      sec_add_user_group (qi, tree->_.op.arg_1, tree->_.op.arg_2);
-	      snprintf (szBuffer, sizeof (szBuffer), "ADD USER GROUP %s %s", tree->_.op.arg_1, tree->_.op.arg_2);
-	      break;
-	  case DELETE_GROUP_STMT:
-	      qi->qi_trx->lt_replicate = REPL_NO_LOG;
-	      sec_del_user_group (qi, tree->_.op.arg_1, tree->_.op.arg_2);
-	      snprintf (szBuffer, sizeof (szBuffer), "DELETE USER GROUP %s %s", tree->_.op.arg_1, tree->_.op.arg_2);
-	      break;
-	  case REVOKE_ROLE_STMT:  /* for these and below make log entry */
-	  case GRANT_ROLE_STMT:
-	      sec_run_grant_revoke_role (qi, tree);
-	      break;
-	  case CREATE_ROLE_STMT:
-	  case DROP_ROLE_STMT:
-	      sec_run_create_drop_role (qi, tree);
-	      break;
-	  default:
-	      sqlr_new_error ("42000", "SR161", "Unsupported security statement.");
-	}
-    }
+  {
+    szBuffer[0] = 0;
+    switch (tree->type)
+      {
+      case CREATE_USER_STMT:
+	qi->qi_trx->lt_replicate = REPL_NO_LOG;
+	sec_set_user (qi, tree->_.op.arg_1, tree->_.op.arg_1, 0);
+	snprintf (szBuffer, sizeof (szBuffer), "CREATE USER %s", tree->_.op.arg_1);
+	break;
+      case SET_GROUP_STMT:
+	qi->qi_trx->lt_replicate = REPL_NO_LOG;
+	sec_set_user_group (qi, tree->_.op.arg_1, tree->_.op.arg_2);
+	snprintf (szBuffer, sizeof (szBuffer), "SET USER GROUP %s %s", tree->_.op.arg_1, tree->_.op.arg_2);
+	break;
+      case REVOKE_STMT:
+      case GRANT_STMT:
+	sec_run_grant_revoke (qi, tree);
+	break;
+      case DELETE_USER_STMT:
+	qi->qi_trx->lt_replicate = REPL_NO_LOG;
+	sec_delete_user (qi, tree);
+	snprintf (szBuffer, sizeof (szBuffer), "DELETE USER %s", tree->_.op.arg_1);
+	break;
+      case ADD_GROUP_STMT:
+	qi->qi_trx->lt_replicate = REPL_NO_LOG;
+	sec_add_user_group (qi, tree->_.op.arg_1, tree->_.op.arg_2);
+	snprintf (szBuffer, sizeof (szBuffer), "ADD USER GROUP %s %s", tree->_.op.arg_1, tree->_.op.arg_2);
+	break;
+      case DELETE_GROUP_STMT:
+	qi->qi_trx->lt_replicate = REPL_NO_LOG;
+	sec_del_user_group (qi, tree->_.op.arg_1, tree->_.op.arg_2);
+	snprintf (szBuffer, sizeof (szBuffer), "DELETE USER GROUP %s %s", tree->_.op.arg_1, tree->_.op.arg_2);
+	break;
+      case REVOKE_ROLE_STMT:	/* for these and below make log entry */
+      case GRANT_ROLE_STMT:
+	sec_run_grant_revoke_role (qi, tree);
+	break;
+      case CREATE_ROLE_STMT:
+      case DROP_ROLE_STMT:
+	sec_run_create_drop_role (qi, tree);
+	break;
+      default:
+	sqlr_new_error ("42000", "SR161", "Unsupported security statement.");
+      }
+  }
   QR_RESET_CODE
-    {
-      POP_QR_RESET;
-      qi->qi_trx->lt_replicate = old_log;
-      longjmp_splice (qi->qi_thread->thr_reset_ctx, reset_code);
-    }
+  {
+    POP_QR_RESET;
+    qi->qi_trx->lt_replicate = old_log;
+    longjmp_splice (qi->qi_thread->thr_reset_ctx, reset_code);
+  }
   END_QR_RESET;
   qi->qi_trx->lt_replicate = old_log;
 
@@ -2441,7 +2399,7 @@ sec_stmt_exec (query_instance_t * qi, ST * tree)
     }
 }
 
-long cli_encryption_on_password = 0; /* digest */
+long cli_encryption_on_password = 0;	/* digest */
 static caddr_t caller_id_defaults = NULL;
 
 static void
@@ -2449,8 +2407,7 @@ sec_caller_id_defaults_init (void)
 {
   if (cli_encryption_on_password != -1)
     {
-      cdef_add_param ((caddr_t **) &caller_id_defaults,
-	  "SQL_ENCRYPTION_ON_PASSWORD", cli_encryption_on_password);
+      cdef_add_param ((caddr_t **) & caller_id_defaults, "SQL_ENCRYPTION_ON_PASSWORD", cli_encryption_on_password);
     }
   else
     caller_id_defaults = dk_alloc_box (0, DV_ARRAY_OF_POINTER);
@@ -2469,34 +2426,24 @@ void
 sec_init (void)
 {
   caddr_t err = NULL;
-  sec_call_login_hook_qr = sql_compile_static (
-      "DB.DBA.USER_CERT_LOGIN (?, ?, ?)", /* in UID, in digest, in secret */
-      bootstrap_cli,
-      &err,
-      SQLC_DEFAULT);
+  sec_call_login_hook_qr = sql_compile_static ("DB.DBA.USER_CERT_LOGIN (?, ?, ?)",	/* in UID, in digest, in secret */
+      bootstrap_cli, &err, SQLC_DEFAULT);
   if (err)
     {
       if (err != (caddr_t) SQL_NO_DATA_FOUND)
-	log_error ("Error compiling the DBEV_LOGIN call [%.5s] : %.200s",
-	    ERR_STATE (err),
-	    ERR_MESSAGE (err));
+	log_error ("Error compiling the DBEV_LOGIN call [%.5s] : %.200s", ERR_STATE (err), ERR_MESSAGE (err));
       else
 	log_error ("Error compiling the DBEV_LOGIN call : <NOT FOUND>");
       dk_free_tree (err);
     }
 
   err = NULL;
-  sec_call_find_user_qr = sql_compile_static (
-      "DB.DBA.USER_FIND (?)", /* in u_name */
-      bootstrap_cli,
-      &err,
-      SQLC_DEFAULT);
+  sec_call_find_user_qr = sql_compile_static ("DB.DBA.USER_FIND (?)",	/* in u_name */
+      bootstrap_cli, &err, SQLC_DEFAULT);
   if (err)
     {
       if (err != (caddr_t) SQL_NO_DATA_FOUND)
-	log_error ("Error compiling the USER_FIND call [%.5s] : %.200s",
-	    ERR_STATE (err),
-	    ERR_MESSAGE (err));
+	log_error ("Error compiling the USER_FIND call [%.5s] : %.200s", ERR_STATE (err), ERR_MESSAGE (err));
       else
 	log_error ("Error compiling the USER_FIND call : <NOT FOUND>");
       dk_free_tree (err);
@@ -2508,7 +2455,7 @@ sec_init (void)
 
 
 int
-sec_call_login_hook (caddr_t *puid, caddr_t digest, dk_session_t *ses, client_connection_t *cli)
+sec_call_login_hook (caddr_t * puid, caddr_t digest, dk_session_t * ses, client_connection_t * cli)
 {
   caddr_t err = NULL;
   local_cursor_t *lc;
@@ -2520,24 +2467,18 @@ sec_call_login_hook (caddr_t *puid, caddr_t digest, dk_session_t *ses, client_co
 
   if (!dbev_enable)
     return ret;
-  if (!sch_proc_def (isp_schema (NULL),
-	"DB.DBA.USER_CERT_LOGIN"))
+  if (!sch_proc_def (isp_schema (NULL), "DB.DBA.USER_CERT_LOGIN"))
     return ret;
 
   local_start_trx (cli);
   cli_set_start_times (cli);
   err = qr_quick_exec (sec_call_login_hook_qr, cli, NULL,
-      &lc, 3,
-      ":0", box_copy (uid), QRP_RAW,
-      ":1", box_copy (digest), QRP_RAW,
-      ":2", box_copy (ses->dks_peer_name), QRP_RAW);
+      &lc, 3, ":0", box_copy (uid), QRP_RAW, ":1", box_copy (digest), QRP_RAW, ":2", box_copy (ses->dks_peer_name), QRP_RAW);
 
   if (err)
     {
       if (err != (caddr_t) SQL_NO_DATA_FOUND)
-	log_error ("Error calling DB.DBA.DBEV_LOGIN [%.5s] : %.200s",
-	    ERR_STATE (err),
-	    ERR_MESSAGE (err));
+	log_error ("Error calling DB.DBA.DBEV_LOGIN [%.5s] : %.200s", ERR_STATE (err), ERR_MESSAGE (err));
       else
 	log_error ("Error calling DB.DBA.DBEV_LOGIN : <NOT FOUND>");
       dk_free_tree (err);
@@ -2548,7 +2489,7 @@ sec_call_login_hook (caddr_t *puid, caddr_t digest, dk_session_t *ses, client_co
       log_info ("DB.DBA.DBEV_LOGIN called, but no result returned");
       goto done;
     }
-  cli_ret = (caddr_t *)lc->lc_proc_ret;
+  cli_ret = (caddr_t *) lc->lc_proc_ret;
   ret = (int) unbox (cli_ret[1]);
   if (ret != PLLH_NO_AUTH && ret != PLLH_VALID && ret != PLLH_INVALID)
     {
@@ -2585,15 +2526,12 @@ sec_call_find_user_hook (caddr_t uname, dk_session_t * ses)
     return;
 
   local_start_trx (cli);
-  err = qr_quick_exec (sec_call_find_user_qr, cli, NULL,
-      NULL /*&lc*/, 1, ":0", box_dv_short_string (uname), QRP_RAW);
+  err = qr_quick_exec (sec_call_find_user_qr, cli, NULL, NULL /*&lc */ , 1, ":0", box_dv_short_string (uname), QRP_RAW);
 
   if (err)
     {
       if (err != (caddr_t) SQL_NO_DATA_FOUND)
-	log_error ("Error calling DB.DBA.USER_FIND [%.5s] : %.200s",
-	    ERR_STATE (err),
-	    ERR_MESSAGE (err));
+	log_error ("Error calling DB.DBA.USER_FIND [%.5s] : %.200s", ERR_STATE (err), ERR_MESSAGE (err));
       else
 	log_error ("Error calling DB.DBA.USER_FIND : <NOT FOUND>");
       dk_free_tree (err);
@@ -2612,7 +2550,7 @@ sec_rls_set (dbe_schema_t * sc, char *table, char *procedure, char *op, int is_g
     return;
   if (!op || strlen (op) < 1)
     return;
-  dk_free_box (tb->tb_rls_procs[TB_RLS_OP_TO_INX(*op)]);
+  dk_free_box (tb->tb_rls_procs[TB_RLS_OP_TO_INX (*op)]);
   tb->tb_rls_procs[TB_RLS_OP_TO_INX (*op)] = is_grant ? box_string (procedure) : NULL;
 }
 
@@ -2620,7 +2558,7 @@ sec_rls_set (dbe_schema_t * sc, char *table, char *procedure, char *op, int is_g
 caddr_t
 sec_read_tb_rls (client_connection_t * cli, query_instance_t * caller_qi, char *table)
 {
-  dbe_schema_t * sc;
+  dbe_schema_t *sc;
   caddr_t err = NULL;
   local_cursor_t *lc = NULL;
   sqlc_set_client (cli);
@@ -2640,14 +2578,12 @@ sec_read_tb_rls (client_connection_t * cli, query_instance_t * caller_qi, char *
 	sc = caller_qi->qi_trx->lt_pending_schema;
       else
 	sc = wi_inst.wi_schema;
-      err = qr_rec_exec (read_tb_rls_qr, cli, &lc, caller_qi, NULL, 1,
-			 ":0", table, QRP_STR);
+      err = qr_rec_exec (read_tb_rls_qr, cli, &lc, caller_qi, NULL, 1, ":0", table, QRP_STR);
     }
   else
     {
       sc = wi_inst.wi_schema;
-      err = qr_quick_exec (read_tb_rls_qr, cli, "", &lc, 1,
-			   ":0", table, QRP_STR);
+      err = qr_quick_exec (read_tb_rls_qr, cli, "", &lc, 1, ":0", table, QRP_STR);
     }
   if (err)
     {

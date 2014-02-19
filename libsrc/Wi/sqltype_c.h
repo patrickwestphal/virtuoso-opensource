@@ -116,7 +116,7 @@ typedef struct udt_parse_tree_s
     struct
     {
       caddr_t type;
-      UST* action;
+      UST *action;
     }
     alter;
 
@@ -160,8 +160,7 @@ void udt_alter_class_def (query_instance_t * qi, ST * tree);
 int sqlc_udt_is_udt_call (sql_comp_t * sc, char *name, dk_set_t * code,
     state_slot_t * ret, state_slot_t ** params, caddr_t ret_param, caddr_t fun_udt_name);
 int sqlc_udt_method_call (sql_comp_t * sc, char *name, dk_set_t * code,
-    state_slot_t * ret, state_slot_t ** params, caddr_t ret_param,
-    caddr_t type_name);
+    state_slot_t * ret, state_slot_t ** params, caddr_t ret_param, caddr_t type_name);
 
 int udt_is_udt_bif (bif_t bif);
 

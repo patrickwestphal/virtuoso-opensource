@@ -30,6 +30,8 @@
 #include "datesupp.h"
 
 
+
+
 /* ce_ <ce type> _ <ce content> _ <sets or range> _ <decode or filter.
   e.g. ce_vec_any_sets_lte, ce_dict_iri_range_decode
   ce_intd_date_range_gte, ce_rld_int_sets_decode
@@ -60,7 +62,7 @@ cpo_iri_int64 (col_pos_t * cpo, caddr_t val, dtp_t dtp_wanted, char *dtp_match)
 	  if (DV_LONG_INT == a_dtp)
 	    return LONG_REF_NA (dv + 1);
 	  if (DV_IRI_ID == a_dtp)
-	    return (int64)(uint32)LONG_REF_NA (dv + 1);
+	    return (int64) (uint32) LONG_REF_NA (dv + 1);
 	  return INT64_REF_NA (dv + 1);
 	}
       *dtp_match = 0;
@@ -91,11 +93,12 @@ cpo_match_after (col_pos_t * cpo, int target)
 }
 
 
+
 #define VEC_INX(array, inx) \
   (n_distinct <= 16 ? 0xf & (array[(inx) >> 1] >> (((inx) & 1) << 2)) : array[inx])
 
 #define CE_DICT_INT_FLOAT(value) \
-  if (CE_INTLIKE (flags)) {						\
+  if (CE_INTLIKE (flags)) { \
 	if (DV_SINGLE_FLOAT ==sp->sp_cl.cl_sqt.sqt_col_dtp) value = LONG_REF_NA (((db_buf_t)value) + 1); \
 	else if (DV_DOUBLE_FLOAT ==sp->sp_cl.cl_sqt.sqt_col_dtp) value = INT64_REF_NA (((db_buf_t)value) + 1); \
       } \
@@ -113,7 +116,7 @@ cpo_match_after (col_pos_t * cpo, int target)
 	  tmp[0] = DV_LONG_INT; \
 	  value = (int64)&tmp;	\
 	}  \
-      }
+    }
 
 
 
@@ -624,10 +627,10 @@ uint32 any_base = 0;
 #define CED_INT_OUT(i1, i2, off) \
   ((int64*)dc->dc_values)[dc->dc_n_values++] = off
 
-int 
+int
 ced_any_dc_check (col_pos_t * cpo, db_buf_t ce_first_val)
 {
-  data_col_t * dc = cpo->cpo_dc;
+  data_col_t *dc = cpo->cpo_dc;
   if (DV_DATETIME == dc->dc_sqt.sqt_dtp && DV_DATETIME == ce_first_val[0])
     return 1;
   if (DV_DATETIME == ce_first_val[0])
@@ -648,14 +651,14 @@ ced_any_dc_check (col_pos_t * cpo, db_buf_t ce_first_val)
 int
 ced_intlike_dc_check (col_pos_t * cpo, dtp_t flags)
 {
-  data_col_t * dc = cpo->cpo_dc;
+  data_col_t *dc = cpo->cpo_dc;
   if (((CE_IS_IRI & flags) ? DV_IRI_ID : DV_LONG_INT) == dtp_canonical[dc->dc_dtp])
     return 1;
   if (DV_ANY == dc->dc_sqt.sqt_col_dtp)
     {
       if (!dc->dc_n_values)
 	{
-	  dc_convert_empty (dc, (CE_IS_IRI &flags) ? DV_IRI_ID : DV_LONG_INT);
+	  dc_convert_empty (dc, (CE_IS_IRI & flags) ? DV_IRI_ID : DV_LONG_INT);
 	  return 1;
 	}
       else
@@ -667,7 +670,7 @@ ced_intlike_dc_check (col_pos_t * cpo, dtp_t flags)
 
 
 
-#define CE_NAME ce_intd_any_range_decode 
+#define CE_NAME ce_intd_any_range_decode
 #define IS_INTD_ANY 1
 #define CEINTD_RANGE
 #define CED_VARS CED_ANY_VARS
@@ -675,7 +678,7 @@ ced_intlike_dc_check (col_pos_t * cpo, dtp_t flags)
 #define CE_OUT(first_val,first_len,off) CED_ANY_OUT (first_val,first_len,off)
 #include "ceintddec.c"
 
-#define CE_NAME ce_intd_any_sets_decode 
+#define CE_NAME ce_intd_any_sets_decode
 #define IS_INTD_ANY 1
 #define CED_VARS CED_ANY_VARS
 #define CED_CHECK CED_ANY_CHECK
@@ -683,7 +686,7 @@ ced_intlike_dc_check (col_pos_t * cpo, dtp_t flags)
 #include "ceintddec.c"
 
 
-#define CE_NAME ce_bits_int_range_decode 
+#define CE_NAME ce_bits_int_range_decode
 #define CE_BITS_RANGE
 #define CED_CHECK if (!ced_intlike_dc_check (cpo, flags)) return 0;
 #define CED_VARS
@@ -691,7 +694,7 @@ ced_intlike_dc_check (col_pos_t * cpo, dtp_t flags)
 #include "cebitsdec.c"
 
 
-#define CE_NAME ce_bits_int_sets_decode 
+#define CE_NAME ce_bits_int_sets_decode
 #define CED_CHECK if (!ced_intlike_dc_check (cpo, flags)) return 0;
 #define CED_VARS
 #define CE_OUT(first_val, first_len, off) CED_INT_OUT (first_val, first_len, off)
@@ -717,8 +720,8 @@ int ce_hash_sets_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n
 void
 ce_hash_register ()
 {
-  dtp_t cets[] = { CE_RL, CE_BITS, CE_VEC, CE_DICT, CE_RL_DELTA, CE_INT_DELTA};
-  dtp_t dtps[] = {0, 16, 32, 48, 64, 80, 96};
+  dtp_t cets[] = { CE_RL, CE_BITS, CE_VEC, CE_DICT, CE_RL_DELTA, CE_INT_DELTA };
+  dtp_t dtps[] = { 0, 16, 32, 48, 64, 80, 96 };
   int i1, i2;
   for (i1 = 0; i1 < sizeof (cets); i1++)
     {
@@ -785,7 +788,7 @@ colin_init ()
 
   ce_op_decode = col_find_op (CE_DECODE);
   ce_op_hash = col_find_op (CMP_HASH_RANGE);
-  
+
 
 
   ce_op_register (CE_INT_DELTA | CET_ANY, CE_DECODE, 0, ce_intd_any_range_decode);

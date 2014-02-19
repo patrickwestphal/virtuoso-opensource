@@ -28,9 +28,9 @@
 #include "arith.h"
 #include "xmltree.h"
 #include "rdf_core.h"
-#include "http.h" /* For DKS_ESC_XXX constants */
-#include "date.h" /* For DT_TYPE_DATE and the like */
-#include "security.h" /* For sec_check_dba() */
+#include "http.h"		/* For DKS_ESC_XXX constants */
+#include "date.h"		/* For DT_TYPE_DATE and the like */
+#include "security.h"		/* For sec_check_dba() */
 
 
 void
@@ -55,7 +55,7 @@ bif_id2i_vec_ns (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_s
 {
   caddr_t err = NULL;
   QNCAST (query_instance_t, qi, qst);
-  query_t * id2i = sch_proc_exact_def (wi_inst.wi_schema, "DB.DBA.ID_TO_IRI_VEC_NS");
+  query_t *id2i = sch_proc_exact_def (wi_inst.wi_schema, "DB.DBA.ID_TO_IRI_VEC_NS");
   if (!id2i)
     sqlr_new_error ("42001", "VEC..", "id to iri vectored is not defined");
   if (id2i->qr_to_recompile)
@@ -216,33 +216,33 @@ dc_append_rb (data_col_t * dc, caddr_t data)
   else
     {
       int len = rb_serial_complete_len (data);
-  dk_session_t sesn, *ses = &sesn;
+      dk_session_t sesn, *ses = &sesn;
 #ifdef RB_DEBUG
       dk_session_t *ck = strses_allocate ();
 #endif
-  scheduler_io_data_t io;
+      scheduler_io_data_t io;
 
       if (len >= MAX_READ_STRING)
 	RB_SER_ERR ("*** box to large to store in any type dc");
 
       dc_reserve_bytes (dc, len);
       ROW_OUT_SES_2 (sesn, ((db_buf_t *) dc->dc_values)[dc->dc_n_values - 1], len);
-  SESSION_SCH_DATA (ses) = &io;
-  memset (SESSION_SCH_DATA (ses), 0, sizeof (scheduler_io_data_t));
+      SESSION_SCH_DATA (ses) = &io;
+      memset (SESSION_SCH_DATA (ses), 0, sizeof (scheduler_io_data_t));
       sesn.dks_out_fill = 0;
 
-  CATCH_WRITE_FAIL (ses)
-  {
-    rb_serialize_complete (data, &sesn);
+      CATCH_WRITE_FAIL (ses)
+      {
+	rb_serialize_complete (data, &sesn);
 #ifdef RB_DEBUG
 	rb_serialize_complete (data, ck);
 #endif
-  }
-  FAILED
-  {
-    RB_SER_ERR ("*** error storing RB in any type dc");
-  }
-  END_WRITE_FAIL (ses);
+      }
+      FAILED
+      {
+	RB_SER_ERR ("*** error storing RB in any type dc");
+      }
+      END_WRITE_FAIL (ses);
 #ifdef RB_DEBUG
       if (len != strses_length (ck))
 	GPF_T;
@@ -273,9 +273,9 @@ dc_rb_id (data_col_t * dc, int inx)
     return INT64_REF_NA (place + 1);
   else if (DV_RDF == place[0])
     {
-      rdf_box_t * rb = (rdf_box_t*)box_deserialize_string (place, INT32_MAX, 0);
+      rdf_box_t *rb = (rdf_box_t *) box_deserialize_string (place, INT32_MAX, 0);
       int64 id = rb->rb_ro_id;
-      dk_free_box ((caddr_t)rb);
+      dk_free_box ((caddr_t) rb);
       return id;
     }
   else
@@ -437,14 +437,14 @@ void
 dc_no_empty_marks (data_col_t * dc, db_buf_t empty_mark)
 {
   /* the empty mark is an illegal value in a boxes dc.  sset them to 0 before signalling anything.
-  * For a dc of anies it is a statis dv db null which is ok whereas null pointer is not */
+   * For a dc of anies it is a statis dv db null which is ok whereas null pointer is not */
   static dtp_t dv_null = DV_DB_NULL;
   int inx;
   db_buf_t subst_empty = (DCT_BOXES & dc->dc_type) ? NULL : &dv_null;
   for (inx = 0; inx < dc->dc_n_values; inx++)
     {
       if (empty_mark == ((db_buf_t *) dc->dc_values)[inx])
-	((db_buf_t *)dc->dc_values)[inx] = subst_empty;
+	((db_buf_t *) dc->dc_values)[inx] = subst_empty;
     }
 }
 
@@ -530,7 +530,7 @@ bif_ro2sq_vec_1 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_s
 	rb_sets[rb_fill++] = set;
 	rb_bits[set >> 3] |= 1 << (set & 7);
 	((db_buf_t *) dc->dc_values)[set] = empty_mark;
-	  dc->dc_n_values = set + 1;
+	dc->dc_n_values = set + 1;
       }
     else if ((DV_IRI_ID == dtp || DV_IRI_ID_8 == dtp) && !no_iris)
       {
@@ -541,7 +541,7 @@ bif_ro2sq_vec_1 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_s
 	  }
 	iri_bits[set >> 3] |= 1 << (set & 7);
 	((db_buf_t *) dc->dc_values)[set] = empty_mark;
-	  dc->dc_n_values = set + 1;
+	dc->dc_n_values = set + 1;
       }
     else
       {
@@ -561,7 +561,7 @@ bif_ro2sq_vec_1 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_s
       if (err)
 	{
 	  dc_no_empty_marks (dc, empty_mark);
-	sqlr_resignal (err);
+	  sqlr_resignal (err);
 	}
       while (lc_next (&lc))
 	{
@@ -586,14 +586,14 @@ bif_ro2sq_vec_1 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_s
 		  dc_no_empty_marks (dc, empty_mark);
 		  bing ();
 		}
-	}
+	    }
 	}
       if (lc.lc_inst)
 	qi_free (lc.lc_inst);
       if (lc.lc_error)
 	{
 	  dc_no_empty_marks (dc, empty_mark);
-	sqlr_resignal (lc.lc_error);
+	  sqlr_resignal (lc.lc_error);
 	}
     }
   if (iri_bits)
@@ -620,10 +620,10 @@ bif_ro2lo_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slo
 }
 
 void
-rbs_string_range (dtp_t ** buf, int * len, int * is_string)
+rbs_string_range (dtp_t ** buf, int *len, int *is_string)
 {
   /* the partition hash of a any type col with an rdf box value does not depend on all bytes but only the value serialization, not the flags and ro ids */
-  dtp_t * rbs = *buf;
+  dtp_t *rbs = *buf;
   dtp_t flags = rbs[1];
   if (RBS_EXT_TYPE & flags)
     {
@@ -658,7 +658,7 @@ void
 bif_str_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret)
 {
   QNCAST (QI, qi, qst);
-  data_col_t * dc;
+  data_col_t *dc;
   db_buf_t set_mask = qi->qi_set_mask;
   int set, n_sets = qi->qi_n_sets, first_set = 0;
   state_slot_t ssl_tmp;
@@ -669,58 +669,58 @@ bif_str_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_
   dc = QST_BOX (data_col_t *, qst, ret->ssl_index);
   if (dc->dc_dtp != DV_ANY)
     dc_heterogenous (dc);
-  SET_LOOP 
-    {
-      db_buf_t dv = ((db_buf_t*)dc->dc_values)[set];
-      switch (*dv)
+  SET_LOOP
+  {
+    db_buf_t dv = ((db_buf_t *) dc->dc_values)[set];
+    switch (*dv)
+      {
+      case DV_BOX_FLAGS:
+	((db_buf_t *) dc->dc_values)[set] += 5;
+	break;
+      case DV_RDF:
 	{
-	case DV_BOX_FLAGS:
-	  ((db_buf_t*)dc->dc_values)[set] += 5;
+	  int len, is_string = 0;
+	  rbs_string_range (&dv, &len, &is_string);
+	  if (!is_string)
+	    goto general;
+	  if (len < 256)
+	    {
+	      dv[-1] = len;
+	      dv[-2] = DV_SHORT_STRING_SERIAL;
+	      ((db_buf_t *) dc->dc_values)[set] = dv - 2;
+	    }
+	  else
+	    ((db_buf_t *) dc->dc_values)[set] = dv - 5;
 	  break;
-	case DV_RDF:
-	  {
-	    int len, is_string = 0;
-	    rbs_string_range (&dv, &len, &is_string);
-	    if (!is_string)
-	      goto general;
-	    if (len < 256)
-	      {
-		dv[-1] = len;
-		dv[-2] = DV_SHORT_STRING_SERIAL;
-		((db_buf_t*)dc->dc_values)[set] = dv - 2;
-	      }
-	    else
-	      ((db_buf_t *)dc->dc_values)[set] = dv - 5;
-	    break;
-	  }
-	case DV_STRING:
-	case DV_DB_NULL:
-	  break;
-	default:
-	  {
-	    caddr_t err;
-	    caddr_t box;
-	    caddr_t cast;
-	  general:
-	    err = NULL;
-	    box = qst_get (qst, ret);
-	    cast = box_cast_to (qst, box, DV_TYPE_OF (box), DV_STRING, 0, 0, &err);
-	    if (err)
-	      {
-		dk_free_tree (err);
-		dc_set_null (dc, set);
-	      }
-	    else
-	      {
-		int save = dc->dc_n_values;
-		dc->dc_n_values = set;
-		dc_append_box (dc, cast);
-		dc->dc_n_values = save;
-		dk_free_tree (cast);
-	      }
-	  }
 	}
-    }
+      case DV_STRING:
+      case DV_DB_NULL:
+	break;
+      default:
+	{
+	  caddr_t err;
+	  caddr_t box;
+	  caddr_t cast;
+	general:
+	  err = NULL;
+	  box = qst_get (qst, ret);
+	  cast = box_cast_to (qst, box, DV_TYPE_OF (box), DV_STRING, 0, 0, &err);
+	  if (err)
+	    {
+	      dk_free_tree (err);
+	      dc_set_null (dc, set);
+	    }
+	  else
+	    {
+	      int save = dc->dc_n_values;
+	      dc->dc_n_values = set;
+	      dc_append_box (dc, cast);
+	      dc->dc_n_values = save;
+	      dk_free_tree (cast);
+	    }
+	}
+      }
+  }
   END_SET_LOOP;
 }
 
@@ -728,14 +728,14 @@ bif_str_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_
 void
 bif_iri_to_id_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret)
 {
-  static char * cl_op_name = "IRI_TO_ID_1";
-  static char * op_name = "L_IRI_TO_ID";
+  static char *cl_op_name = "IRI_TO_ID_1";
+  static char *op_name = "L_IRI_TO_ID";
   QNCAST (QI, qi, qst);
   db_buf_t set_mask = qi->qi_set_mask;
   int set, n_sets = qi->qi_n_sets, first_set = 0;
   int n_args = BOX_ELEMENTS (args);
-  cl_req_group_t * clrg;
-  cucurbit_t * cu;
+  cl_req_group_t *clrg;
+  cucurbit_t *cu;
   int is_cl = CL_RUN_CLUSTER == cl_run_local_only;
   if (1 != n_args)
     {
@@ -748,32 +748,32 @@ bif_iri_to_id_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state
   cu->cu_qst = qst;
   mp_comment (clrg->clrg_pool, "vec_iri ", "");
   QR_RESET_CTX
+  {
+    SET_LOOP
     {
-      SET_LOOP 
-	{
-	  cu_ssl_row (cu, qst, args, 0);
-	}
-      END_SET_LOOP;
-      if (!is_cl)
-	{
-	  cu_rl_local_exec (cu);
-	}
-      first_set = 0;
-      SET_LOOP
-	{
-	  caddr_t * r = cu_next (clrg->clrg_cu, qi, 0);
-	  qst_set_over (qst, ret, r[2]);
-	}
-      END_SET_LOOP;
-      if (is_cl)
-	cu_next (clrg->clrg_cu, qi, 1);
+      cu_ssl_row (cu, qst, args, 0);
     }
+    END_SET_LOOP;
+    if (!is_cl)
+      {
+	cu_rl_local_exec (cu);
+      }
+    first_set = 0;
+    SET_LOOP
+    {
+      caddr_t *r = cu_next (clrg->clrg_cu, qi, 0);
+      qst_set_over (qst, ret, r[2]);
+    }
+    END_SET_LOOP;
+    if (is_cl)
+      cu_next (clrg->clrg_cu, qi, 1);
+  }
   QR_RESET_CODE
-    {
-      POP_QR_RESET;
-      dk_free_box ((caddr_t)clrg);
-      longjmp_splice (__self->thr_reset_ctx, reset_code);
-    }
+  {
+    POP_QR_RESET;
+    dk_free_box ((caddr_t) clrg);
+    longjmp_splice (__self->thr_reset_ctx, reset_code);
+  }
   END_QR_RESET;
   dk_free_box ((caddr_t) clrg);
 }

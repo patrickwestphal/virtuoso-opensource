@@ -101,7 +101,7 @@ lisp_read (lisp_stream_t * stream)
 	  return (interpret_token (token, token_fill));
 	}
     }
-/*  GPF_T;	*/		/* Can't pass through here */
+  /*  GPF_T;	*//* Can't pass through here */
 }
 
 
@@ -117,8 +117,7 @@ interpret_token (char *token, int length)
     {
       return (box_num (l_tmp));
     }
-  if (1 == sscanf (token, "%f", &f_tmp)
-      && !strstr (token, "INF"))
+  if (1 == sscanf (token, "%f", &f_tmp) && !strstr (token, "INF"))
     {
       return (box_float (f_tmp));
     }
@@ -139,7 +138,7 @@ list_reader (lisp_stream_t * stream, char ch)
       if (thing == OBJ_CLOSE_PAR)
 	{
 	  caddr_t res = dk_alloc_box (fill * sizeof (caddr_t),
-				      DV_ARRAY_OF_POINTER);
+	      DV_ARRAY_OF_POINTER);
 	  memcpy (res, elems, fill * sizeof (caddr_t));
 	  return res;
 	};
@@ -207,8 +206,8 @@ void
 lisp_throw (int ctx, int code)
 {
   jmp_buf_splice *j = (jmp_buf_splice *) THR_ATTR (THREAD_CURRENT_THREAD, ctx);
-  if (NULL == j)	/* IvAn/CreateXmlView/000904 Bug fixed: if(!ctx) is wrong */
-#if 1 /* GK : otherwise that's an endless loop */
+  if (NULL == j)		/* IvAn/CreateXmlView/000904 Bug fixed: if(!ctx) is wrong */
+#if 1				/* GK : otherwise that's an endless loop */
     GPF_T1 ("lisp_throw: no catcher");
 #else
     lisp_error ("lisp_throw: no catcher for %d", ctx);
@@ -225,8 +224,8 @@ lisp_throw_thr (int ctx, int code, du_thread_t * thr)
   if (thr != THREAD_CURRENT_THREAD)
     GPF_T1 ("Bad thread in lisp_throw_thr");
 #endif
-  if (NULL == j)	/* IvAn/CreateXmlView/000904 Bug fixed: if(!ctx) is wrong */
-#if 1 /* GK : otherwise that's an endless loop */
+  if (NULL == j)		/* IvAn/CreateXmlView/000904 Bug fixed: if(!ctx) is wrong */
+#if 1				/* GK : otherwise that's an endless loop */
     GPF_T1 ("lisp_throw_thr: no catcher");
 #else
     lisp_error ("lisp_throw_thr: no catcher for %d", ctx);
@@ -320,7 +319,7 @@ box_tree_check_1 (caddr_t tree, int print)
 #endif
   if (print)
     printf (" %d= ", tree_fill - 1);
-  if (IS_NONLEAF_DTP(box_tag (tree)))
+  if (IS_NONLEAF_DTP (box_tag (tree)))
     {
       if (print)
 	printf ("(");
@@ -355,4 +354,3 @@ box_tree_check (caddr_t tree)
     GPF_T1 ("Tree cycle check overflow");
 }
 #endif
-

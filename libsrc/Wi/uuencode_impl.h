@@ -54,14 +54,14 @@
 
 struct uu_ctx_s
 {
-  int		uuc_state;
-  int		uuc_enctype;
-  int		uuc_boundary_status;
-  caddr_t	uuc_boundary;
-  caddr_t	uuc_errmsg;
-  int		uuc_bug_count;
-  int		uuc_trail_len;
-  unsigned char	uuc_trail[5];
+  int uuc_state;
+  int uuc_enctype;
+  int uuc_boundary_status;
+  caddr_t uuc_boundary;
+  caddr_t uuc_errmsg;
+  int uuc_bug_count;
+  int uuc_trail_len;
+  unsigned char uuc_trail[5];
 };
 
 #define UUSTATE_BEGIN		(1)
@@ -73,7 +73,7 @@ typedef struct uu_ctx_s uu_ctx_t;
 
 /*! \brief Initializes internal translation tables.
 Should be called once before any use of UU functionality */
-extern void uu_initialize_tables(void);
+extern void uu_initialize_tables (void);
 
 /*! Creates an array of sections with encoded text of \c input, no more than
 \c maxlinespersection lines in every section
@@ -81,8 +81,7 @@ extern void uu_initialize_tables(void);
 using encoding \c uuenctype.
 Only UUENCTYPE_NATIVE, UUENCTYPE_XX and UUENCTYPE_BASE64 are supported.
 \c maxlinespersection should be positive and less than 120000. */
-void uu_encode_string_session (caddr_t * out_sections, dk_session_t * input,
-    int uuenctype, int maxlinespersection);
+void uu_encode_string_session (caddr_t * out_sections, dk_session_t * input, int uuenctype, int maxlinespersection);
 
 /*! Creates an array of sections with encoded text of \c input, no more than
 \c maxlinespersection lines in every section
@@ -90,9 +89,7 @@ void uu_encode_string_session (caddr_t * out_sections, dk_session_t * input,
 using encoding \c uuenctype.
 Only UUENCTYPE_NATIVE, UUENCTYPE_XX and UUENCTYPE_BASE64 are supported.
 \c maxlinespersection should be positive and less than 120000. */
-void
-uu_encode_string (caddr_t * out_sections, caddr_t input,
-    int uuenctype, int maxlinespersection);
+void uu_encode_string (caddr_t * out_sections, caddr_t input, int uuenctype, int maxlinespersection);
 
 /*! Returns type of string's encoding.
 \c enctype is UUENCTYPE_UNKNOWN if we are still searching for encoded data,
@@ -103,11 +100,10 @@ int uu_validate_encoding (unsigned char *ptr, int encoding, int *bhflag, int *is
 returning new box with decoded context as \c out[0].
 It changes \c ctx to reflect the final status of decoding and
 maybe to save error message. */
-typedef void uu_decode_t (uu_ctx_t *ctx, caddr_t *out, caddr_t input);
+typedef void uu_decode_t (uu_ctx_t * ctx, caddr_t * out, caddr_t input);
 
 extern uu_decode_t uu_decode_mime_qp;
 extern uu_decode_t uu_decode_plaintext;
 extern uu_decode_t uu_decode_part;
 
 #endif /* _UUENCODE_IMPL_H */
-

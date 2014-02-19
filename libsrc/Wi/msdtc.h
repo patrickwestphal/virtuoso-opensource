@@ -32,19 +32,17 @@
 
 /* completely stolen from hosting.h. thanks, George :) */
 
-typedef void (*typeof__mts_get_trx_cookie) (void * con, void *i_trx, void **cookie,
-    unsigned long *cookie_len ) ;
-typedef void* (*typeof__mts_bin_encode) (void *bin_array, unsigned long bin_array_len);
+typedef void (*typeof__mts_get_trx_cookie) (void *con, void *i_trx, void **cookie, unsigned long *cookie_len);
+typedef void *(*typeof__mts_bin_encode) (void *bin_array, unsigned long bin_array_len);
 
-typedef int (*typeof__mts_bin_decode) (const char *encoded_str, void **array,
-    unsigned long *len);
+typedef int (*typeof__mts_bin_decode) (const char *encoded_str, void **array, unsigned long *len);
 typedef void (*typeof__mts_client_init) ();
 
 
-typedef void (*typeof__mts_release_trx)(void * itran);
-typedef int (*typeof__mts_recover) (void * recovery_data);
+typedef void (*typeof__mts_release_trx) (void *itran);
+typedef int (*typeof__mts_recover) (void *recovery_data);
 typedef void (*typeof__mts_bif_init) ();
-typedef void * (*typeof__mts_trx_allocate)();
+typedef void *(*typeof__mts_trx_allocate) ();
 
 
 
@@ -79,7 +77,7 @@ typedef struct msdtc_version_s
 extern int vd_use_mts;
 
 #ifndef _USRDLL
-extern msdtc_version_t * msdtc_plugin;
+extern msdtc_version_t *msdtc_plugin;
 #define MSDTC_IS_LOADED (msdtc_plugin)
 
 #define mts_get_trx_cookie (msdtc_plugin->hv_get_trx_cookie)
@@ -92,9 +90,7 @@ extern msdtc_version_t * msdtc_plugin;
 #define mts_trx_allocate (msdtc_plugin->hv_trx_allocate)
 #endif
 
-void
-export_mts_get_trx_cookie (void * _con, void *itrx, void ** cookie,
-    unsigned long *cookie_len);
+void export_mts_get_trx_cookie (void *_con, void *itrx, void **cookie, unsigned long *cookie_len);
 
 #ifndef EXE_IMPORT
 #ifdef NO_IMPORT

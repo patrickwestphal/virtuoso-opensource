@@ -74,12 +74,10 @@ cookie_t;
 HRESULT mts_init_export_factory ();
 HRESULT mts_create_export ();
 
-int export_mts_bin_decode (const char *encoded_str, void **array,
-    unsigned long *len);
+int export_mts_bin_decode (const char *encoded_str, void **array, unsigned long *len);
 
 typedef HRESULT (*funcGetDtc) (char *i_pszHost, char *i_pszTmName,
-    REFIID i_riid, DWORD i_dwReserved1, WORD i_wcbReserved2,
-    void *i_pvReserved2, void **o_ppvObject);
+    REFIID i_riid, DWORD i_dwReserved1, WORD i_wcbReserved2, void *i_pvReserved2, void **o_ppvObject);
 
 #ifdef NO_IMPORT
 funcGetDtc get_dtc = 0;
@@ -143,16 +141,13 @@ mts_get_remote_rmcookie (cli_connection_t * con, cookie_t ** rmcookie)
       mutex_enter (rmcookie_hash_mutex);
       if (!rmcookie_hash)
 	{
-	  rmcookie_hash =
-	      id_hash_allocate (1024, sizeof (caddr_t), sizeof (cookie_t),
-	      strhash, strhashcmp);
+	  rmcookie_hash = id_hash_allocate (1024, sizeof (caddr_t), sizeof (cookie_t), strhash, strhashcmp);
 	}
       mutex_leave (rmcookie_hash_mutex);
     }
 
   mutex_enter (rmcookie_hash_mutex);
-  *rmcookie =
-      (cookie_t *) id_hash_get (rmcookie_hash, (char *) &con->con_dsn);
+  *rmcookie = (cookie_t *) id_hash_get (rmcookie_hash, (char *) &con->con_dsn);
   mutex_leave (rmcookie_hash_mutex);
 
   if (!*rmcookie)
@@ -166,8 +161,7 @@ mts_get_remote_rmcookie (cli_connection_t * con, cookie_t ** rmcookie)
 	    {
 	      SQLLEN cols;
 	      caddr_t cookie_enc = dk_alloc (COOKIE_LEN_ENC);
-	      rc = SQLBindCol (stmt, 1, SQL_C_CHAR, cookie_enc,
-		  COOKIE_LEN_ENC, &cols);
+	      rc = SQLBindCol (stmt, 1, SQL_C_CHAR, cookie_enc, COOKIE_LEN_ENC, &cols);
 	      if (SQL_SUCCESS == rc)
 		{
 		  rc = SQLFetch (stmt);
@@ -175,19 +169,16 @@ mts_get_remote_rmcookie (cli_connection_t * con, cookie_t ** rmcookie)
 		    {
 		      *rmcookie = dk_alloc (sizeof (cookie_t));
 		      memset (*rmcookie, 0, sizeof (cookie_t));
-		      export_mts_bin_decode (cookie_enc,
-			  &(*rmcookie)->cookie, &(*rmcookie)->cookie_len);
+		      export_mts_bin_decode (cookie_enc, &(*rmcookie)->cookie, &(*rmcookie)->cookie_len);
 		      if ((*rmcookie)->cookie)
 			{
 			  /* GK: the key must be boxed as it can survive the close/open on the same DSN */
-			  caddr_t boxed_key =
-			      box_dv_short_string (con->con_dsn);
+			  caddr_t boxed_key = box_dv_short_string (con->con_dsn);
 			  mts_init_export_factory ();
 			  mts_create_export (*rmcookie);
 
 			  mutex_enter (rmcookie_hash_mutex);
-			  id_hash_set (rmcookie_hash,
-			      (caddr_t) & boxed_key, (caddr_t) * rmcookie);
+			  id_hash_set (rmcookie_hash, (caddr_t) & boxed_key, (caddr_t) * rmcookie);
 			  mutex_leave (rmcookie_hash_mutex);
 			}
 		      else
@@ -211,8 +202,7 @@ mts_init_export_factory ()
   HRESULT hr = 0;
   if (!export_factory && (NULL != get_dtc))
     {
-      hr = get_dtc (0, 0,
-	  (REFIID) & IID_ITransactionExportFactory, 0, 0, 0, &export_factory);
+      hr = get_dtc (0, 0, (REFIID) & IID_ITransactionExportFactory, 0, 0, 0, &export_factory);
       MTSC_ASSERT (hr, "Init transaction export factory");
     }
   return hr;
@@ -234,8 +224,7 @@ mts_create_export (cookie_t * rmcookie)
 
 
 void
-export_mts_get_trx_cookie (void *_con, void *itrx, void **_cookie,
-    unsigned long *cookie_len)
+export_mts_get_trx_cookie (void *_con, void *itrx, void **_cookie, unsigned long *cookie_len)
 {
   caddr_t *cookie = (caddr_t *) _cookie;
   cookie_t *rm_cookie;
@@ -254,8 +243,7 @@ export_mts_get_trx_cookie (void *_con, void *itrx, void **_cookie,
 
       *cookie = dk_alloc (*cookie_len);
 
-      hr = rm_cookie->export->lpVtbl->GetTransactionCookie (rm_cookie->export,
-	  (IUnknown *) itrx, *cookie_len, *cookie, &len_used);
+      hr = rm_cookie->export->lpVtbl->GetTransactionCookie (rm_cookie->export, (IUnknown *) itrx, *cookie_len, *cookie, &len_used);
       MTSC_ASSERT (hr, "Get transaction cookie");
 
       return;
@@ -280,8 +268,7 @@ export_mts_bin_encode (void *bin_array, unsigned long bin_array_len)
 }
 
 int
-export_mts_bin_decode (const char *encoded_str, void **array,
-    unsigned long *len)
+export_mts_bin_decode (const char *encoded_str, void **array, unsigned long *len)
 {
   int str_len = (int) strlen (encoded_str);
   unsigned char *bin_array;

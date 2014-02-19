@@ -113,7 +113,7 @@ __dbf_set ('dc_batch_sz', 10000);
 
 SPARQL PREFIX ex: <http://example.org/> PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> INSERT DATA INTO <http://test.org> {ex:p02 geo:geometry "POINT(25.466665 35.15)"^^virtrdf:Geometry};
 SPARQL PREFIX ex: <http://example.org/> PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> INSERT DATA INTO <http://test.org> {ex:p01 geo:geometry "POINT(25.4666665 35.15)"^^virtrdf:Geometry};
-SPARQL PREFIX ex: <http://example.org/> PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> SELECT ?s1 ?s2 FROM <http://test.org> WHERE {?s1 geo:geometry ?g1. ?s2 geo:geometry ?g2. FILTER(bif:st_intersects(?g1, ?g2))};
+SPARQL PREFIX ex: <http://example.org/> PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> SELECT ?s1 ?s2 FROM <http://test.org> WHERE {?s1 geo:geometry ?g1. ?s2 geo:geometry ?g2. FILTER(bif:st_intersects(?g1, ?g2, 0.001))};
 
 echo both $if $equ $rowcnt 4 "PASSED" "***FAILED";
 echo both ": in st_intersects\n";

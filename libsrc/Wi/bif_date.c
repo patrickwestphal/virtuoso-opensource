@@ -88,7 +88,7 @@ dt_print_to_buffer (char *buf, caddr_t arg, int mode)
   TIMESTAMP_STRUCT ts;
   if (0 == ((DT_PRINT_MODE_YMD | DT_PRINT_MODE_HMS) & mode))
     mode |= ((DT_TYPE_TIME == arg_dt_type) ? DT_PRINT_MODE_HMS :
-      ((DT_TYPE_DATE == arg_dt_type) ? DT_PRINT_MODE_YMD : (DT_PRINT_MODE_YMD | DT_PRINT_MODE_HMS)) );
+	((DT_TYPE_DATE == arg_dt_type) ? DT_PRINT_MODE_YMD : (DT_PRINT_MODE_YMD | DT_PRINT_MODE_HMS)));
   if ((DT_PRINT_MODE_YMD & mode) && (DT_TYPE_TIME == arg_dt_type))
     sqlr_new_error ("22023", "SR592", "Bit 4 in print mode requires DATE or DATETIME argument, not TIME");
   if ((DT_PRINT_MODE_HMS & mode) && (DT_TYPE_DATE == arg_dt_type))
@@ -102,14 +102,14 @@ dt_print_to_buffer (char *buf, caddr_t arg, int mode)
     {
       res += sprintf (buf + res, "%02d:%02d:%02d", ts.hour, ts.minute, ts.second);
       if (ts.fraction)
-        {
-          if (ts.fraction % 1000)
-            res += sprintf (buf + res, ".%09d", (int)ts.fraction);
-          else if (ts.fraction % 1000000)
-            res += sprintf (buf + res, ".%06d", (int)(ts.fraction / 1000));
-          else
-            res += sprintf (buf + res, ".%03d", (int)(ts.fraction / 1000000));
-        }
+	{
+	  if (ts.fraction % 1000)
+	    res += sprintf (buf + res, ".%09d", (int) ts.fraction);
+	  else if (ts.fraction % 1000000)
+	    res += sprintf (buf + res, ".%06d", (int) (ts.fraction / 1000));
+	  else
+	    res += sprintf (buf + res, ".%03d", (int) (ts.fraction / 1000000));
+	}
     }
   if (DT_PRINT_MODE_XML & mode)
     {
@@ -123,8 +123,8 @@ dt_print_to_buffer (char *buf, caddr_t arg, int mode)
     }
 }
 
-int /* Returns number of chars parsed. */
-dt_scan_from_buffer (const char *buf, int mode, caddr_t *dt_ret, const char **err_msg_ret)
+int				/* Returns number of chars parsed. */
+dt_scan_from_buffer (const char *buf, int mode, caddr_t * dt_ret, const char **err_msg_ret)
 {
   const char *tail = buf;
   int fld_len, acc, ymd_found = 0, hms_found = 0, msec_factor;
@@ -132,101 +132,138 @@ dt_scan_from_buffer (const char *buf, int mode, caddr_t *dt_ret, const char **er
   memset (&ts, 0, sizeof (TIMESTAMP_STRUCT));
   dt_ret[0] = NULL;
   err_msg_ret[0] = NULL;
-  fld_len = 0; acc = 0; while (isdigit (tail[0]) && (4 > fld_len)) { acc = acc * 10 + (tail++)[0] - '0'; fld_len++; }
+  fld_len = 0;
+  acc = 0;
+  while (isdigit (tail[0]) && (4 > fld_len))
+    {
+      acc = acc * 10 + (tail++)[0] - '0';
+      fld_len++;
+    }
   if ('-' == tail[0])
-    { /* Date delimiter, let's parse date part */
+    {				/* Date delimiter, let's parse date part */
       if (((DT_PRINT_MODE_YMD | DT_PRINT_MODE_HMS) & mode) && !(DT_PRINT_MODE_YMD & mode))
-        {
-          err_msg_ret[0] = "Time field is expected but date field delimiter is found";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Time field is expected but date field delimiter is found";
+	  return 0;
+	}
       if (4 != fld_len)
-        {
-          err_msg_ret[0] = "Year field should have 4 digits";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Year field should have 4 digits";
+	  return 0;
+	}
       ymd_found = 1;
       ts.year = acc;
       tail++;
-      fld_len = 0; acc = 0; while (isdigit (tail[0]) && (2 > fld_len)) { acc = acc * 10 + (tail++)[0] - '0'; fld_len++; }
+      fld_len = 0;
+      acc = 0;
+      while (isdigit (tail[0]) && (2 > fld_len))
+	{
+	  acc = acc * 10 + (tail++)[0] - '0';
+	  fld_len++;
+	}
       if (2 != fld_len)
-        {
-          err_msg_ret[0] = "Month field should have 2 digits";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Month field should have 2 digits";
+	  return 0;
+	}
       if ('-' != tail[0])
-        {
-          err_msg_ret[0] = "Minus sign is expected after month";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Minus sign is expected after month";
+	  return 0;
+	}
       ts.month = acc;
       tail++;
-      fld_len = 0; acc = 0; while (isdigit (tail[0]) && (2 > fld_len)) { acc = acc * 10 + (tail++)[0] - '0'; fld_len++; }
+      fld_len = 0;
+      acc = 0;
+      while (isdigit (tail[0]) && (2 > fld_len))
+	{
+	  acc = acc * 10 + (tail++)[0] - '0';
+	  fld_len++;
+	}
       if (2 != fld_len)
-        {
-          err_msg_ret[0] = "Day of month field should have 2 digits";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Day of month field should have 2 digits";
+	  return 0;
+	}
       ts.day = acc;
       if ('T' != tail[0])
-        goto scan_tz; /* see below */
+	goto scan_tz;		/* see below */
       tail++;
-      fld_len = 0; acc = 0; while (isdigit (tail[0]) && (2 > fld_len)) { acc = acc * 10 + (tail++)[0] - '0'; fld_len++; }
+      fld_len = 0;
+      acc = 0;
+      while (isdigit (tail[0]) && (2 > fld_len))
+	{
+	  acc = acc * 10 + (tail++)[0] - '0';
+	  fld_len++;
+	}
     }
   if (':' == tail[0])
-    { /* Time delimiter, let's parse time part */
+    {				/* Time delimiter, let's parse time part */
       if (((DT_PRINT_MODE_YMD | DT_PRINT_MODE_HMS) & mode) && !(DT_PRINT_MODE_HMS & mode))
-        {
-          err_msg_ret[0] = "Date field is expected but time field delimiter is found";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Date field is expected but time field delimiter is found";
+	  return 0;
+	}
       if (2 != fld_len)
-        {
-          err_msg_ret[0] = "Hour field should have 2 digits";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Hour field should have 2 digits";
+	  return 0;
+	}
       hms_found = 1;
       ts.hour = acc;
       tail++;
-      fld_len = 0; acc = 0; while (isdigit (tail[0]) && (2 > fld_len)) { acc = acc * 10 + (tail++)[0] - '0'; fld_len++; }
+      fld_len = 0;
+      acc = 0;
+      while (isdigit (tail[0]) && (2 > fld_len))
+	{
+	  acc = acc * 10 + (tail++)[0] - '0';
+	  fld_len++;
+	}
       if (2 != fld_len)
-        {
-          err_msg_ret[0] = "Minute field should have 2 digits";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Minute field should have 2 digits";
+	  return 0;
+	}
       if (':' != tail[0])
-        {
-          err_msg_ret[0] = "Colon is expected after minute";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Colon is expected after minute";
+	  return 0;
+	}
       ts.minute = acc;
       tail++;
-      fld_len = 0; acc = 0; while (isdigit (tail[0]) && (2 > fld_len)) { acc = acc * 10 + (tail++)[0] - '0'; fld_len++; }
+      fld_len = 0;
+      acc = 0;
+      while (isdigit (tail[0]) && (2 > fld_len))
+	{
+	  acc = acc * 10 + (tail++)[0] - '0';
+	  fld_len++;
+	}
       if (2 != fld_len)
-        {
-          err_msg_ret[0] = "Second field should have 2 digits";
-          return 0;
-        }
+	{
+	  err_msg_ret[0] = "Second field should have 2 digits";
+	  return 0;
+	}
       ts.second = acc;
       if ('.' == tail[0])
-        {
-          tail++;
-          msec_factor = 1000000000;
-          acc = 0;
-          if (!isdigit (tail[0]))
-            {
-              err_msg_ret[0] = "Fraction of second is expected after decimal dot";
-              return 0;
-            }
-          do
-            {
-              if (msec_factor)
-                acc = acc * 10 + (tail[0] - '0');
-              tail++;
-              msec_factor /= 10;
-            } while (isdigit (tail[0]));
-          ts.fraction = acc * (msec_factor ? msec_factor : 1);
-        }
+	{
+	  tail++;
+	  msec_factor = 1000000000;
+	  acc = 0;
+	  if (!isdigit (tail[0]))
+	    {
+	      err_msg_ret[0] = "Fraction of second is expected after decimal dot";
+	      return 0;
+	    }
+	  do
+	    {
+	      if (msec_factor)
+		acc = acc * 10 + (tail[0] - '0');
+	      tail++;
+	      msec_factor /= 10;
+	    }
+	  while (isdigit (tail[0]));
+	  ts.fraction = acc * (msec_factor ? msec_factor : 1);
+	}
       if ('Z' != tail[0] && strncmp (tail, " GMT", 4))
 	{
 	  err_msg_ret[0] = "Colon or time zone is expected after minute";
@@ -335,8 +372,6 @@ dayofweek (caddr_t arg)
 /* since we keep time internally in GMT the local time should not be used
    after dt_to_timestampstruct, because it already uses the locales eq. timezone and daylight savings .
  */
-
-
 /*XXX: on windows platform we need to setup the tm struct manually as before 1970 gmtime returns NULL */
 #define bif_x_name(x, format) \
 caddr_t \
@@ -365,10 +400,7 @@ bif_##x##name (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args) \
 }
 
 
-bif_x_name(day, "%A")
-bif_x_name(month, "%B")
-
-caddr_t
+bif_x_name (day, "%A") bif_x_name (month, "%B") caddr_t
 bif_dayofweek (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t arg = bif_date_arg (qst, args, 0, "dayofweek");
@@ -409,10 +441,14 @@ bif_quarter (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int quarter;
 
   dt_to_timestamp_struct (arg, &ts);
-  if (ts.month <= 3) quarter = 1;
-  else if (ts.month <= 6) quarter = 2;
-  else if (ts.month <= 9) quarter = 3;
-  else quarter = 4;
+  if (ts.month <= 3)
+    quarter = 1;
+  else if (ts.month <= 6)
+    quarter = 2;
+  else if (ts.month <= 9)
+    quarter = 3;
+  else
+    quarter = 4;
 
   return (box_num (quarter));
 }
@@ -444,15 +480,7 @@ bif_##part (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args) \
 }
 
 
-DT_PART (year)
-DT_PART (month)
-DT_PART (day)
-DT_PART (hour)
-DT_PART (minute)
-DT_PART (second)
-
-
-caddr_t
+DT_PART (year) DT_PART (month) DT_PART (day) DT_PART (hour) DT_PART (minute) DT_PART (second) caddr_t
 bif_timezone (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t arg = bif_date_arg (qst, args, 0, "timezone");
@@ -473,7 +501,9 @@ caddr_t
 bif_nasa_tjd_fraction (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t arg = bif_date_arg (qst, args, 0, "nasa_tjd_fraction");
-  double f = (((DT_HOUR (arg) * (boxint)60 + DT_MINUTE (arg)) * (boxint)60 + DT_SECOND (arg)) * (boxint)1000000 + DT_FRACTION (arg)) / (60*60*24*1000000.0);
+  double f =
+      (((DT_HOUR (arg) * (boxint) 60 + DT_MINUTE (arg)) * (boxint) 60 + DT_SECOND (arg)) * (boxint) 1000000 +
+      DT_FRACTION (arg)) / (60 * 60 * 24 * 1000000.0);
   return box_double (f);
 }
 
@@ -486,9 +516,9 @@ bif_merge_nasa_tjd_to_datetime (caddr_t * qst, caddr_t * err_ret, state_slot_t *
   if (1 < BOX_ELEMENTS (args))
     {
       double frac = bif_double_arg (qst, args, 1, "merge_nasa_tjd_to_datetime");
-      boxint frac_microsec = frac * (60*60*24*1000000.0);
-      if ((0 > frac_microsec) || (60*60*24*(boxint)(1000000) <= frac_microsec))
-        sqlr_new_error ("22023", "SR644", "Fraction of julian day should be nonnegative and less than 1");
+      boxint frac_microsec = frac * (60 * 60 * 24 * 1000000.0);
+      if ((0 > frac_microsec) || (60 * 60 * 24 * (boxint) (1000000) <= frac_microsec))
+	sqlr_new_error ("22023", "SR644", "Fraction of julian day should be nonnegative and less than 1");
       DT_SET_FRACTION (res, (frac_microsec % 1000000) * 1000);
       frac_microsec = frac_microsec / 1000000;
       DT_SET_SECOND (res, (frac_microsec % 60));
@@ -523,8 +553,7 @@ bif_dateadd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
   GMTimestamp_struct_to_dt (&ts, res);
   DT_SET_TZ (res, DT_TZ (dt));
-  if (DT_TYPE_DATE == dt_type
-      && (0 == stricmp (part, "year") || 0 == stricmp (part, "month") || 0 == stricmp (part, "day")))
+  if (DT_TYPE_DATE == dt_type && (0 == stricmp (part, "year") || 0 == stricmp (part, "month") || 0 == stricmp (part, "day")))
     DT_SET_DT_TYPE (res, dt_type);
   DT_AUDIT_FIELDS (dt);
   return res;
@@ -542,7 +571,7 @@ bif_datediff (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int frac1, frac2;
   int diffyear, diffmonth;
   if (0 == stricmp (unit, "day"))
-    return box_num ((boxint)DT_DAY (dt2) - (boxint)DT_DAY (dt1));
+    return box_num ((boxint) DT_DAY (dt2) - (boxint) DT_DAY (dt1));
   if (0 == stricmp (unit, "hour"))
     return box_num ((s2 - s1) / (60 * 60));
   if (0 == stricmp (unit, "minute"))
@@ -561,18 +590,18 @@ bif_datediff (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       ts_add (&ts1, tz_tweak, "minute");
       ts_add (&ts2, tz_tweak, "minute");
       if (diffyear)
-        return box_num ((boxint)ts2.year - (boxint)ts1.year);
+	return box_num ((boxint) ts2.year - (boxint) ts1.year);
       if (diffmonth)
-        return box_num ((boxint)(ts2.year * 12 + ts2.month) - (boxint)(ts1.year * 12 + ts1.month));
+	return box_num ((boxint) (ts2.year * 12 + ts2.month) - (boxint) (ts1.year * 12 + ts1.month));
     }
-  frac1 = DT_FRACTION(dt1);
-  frac2 = DT_FRACTION(dt2);
+  frac1 = DT_FRACTION (dt1);
+  frac2 = DT_FRACTION (dt2);
   if (0 == stricmp (unit, "millisecond"))
-    return box_num ((s2 - s1) * (boxint)1000 + (frac2 / 1000000 - frac1 / 1000000));
+    return box_num ((s2 - s1) * (boxint) 1000 + (frac2 / 1000000 - frac1 / 1000000));
   if (0 == stricmp (unit, "microsecond"))
-    return box_num ((s2 - s1) * (boxint)1000000 + (frac2 / 1000 - frac1 / 1000));
+    return box_num ((s2 - s1) * (boxint) 1000000 + (frac2 / 1000 - frac1 / 1000));
   if (0 == stricmp (unit, "nanosecond"))
-    return box_num ((s2 - s1) * (boxint)1000000000 + (frac2 - frac1));
+    return box_num ((s2 - s1) * (boxint) 1000000000 + (frac2 - frac1));
   sqlr_new_error ("22023", "DT002", "Bad unit in datediff: %s.", unit);
   return NULL;
 }
@@ -583,15 +612,26 @@ interval_odbc_to_text (ptrlong odbcInterval, char *func_name)
   char *szpart = NULL;
   switch (odbcInterval)
     {
-      case SQL_TSI_SECOND:	szpart = "second"; break;
-      case SQL_TSI_MINUTE:	szpart = "minute"; break;
-      case SQL_TSI_HOUR:	szpart = "hour"; break;
-      case SQL_TSI_DAY:		szpart = "day"; break;
-      case SQL_TSI_MONTH:	szpart = "month"; break;
-      case SQL_TSI_YEAR:	szpart = "year"; break;
-      default: sqlr_new_error ("22015", "DT003",
-		   "Interval not supported in %s: %ld",
-		   func_name, (long) odbcInterval);
+    case SQL_TSI_SECOND:
+      szpart = "second";
+      break;
+    case SQL_TSI_MINUTE:
+      szpart = "minute";
+      break;
+    case SQL_TSI_HOUR:
+      szpart = "hour";
+      break;
+    case SQL_TSI_DAY:
+      szpart = "day";
+      break;
+    case SQL_TSI_MONTH:
+      szpart = "month";
+      break;
+    case SQL_TSI_YEAR:
+      szpart = "year";
+      break;
+    default:
+      sqlr_new_error ("22015", "DT003", "Interval not supported in %s: %ld", func_name, (long) odbcInterval);
     }
   return szpart;
 }
@@ -625,12 +665,12 @@ bif_timestampdiff (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   GMTIMESTAMP_STRUCT ts1, ts2;
   /* BELOW OVERFLOWS on 32 bit long.  Numbers used for computing difference,
    * hence this works when difference below 2**21 = 34 years */
-  boxint s1 = (boxint)DT_DAY (dt1) * 24 * 60 * 60 + DT_HOUR (dt1) * 60 * 60 + DT_MINUTE (dt1) * 60 + DT_SECOND (dt1);
-  boxint s2 = (boxint)DT_DAY (dt2) * 24 * 60 * 60 + DT_HOUR (dt2) * 60 * 60 + DT_MINUTE (dt2) * 60 + DT_SECOND (dt2);
+  boxint s1 = (boxint) DT_DAY (dt1) * 24 * 60 * 60 + DT_HOUR (dt1) * 60 * 60 + DT_MINUTE (dt1) * 60 + DT_SECOND (dt1);
+  boxint s2 = (boxint) DT_DAY (dt2) * 24 * 60 * 60 + DT_HOUR (dt2) * 60 * 60 + DT_MINUTE (dt2) * 60 + DT_SECOND (dt2);
   char *unit = interval_odbc_to_text (long_unit, "timestampdiff");
 
   if (0 == stricmp (unit, "day"))
-    return box_num ((boxint)DT_DAY (dt2) - (boxint)DT_DAY (dt1));
+    return box_num ((boxint) DT_DAY (dt2) - (boxint) DT_DAY (dt1));
 
   if (0 == stricmp (unit, "hour"))
     return box_num ((s2 - s1) / (60 * 60));
@@ -645,10 +685,10 @@ bif_timestampdiff (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   dt_to_GMTimestamp_struct (dt1, &ts1);
 
   if (0 == stricmp (unit, "month"))
-    return box_num ((boxint)(ts2.year * 12 + ts2.month) - (boxint)(ts1.year * 12 + ts1.month));
+    return box_num ((boxint) (ts2.year * 12 + ts2.month) - (boxint) (ts1.year * 12 + ts1.month));
 
   if (0 == stricmp (unit, "year"))
-    return box_num ((boxint)ts2.year - (boxint)ts1.year);
+    return box_num ((boxint) ts2.year - (boxint) ts1.year);
 
   sqlr_new_error ("22015", "DT004", "Bad interval in timestampdiff: %s.", unit);
   return NULL;
@@ -696,7 +736,7 @@ bif_dt_set_tz (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 caddr_t
-string_to_dt_box (char * str)
+string_to_dt_box (char *str)
 {
   caddr_t res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
   caddr_t err_msg = NULL;
@@ -713,7 +753,7 @@ string_to_dt_box (char * str)
 
 
 caddr_t
-string_to_time_dt_box (char * str)
+string_to_time_dt_box (char *str)
 {
   caddr_t res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
   caddr_t err_msg = NULL;
@@ -847,7 +887,7 @@ bif_curtime (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 caddr_t
-arithm_dt_add_num (ccaddr_t box1, ccaddr_t box2, int subtraction, caddr_t *err_ret)
+arithm_dt_add_num (ccaddr_t box1, ccaddr_t box2, int subtraction, caddr_t * err_ret)
 {
   int dt_type = DT_DT_TYPE (box1);
   dtp_t dtp2 = DV_TYPE_OF (box2);
@@ -862,35 +902,36 @@ arithm_dt_add_num (ccaddr_t box1, ccaddr_t box2, int subtraction, caddr_t *err_r
       break;
     case DV_DOUBLE_FLOAT:
       {
-        double n = unbox_double (box2);
-        double rest;
-        whole_seconds = (n >= 0.0) ? floor(n + 0.5) : ceil(n - 0.5);
-        rest = n - whole_seconds;
-        if (abs(rest/n) > (3 * DBL_EPSILON))
-          nanoseconds = (n - whole_seconds) * 1000000000L;
-        break;
+	double n = unbox_double (box2);
+	double rest;
+	whole_seconds = (n >= 0.0) ? floor (n + 0.5) : ceil (n - 0.5);
+	rest = n - whole_seconds;
+	if (abs (rest / n) > (3 * DBL_EPSILON))
+	  nanoseconds = (n - whole_seconds) * 1000000000L;
+	break;
       }
     case DV_NUMERIC:
       {
-        numeric_t n = (numeric_t)box2;
-        if (NUMERIC_STS_SUCCESS != numeric_to_int64 (n, &whole_seconds))
-          {
-            err_ret[0] = srv_make_new_error ("22003", "SR087", "Wrong arguments for datetime arithmetic: decimal is out of range.");
-            return NULL;
-          }
-        if (n->n_scale > 0)
-          {
-            char *nptr = n->n_value + n->n_len;
-            int ctr;
-            int mult = 1;
-            for (ctr = 9; ctr > n->n_scale; ctr--) mult *= 10;
-            while (ctr--)
-              {
-                nanoseconds += mult * nptr[ctr];
-                mult *= 10;
-              }
-          }
-        break;
+	numeric_t n = (numeric_t) box2;
+	if (NUMERIC_STS_SUCCESS != numeric_to_int64 (n, &whole_seconds))
+	  {
+	    err_ret[0] = srv_make_new_error ("22003", "SR087", "Wrong arguments for datetime arithmetic: decimal is out of range.");
+	    return NULL;
+	  }
+	if (n->n_scale > 0)
+	  {
+	    char *nptr = n->n_value + n->n_len;
+	    int ctr;
+	    int mult = 1;
+	    for (ctr = 9; ctr > n->n_scale; ctr--)
+	      mult *= 10;
+	    while (ctr--)
+	      {
+		nanoseconds += mult * nptr[ctr];
+		mult *= 10;
+	      }
+	  }
+	break;
       }
     default:
       return NULL;
@@ -910,102 +951,106 @@ arithm_dt_add_num (ccaddr_t box1, ccaddr_t box2, int subtraction, caddr_t *err_r
 }
 
 caddr_t
-arithm_dt_add (ccaddr_t box1, ccaddr_t box2, caddr_t *err_ret)
+arithm_dt_add (ccaddr_t box1, ccaddr_t box2, caddr_t * err_ret)
 {
   dtp_t dtp1 = DV_TYPE_OF (box1), dtp2 = DV_TYPE_OF (box2);
   if ((DV_DATETIME == dtp1) && ((DV_LONG_INT == dtp2) || (DV_DOUBLE_FLOAT == dtp2) || (DV_NUMERIC == dtp2)))
     {
       caddr_t res = arithm_dt_add_num (box1, box2, 0, err_ret);
       if (NULL != err_ret)
-        return res;
+	return res;
       if (NULL == res)
-        goto generic_err;
+	goto generic_err;
       return res;
     }
   if ((DV_DATETIME == dtp2) && ((DV_LONG_INT == dtp1) || (DV_DOUBLE_FLOAT == dtp1) || (DV_NUMERIC == dtp1)))
     {
       caddr_t res = arithm_dt_add_num (box2, box1, 0, err_ret);
       if (NULL != err_ret)
-        return res;
+	return res;
       if (NULL == res)
-        goto generic_err;
+	goto generic_err;
       return res;
     }
 generic_err:
-  err_ret[0] = srv_make_new_error ("22003", "SR087", "Wrong arguments for datetime arithmetic, can not add values of type %d (%s) and type %d (%s).",
-    dtp1, dv_type_title (dtp1), dtp2, dv_type_title (dtp2) );
+  err_ret[0] =
+      srv_make_new_error ("22003", "SR087",
+      "Wrong arguments for datetime arithmetic, can not add values of type %d (%s) and type %d (%s).", dtp1, dv_type_title (dtp1),
+      dtp2, dv_type_title (dtp2));
   return NULL;
 }
 
 caddr_t
-arithm_dt_subtract (ccaddr_t box1, ccaddr_t box2, caddr_t *err_ret)
+arithm_dt_subtract (ccaddr_t box1, ccaddr_t box2, caddr_t * err_ret)
 {
   dtp_t dtp1 = DV_TYPE_OF (box1), dtp2 = DV_TYPE_OF (box2);
   if ((DV_DATETIME == dtp1) && (DV_DATETIME == dtp2))
     {
-      boxint s1 = DT_CAST_TO_TOTAL_SECONDS(box1);
-      boxint s2 = DT_CAST_TO_TOTAL_SECONDS(box2);
-      int frac1 = DT_FRACTION(box1);
-      int frac2 = DT_FRACTION(box2);
+      boxint s1 = DT_CAST_TO_TOTAL_SECONDS (box1);
+      boxint s2 = DT_CAST_TO_TOTAL_SECONDS (box2);
+      int frac1 = DT_FRACTION (box1);
+      int frac2 = DT_FRACTION (box2);
       if (frac1 == frac2)
-        return box_num (s1 - s2);
+	return box_num (s1 - s2);
       else
-        {
-          numeric_t res = numeric_allocate ();
-          numeric_from_int64 (res, ((s1 - s2) * 1000000000L) + (frac1 - frac2));
-          res->n_len -= 9;
-          res->n_scale += 9;
-          return (caddr_t)res;
-        }
+	{
+	  numeric_t res = numeric_allocate ();
+	  numeric_from_int64 (res, ((s1 - s2) * 1000000000L) + (frac1 - frac2));
+	  res->n_len -= 9;
+	  res->n_scale += 9;
+	  return (caddr_t) res;
+	}
     }
   if ((DV_DATETIME == dtp1) && ((DV_LONG_INT == dtp2) || (DV_DOUBLE_FLOAT == dtp2) || (DV_NUMERIC == dtp2)))
     {
       caddr_t res = arithm_dt_add_num (box1, box2, 1, err_ret);
       if (NULL != err_ret)
-        return res;
+	return res;
       if (NULL == res)
-        goto generic_err;
+	goto generic_err;
       return res;
     }
 generic_err:
-  err_ret[0] = srv_make_new_error ("22003", "SR087", "Wrong arguments for datetime arithmetic, can not subtract value of type %d (%s) from value type %d (%s).",
-    dtp2, dv_type_title (dtp2), dtp1, dv_type_title (dtp1) );
+  err_ret[0] =
+      srv_make_new_error ("22003", "SR087",
+      "Wrong arguments for datetime arithmetic, can not subtract value of type %d (%s) from value type %d (%s).", dtp2,
+      dv_type_title (dtp2), dtp1, dv_type_title (dtp1));
   return NULL;
 }
 
 void
 bif_date_init ()
 {
-  bif_define_ex ("dayname"			, bif_dayname				, BMD_RET_TYPE, &bt_varchar	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("monthname"			, bif_monthname				, BMD_RET_TYPE, &bt_varchar	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("dayofmonth"	, bif_day		,BMD_ALIAS, "rdf_day_impl"	, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("dayofweek"			, bif_dayofweek				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("dayofyear"			, bif_dayofyear				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("quarter"			, bif_quarter				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("month"	, bif_month		, BMD_ALIAS, "rdf_month_impl"	, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("year"		, bif_year		, BMD_ALIAS, "rdf_year_impl"	, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("hour"		, bif_hour		, BMD_ALIAS, "rdf_hours_impl"	, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("minute"	, bif_minute		, BMD_ALIAS, "rdf_minutes_impl"	, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("week"				, bif_week				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("second"			, bif_second				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("timezone"			, bif_timezone				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("nasa_tjd_number"		, bif_nasa_tjd_number			, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("nasa_tjd_fraction"		, bif_nasa_tjd_fraction			, BMD_RET_TYPE, &bt_double	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("merge_nasa_tjd_to_datetime"	, bif_merge_nasa_tjd_to_datetime	, BMD_RET_TYPE, &bt_datetime	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("now"	, bif_timestamp	, BMD_ALIAS, "getdate"	, BMD_ALIAS, "rdf_now_impl", BMD_ALIAS, "get_timestamp", BMD_RET_TYPE, &bt_timestamp	, /*BMD_IS_PURE,*/ BMD_DONE);	/* This is standard name */
-  bif_define_ex ("curdate"			, bif_curdate				, BMD_RET_TYPE, &bt_date	, /*BMD_IS_PURE,*/ BMD_DONE);	/* This is standard fun. */
-  bif_define_ex ("curtime"			, bif_curtime				, BMD_RET_TYPE, &bt_time	, /*BMD_IS_PURE,*/ BMD_DONE);	/* This is standard fun. */
-  bif_define_ex ("curdatetime"			, bif_curdatetime			, BMD_RET_TYPE, &bt_timestamp	, /*BMD_IS_PURE,*/ BMD_DONE);	/* This is our own. */
-  bif_define_ex ("datestring"			, bif_date_string			, BMD_RET_TYPE, &bt_varchar	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("datestring_GMT"		, bif_date_string_GMT			, BMD_RET_TYPE, &bt_varchar	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("stringdate"	, bif_string_timestamp	, BMD_ALIAS, "ts"		, BMD_RET_TYPE, &bt_datetime	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("d"				, bif_string_date			, BMD_RET_TYPE, &bt_date	, BMD_IS_PURE, BMD_DONE);	/* Two aliases for ODBC */
-  bif_define_ex ("stringtime"	, bif_string_time	, BMD_ALIAS, "t"		, BMD_RET_TYPE, &bt_time	, BMD_IS_PURE, BMD_DONE);	/* New one. */
-  bif_define_ex ("dateadd"			, bif_dateadd				, BMD_RET_TYPE, &bt_timestamp	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("datediff"			, bif_datediff				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("timestampadd"			, bif_timestampadd			, BMD_RET_TYPE, &bt_timestamp	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("timestampdiff"		, bif_timestampdiff			, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("dt_set_tz"			, bif_dt_set_tz				, BMD_RET_TYPE, &bt_timestamp	, BMD_IS_PURE, BMD_DONE);
-  bif_define_ex ("__extract"			, bif_extract				, BMD_RET_TYPE, &bt_integer	, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("dayname", bif_dayname, BMD_RET_TYPE, &bt_varchar, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("monthname", bif_monthname, BMD_RET_TYPE, &bt_varchar, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("dayofmonth", bif_day, BMD_ALIAS, "rdf_day_impl", BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("dayofweek", bif_dayofweek, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("dayofyear", bif_dayofyear, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("quarter", bif_quarter, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("month", bif_month, BMD_ALIAS, "rdf_month_impl", BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("year", bif_year, BMD_ALIAS, "rdf_year_impl", BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("hour", bif_hour, BMD_ALIAS, "rdf_hours_impl", BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("minute", bif_minute, BMD_ALIAS, "rdf_minutes_impl", BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("week", bif_week, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("second", bif_second, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("timezone", bif_timezone, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("nasa_tjd_number", bif_nasa_tjd_number, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("nasa_tjd_fraction", bif_nasa_tjd_fraction, BMD_RET_TYPE, &bt_double, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("merge_nasa_tjd_to_datetime", bif_merge_nasa_tjd_to_datetime, BMD_RET_TYPE, &bt_datetime, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("now", bif_timestamp, BMD_ALIAS, "getdate", BMD_ALIAS, "rdf_now_impl", BMD_ALIAS, "get_timestamp", BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* This is standard name */
+  bif_define_ex ("curdate", bif_curdate, BMD_RET_TYPE, &bt_date, /*BMD_IS_PURE, */ BMD_DONE);	/* This is standard fun. */
+  bif_define_ex ("curtime", bif_curtime, BMD_RET_TYPE, &bt_time, /*BMD_IS_PURE, */ BMD_DONE);	/* This is standard fun. */
+  bif_define_ex ("curdatetime", bif_curdatetime, BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* This is our own. */
+  bif_define_ex ("datestring", bif_date_string, BMD_RET_TYPE, &bt_varchar, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("datestring_GMT", bif_date_string_GMT, BMD_RET_TYPE, &bt_varchar, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("stringdate", bif_string_timestamp, BMD_ALIAS, "ts", BMD_RET_TYPE, &bt_datetime, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("d", bif_string_date, BMD_RET_TYPE, &bt_date, BMD_IS_PURE, BMD_DONE);	/* Two aliases for ODBC */
+  bif_define_ex ("stringtime", bif_string_time, BMD_ALIAS, "t", BMD_RET_TYPE, &bt_time, BMD_IS_PURE, BMD_DONE);	/* New one. */
+  bif_define_ex ("dateadd", bif_dateadd, BMD_RET_TYPE, &bt_timestamp, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("datediff", bif_datediff, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("timestampadd", bif_timestampadd, BMD_RET_TYPE, &bt_timestamp, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("timestampdiff", bif_timestampdiff, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("dt_set_tz", bif_dt_set_tz, BMD_RET_TYPE, &bt_timestamp, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("__extract", bif_extract, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
   dt_init ();
 }

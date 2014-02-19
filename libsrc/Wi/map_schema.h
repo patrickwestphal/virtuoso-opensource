@@ -37,7 +37,8 @@
 #include "xpf.h"
 /*#include "xpathp.h"*/
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "langfunc.h"
 #include "xmlparser_impl.h"
@@ -51,15 +52,14 @@ extern "C" {
 #define XS_VIEW_DELIMETER '.'
 #define XS_BLANC ' '
 
-extern xml_view_t* mapping_schema_to_xml_view (schema_parsed_t * schema);
+extern xml_view_t *mapping_schema_to_xml_view (schema_parsed_t * schema);
 extern void xmls_proc (query_instance_t * qi, caddr_t name);
 extern void mpschema_set_view_def (char *name, caddr_t tree);
-extern caddr_t  tables_from_mapping_schema (schema_parsed_t * schema, client_connection_t * qi_client);
+extern caddr_t tables_from_mapping_schema (schema_parsed_t * schema, client_connection_t * qi_client);
 
 caddr_t get_view_name (utf8char * fullname, char sign);
-void xmlview_free (xml_view_t * xv);/*mapping schema*/
-int
-VXmlTree_Parse (vxml_parser_t * parser, xml_entity_t * xml_ent, caddr_t schema_name, caddr_t type_name);
+void xmlview_free (xml_view_t * xv);	/*mapping schema */
+int VXmlTree_Parse (vxml_parser_t * parser, xml_entity_t * xml_ent, caddr_t schema_name, caddr_t type_name);
 
 #define _COMMA(text, len, fill, first) \
   if (!first) \

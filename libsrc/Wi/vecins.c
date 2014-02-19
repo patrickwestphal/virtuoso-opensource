@@ -585,8 +585,8 @@ dc_mp_insert_copy_any (mem_pool_t * mp, data_col_t * dc, int inx, dbe_column_t *
       db_buf_t rdf_id = mp_dv_rdf_to_db_serial (mp, dv);
       return (caddr_t) rdf_id;
     }
-  if ((DV_STRING == dv[0] || DV_SHORT_STRING_SERIAL == dv[0] || DV_DB_NULL == dv[0]) && col && 'O' == col->col_name[0]
-      && tb_is_rdf_quad (col->col_defined_in) && !f_read_from_rebuilt_database)
+  if ((DV_STRING == dv[0] || DV_SHORT_STRING_SERIAL == dv[0] || DV_DB_NULL == dv[0])
+      && col && 'O' == col->col_name[0] && tb_is_rdf_quad (col->col_defined_in) && !f_read_from_rebuilt_database)
     {
       if (THR_TMP_POOL == mp)
 	SET_THR_TMP_POOL (NULL);
@@ -619,9 +619,8 @@ rd_vec_blob (it_cursor_t * itc, row_delta_t * rd, dbe_column_t * col, int icol, 
       int rc;
       sql_type_t sqt2 = col->col_sqt;
       caddr_t bl = mp_alloc_box (ins_mp, DV_BLOB_LEN + 1, DV_STRING);
-      sqt2.sqt_class = NULL; /* if this is long udt or any, it is anified before now */
-      rc = itc_set_blob_col (itc, (db_buf_t)bl, rd->rd_values[icol], NULL,
-				 BLOB_IN_INSERT, &sqt2);
+      sqt2.sqt_class = NULL;	/* if this is long udt or any, it is anified before now */
+      rc = itc_set_blob_col (itc, (db_buf_t) bl, rd->rd_values[icol], NULL, BLOB_IN_INSERT, &sqt2);
       rd->rd_values[icol] = bl;
       if (LTE_OK != rc)
 	{
@@ -814,15 +813,17 @@ tb_is_rdf_quad (dbe_table_t * tb)
     {
       enable_p_stat = 1;
       DO_SET (dbe_key_t *, key, &tb->tb_keys)
-	{
-	  if (!stricmp (key->key_name, "RDF_QUAD_POGS") && key->key_decl_parts == 4)
-	    {
-	      dbe_column_t *c1 = dk_set_nth (key->key_parts, 0), *c2 = dk_set_nth (key->key_parts, 1), *c3 = dk_set_nth (key->key_parts, 2), *c4 = dk_set_nth (key->key_parts, 3);
-	      if (!stricmp (c1->col_name, "P") && !stricmp (c2->col_name, "O") && !stricmp (c3->col_name, "S") && !stricmp (c4->col_name, "G"))
-		enable_p_stat = 2;
-	    }
-	}
-      END_DO_SET();
+      {
+	if (!stricmp (key->key_name, "RDF_QUAD_POGS") && key->key_decl_parts == 4)
+	  {
+	    dbe_column_t *c1 = dk_set_nth (key->key_parts, 0), *c2 = dk_set_nth (key->key_parts, 1), *c3 =
+		dk_set_nth (key->key_parts, 2), *c4 = dk_set_nth (key->key_parts, 3);
+	    if (!stricmp (c1->col_name, "P") && !stricmp (c2->col_name, "O") && !stricmp (c3->col_name, "S")
+		&& !stricmp (c4->col_name, "G"))
+	      enable_p_stat = 2;
+	  }
+      }
+      END_DO_SET ();
     }
   return is_q;
 }
@@ -852,6 +853,7 @@ key_vec_insert (insert_node_t * ins, caddr_t * qst, it_cursor_t * itc, ins_key_t
   query_instance_t *qi = (query_instance_t *) qst;
   LOCAL_RD (right_rd);
   QI_CHECK_STACK (qi, &qst, INS_STACK_MARGIN);
+
   if (dbf_ko_pk && dbf_ko_pk == key->key_table->tb_primary_key->key_id && dbf_ko_key != key->key_id)
     return 0;
   right_rd.rd_temp = right_temp;
@@ -971,7 +973,7 @@ key_vec_insert (insert_node_t * ins, caddr_t * qst, it_cursor_t * itc, ins_key_t
 	  sqlr_new_error ("42000", "COL..", "Row too long len=%d max=%d", rd1->rd_non_comp_len, (int) MAX_ROW_BYTES);
 	}
       if (!key->key_is_col)
-      rd_inline (qi, rd1, &err, BLOB_IN_INSERT);
+	rd_inline (qi, rd1, &err, BLOB_IN_INSERT);
       if (err)
 	{
 	  SET_THR_TMP_POOL (NULL);
@@ -986,9 +988,9 @@ key_vec_insert (insert_node_t * ins, caddr_t * qst, it_cursor_t * itc, ins_key_t
 	  if (place)
 	    {
 	      if (key->key_distinct || INS_SOFT == ins->ins_mode)
-	    rds[inx] = (row_delta_t *) * place;
-	  else
-	    {
+		rds[inx] = (row_delta_t *) * place;
+	      else
+		{
 		  SET_THR_TMP_POOL (NULL);
 		  mp_free (ins_mp);
 		  itc->itc_ltrx->lt_status = LT_BLOWN_OFF;

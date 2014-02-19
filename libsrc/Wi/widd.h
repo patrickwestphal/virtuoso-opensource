@@ -42,51 +42,52 @@
 #define GR_UPDATE	0x0002
 #define GR_INSERT	0x0004
 #define GR_DELETE	0x0008
-#define GR_GRANT	0x0010  /* 'with grant option' */
+#define GR_GRANT	0x0010	/* 'with grant option' */
 #define GR_EXECUTE	0x0020
 #define GR_REFERENCES	0x0040
 #define GR_REXECUTE	0x0080
 #define GR_UDT_UNDER	0x0100
 
 /* Sequence number, object id */
-typedef uptrlong oid_t;	/* must be size of pointer */
+typedef uptrlong oid_t;		/* must be size of pointer */
 
 typedef unsigned int key_id_t;
-typedef unsigned char row_ver_t; /* the bit mask for what is on the row and what is an offset to another row */
-typedef unsigned char key_ver_t; /* index into the bd_tree's key's key_bersions */
+typedef unsigned char row_ver_t;	/* the bit mask for what is on the row and what is an offset to another row */
+typedef unsigned char key_ver_t;	/* index into the bd_tree's key's key_bersions */
 typedef unsigned short row_size_t;
 
-typedef struct dbe_schema_s	dbe_schema_t;
-typedef struct dbe_table_s	dbe_table_t;
-typedef struct dbe_column_s	dbe_column_t;
-typedef struct dbe_key_s	dbe_key_t;
+typedef struct dbe_schema_s dbe_schema_t;
+typedef struct dbe_table_s dbe_table_t;
+typedef struct dbe_column_s dbe_column_t;
+typedef struct dbe_key_s dbe_key_t;
 typedef struct dbe_col_loc_s dbe_col_loc_t;
 typedef struct dbe_storage_s dbe_storage_t;
 typedef struct wi_db_s wi_db_t;
 
-typedef enum { sc_to_table = 0, sc_to_proc = 1, sc_to_module = 2, sc_to_type = 3 } sc_object_type;
+typedef enum
+{ sc_to_table = 0, sc_to_proc = 1, sc_to_module = 2, sc_to_type = 3 } sc_object_type;
 
 struct dbe_schema_s
-  {
-    struct dbe_schema_s *sc_prev;
-    dk_hash_t *		sc_id_to_key;
-    dk_hash_t *		sc_key_subkey;
-    dk_hash_t *		sc_id_to_col;
-    long		sc_free_since; /* msec real time when became unreferenced*/
-    dk_hash_t *		sc_id_to_type;
+{
+  struct dbe_schema_s *sc_prev;
+  dk_hash_t *sc_id_to_key;
+  dk_hash_t *sc_key_subkey;
+  dk_hash_t *sc_id_to_col;
+  long sc_free_since;		/* msec real time when became unreferenced */
+  dk_hash_t *sc_id_to_type;
 #if defined (PURIFY) || defined (VALGRIND)
-    dk_set_t		sc_old_views;
-    dk_set_t		sc_old_types;
+  dk_set_t sc_old_views;
+  dk_set_t sc_old_types;
 #endif
-    id_hash_t *		sc_name_to_object[4];
-  };
+  id_hash_t *sc_name_to_object[4];
+};
 
 
 #define sch_id_to_col(sc, id) \
   ((dbe_column_t *) gethash (DP_ADDR2VOID (id), sc->sc_id_to_col))
 
 
-extern dk_mutex_t * db_schema_mtx; /* global schema hash tables */
+extern dk_mutex_t *db_schema_mtx;	/* global schema hash tables */
 
 #define DBE_NO_STAT_DATA	-1
 #define TB_RLS_U	0
@@ -102,73 +103,88 @@ extern dk_mutex_t * db_schema_mtx; /* global schema hash tables */
 	   ((op) == 'D' ? TB_RLS_D : GPF_T1 ("invalid op")))))
 
 
+
+typedef struct file_table_s
+{
+  caddr_t ft_file;
+  char ft_delim;
+  char ft_escape;
+  char ft_null_empty_string;
+  char ft_error_if_no_file;
+  char ft_cast_error;
+  char ft_error_if_no_column;
+  caddr_t ft_newline;
+} file_table_t;
+
+
 struct dbe_table_s
-  {
-    char *		tb_name; /* qualifier.owner.name */
-    char *		tb_name_only; /* point in the middle of tb_name, after owner */
-    char *		tb_qualifier;
-    char *		tb_owner;
-    char *		tb_qualifier_name;
-    id_hash_t *		tb_name_to_col;
-    dbe_key_t *		tb_primary_key;
-    dk_set_t		tb_keys;
-    dk_set_t		tb_old_keys;
-    dk_set_t		tb_cols;
-    dbe_schema_t *	tb_schema;
-    struct triggers_s *	tb_triggers;
-    dk_hash_t *		tb_grants;
-    oid_t		tb_owner_col_id;
-    char		tb_any_blobs;
-    char		tb_is_rdf_quad;
-    struct remote_ds_s *tb_remote_ds;
-    caddr_t		tb_remote_name;
-    dk_hash_t *		tb_misc_id_to_col_id;
-    dk_hash_t *		tb_col_id_to_misc_id;
-    struct xml_table_ins_s *	tb_xml_ins;
-    dbe_key_t *	tb__text_key;
+{
+  char *tb_name;		/* qualifier.owner.name */
+  char *tb_name_only;		/* point in the middle of tb_name, after owner */
+  char *tb_qualifier;
+  char *tb_owner;
+  char *tb_qualifier_name;
+  id_hash_t *tb_name_to_col;
+  dbe_key_t *tb_primary_key;
+  dk_set_t tb_keys;
+  dk_set_t tb_old_keys;
+  dk_set_t tb_cols;
+  dbe_schema_t *tb_schema;
+  struct triggers_s *tb_triggers;
+  dk_hash_t *tb_grants;
+  oid_t tb_owner_col_id;
+  char tb_any_blobs;
+  char tb_is_rdf_quad;
+  struct remote_ds_s *tb_remote_ds;
+  caddr_t tb_remote_name;
+  dk_hash_t *tb_misc_id_to_col_id;
+  dk_hash_t *tb_col_id_to_misc_id;
+  struct xml_table_ins_s *tb_xml_ins;
+  dbe_key_t *tb__text_key;
 
-    /* SQL statistics members */
-    int64                tb_count;
-    int64	tb_count_estimate;
-    double	tb_geo_area;
-    int64		tb_count_delta;
+  /* SQL statistics members */
+  int64 tb_count;
+  int64 tb_count_estimate;
+  double tb_geo_area;
+  int64 tb_count_delta;
 
-    /* row level security functions */
-    caddr_t		tb_rls_procs[TB_RLS_LAST + 1];
-  };
+  /* row level security functions */
+  caddr_t tb_rls_procs[TB_RLS_LAST + 1];
+  file_table_t *tb_ft;
+};
 
 typedef struct collation_s
-  {
-    caddr_t	co_name;
-    caddr_t	co_table;
-    char	co_is_wide;
-  } collation_t;
+{
+  caddr_t co_name;
+  caddr_t co_table;
+  char co_is_wide;
+} collation_t;
 
 struct sql_class_s;
 struct sql_domain_s;
 typedef struct sql_type_s
-  {
-    collation_t *sqt_collation;
-    uint32	sqt_precision;
-    dtp_t	sqt_dtp;
-    dtp_t	sqt_col_dtp; /* in column wise index, dtp is varchar for the leaf row col but the content dtp is sqt_col_dtp */
-    char	sqt_scale;
-    char		sqt_non_null;
-    char		sqt_is_xml;
-    struct sql_class_s *   sqt_class;
-    caddr_t *		sqt_tree;
-  } sql_type_t;
+{
+  collation_t *sqt_collation;
+  uint32 sqt_precision;
+  dtp_t sqt_dtp;
+  dtp_t sqt_col_dtp;		/* in column wise index, dtp is varchar for the leaf row col but the content dtp is sqt_col_dtp */
+  char sqt_scale;
+  char sqt_non_null;
+  char sqt_is_xml;
+  struct sql_class_s *sqt_class;
+  caddr_t *sqt_tree;
+} sql_type_t;
 
 typedef struct cl_host_s cl_host_t;
 
 typedef struct col_partition_s
 {
-  oid_t	cp_col_id;
-  sql_type_t	cp_sqt;
-  short	cp_shift; /* shift so many bits down before hash */
-  char		cp_type;
-  int64	cp_mask; /* after shift, and with this */
-  int		cp_n_first; /* for a string, use so many leading chars */
+  oid_t cp_col_id;
+  sql_type_t cp_sqt;
+  short cp_shift;		/* shift so many bits down before hash */
+  char cp_type;
+  int64 cp_mask;		/* after shift, and with this */
+  int cp_n_first;		/* for a string, use so many leading chars */
 } col_partition_t;
 
 /* for cp_type */
@@ -182,19 +198,19 @@ typedef unsigned short slice_id_t;
 
 typedef struct cl_host_group_s
 {
-  struct cluster_map_s *	chg_clm;
-  cl_host_t **	chg_hosts;
-  slice_id_t *	chg_slices;
-  struct cl_slice_s **	chg_hosted_slices;
-  char		chg_status; /* any slices in read only */
+  struct cluster_map_s *chg_clm;
+  cl_host_t **chg_hosts;
+  slice_id_t *chg_slices;
+  struct cl_slice_s **chg_hosted_slices;
+  char chg_status;		/* any slices in read only */
 } cl_host_group_t;
 
 #define CLM_INITIAL_SLICES 1024
 
 /* cl_slice_status */
-#define CL_SLICE_RW 0  /* read write */
-#define CL_SLICE_LOG 1 /* read write but special logging on write */
-#define CL_SLICE_RO 2 /* read only */
+#define CL_SLICE_RW 0		/* read write */
+#define CL_SLICE_LOG 1		/* read write but special logging on write */
+#define CL_SLICE_RO 2		/* read only */
 
 /* location of data based on hash */
 
@@ -202,25 +218,25 @@ typedef struct cl_slice_s cl_slice_t;
 
 typedef struct cluster_map_s
 {
-  caddr_t	clm_name;
-  short		clm_id;
-  char		clm_is_modulo;
-  char		clm_is_elastic;
-  char		clm_init_slices;
-  int		clm_distinct_slices; /* no of different slices */
-  int	clm_n_slices; /* no of places in the clm_slice_map */
-  int		clm_n_replicas;
-  unsigned short *	clm_host_rank; /* indexed with host ch_id, gives the ordinal position of host in the host group it occupies in this map */
-  char *		clm_slice_status;
-  dk_hash_t *		clm_id_to_slice;
-  cl_slice_t **	clm_slices; /* which physical slice contains the data for the place in slice map, if not elastic 1:1 to host groups  */
-  cl_slice_t **	clm_phys_slices; /* distinct physical slices */
-  cl_host_group_t **	clm_slice_map;
-  cl_host_group_t **	clm_hosts;
-  cl_host_group_t *	clm_local_chg;
-  uint64 *		clm_slice_req_count;  /* per logical slice count  of  requests from this host */
-  char		clm_any_in_transfer; /* true if logging should check whether an extra log entry is needed due to updating a slice being relocated.  True is any in cl_slice_status is CL_CLICE_LOG.  */
-  dk_mutex_t	clm_mtx; /* slice thread counts and slice status */
+  caddr_t clm_name;
+  short clm_id;
+  char clm_is_modulo;
+  char clm_is_elastic;
+  char clm_init_slices;
+  int clm_distinct_slices;	/* no of different slices */
+  int clm_n_slices;		/* no of places in the clm_slice_map */
+  int clm_n_replicas;
+  unsigned short *clm_host_rank;	/* indexed with host ch_id, gives the ordinal position of host in the host group it occupies in this map */
+  char *clm_slice_status;
+  dk_hash_t *clm_id_to_slice;
+  cl_slice_t **clm_slices;	/* which physical slice contains the data for the place in slice map, if not elastic 1:1 to host groups  */
+  cl_slice_t **clm_phys_slices;	/* distinct physical slices */
+  cl_host_group_t **clm_slice_map;
+  cl_host_group_t **clm_hosts;
+  cl_host_group_t *clm_local_chg;
+  uint64 *clm_slice_req_count;	/* per logical slice count  of  requests from this host */
+  char clm_any_in_transfer;	/* true if logging should check whether an extra log entry is needed due to updating a slice being relocated.  True is any in cl_slice_status is CL_CLICE_LOG.  */
+  dk_mutex_t clm_mtx;		/* slice thread counts and slice status */
 } cluster_map_t;
 
 #define CLM_REQ(clm, sl)  clm->clm_slice_req_count[(uint32)sl % clm->clm_n_slices]++
@@ -231,19 +247,19 @@ typedef struct cluster_map_s
 
 typedef struct key_partition_def_s
 {
-  cluster_map_t *	kpd_map;
-  col_partition_t **	kpd_cols;
+  cluster_map_t *kpd_map;
+  col_partition_t **kpd_cols;
 } key_partition_def_t;
 
 
-extern cluster_map_t * clm_replicated;
+extern cluster_map_t *clm_replicated;
 
 
 typedef struct col_stat_s
 {
-  id_hash_t *	cs_distinct;
-  int64		cs_len;
-  int64		cs_n_values;
+  id_hash_t *cs_distinct;
+  int64 cs_len;
+  int64 cs_n_values;
 } col_stat_t;
 
 /* fields in int64 in cs_distinct counting repeats of a value */
@@ -253,46 +269,41 @@ typedef struct col_stat_s
 #define CS_N_VALUES(n) ((int64)(n) & 0xffffffffffff)
 
 
+
 struct dbe_column_s
-  {
-    char *		col_name;
-    oid_t		col_id;
-    caddr_t		col_default;
-    char *		col_check;
-    dk_hash_t *		col_grants;
-    char		col_is_key_part;
-    int			col_is_autoincrement;
-    dbe_table_t *	col_defined_in;
-    sql_type_t		col_sqt;
-    char		col_compression;
-    char		col_is_misc;
-    char		col_is_misc_cont; /* true for a misc container, e.g. E_MISC of VXML_ENTITY */
-    char		col_is_text_index;
-    char		col_is_geo_index;
-    index_tree_t *	col_it;
-    caddr_t 		col_lang;
-    caddr_t 		col_enc;
-    dbe_column_t **	col_offband_cols;
-    dbe_column_t **	col_constr_cols;
-    caddr_t 		col_xml_base_uri;
+{
+  char *col_name;
+  oid_t col_id;
+  caddr_t col_default;
+  char *col_check;
+  dk_hash_t *col_grants;
+  char col_is_key_part;
+  int col_is_autoincrement;
+  dbe_table_t *col_defined_in;
+  sql_type_t col_sqt;
+  char col_compression;
+  char col_is_misc;
+  char col_is_misc_cont;	/* true for a misc container, e.g. E_MISC of VXML_ENTITY */
+  char col_is_text_index;
+  char col_is_geo_index;
+  index_tree_t *col_it;
+  caddr_t col_lang;
+  caddr_t col_enc;
+  dbe_column_t **col_offband_cols;
+  dbe_column_t **col_constr_cols;
+  caddr_t col_xml_base_uri;
 
-    /* SQL statistics members */
-    int64                col_count; /* non-null */
-    int64                col_n_distinct; /* count of distinct */
-    caddr_t *           col_hist;
-    col_stat_t *	col_stat;
-    caddr_t		col_min; /* min column value */
-    caddr_t		col_max; /* max column value */
-    caddr_t *		col_options; /* max column value */
-    long		col_avg_len; /* average column length */
-    long		col_avg_blob_len;
-  };
-
-
-#define col_precision col_sqt.sqt_precision
-#define col_scale col_sqt.sqt_scale
-#define col_non_null col_sqt.sqt_non_null
-#define col_collation col_sqt.sqt_collation
+  /* SQL statistics members */
+  int64 col_count;		/* non-null */
+  int64 col_n_distinct;		/* count of distinct */
+  caddr_t *col_hist;
+  col_stat_t *col_stat;
+  caddr_t col_min;		/* min column value */
+  caddr_t col_max;		/* max column value */
+  caddr_t *col_options;		/* max column value */
+  long col_avg_len;		/* average column length */
+  long col_avg_blob_len;
+};
 
 /* col_is_key_part */
 #define COL_KP_UNQ 100
@@ -300,13 +311,20 @@ struct dbe_column_s
 
 
 
+#define col_precision col_sqt.sqt_precision
+#define col_scale col_sqt.sqt_scale
+#define col_non_null col_sqt.sqt_non_null
+#define col_collation col_sqt.sqt_collation
+
+
+
 #define N_COMPRESS_OFFSETS 5
 #define N_ROW_VERSIONS 32
 #define ROW_NO_MASK 0x0fff
 #define COL_OFFSET_SHIFT 12
-#define COL_VAR_LEN_MASK 0x3fff  /* and to get the var len field of a row length area entry */
-#define COL_VAR_FLAGS_MASK 0xc000 /* and to get the var len flag  bits */
-#define COL_VAR_SUFFIX 0x8000 /* bit set if this var len is a suffix of an earlier col in the same place */
+#define COL_VAR_LEN_MASK 0x3fff	/* and to get the var len field of a row length area entry */
+#define COL_VAR_FLAGS_MASK 0xc000	/* and to get the var len flag  bits */
+#define COL_VAR_SUFFIX 0x8000	/* bit set if this var len is a suffix of an earlier col in the same place */
 
 
 /* values of cl_compress and col_compress, ret codes for try offset and try prefix */
@@ -328,16 +346,16 @@ struct dbe_column_s
 
 struct dbe_col_loc_s
 {
-  oid_t		cl_col_id;
-  sql_type_t	cl_sqt;
-  row_ver_t	cl_row_version_mask; /* and with row version is true if this cl is compressed on that row. 0x00 if always on row */
-  unsigned char	cl_compression:4;
-  unsigned char	cl_comp_asc:1; /* look for left to right for compression */
-  short		cl_nth;  /* 0 based ordinal pos in key in layout order */
-  short		cl_fixed_len;
-  short		cl_pos[N_ROW_VERSIONS];
-  short	cl_null_flag[N_ROW_VERSIONS];
-  dtp_t		cl_null_mask[N_ROW_VERSIONS];
+  oid_t cl_col_id;
+  sql_type_t cl_sqt;
+  row_ver_t cl_row_version_mask;	/* and with row version is true if this cl is compressed on that row. 0x00 if always on row */
+  unsigned char cl_compression:4;
+  unsigned char cl_comp_asc:1;	/* look for left to right for compression */
+  short cl_nth;			/* 0 based ordinal pos in key in layout order */
+  short cl_fixed_len;
+  short cl_pos[N_ROW_VERSIONS];
+  short cl_null_flag[N_ROW_VERSIONS];
+  dtp_t cl_null_mask[N_ROW_VERSIONS];
 };
 
 
@@ -355,7 +373,7 @@ struct dbe_col_loc_s
 
 #define END_DO_CL } }
 
-dbe_col_loc_t * key_next_list (dbe_key_t * key, dbe_col_loc_t * list);
+dbe_col_loc_t *key_next_list (dbe_key_t * key, dbe_col_loc_t * list);
 
 #define DO_ALL_CL(cl, key) \
 {\
@@ -370,18 +388,18 @@ dbe_col_loc_t * key_next_list (dbe_key_t * key, dbe_col_loc_t * list);
 
 typedef struct dbe_key_frag_s
 {
-  caddr_t *	kf_start;  /* key part values <= values accepted in this frag. NULL for first */
-  db_buf_t 	kf_start_row;	/* same in leaf pointer row layout */
-  dbe_storage_t *	kf_storage;
-  caddr_t	kf_name;  /* root is in main registry under this name */
-  struct index_tree_s *	kf_it;
-  char			kf_all_in_em; /*true if all pages are in the extent map and none in the system general em */
+  caddr_t *kf_start;		/* key part values <= values accepted in this frag. NULL for first */
+  db_buf_t kf_start_row;	/* same in leaf pointer row layout */
+  dbe_storage_t *kf_storage;
+  caddr_t kf_name;		/* root is in main registry under this name */
+  struct index_tree_s *kf_it;
+  char kf_all_in_em;		/*true if all pages are in the extent map and none in the system general em */
 } dbe_key_frag_t;
 
 
 typedef struct key_spec_s
 {
-  struct search_spec_s * 	ksp_spec_array;
+  struct search_spec_s *ksp_spec_array;
   int (*ksp_key_cmp) (struct buffer_desc_s * buf, int pos, struct it_cursor_s * itc);
 } key_spec_t;
 
@@ -389,113 +407,113 @@ typedef struct key_spec_s
 #define ITC_KEY_INC(itc, dm) if (itc->itc_insert_key) itc->itc_insert_key->dm++;
 
 
-#define KEY_MAX_VERSIONS KV_LONG_GAP  /* lowest special purpose kv number */
+#define KEY_MAX_VERSIONS KV_LONG_GAP	/* lowest special purpose kv number */
 #define KEY_VERSION_OVERFLOW -1
 
 #define KEY_PRIMARY 1
-#define KEY_PRIMARY_ORDER 2 /* starts with pk, more columns as dependent */
+#define KEY_PRIMARY_ORDER 2	/* starts with pk, more columns as dependent */
 
 struct dbe_key_s
 {
-  char *		key_name;
-  key_id_t		key_id;
-  dbe_table_t *	key_table;
-  dk_set_t		key_parts;
+  char *key_name;
+  key_id_t key_id;
+  dbe_table_t *key_table;
+  dk_set_t key_parts;
 
-  int			key_n_significant;
-  int			key_decl_parts;
-  unsigned short	key_geo_srcode;
-  char			key_is_primary;
-  char			key_is_unique;
-  char			key_is_temp;
-  char			key_is_bitmap;
-  char			key_simple_compress;
-  key_ver_t		key_version;
-  char			key_is_geo;
-  char			key_is_col; /* column-wise layout */
-  char		key_no_pk_ref; /* the key does not ref the main row */
-  char		key_distinct; /* if no pk ref, do not put duplicates */
-  char		key_not_null; /* if a significant key part is nullable and null, do not make an index entry */
-  char		key_no_compression; /* no key part is compressed in any version of key*/
-  char		key_is_dropped;
-  char		key_is_elastic; /* key_storage->dbs_type == DBS_ELASTIC */
-  key_id_t		key_migrate_to;
-  key_id_t		key_super_id;
-  dbe_key_t **		key_versions;
-  dk_set_t		key_supers;
-  key_partition_def_t *	key_partition;
-  dbe_col_loc_t *	key_bm_cl; /* the var length string where the bits are, dependent part of a bitmap inx */
-  dbe_col_loc_t *	key_bit_cl; /* for a bitmap inx, the last key part, the int or int64 that is the bit bitmap start */
+  int key_n_significant;
+  int key_decl_parts;
+  unsigned short key_geo_srcode;
+  char key_is_primary;
+  char key_is_unique;
+  char key_is_temp;
+  char key_is_bitmap;
+  char key_simple_compress;
+  key_ver_t key_version;
+  char key_is_geo;
+  char key_is_col;		/* column-wise layout */
+  char key_no_pk_ref;		/* the key does not ref the main row */
+  char key_distinct;		/* if no pk ref, do not put duplicates */
+  char key_not_null;		/* if a significant key part is nullable and null, do not make an index entry */
+  char key_no_compression;	/* no key part is compressed in any version of key */
+  char key_is_dropped;
+  char key_is_elastic;		/* key_storage->dbs_type == DBS_ELASTIC */
+  key_id_t key_migrate_to;
+  key_id_t key_super_id;
+  dbe_key_t **key_versions;
+  dk_set_t key_supers;
+  key_partition_def_t *key_partition;
+  dbe_col_loc_t *key_bm_cl;	/* the var length string where the bits are, dependent part of a bitmap inx */
+  dbe_col_loc_t *key_bit_cl;	/* for a bitmap inx, the last key part, the int or int64 that is the bit bitmap start */
   /* access inx */
-  int64		key_touch;
-  int64		key_read;
-  int64		key_write;
-  int64		key_lock_wait;
-  int64		key_lock_wait_time;
-  int64		key_deadlocks;
-  int64		key_lock_set;
-  int64		key_lock_escalations;
-  int64		key_page_end_inserts;
-  int64		key_write_wait;
-  int64		key_read_wait;
-  int64		key_landing_wait;
-  int64		key_pl_wait;
-  int64		key_ac_in;
-  int64		key_ac_out;
-  dp_addr_t		key_last_page;
-  char		key_is_last_right_edge;
-  int64		key_n_last_page_hits;
-  int64		key_total_last_page_hits;
-  int64		key_n_landings;
+  int64 key_touch;
+  int64 key_read;
+  int64 key_write;
+  int64 key_lock_wait;
+  int64 key_lock_wait_time;
+  int64 key_deadlocks;
+  int64 key_lock_set;
+  int64 key_lock_escalations;
+  int64 key_page_end_inserts;
+  int64 key_write_wait;
+  int64 key_read_wait;
+  int64 key_landing_wait;
+  int64 key_pl_wait;
+  int64 key_ac_in;
+  int64 key_ac_out;
+  dp_addr_t key_last_page;
+  char key_is_last_right_edge;
+  int64 key_n_last_page_hits;
+  int64 key_total_last_page_hits;
+  int64 key_n_landings;
 
-  key_spec_t 		key_insert_spec;
-  key_spec_t		key_bm_ins_spec;
-  key_spec_t		key_bm_ins_leading;
-  dk_set_t		key_visible_parts; /* parts in create table order, only if primary key */
-  struct query_s *	key_ins_qr; /* in cluster, local only qrs for ins/ins/ soft/del of key, pars in layout order */
-  struct query_s *	key_ins_soft_qr;
-  struct query_s *	key_del_qr;
+  key_spec_t key_insert_spec;
+  key_spec_t key_bm_ins_spec;
+  key_spec_t key_bm_ins_leading;
+  dk_set_t key_visible_parts;	/* parts in create table order, only if primary key */
+  struct query_s *key_ins_qr;	/* in cluster, local only qrs for ins/ins/ soft/del of key, pars in layout order */
+  struct query_s *key_ins_soft_qr;
+  struct query_s *key_del_qr;
 
 
   /* free text */
-  dbe_table_t *	key_text_table;
-  dbe_table_t *	key_geo_table;
-  dbe_column_t *	key_text_col;
+  dbe_table_t *key_text_table;
+  dbe_table_t *key_geo_table;
+  dbe_column_t *key_text_col;
 
   /* row layout */
-  short *		key_part_in_layout_order; /* this is for each significant, the index in the order of layout: kf kv */
-  dbe_col_loc_t **	key_part_cls; /* cl's in key part order */
-  dk_set_t		key_key_compressibles; /* compressible cls on leaf ptr */
-  dk_set_t		key_row_compressibles; /* compressible cls on row */
-  dk_set_t		key_key_pref_compressibles; /* prefix compressible cls on leaf ptr */
-  dk_set_t		key_row_pref_compressibles; /* prefix compressible cls on row */
-  dbe_col_loc_t *	key_key_fixed;
-  dbe_col_loc_t *	key_key_var;
-  dbe_col_loc_t *	key_row_fixed;
-  dbe_col_loc_t *	key_row_var;
-  short		key_n_parts;
-  short		key_n_key_compressibles;
-  short		key_n_row_compressibles;
-  short		key_length_area[N_ROW_VERSIONS]; /* if key/row have variable length, the offset of the first length word */
-  short		key_key_leaf[N_ROW_VERSIONS];
-  short		key_row_compressed_start[N_ROW_VERSIONS]; /* compress offsets of non-key offset compressibles */
-  short		key_key_var_start[N_ROW_VERSIONS];	/* offset of first var on leaf ptr */
-  short		key_row_var_start[N_ROW_VERSIONS];	/* offset of first var on leaf row */
-  short		key_null_flag_start[N_ROW_VERSIONS];
-  short		key_null_flag_bytes[N_ROW_VERSIONS];
-  short		key_key_len[N_ROW_VERSIONS];	/* if positive, the fixed length.  If neg the -position of the 2 byte len from start of leaf ptr */
-  short		key_row_len[N_ROW_VERSIONS];  /* if positive, the fixed length.  If neg the -position of the 2 byte len from start of row */
+  short *key_part_in_layout_order;	/* this is for each significant, the index in the order of layout: kf kv */
+  dbe_col_loc_t **key_part_cls;	/* cl's in key part order */
+  dk_set_t key_key_compressibles;	/* compressible cls on leaf ptr */
+  dk_set_t key_row_compressibles;	/* compressible cls on row */
+  dk_set_t key_key_pref_compressibles;	/* prefix compressible cls on leaf ptr */
+  dk_set_t key_row_pref_compressibles;	/* prefix compressible cls on row */
+  dbe_col_loc_t *key_key_fixed;
+  dbe_col_loc_t *key_key_var;
+  dbe_col_loc_t *key_row_fixed;
+  dbe_col_loc_t *key_row_var;
+  short key_n_parts;
+  short key_n_key_compressibles;
+  short key_n_row_compressibles;
+  short key_length_area[N_ROW_VERSIONS];	/* if key/row have variable length, the offset of the first length word */
+  short key_key_leaf[N_ROW_VERSIONS];
+  short key_row_compressed_start[N_ROW_VERSIONS];	/* compress offsets of non-key offset compressibles */
+  short key_key_var_start[N_ROW_VERSIONS];	/* offset of first var on leaf ptr */
+  short key_row_var_start[N_ROW_VERSIONS];	/* offset of first var on leaf row */
+  short key_null_flag_start[N_ROW_VERSIONS];
+  short key_null_flag_bytes[N_ROW_VERSIONS];
+  short key_key_len[N_ROW_VERSIONS];	/* if positive, the fixed length.  If neg the -position of the 2 byte len from start of leaf ptr */
+  short key_row_len[N_ROW_VERSIONS];	/* if positive, the fixed length.  If neg the -position of the 2 byte len from start of row */
 
 /* Note that key_insert() in row.c contains code that will not work when keys
 with multiple fragments are implemented, because It will always use the first
 fragment instead of searching for the the fragment actually needed. */
-  dbe_key_frag_t **	key_fragments;
-  int		key_n_fragments;
-  dbe_storage_t *	key_storage;
-  caddr_t *	key_options;
-  uint32	key_segs_sampled;
-  uint32	key_rows_in_sampled_segs;
-  id_hash_t *	key_p_stat; /* for rdf inx starting with p, stats on the rest for a given p */
+  dbe_key_frag_t **key_fragments;
+  int key_n_fragments;
+  dbe_storage_t *key_storage;
+  caddr_t *key_options;
+  uint32 key_segs_sampled;
+  uint32 key_rows_in_sampled_segs;
+  id_hash_t *key_p_stat;	/* for rdf inx starting with p, stats on the rest for a given p */
 };
 
 
@@ -573,9 +591,9 @@ fragment instead of searching for the the fragment actually needed. */
 
 
 typedef struct triggers_s
-  {
-    dk_set_t		trig_list;
-  } triggers_t;
+{
+  dk_set_t trig_list;
+} triggers_t;
 
 
 
@@ -636,9 +654,9 @@ create_unique_index SYS_KEY_PARTS on SYS_KEY_PARTS (KP_KEY_ID KP_NTH)
 #define KV_LEAF_PTR 0
 #define KV_LEFT_DUMMY           127
 #define KI_SUB                  9
-#define KV_GAP 126  /* on page layout, the next byte is 8 bit length of free space from KV_GAP */
-#define KV_LONG_GAP 125 /* on page layout, 2 next bytes are the length of free space, from DV_LONG_GAP */
-#define MAX_KV_GAP_BYTES 3 /* longest gap marker len */
+#define KV_GAP 126		/* on page layout, the next byte is 8 bit length of free space from KV_GAP */
+#define KV_LONG_GAP 125		/* on page layout, 2 next bytes are the length of free space, from DV_LONG_GAP */
+#define MAX_KV_GAP_BYTES 3	/* longest gap marker len */
 #define KI_FRAGS                10
 #define KI_UDT                  11
 
@@ -698,7 +716,7 @@ create_unique_index SYS_KEY_PARTS on SYS_KEY_PARTS (KP_KEY_ID KP_NTH)
 #define CI_UDT_ID		46
 #define CI_UDT_MIGRATE_TO	47
 
-#define CI_BITMAP 48 /*invisible string col at the end of a bitmap inx leaf.  One shared among all. &*/
+#define CI_BITMAP 48		/*invisible string col at the end of a bitmap inx leaf.  One shared among all. & */
 
 #define CN_COLS_TBL		"TABLE"
 #define CN_COLS_COL		"COLUMN"
@@ -768,26 +786,22 @@ create_unique_index SYS_KEY_PARTS on SYS_KEY_PARTS (KP_KEY_ID KP_NTH)
 #define KI_TEMP 0xffff
 /* marks query temp keys */
 
-struct search_spec_s * dbe_key_insert_spec (dbe_key_t * key);
+struct search_spec_s *dbe_key_insert_spec (dbe_key_t * key);
 
-dbe_schema_t * dbe_schema_create (dbe_schema_t *sc);
+dbe_schema_t *dbe_schema_create (dbe_schema_t * sc);
 void sch_create_meta_seed (dbe_schema_t * sc, dbe_schema_t * prev_sc);
 
 void dbe_schema_free (dbe_schema_t * sc);
-dbe_table_t * dbe_table_create (dbe_schema_t * sc, const char * name);
-dbe_column_t * dbe_column_add (dbe_table_t * tb, const char * name, oid_t id,
-    dtp_t dtp);
+dbe_table_t *dbe_table_create (dbe_schema_t * sc, const char *name);
+dbe_column_t *dbe_column_add (dbe_table_t * tb, const char *name, oid_t id, dtp_t dtp);
 
-dbe_key_t * dbe_key_create (dbe_schema_t * sc, dbe_table_t * tb, const char * name,
-    key_id_t id, int n_significant, int cluster_on_id, int is_main,
-    key_id_t migrate_to, key_id_t super_id);
+dbe_key_t *dbe_key_create (dbe_schema_t * sc, dbe_table_t * tb, const char *name,
+    key_id_t id, int n_significant, int cluster_on_id, int is_main, key_id_t migrate_to, key_id_t super_id);
 
-dbe_key_t * tb_text_key (dbe_table_t *tb);
+dbe_key_t *tb_text_key (dbe_table_t * tb);
 
 void key_add_part (dbe_key_t * key, oid_t col);
 void sqt_max_desc (sql_type_t * res, sql_type_t * arg);
 int dbe_cols_are_valid (db_buf_t row, dbe_key_t * key, int throw_error);
 
 #endif
-
-

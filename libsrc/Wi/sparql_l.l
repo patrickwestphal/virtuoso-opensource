@@ -534,7 +534,7 @@ SPAR_PARAMNAME	(([A-Z]+"::")?(({SPAR_SQLNAME}("."{SPAR_SQLNAME})?)|(":"{SPAR_SQL
 <SPARQL_AFTER_COUNT>.		{ sparyyerror ("Only '(' and DISTINCT are allowed after COUNT keyword in SPARQL expression"); }
 <SPARQL_AFTER_IDENTIFIED>.	{ sparyyerror ("Ill formed 'IDENTIFIED BY' term"); }
 <SPARQL_AFTER_NOT>.		{ sparyyerror ("Only EXISTS, FROM, IN, NULL and USING are allowed after NOT keyword in SPARQL expression"); }
-<SPARQL_AFTER_WHERE>.	{ sparyyerror ("Only '{', '(' and a string literal are allowed after WHERE or SQLQUERY keyword in SPARQL expression"); }
+<SPARQL_AFTER_WHERE>.		{ sparyyerror ("Only '{', '(' and a string literal are allowed after WHERE or SQLQUERY keyword in SPARQL expression"); }
 <SPARQL>.			{ sparyyerror (t_box_sprintf (100, "Bad character '%c' (0x%x) in SPARQL expression", yytext[0], (unsigned int)((unsigned char)(yytext[0])))); }
 
 %%

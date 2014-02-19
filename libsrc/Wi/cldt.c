@@ -80,21 +80,21 @@ code_node_input (code_node_t * cn, caddr_t * inst, caddr_t * state)
 	  cn->src_gen.src_out_fill);
       qi->qi_set_mask = NULL;
       if (!QST_INT (inst, cn->src_gen.src_out_fill))
-      return;
+	return;
     }
-		else
-		  {
+  else
+    {
       int inx;
       int *sets = QST_BOX (int *, inst, cn->src_gen.src_sets);
       for (inx = 0; inx < n_sets; inx++)
 	sets[inx] = inx;
       QST_INT (inst, cn->src_gen.src_out_fill) = n_sets;
       code_vec_run_v (cn->cn_code, inst, 0, -1, QST_INT (inst, cn->src_gen.src_out_fill), NULL, NULL, 0);
-}
-  qi->qi_set_mask = NULL;
-	qn_send_output ((data_source_t *) cn, inst);
-      return;
     }
+  qi->qi_set_mask = NULL;
+  qn_send_output ((data_source_t *) cn, inst);
+  return;
+}
 
 
 void
@@ -135,10 +135,10 @@ void
 cl_fref_read_input (cl_fref_read_node_t * clf, caddr_t * inst, caddr_t * state)
 {
   NO_CL;
-    }
+}
 
 void
 ssa_iter_input (ssa_iter_node_t * ssi, caddr_t * inst, caddr_t * state)
-  {
+{
   NO_CL;
 }

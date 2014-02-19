@@ -188,332 +188,228 @@ int cmpf_##name (buffer_desc_t * buf, int irow, it_cursor_t * itc) \
 }
 
 
-CMPF_HEADER (intn)
-INTK_NN (0, 0, lt, gt)
-CMPF_END
-
+CMPF_HEADER (intn) INTK_NN (0, 0, lt, gt) CMPF_END
 CMPF_HEADER (intn_intn)
 INTK_NN (0, 0, lt, gt)
 INTK_NN (1, 1, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (intn_intn_intn)
 INTK_NN (0, 0, lt, gt)
 INTK_NN (1, 1, lt, gt)
 INTK_NN (2, 2, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (intn_intn_intn_intn)
 INTK_NN (0, 0, lt, gt)
 INTK_NN (1, 1, lt, gt)
 INTK_NN (2, 2, lt, gt)
 INTK_NN (3, 3, lt, gt)
-CMPF_END
-
-
-
-
+    CMPF_END
 CMPF_HEADER (strn)
 STRK_NN (0, 0, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (strn_intn)
 STRK_NN (0, 0, lt, gt)
 INTK_NN (1, 1, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (strn_intn_lte)
 STRK_NN (0, 0, lt, gt)
 INTK_NN (1, 1, match, gt)
-	 match:
-CMPF_END
-
-
-
+match:CMPF_END
 CMPF_HEADER (irin_irin_anyn_irin)
 IRIK_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, gt)
 IRIK_NN (3, 3, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (irin_irin_anyn_irin_lte)
 IRIK_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, gt)
 IRIK_NN (3, 3, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (anyn_irin_irin_irin_lte)
 ANYK1_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 IRIK_NN (2, 2, lt, gt)
 IRIK_NN (3, 3, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (anyn_irin_irin_irin)
 ANYK1_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 IRIK_NN (2, 2, lt, gt)
 IRIK_NN (3, 3, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (irin_irin_anyn)
 IRIK_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (irin_irin_irin_anyn)
 IRIK_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 IRIK_NN (2, 2, lt, gt)
 ANYK1_NN (3, 3, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (irin_irin_irin)
 IRIK_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
 IRIK_NN (2, 2, lt, gt)
-CMPF_END
-
+    CMPF_END
 CMPF_HEADER (irin_irin)
 IRIK_NN (0, 0, lt, gt)
 IRIK_NN (1, 1, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (irin)
 IRIK_NN (0, 0, lt, gt)
-CMPF_END
-
-
-
-
+    CMPF_END
 /* 64 bit versions of the above */
-
 CMPF_HEADER (int64n)
 INT64K_NN (0, 0, lt, gt)
-CMPF_END
-
+    CMPF_END
 CMPF_HEADER (int64n_int64n)
 INT64K_NN (0, 0, lt, gt)
 INT64K_NN (1, 1, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (int64n_int64n_int64n)
 INT64K_NN (0, 0, lt, gt)
 INT64K_NN (1, 1, lt, gt)
 INT64K_NN (2, 2, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (int64n_int64n_int64n_int64n)
 INT64K_NN (0, 0, lt, gt)
 INT64K_NN (1, 1, lt, gt)
 INT64K_NN (2, 2, lt, gt)
 INT64K_NN (3, 3, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (strn_int64n)
 STRK_NN (0, 0, lt, gt)
 INT64K_NN (1, 1, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (strn_int64n_lte)
 STRK_NN (0, 0, lt, gt)
 INT64K_NN (1, 1, match, gt)
-	 match:
-CMPF_END
-
-
-
+match:CMPF_END
 CMPF_HEADER (iri64n_iri64n_anyn_iri64n)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, gt)
 IRI64K_NN (3, 3, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (iri64n_iri64n_anyn_iri64n_lte)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, gt)
 IRI64K_NN (3, 3, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (iri64n_iri64n_anyn_gt_lt)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, m1)
-m1:
+    m1:
 ANYK1_NN (2, 3, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (iri64n_iri64n_lte)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (iri64n_anyn_iri64n_iri64n_lte)
 IRI64K_NN (0, 0, lt, gt)
 ANYK1_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
 IRI64K_NN (3, 3, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (iri64n_anyn_iri64n)
 IRI64K_NN (0, 0, lt, gt)
 ANYK1_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (anyn_iri64n_iri64n_iri64n_lte)
 ANYK1_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
 IRI64K_NN (3, 3, match, gt)
-match:
-CMPF_END
-
-
+match:CMPF_END
 CMPF_HEADER (anyn_iri64n_iri64n_iri64n)
 ANYK1_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
 IRI64K_NN (3, 3, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (anyn_iri64n_iri64n)
 ANYK1_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (anyn_iri64n)
 ANYK1_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (anyn)
 ANYK1_NN (0, 0, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (iri64n_iri64n_anyn)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 ANYK1_NN (2, 2, lt, gt)
-CMPF_END
-
-
-
+    CMPF_END
 CMPF_HEADER (iri64n_iri64n_iri64n_anyn)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
 ANYK1_NN (3, 3, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (iri64n_iri64n_iri64n)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
 IRI64K_NN (2, 2, lt, gt)
-CMPF_END
-
+    CMPF_END
 CMPF_HEADER (iri64n_iri64n)
 IRI64K_NN (0, 0, lt, gt)
 IRI64K_NN (1, 1, lt, gt)
-CMPF_END
-
-
+    CMPF_END
 CMPF_HEADER (iri64n)
 IRI64K_NN (0, 0, lt, gt)
-CMPF_END
+CMPF_END dk_set_t cfd_list = NULL;
+
+#define NOMORE 99		/*sentinel value distinct from CMP_xx */
 
 
 
 
-dk_set_t cfd_list = NULL;
-
-#define NOMORE 99 /*sentinel value distinct from CMP_xx */
-
-
-
-
-void
-ksp_cmp_func (key_spec_t * ksp, unsigned char * nth)
+     void ksp_cmp_func (key_spec_t * ksp, unsigned char *nth)
 {
   int n = 0;
-  search_spec_t * sp = ksp->ksp_spec_array;
+  search_spec_t *sp = ksp->ksp_spec_array;
   int all_eq = 1;
   DO_SET (cmp_func_desc_t *, cfd, &cfd_list)
-    {
-      int pinx;
-      search_spec_t * sps = sp;
-      cmp_desc_t * desc = cfd->cfd_compares;
-      for (pinx = 0; desc[pinx].cmd_min_op != NOMORE; pinx++)
-	{
-	  if (!sps || sps->sp_is_reverse || sps->sp_collation)
-	    goto next_func;
-	  if (CMP_EQ != sps->sp_min_op)
-	    all_eq = 0;
-	  if (desc[pinx].cmd_min_op != sps->sp_min_op
-	      || desc[pinx].cmd_max_op != sps->sp_max_op
-	      || desc[pinx].cmd_dtp != sps->sp_cl.cl_sqt.sqt_dtp
-	      || desc[pinx].cmd_non_null != sps->sp_cl.cl_sqt.sqt_non_null)
-	    goto next_func;
-	  sps = sps->sp_next;
+  {
+    int pinx;
+    search_spec_t *sps = sp;
+    cmp_desc_t *desc = cfd->cfd_compares;
+    for (pinx = 0; desc[pinx].cmd_min_op != NOMORE; pinx++)
+      {
+	if (!sps || sps->sp_is_reverse || sps->sp_collation)
+	  goto next_func;
+	if (CMP_EQ != sps->sp_min_op)
+	  all_eq = 0;
+	if (desc[pinx].cmd_min_op != sps->sp_min_op
+	    || desc[pinx].cmd_max_op != sps->sp_max_op
+	    || desc[pinx].cmd_dtp != sps->sp_cl.cl_sqt.sqt_dtp || desc[pinx].cmd_non_null != sps->sp_cl.cl_sqt.sqt_non_null)
+	  goto next_func;
+	sps = sps->sp_next;
 
-	}
-      if (!sps)
-	{
-	  ksp->ksp_key_cmp = cfd->cfd_func;
-	  if (nth)
-	    *nth = n + 1;
-	  return;
-	}
-    next_func: ;
-      n++;
-    }
-  END_DO_SET();
+      }
+    if (!sps)
+      {
+	ksp->ksp_key_cmp = cfd->cfd_func;
+	if (nth)
+	  *nth = n + 1;
+	return;
+      }
+  next_func:;
+    n++;
+  }
+  END_DO_SET ();
   ksp->ksp_key_cmp = NULL;
   if (nth)
     *nth = 0;
@@ -527,8 +423,9 @@ ksp_nth_cmp_func (key_spec_t * ksp, char nth)
     ksp->ksp_key_cmp = NULL;
   else
     {
-      cmp_func_desc_t * cfd = (cmp_func_desc_t *) dk_set_nth (cfd_list, nth - 1);
-      if (!cfd) GPF_T1 ("Bad inline key comp id");
+      cmp_func_desc_t *cfd = (cmp_func_desc_t *) dk_set_nth (cfd_list, nth - 1);
+      if (!cfd)
+	GPF_T1 ("Bad inline key comp id");
       ksp->ksp_key_cmp = cfd->cfd_func;
     }
 }
@@ -540,7 +437,7 @@ sp_add_func (key_cmp_t f, cmp_desc_t c[])
   NEW_VARZ (cmp_func_desc_t, cfd);
   cfd->cfd_func = f;
   cfd->cfd_compares = c;
-  dk_set_push (&cfd_list, (void*) cfd);
+  dk_set_push (&cfd_list, (void *) cfd);
 }
 
 
@@ -554,218 +451,320 @@ sp_add_func (key_cmp_t f, cmp_desc_t c[])
   sp_add_func (__f, __a); }
 
 
-
 void
 search_inline_init ()
 {
-  static cmp_desc_t  intn_p[] = {{CMP_EQ, CMP_NONE, DV_LONG_INT, 1}, {NOMORE, 0, 0, 0}};
-  static cmp_desc_t strn_p [] = {{CMP_EQ, CMP_NONE, DV_STRING, 1}, {NOMORE, 0, 0, 0}};
-  /*return;*/
+  static cmp_desc_t intn_p[] = { {CMP_EQ, CMP_NONE, DV_LONG_INT, 1}, {NOMORE, 0, 0, 0} };
+  static cmp_desc_t strn_p[] = { {CMP_EQ, CMP_NONE, DV_STRING, 1}, {NOMORE, 0, 0, 0} };
+  /*return; */
   sp_add_func (cmpf_intn, intn_p);
   sp_add_func (cmpf_strn, strn_p);
   SPF (irin_irin_anyn_irin)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
   SPF_END;
   SPF (irin_irin_anyn_irin_lte)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_NONE, CMP_LTE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_IRI_ID, 1}
   SPF_END;
   SPF (anyn_irin_irin_irin_lte)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_NONE, CMP_LTE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_IRI_ID, 1}
   SPF_END;
   SPF (anyn_irin_irin_irin)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
   SPF_END;
 
 
   SPF (irin)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
   SPF_END;
   SPF (irin_irin)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
   SPF_END;
 
   SPF (irin_irin_irin)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1}
   SPF_END;
   SPF (irin_irin_irin_anyn)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-  {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1}
   SPF_END;
 
   SPF (irin_irin_anyn)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1}
   SPF_END;
 
   SPF (intn_intn)
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
   SPF_END;
 
   SPF (intn_intn_intn)
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
   SPF_END;
 
   SPF (intn_intn_intn_intn)
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
   SPF_END;
 
   SPF (strn_intn)
-    {CMP_EQ, CMP_NONE, DV_STRING, 1},
-    {CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_STRING, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_LONG_INT, 1}
   SPF_END;
   SPF (strn_intn_lte)
-    {CMP_EQ, CMP_NONE, DV_STRING, 1},
-    {CMP_NONE, CMP_LTE, DV_LONG_INT, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_STRING, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_LONG_INT, 1}
   SPF_END;
 
 /* 64 bit declarations */
 
   SPF (iri64n_iri64n_anyn_iri64n)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
   SPF (iri64n_anyn_iri64n_iri64n_lte)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (iri64n_anyn_iri64n)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (iri64n_iri64n_anyn_gt_lt)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_GT, CMP_LT, DV_ANY, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_GT, CMP_LT, DV_ANY, 1}
   SPF_END;
 
   SPF (iri64n_iri64n_anyn_iri64n_lte)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (iri64n_iri64n_lte)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
   SPF_END;
 
 
   SPF (anyn_iri64n_iri64n_iri64n_lte)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_IRI_ID_8, 1}
   SPF_END;
   SPF (anyn_iri64n_iri64n_iri64n)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (anyn_iri64n_iri64n)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (anyn_iri64n)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (anyn)
-    {CMP_EQ, CMP_NONE, DV_ANY, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1}
   SPF_END;
 
   SPF (iri64n)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
   SPF (iri64n_iri64n)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
 
   SPF (iri64n_iri64n_iri64n)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1}
   SPF_END;
   SPF (iri64n_iri64n_iri64n_anyn)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-  {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1}
   SPF_END;
 
   SPF (iri64n_iri64n_anyn)
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
-    {CMP_EQ, CMP_NONE, DV_ANY, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_IRI_ID_8, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_ANY, 1}
   SPF_END;
 
   SPF (int64n)
-    {CMP_EQ, CMP_NONE, DV_INT64, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1}
   SPF_END;
 
 
   SPF (int64n_int64n)
-    {CMP_EQ, CMP_NONE, DV_INT64, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1}
   SPF_END;
 
   SPF (int64n_int64n_int64n)
-    {CMP_EQ, CMP_NONE, DV_INT64, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1}
   SPF_END;
 
   SPF (int64n_int64n_int64n_int64n)
-    {CMP_EQ, CMP_NONE, DV_INT64, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1}
   SPF_END;
 
   SPF (strn_int64n)
-    {CMP_EQ, CMP_NONE, DV_STRING, 1},
-    {CMP_EQ, CMP_NONE, DV_INT64, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_STRING, 1},
+  {
+  CMP_EQ, CMP_NONE, DV_INT64, 1}
   SPF_END;
   SPF (strn_int64n_lte)
-    {CMP_EQ, CMP_NONE, DV_STRING, 1},
-    {CMP_NONE, CMP_LTE, DV_INT64, 1}
+  {
+  CMP_EQ, CMP_NONE, DV_STRING, 1},
+  {
+  CMP_NONE, CMP_LTE, DV_INT64, 1}
   SPF_END;
 
 
@@ -774,7 +773,7 @@ search_inline_init ()
 #else
 
 void
-ksp_cmp_func (key_spec_t * ksp, char * nth)
+ksp_cmp_func (key_spec_t * ksp, char *nth)
 {
   ksp->ksp_key_cmp = NULL;
 }
@@ -794,5 +793,3 @@ search_inline_init ()
 
 
 #endif
-
-

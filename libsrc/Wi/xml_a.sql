@@ -20,6 +20,7 @@
 --  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 --
 --
+
 CREATE USER XML_A;
 USER_SET_QUALIFIER ('XML_A', 'WS');
 VHOST_DEFINE (vhost=>'*ini*',lhost=>'*ini*',lpath=>'/xml_a',ppath=>'/SOAP/',soap_user=>'XML_A');

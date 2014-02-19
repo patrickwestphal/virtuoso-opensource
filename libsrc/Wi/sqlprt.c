@@ -78,7 +78,7 @@ trset_printf (const char *str, ...)
   if (!report_ptr)
     vprintf (str, ap);
   else
-  vsnprintf (report_ptr, REPORT_BUF_MAX - (report_linebuf - report_ptr), str, ap);
+    vsnprintf (report_ptr, REPORT_BUF_MAX - (report_linebuf - report_ptr), str, ap);
   va_end (ap);
   if (!report_ptr)
     return;
@@ -120,7 +120,7 @@ trset_printf (const char *str, ...)
 void
 trset_end (void)
 {
-  client_connection_t * cli = GET_IMMEDIATE_CLIENT_OR_NULL;
+  client_connection_t *cli = GET_IMMEDIATE_CLIENT_OR_NULL;
   char *report_linebuf;
   char *report_ptr;
   char *line;

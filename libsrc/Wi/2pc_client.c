@@ -26,19 +26,18 @@
 #include "CLI.h"
 #include "2pc.h"
 
-caddr_t exp_PrpcTPInvoke(SQLHDBC hdbc,long op)
+caddr_t
+exp_PrpcTPInvoke (SQLHDBC hdbc, long op)
 {
-  future_t* f;
+  future_t *f;
   caddr_t res;
-  CON(dbc,hdbc);
-  f = PrpcFuture (dbc->con_session, &s_sql_tp_transact, op,
-		  NULL);
+  CON (dbc, hdbc);
+  f = PrpcFuture (dbc->con_session, &s_sql_tp_transact, op, NULL);
   if ()
     {
 
     }
   res = PrpcFutureNextResult (f);
-  PrpcFutureFree(f);
+  PrpcFutureFree (f);
   return res;
 }
-

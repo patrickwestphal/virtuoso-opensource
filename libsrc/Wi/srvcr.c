@@ -35,25 +35,17 @@
 #include "sqlintrp.h"
 #include "arith.h"
 #include "crsr.h"
+#include "util/md5.h"
 #include "util/strfuns.h"
 #include "sqlbif.h"
 #include "list2.h"
 #include "sqltype_c.h"
 
-#ifdef _SSL
-#include <openssl/md5.h>
-#define MD5Init   MD5_Init
-#define MD5Update MD5_Update
-#define MD5Final  MD5_Final
-#else
-#include "util/md5.h"
-#endif /* _SSL */
 
 long max_static_cursor_rows = _MAX_STATIC_CURSOR_ROWS;
 
 
-caddr_t *cs_lc_row (cursor_state_t * cs, local_cursor_t * lc,
-		    rowset_item_t * rsi);
+caddr_t *cs_lc_row (cursor_state_t * cs, local_cursor_t * lc, rowset_item_t * rsi);
 
 
 #define BOX_SET(v, val) \
@@ -69,7 +61,7 @@ box_md5_1 (caddr_t box, MD5_CTX * ctx)
     {
       char box_img[sizeof (long) + 1];
       /* an unboxed num will have ck sum identical to the same boxed value */
-      box_img[0] = (dtp_t)(DV_LONG_INT);
+      box_img[0] = (dtp_t) (DV_LONG_INT);
       memcpy (&box_img[1], &box, sizeof (long));
       MD5Update (ctx, (unsigned char *) &box_img, sizeof (long) + 1);
       return;
@@ -78,7 +70,9 @@ box_md5_1 (caddr_t box, MD5_CTX * ctx)
   len = box_length (box);
   switch (dtp)
     {
-    case DV_ARRAY_OF_POINTER: case DV_LIST_OF_POINTER: case DV_ARRAY_OF_XQVAL:
+    case DV_ARRAY_OF_POINTER:
+    case DV_LIST_OF_POINTER:
+    case DV_ARRAY_OF_XQVAL:
       {
 	for (inx = 0; inx < (int) (len / sizeof (caddr_t)); inx++)
 	  box_md5_1 (((caddr_t *) box)[inx], ctx);
@@ -87,7 +81,7 @@ box_md5_1 (caddr_t box, MD5_CTX * ctx)
     case DV_BLOB_HANDLE:
     case DV_BLOB_WIDE_HANDLE:
       return;
-#if 0 /* It's redundant now, because DV_SHORT_STRING == DV_LONG_STRING */
+#if 0				/* It's redundant now, because DV_SHORT_STRING == DV_LONG_STRING */
     case DV_STRING:
       box_tag_modify (box, DV_STRING);
       MD5Update (ctx, (unsigned char *) box - 1, len + 1);
@@ -95,12 +89,12 @@ box_md5_1 (caddr_t box, MD5_CTX * ctx)
       break;
 #endif
     case DV_NUMERIC:
-	{
-	  unsigned int numeric_len = len - NUMERIC_MAX_DATA_BYTES + numeric_precision ((numeric_t) box);
-	  MD5Update (ctx, (unsigned char *) box - 1, numeric_len + 1);
-	}
+      {
+	unsigned int numeric_len = len - NUMERIC_MAX_DATA_BYTES + numeric_precision ((numeric_t) box);
+	MD5Update (ctx, (unsigned char *) box - 1, numeric_len + 1);
+      }
       break;
-    case DV_DB_NULL: /* special case since NULLs has zero len */
+    case DV_DB_NULL:		/* special case since NULLs has zero len */
       MD5Update (ctx, (unsigned char *) box - 1, 1);
       break;
     default:
@@ -125,7 +119,7 @@ box_md5 (caddr_t box)
 
 
 caddr_t
-bif_tree_md5  (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+bif_tree_md5 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t x = bif_arg (qst, args, 0, "tree_md5");
   caddr_t hex = box_md5 (x), out;
@@ -136,9 +130,9 @@ bif_tree_md5  (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     make_it_hex = bif_long_arg (qst, args, 1, "tree_md5");
   if (make_it_hex)
     {
-      char buf [3];
+      char buf[3];
       out = dk_alloc_box (2 * (box_length (hex) - 1) + 1, DV_SHORT_STRING);
-      out[0]=0;
+      out[0] = 0;
       for (inx = 0; ((uint32) inx) < box_length (hex) - 1; inx++)
 	{
 	  snprintf (buf, sizeof (buf), "%02x", (unsigned char) hex[inx]);
@@ -297,7 +291,7 @@ cr_lc_next (cursor_state_t * cs)
     {
       qi->qi_set++;
       if (qi->qi_set < cs->cs_lc->lc_vec_n_rows)
-	return (caddr_t)SQL_SUCCESS;
+	return (caddr_t) SQL_SUCCESS;
     }
   err = subq_next (qi->qi_query, (caddr_t *) qi, CR_OPEN);
   if (IS_BOX_POINTER (err))
@@ -340,20 +334,19 @@ cs_free (cursor_state_t * cs)
 
 
 cursor_state_t *
-cli_find_cs (client_connection_t * cli, char * cr_name)
+cli_find_cs (client_connection_t * cli, char *cr_name)
 {
-  srv_stmt_t ** stmtp;
-  srv_stmt_t * stmt;
-  caddr_t * sidp;
+  srv_stmt_t **stmtp;
+  srv_stmt_t *stmt;
+  caddr_t *sidp;
   id_hash_iterator_t hit;
 
   ASSERT_IN_MTX (cli->cli_mtx);
   id_hash_iterator (&hit, cli->cli_statements);
-  while (hit_next (&hit, (caddr_t*) &sidp, (caddr_t*) &stmtp))
+  while (hit_next (&hit, (caddr_t *) & sidp, (caddr_t *) & stmtp))
     {
       stmt = *stmtp;
-      if (stmt->sst_cursor_state
-	  && 0 == strcmp (stmt->sst_cursor_state->cs_name, cr_name))
+      if (stmt->sst_cursor_state && 0 == strcmp (stmt->sst_cursor_state->cs_name, cr_name))
 	{
 	  return (stmt->sst_cursor_state);
 	}
@@ -393,10 +386,8 @@ cs_read_row (cursor_state_t * cs)
     return;
   if (!cs->cs_from_order)
     {
-      cs->cs_from_order = (caddr_t *) dk_alloc_box (box_length ((caddr_t) qc->qc_order_cols),
-						    DV_ARRAY_OF_POINTER);
-      cs->cs_from_id = (caddr_t *) dk_alloc_box (qc->qc_n_id_cols * sizeof (caddr_t),
-						 DV_ARRAY_OF_POINTER);
+      cs->cs_from_order = (caddr_t *) dk_alloc_box (box_length ((caddr_t) qc->qc_order_cols), DV_ARRAY_OF_POINTER);
+      cs->cs_from_id = (caddr_t *) dk_alloc_box (qc->qc_n_id_cols * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
       memset (cs->cs_from_id, 0, box_length ((caddr_t) cs->cs_from_id));
       memset (cs->cs_from_order, 0, box_length ((caddr_t) cs->cs_from_order));
     }
@@ -430,8 +421,7 @@ cs_start_cont (cursor_state_t * cs, query_t * qr, int n_order_params)
   caddr_t err;
   int inx;
   int n_params = cs->cs_params ? BOX_ELEMENTS (cs->cs_params) : 0;
-  caddr_t *params = (caddr_t *) dk_alloc_box
-  ((n_params + n_order_params) * sizeof (caddr_t) * 2, DV_ARRAY_OF_POINTER);
+  caddr_t *params = (caddr_t *) dk_alloc_box ((n_params + n_order_params) * sizeof (caddr_t) * 2, DV_ARRAY_OF_POINTER);
   char temp[50];
 
   for (inx = 0; inx < n_params; inx++)
@@ -446,8 +436,7 @@ cs_start_cont (cursor_state_t * cs, query_t * qr, int n_order_params)
       params[(inx + n_params) * 2] = box_string (temp);
       params[(inx + n_params) * 2 + 1] = box_copy_tree (cs->cs_from_order[inx]);
     }
-  err = qr_exec (cs->cs_client, qr, CALLER_LOCAL, NULL, NULL,
-		 &cs->cs_lc, params, cs->cs_opts, 1);
+  err = qr_exec (cs->cs_client, qr, CALLER_LOCAL, NULL, NULL, &cs->cs_lc, params, cs->cs_opts, 1);
   dk_free_box ((caddr_t) params);
   cs_err_ck (err);
   if (cs->cs_lc && cs->cs_lc->lc_position != -1)
@@ -472,11 +461,10 @@ cs_next (cursor_state_t * cs, int dir)
   for (;;)
     {
       query_instance_t *qi = NULL;
-      if (cs->cs_prev_dir == dir
-	  && cs->cs_lc && cs->cs_lc->lc_inst)
+      if (cs->cs_prev_dir == dir && cs->cs_lc && cs->cs_lc->lc_inst)
 	{
 	  /* scroll from open position */
-	  qi = (query_instance_t *)cs->cs_lc->lc_inst;
+	  qi = (query_instance_t *) cs->cs_lc->lc_inst;
 	  qi->qi_thread = THREAD_CURRENT_THREAD;
 	  err = cr_lc_next (cs);
 	check_fetch_result:
@@ -561,8 +549,7 @@ cs_position_at_from_row (cursor_state_t * cs, int ftype)
 	  dk_free_tree ((box_t) row_id);
 	  return ((caddr_t) SQL_SUCCESS);
 	}
-      if (box_equal (cs->cs_from_order[last_order_inx], last_order_val)
-	  && cs->cs_nth_cont == org_nth)
+      if (box_equal (cs->cs_from_order[last_order_inx], last_order_val) && cs->cs_nth_cont == org_nth)
 	{
 	  if (box_equal ((box_t) cs->cs_from_id, (box_t) row_id))
 	    {
@@ -591,8 +578,7 @@ cs_register_lc (cursor_state_t * cs)
 {
   client_connection_t *cli = cs->cs_client;
   srv_stmt_t *stmt = cs->cs_stmt;
-  if (cs->cs_lc && cs->cs_lc->lc_inst
-      && !cs->cs_lc->lc_cursor_name && !CS_IS_PL_CURSOR (cs))
+  if (cs->cs_lc && cs->cs_lc->lc_inst && !cs->cs_lc->lc_cursor_name && !CS_IS_PL_CURSOR (cs))
     {
       cs->cs_lc->lc_cursor_name = box_copy (stmt->sst_id);
       mutex_enter (cli->cli_mtx);
@@ -612,10 +598,10 @@ cs_send_at_end (cursor_state_t * cs)
 }
 
 
-long cs_keyset_row_no (cursor_state_t *cs, rowset_item_t *rsi);
+long cs_keyset_row_no (cursor_state_t * cs, rowset_item_t * rsi);
 
 void
-cs_send_deleted (cursor_state_t * cs, rowset_item_t *rsi)
+cs_send_deleted (cursor_state_t * cs, rowset_item_t * rsi)
 {
   caddr_t x;
 
@@ -623,11 +609,8 @@ cs_send_deleted (cursor_state_t * cs, rowset_item_t *rsi)
     {
       x = (caddr_t) list (3, QA_ROW_DELETED,
 	  list (2,
-	    box_copy_tree ((caddr_t) rsi->rsi_order),
-	    box_copy_tree ((caddr_t) rsi->rsi_id)
-	  ),
-	  box_num(cs_keyset_row_no(cs, rsi))
-	);
+	      box_copy_tree ((caddr_t) rsi->rsi_order),
+	      box_copy_tree ((caddr_t) rsi->rsi_id)), box_num (cs_keyset_row_no (cs, rsi)));
     }
   else
     {
@@ -651,26 +634,27 @@ cs_reset_rowset (cursor_state_t * cs, int n, int ftype)
 }
 
 long
-cs_keyset_row_no (cursor_state_t *cs, rowset_item_t *rsi) {
+cs_keyset_row_no (cursor_state_t * cs, rowset_item_t * rsi)
+{
 
-	rowset_item_t *curr;
-	long curr_row_number = 1;
-	if(cs->cs_keyset==NULL) return 0;
-	for (curr = cs->cs_keyset->kset_first; curr && curr != rsi && curr->rsi_next ; curr = curr->rsi_next)
-		curr_row_number += 1;
-	return curr_row_number;
+  rowset_item_t *curr;
+  long curr_row_number = 1;
+  if (cs->cs_keyset == NULL)
+    return 0;
+  for (curr = cs->cs_keyset->kset_first; curr && curr != rsi && curr->rsi_next; curr = curr->rsi_next)
+    curr_row_number += 1;
+  return curr_row_number;
 }
 
 caddr_t *
-cs_lc_row (cursor_state_t * cs, local_cursor_t * lc,
-	   rowset_item_t * rsi)
+cs_lc_row (cursor_state_t * cs, local_cursor_t * lc, rowset_item_t * rsi)
 {
   query_cursor_t *qc = cs->cs_query->qr_cursor;
   int inx;
   int use_bm = cs->cs_opts->so_use_bookmarks ? 1 : 0;
   int n_cols = qc->qc_n_select_cols;
   caddr_t *res = (caddr_t *) dk_alloc_box ((1 + n_cols + use_bm * 2) * sizeof (caddr_t),
-					   DV_ARRAY_OF_POINTER);
+      DV_ARRAY_OF_POINTER);
   res[0] = (caddr_t) QA_ROW;
   for (inx = 1; inx <= n_cols; inx++)
     {
@@ -678,17 +662,16 @@ cs_lc_row (cursor_state_t * cs, local_cursor_t * lc,
     }
   if (use_bm)
     {
-      res[n_cols + 2] = box_num(0);
+      res[n_cols + 2] = box_num (0);
       if (_SQL_CURSOR_STATIC == CS_CR_TYPE (cs))
 	res[n_cols + 1] = box_num (cs->cs_n_scrolled);
       else if (!rsi && _SQL_CURSOR_DYNAMIC == CS_CR_TYPE (cs))
-	res[n_cols + 1] = list (2, box_copy_tree ((caddr_t) cs->cs_from_order),
-	    box_copy_tree ((caddr_t) cs->cs_from_id));
-      else if (rsi) {
-	res[n_cols + 1] = list (2, box_copy_tree ((caddr_t) rsi->rsi_order),
-	    box_copy_tree ((caddr_t) rsi->rsi_id));
-	res[n_cols + 2] = box_num(cs_keyset_row_no(cs, rsi));
-      }
+	res[n_cols + 1] = list (2, box_copy_tree ((caddr_t) cs->cs_from_order), box_copy_tree ((caddr_t) cs->cs_from_id));
+      else if (rsi)
+	{
+	  res[n_cols + 1] = list (2, box_copy_tree ((caddr_t) rsi->rsi_order), box_copy_tree ((caddr_t) rsi->rsi_id));
+	  res[n_cols + 2] = box_num (cs_keyset_row_no (cs, rsi));
+	}
       else
 	GPF_T1 ("No bookmark value for row");
       ;
@@ -766,8 +749,7 @@ cs_prior_rel (cursor_state_t * cs, int irow)
 
 
 caddr_t
-stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow,
-		      int n_rows, kset_func f)
+stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow, int n_rows, kset_func f)
 {
   caddr_t err;
   int inx;
@@ -776,8 +758,7 @@ stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow,
 
 
 
-  if (ftype == _SQL_FETCH_LAST
-      || ftype == _SQL_FETCH_FIRST)
+  if (ftype == _SQL_FETCH_LAST || ftype == _SQL_FETCH_FIRST)
     {
       cs->cs_state = CS_ON_ROW;
       BOX_SET (cs->cs_window_first, NULL);
@@ -789,8 +770,7 @@ stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow,
     {
       BOX_SET (cs->cs_from_order, cs->cs_window_last);
       BOX_SET (cs->cs_from_id, cs->cs_window_last_id);
-      if (cs->cs_prev_dir == FWD && cs->cs_lc_pos == LC_AFTER_WINDOW
-	  && cs->cs_lc && cs->cs_lc->lc_inst)
+      if (cs->cs_prev_dir == FWD && cs->cs_lc_pos == LC_AFTER_WINDOW && cs->cs_lc && cs->cs_lc->lc_inst)
 	cont_from_lc = 1;
       else
 	cont_from_value = 1;
@@ -799,8 +779,7 @@ stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow,
     {
       BOX_SET (cs->cs_from_order, cs->cs_window_first);
       BOX_SET (cs->cs_from_id, cs->cs_window_first_id);
-      if (cs->cs_prev_dir == BWD && cs->cs_lc_pos == LC_BEFORE_WINDOW
-	  && cs->cs_lc && cs->cs_lc->lc_inst)
+      if (cs->cs_prev_dir == BWD && cs->cs_lc_pos == LC_BEFORE_WINDOW && cs->cs_lc && cs->cs_lc->lc_inst)
 	cont_from_lc = 1;
       else
 	cont_from_value = 1;
@@ -836,8 +815,7 @@ stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow,
       cs->cs_lc_pos = LC_NONE;
       if (f)
 	return err;
-      cs->cs_window_pos = IS_FWD (ftype) && _SQL_FETCH_RELATIVE != ftype
-	? CS_WINDOW_END : CS_WINDOW_START;
+      cs->cs_window_pos = IS_FWD (ftype) && _SQL_FETCH_RELATIVE != ftype ? CS_WINDOW_END : CS_WINDOW_START;
       cs_send_at_end (cs);
       return err;
     }
@@ -894,8 +872,7 @@ stmt_dyn_fetch_inner (srv_stmt_t * stmt, int ftype, int irow,
     return err;
   if (ftype == _SQL_FETCH_PRIOR && cs->cs_rowset_fill != n_rows)
     {
-      return (stmt_dyn_fetch_inner (stmt, _SQL_FETCH_FIRST, 0,
-			    n_rows, NULL));
+      return (stmt_dyn_fetch_inner (stmt, _SQL_FETCH_FIRST, 0, n_rows, NULL));
     }
   cs_fix_rowset_dir (cs, ftype);
   cs_send_rowset (cs, ftype);
@@ -920,7 +897,7 @@ cs_set_pos_ret (local_cursor_t * lc, caddr_t err)
 
 
 static caddr_t *
-cs_make_start_cont_params (cursor_state_t * cs, caddr_t *sparams)
+cs_make_start_cont_params (cursor_state_t * cs, caddr_t * sparams)
 {
   int n_user_params = CS_IS_PL_CURSOR (cs) && cs->cs_params ? BOX_ELEMENTS (cs->cs_params) : 0;
   int n_sparams = DV_TYPE_OF (sparams) == DV_ARRAY_OF_POINTER ? BOX_ELEMENTS (sparams) : 0;
@@ -929,13 +906,13 @@ cs_make_start_cont_params (cursor_state_t * cs, caddr_t *sparams)
 
   caddr_t *params = (caddr_t *) dk_alloc_box ((n_user_params + n_sparams) * sizeof (caddr_t) * 2,
       DV_ARRAY_OF_POINTER);
-  for (inx = 0; inx < n_user_params; inx ++)
+  for (inx = 0; inx < n_user_params; inx++)
     {
       snprintf (temp, sizeof (temp), ":%d", inx);
       params[inx * 2] = box_string (temp);
       params[inx * 2 + 1] = box_copy_tree (cs->cs_params[inx]);
     }
-  for (inx = 0; inx < n_sparams; inx ++)
+  for (inx = 0; inx < n_sparams; inx++)
     {
       snprintf (temp, sizeof (temp), ":%d", inx + 1000);
       params[(inx + n_user_params) * 2] = box_string (temp);
@@ -946,8 +923,7 @@ cs_make_start_cont_params (cursor_state_t * cs, caddr_t *sparams)
 
 
 caddr_t
-cs_refresh_start_cont (cursor_state_t * cs, query_t * qr, query_instance_t *caller,
-    local_cursor_t **lc_ret, caddr_t *sparams)
+cs_refresh_start_cont (cursor_state_t * cs, query_t * qr, query_instance_t * caller, local_cursor_t ** lc_ret, caddr_t * sparams)
 {
   caddr_t err;
   caddr_t *params = cs_make_start_cont_params (cs, sparams);
@@ -959,12 +935,12 @@ cs_refresh_start_cont (cursor_state_t * cs, query_t * qr, query_instance_t *call
 
 void
 cs_refresh_row (cursor_state_t * cs, int row_no, query_instance_t * caller,
-		caddr_t ** row_ret, int update_rowset, caddr_t * err_ret)
+    caddr_t ** row_ret, int update_rowset, caddr_t * err_ret)
 {
   caddr_t err;
-  query_cursor_t * qc = cs->cs_query->qr_cursor;
-  local_cursor_t * lc;
-  rowset_item_t * rsi = cs->cs_rowset[row_no];
+  query_cursor_t *qc = cs->cs_query->qr_cursor;
+  local_cursor_t *lc;
+  rowset_item_t *rsi = cs->cs_rowset[row_no];
 
   err = cs_refresh_start_cont (cs, qc->qc_refresh, caller, &lc, (caddr_t *) rsi->rsi_id);
   if (err_ret)
@@ -1001,8 +977,8 @@ caddr_t
 cs_check_values (cursor_state_t * cs, int row_no, query_instance_t * caller)
 {
   caddr_t err;
-  rowset_item_t * rsi = cs->cs_rowset[row_no];
-  caddr_t * row = NULL;
+  rowset_item_t *rsi = cs->cs_rowset[row_no];
+  caddr_t *row = NULL;
   caddr_t ck = NULL;
   if (cs->cs_opts->so_concurrency != _SQL_CONCUR_VALUES)
     return ((caddr_t) SQL_SUCCESS);
@@ -1031,36 +1007,34 @@ cs_check_values (cursor_state_t * cs, int row_no, query_instance_t * caller)
 
 void
 cs_set_pos_1 (cursor_state_t * cs, int op, int row_no, caddr_t * params,
-	      query_instance_t * caller, caddr_t * err_ret,
-	      caddr_t ** row_ret);
+    query_instance_t * caller, caddr_t * err_ret, caddr_t ** row_ret);
 
 
 void
-cs_fix_ignores (cursor_state_t * cs, int row_no, caddr_t * params,
-	      query_instance_t * caller, caddr_t * err_ret)
+cs_fix_ignores (cursor_state_t * cs, int row_no, caddr_t * params, query_instance_t * caller, caddr_t * err_ret)
 {
-  caddr_t * fresh_row = NULL;
+  caddr_t *fresh_row = NULL;
   int inx;
   DO_BOX (caddr_t, param, inx, params)
-    {
-      if (DV_IGNORE == DV_TYPE_OF (param))
-	{
-	  if (!fresh_row)
-	    {
-	      if (_SQL_CURSOR_STATIC == CS_CR_TYPE (cs))
-		fresh_row = (caddr_t*) box_copy_tree ((caddr_t) cs->cs_rowset[row_no]->rsi_row);
-	      else
-		{
-		  cs_set_pos_1 (cs, _SQL_REFRESH, row_no, NULL, caller, err_ret, &fresh_row);
-		  if (! fresh_row)
-		    return;
-		}
-	    }
-	  dk_free_box (param);
-	  params[inx] = fresh_row[inx+1];
-	  fresh_row[inx+1] = NULL;
-	}
-    }
+  {
+    if (DV_IGNORE == DV_TYPE_OF (param))
+      {
+	if (!fresh_row)
+	  {
+	    if (_SQL_CURSOR_STATIC == CS_CR_TYPE (cs))
+	      fresh_row = (caddr_t *) box_copy_tree ((caddr_t) cs->cs_rowset[row_no]->rsi_row);
+	    else
+	      {
+		cs_set_pos_1 (cs, _SQL_REFRESH, row_no, NULL, caller, err_ret, &fresh_row);
+		if (!fresh_row)
+		  return;
+	      }
+	  }
+	dk_free_box (param);
+	params[inx] = fresh_row[inx + 1];
+	fresh_row[inx + 1] = NULL;
+      }
+  }
   END_DO_BOX;
   if (fresh_row)
     dk_free_tree ((caddr_t) fresh_row);
@@ -1077,8 +1051,7 @@ cs_fix_ignores (cursor_state_t * cs, int row_no, caddr_t * params,
 
 void
 cs_set_pos_1 (cursor_state_t * cs, int op, int row_no, caddr_t * params,
-	      query_instance_t * caller, caddr_t * err_ret,
-	      caddr_t ** row_ret)
+    query_instance_t * caller, caddr_t * err_ret, caddr_t ** row_ret)
 {
   caddr_t *row_id = NULL;
   local_cursor_t *lc = NULL;
@@ -1125,11 +1098,10 @@ cs_set_pos_1 (cursor_state_t * cs, int op, int row_no, caddr_t * params,
 	    else
 	      cs_send_deleted (cs, rsi);
 	  }
+	else if (err_ret)
+	  *err_ret = box_copy_tree (err);
 	else
-	  if (err_ret)
-	    *err_ret = box_copy_tree (err);
-	  else
-	    PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
+	  PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
 	if (lc)
 	  lc_free (lc);
 
@@ -1151,12 +1123,9 @@ cs_set_pos_1 (cursor_state_t * cs, int op, int row_no, caddr_t * params,
 	row_id = (caddr_t *) box_copy_tree ((caddr_t) rsi->rsi_id);
 	cs_fix_ignores (cs, row_no, params, caller, err_ret);
 	params2 = (caddr_t *) box_conc ((caddr_t) row_id, (caddr_t) params);
-	err = qr_exec (cs->cs_client, qc->qc_update,
-		       caller, NULL, NULL, &lc, params2,
-		       NULL, 0);
+	err = qr_exec (cs->cs_client, qc->qc_update, caller, NULL, NULL, &lc, params2, NULL, 0);
 	memset (params, 0, box_length (params));	/* contents freed by qe_exec */
-	if (err == (caddr_t) SQL_SUCCESS
-	    && _SQL_CONCUR_VALUES == cs->cs_opts->so_concurrency)
+	if (err == (caddr_t) SQL_SUCCESS && _SQL_CONCUR_VALUES == cs->cs_opts->so_concurrency)
 	  {
 	    cs_refresh_row (cs, row_no, caller, NULL, 1, &err);
 	  }
@@ -1181,9 +1150,7 @@ cs_set_pos_1 (cursor_state_t * cs, int op, int row_no, caddr_t * params,
 	    return;
 	  }
 	row_id = (caddr_t *) box_copy_tree ((caddr_t) rsi->rsi_id);
-	err = qr_exec (cs->cs_client, qc->qc_delete,
-		       caller, NULL, NULL, &lc, row_id,
-		       NULL, 0);
+	err = qr_exec (cs->cs_client, qc->qc_delete, caller, NULL, NULL, &lc, row_id, NULL, 0);
 	dk_free_box ((caddr_t) row_id);
 	if (err != (caddr_t) SQL_SUCCESS)
 	  CS_ANSWER_OR_ERROR (err_ret, err);
@@ -1195,9 +1162,7 @@ cs_set_pos_1 (cursor_state_t * cs, int op, int row_no, caddr_t * params,
       {
 	if (!qc->qc_insert)
 	  goto cannot;
-	err = qr_exec (cs->cs_client, qc->qc_insert,
-		       caller, NULL, NULL, &lc, params,
-		       NULL, 0);
+	err = qr_exec (cs->cs_client, qc->qc_insert, caller, NULL, NULL, &lc, params, NULL, 0);
 	memset (params, 0, box_length (params));	/* contents freed by qe_exec */
 	if (err != (caddr_t) SQL_SUCCESS)
 	  CS_ANSWER_OR_ERROR (err_ret, err);
@@ -1262,9 +1227,7 @@ bif_sql_set_pos (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	      caddr_t code = ERR_STATE (err);
 	      PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 0);
 	      if (strncmp (code, "4000", 4) &&
-		  strncmp (code, "S1T00", 5) &&
-		  strncmp (code, "23000", 5) &&
-		  strncmp (code, "08U01", 5))
+		  strncmp (code, "S1T00", 5) && strncmp (code, "23000", 5) && strncmp (code, "08U01", 5))
 		{
 		  dk_free_tree (err);
 		  err = NULL;
@@ -1291,7 +1254,6 @@ cs_keyset_add (cursor_state_t * cs)
 
 caddr_t
 cs_init_keyset (cursor_state_t * cs, int ftype)
-
 {
   stmt_options_t *so = cs->cs_opts;
   int cr_type = CS_CR_TYPE (cs);
@@ -1314,18 +1276,14 @@ cs_init_keyset (cursor_state_t * cs, int ftype)
     dir = BWD;
   if (kset->kset_is_complete)
     return ((caddr_t) SQL_SUCCESS);
-  if (KSET_AT_END == cs->cs_keyset_pos
-      && dir == _SQL_FETCH_PRIOR)
+  if (KSET_AT_END == cs->cs_keyset_pos && dir == _SQL_FETCH_PRIOR)
     return ((caddr_t) SQL_SUCCESS);
-  if (KSET_AT_START == cs->cs_keyset_pos
-      && dir == _SQL_FETCH_NEXT)
+  if (KSET_AT_START == cs->cs_keyset_pos && dir == _SQL_FETCH_NEXT)
     return ((caddr_t) SQL_SUCCESS);
   kset_clear (cs->cs_keyset);
   cs->cs_client_data = (void *) (ptrlong) dir;
-  stmt_dyn_fetch_inner (cs->cs_stmt, ftype, 0, kssz,
-			cs_keyset_add);
-  if (kset->kset_count < kssz
-      || _SQL_CURSOR_STATIC == cr_type)
+  stmt_dyn_fetch_inner (cs->cs_stmt, ftype, 0, kssz, cs_keyset_add);
+  if (kset->kset_count < kssz || _SQL_CURSOR_STATIC == cr_type)
     kset->kset_is_complete = 1;
   cs->cs_keyset_pos = IS_FWD (ftype) ? KSET_AT_START : KSET_AT_END;
   return ((caddr_t) SQL_SUCCESS);
@@ -1337,14 +1295,12 @@ cs_kset_move (cursor_state_t * cs, int dir)
 {
   cs->cs_client_data = (void *) (ptrlong) dir;
   cs->cs_n_scrolled = 0;
-  stmt_dyn_fetch_inner (cs->cs_stmt, dir, 0, 1,
-			cs_keyset_add);
+  stmt_dyn_fetch_inner (cs->cs_stmt, dir, 0, 1, cs_keyset_add);
   if (0 == cs->cs_n_scrolled)
     cs->cs_keyset_pos = FWD == dir ? KSET_AT_END : KSET_AT_START;
   else
     cs->cs_keyset_pos = KSET_MIDDLE;
-  return ((caddr_t) (ptrlong) (cs->cs_keyset_pos == KSET_MIDDLE
-		     ? SQL_SUCCESS : SQL_NO_DATA_FOUND));
+  return ((caddr_t) (ptrlong) (cs->cs_keyset_pos == KSET_MIDDLE ? SQL_SUCCESS : SQL_NO_DATA_FOUND));
 }
 
 
@@ -1443,7 +1399,7 @@ stmt_kset_fetch_inner (srv_stmt_t * stmt, long ftype, long irow, long n_rows)
   else if (_SQL_FETCH_RELATIVE == ftype)
     {
       err = cs_kset_relative (cs, irow);
-	  irow = 0;
+      irow = 0;
       kset = cs->cs_keyset;
       if ((caddr_t) SQL_NO_DATA_FOUND == err)
 	{
@@ -1471,14 +1427,12 @@ stmt_kset_fetch_inner (srv_stmt_t * stmt, long ftype, long irow, long n_rows)
 	if ((caddr_t) SQL_SUCCESS == err)
 	  err = cs_kset_next (cs, ftype);
     }
-  else
-    if (!kset->kset_current && kset->kset_is_complete)
-      err = (caddr_t) SQL_NO_DATA_FOUND;
+  else if (!kset->kset_current && kset->kset_is_complete)
+    err = (caddr_t) SQL_NO_DATA_FOUND;
 
   if ((caddr_t) SQL_NO_DATA_FOUND == err)
     {
-      cs->cs_window_pos = IS_FWD (ftype) && _SQL_FETCH_RELATIVE != ftype
-	? CS_WINDOW_END : CS_WINDOW_START;
+      cs->cs_window_pos = IS_FWD (ftype) && _SQL_FETCH_RELATIVE != ftype ? CS_WINDOW_END : CS_WINDOW_START;
       cs_send_at_end (cs);
       return;
     }
@@ -1542,8 +1496,8 @@ stmt_kset_fetch_inner (srv_stmt_t * stmt, long ftype, long irow, long n_rows)
 void
 cs_keyset_bookmark (cursor_state_t * cs, caddr_t * order, caddr_t * id)
 {
-  keyset_t * kset = cs->cs_keyset;
-  rowset_item_t * rsi = kset->kset_first;
+  keyset_t *kset = cs->cs_keyset;
+  rowset_item_t *rsi = kset->kset_first;
   while (rsi)
     {
       if (box_equal ((box_t) rsi->rsi_id, (box_t) id))
@@ -1556,8 +1510,8 @@ cs_keyset_bookmark (cursor_state_t * cs, caddr_t * order, caddr_t * id)
     }
 
   {
-    /*stmt_options_t *so = cs->cs_opts;*/
-    /*int cr_type = CS_CR_TYPE (cs);*/
+    /*stmt_options_t *so = cs->cs_opts; */
+    /*int cr_type = CS_CR_TYPE (cs); */
     int kssz = (int) cs->cs_opts->so_keyset_size;
     keyset_t *kset = cs->cs_keyset;
 
@@ -1575,8 +1529,7 @@ cs_keyset_bookmark (cursor_state_t * cs, caddr_t * order, caddr_t * id)
 
     kset_clear (cs->cs_keyset);
     cs->cs_client_data = (void *) FWD;
-    stmt_dyn_fetch_inner (cs->cs_stmt, _SQL_FETCH_RELATIVE, 0, kssz,
-			  cs_keyset_add);
+    stmt_dyn_fetch_inner (cs->cs_stmt, _SQL_FETCH_RELATIVE, 0, kssz, cs_keyset_add);
     if (kset->kset_count < kssz)
       cs->cs_keyset_pos = KSET_AT_END;
     else
@@ -1589,8 +1542,7 @@ cs_keyset_bookmark (cursor_state_t * cs, caddr_t * order, caddr_t * id)
 
 
 void
-cs_position_bookmark (cursor_state_t * cs, caddr_t bookmark,
-		      long *ftype, long *irow)
+cs_position_bookmark (cursor_state_t * cs, caddr_t bookmark, long *ftype, long *irow)
 {
   query_cursor_t *qc = cs->cs_query->qr_cursor;
   int cr_type = CS_CR_TYPE (cs);
@@ -1604,7 +1556,7 @@ cs_position_bookmark (cursor_state_t * cs, caddr_t bookmark,
       return;
     }
 
-  if (IS_NONLEAF_DTP(dtp))
+  if (IS_NONLEAF_DTP (dtp))
     {
       caddr_t *order;
       caddr_t *id;
@@ -1612,11 +1564,9 @@ cs_position_bookmark (cursor_state_t * cs, caddr_t bookmark,
 	sqlr_new_error ("HY111", "SR338", "Malformed bookmark");
       order = ((caddr_t **) bookmark)[0];
       id = ((caddr_t **) bookmark)[1];
-      if (BOX_ELEMENTS (id) != (uint32) qc->qc_n_id_cols
-	  || BOX_ELEMENTS (qc->qc_order_cols) != BOX_ELEMENTS (order))
+      if (BOX_ELEMENTS (id) != (uint32) qc->qc_n_id_cols || BOX_ELEMENTS (qc->qc_order_cols) != BOX_ELEMENTS (order))
 	{
-	  sqlr_new_error ("HY111", "SR224",
-	      "Incompatible bookmark. Must be identical ordering and primary key columns");
+	  sqlr_new_error ("HY111", "SR224", "Incompatible bookmark. Must be identical ordering and primary key columns");
 	}
       if (cr_type == _SQL_CURSOR_KEYSET_DRIVEN)
 	cs_keyset_bookmark (cs, order, id);
@@ -1646,11 +1596,9 @@ stmt_ext_fetch (srv_stmt_t * stmt, long ftype, long irow, caddr_t bookmark, int 
     int n_rows, send_extra_end = 0;
     cs->cs_opts->so_prefetch = rssz;
     n_rows = rssz;
-    if (_SQL_FETCH_NEXT == ftype
-	&& CS_WINDOW_START == cs->cs_window_pos)
+    if (_SQL_FETCH_NEXT == ftype && CS_WINDOW_START == cs->cs_window_pos)
       ftype = _SQL_FETCH_FIRST;
-    if (_SQL_FETCH_PRIOR == ftype
-	&& CS_WINDOW_END == cs->cs_window_pos)
+    if (_SQL_FETCH_PRIOR == ftype && CS_WINDOW_END == cs->cs_window_pos)
       ftype = _SQL_FETCH_LAST;
 
     if (_SQL_FETCH_RELATIVE == ftype)
@@ -1671,11 +1619,10 @@ stmt_ext_fetch (srv_stmt_t * stmt, long ftype, long irow, caddr_t bookmark, int 
 	else
 	  {
 	    ftype = _SQL_FETCH_ABSOLUTE;
-	    if ((CS_WINDOW_START == cs->cs_window_pos && irow < 0)
-		|| (CS_WINDOW_END == cs->cs_window_pos && irow > 0))
+	    if ((CS_WINDOW_START == cs->cs_window_pos && irow < 0) || (CS_WINDOW_END == cs->cs_window_pos && irow > 0))
 	      {
 		cs_send_at_end (cs);
-		POP_QR_RESET; /*!!!*/
+		POP_QR_RESET;	/*!!! */
 		return;
 	      }
 	  }
@@ -1687,7 +1634,7 @@ stmt_ext_fetch (srv_stmt_t * stmt, long ftype, long irow, caddr_t bookmark, int 
 	  {
 	    cs->cs_window_pos = CS_WINDOW_START;
 	    cs_send_at_end (cs);
-	    POP_QR_RESET; /*!!!*/
+	    POP_QR_RESET;	/*!!! */
 	    return;
 	  }
       }
@@ -1697,7 +1644,7 @@ stmt_ext_fetch (srv_stmt_t * stmt, long ftype, long irow, caddr_t bookmark, int 
 	  {
 	    cs->cs_window_pos = CS_WINDOW_START;
 	    cs_send_at_end (cs);
-	    POP_QR_RESET; /*!!!*/
+	    POP_QR_RESET;	/*!!! */
 	    return;
 	  }
 	if (irow < 0)
@@ -1758,20 +1705,16 @@ stmt_ext_fetch (srv_stmt_t * stmt, long ftype, long irow, caddr_t bookmark, int 
 }
 
 /* in sqlrun.c */
-void
-cli_send_row_count (client_connection_t * cli, long n_affected, caddr_t * ret,
-    du_thread_t * thr);
+void cli_send_row_count (client_connection_t * cli, long n_affected, caddr_t * ret, du_thread_t * thr);
 
 int null_unspecified_params;
 
 void
-stmt_start_scroll (client_connection_t * cli, srv_stmt_t * stmt,
-		   caddr_t ** params, char *cursor_name,
-		   stmt_options_t * opts)
+stmt_start_scroll (client_connection_t * cli, srv_stmt_t * stmt, caddr_t ** params, char *cursor_name, stmt_options_t * opts)
 {
   caddr_t volatile err = NULL;
   int is_timeout;
-  cursor_state_t * volatile cs = NULL;
+  cursor_state_t *volatile cs = NULL;
   volatile long start = prof_on ? get_msec_real_time () : 0;
 
   lock_trx_t *lt = cli->cli_trx;
@@ -1793,73 +1736,72 @@ stmt_start_scroll (client_connection_t * cli, srv_stmt_t * stmt,
 
 
   QR_RESET_CTX
-    {
-      if (!STMT_IS_PL_CURSOR (stmt) && cursor_name && cli_find_cs (cli, cursor_name))
-	{
-	  err = srv_make_new_error ("3C000", "SR227", "Non unique cursor name");
-	  mutex_leave (cli->cli_mtx);
-	}
-      else
-	{
-	  int nCursorType = stmt->sst_query->qr_cursor_type;
-	  long nActualParams = params && params[0] ? BOX_ELEMENTS(params[0]) : 0;
-	  long nRequiredParams = dk_set_length(stmt->sst_query->qr_parms);
+  {
+    if (!STMT_IS_PL_CURSOR (stmt) && cursor_name && cli_find_cs (cli, cursor_name))
+      {
+	err = srv_make_new_error ("3C000", "SR227", "Non unique cursor name");
+	mutex_leave (cli->cli_mtx);
+      }
+    else
+      {
+	int nCursorType = stmt->sst_query->qr_cursor_type;
+	long nActualParams = params && params[0] ? BOX_ELEMENTS (params[0]) : 0;
+	long nRequiredParams = dk_set_length (stmt->sst_query->qr_parms);
 
-	  if (nActualParams < nRequiredParams)
-	    {
-	      if (null_unspecified_params)
-		{
-		  caddr_t *new_box = (caddr_t *)
-		      dk_alloc_box(nRequiredParams * sizeof(caddr_t), DV_ARRAY_OF_POINTER);
-		  long nParam;
+	if (nActualParams < nRequiredParams)
+	  {
+	    if (null_unspecified_params)
+	      {
+		caddr_t *new_box = (caddr_t *) dk_alloc_box (nRequiredParams * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+		long nParam;
 
-		  for (nParam = 0; nParam < nActualParams; nParam++)
-		    new_box[nParam] = params[0][nParam];
-		  for (nParam = nParam; nParam < nRequiredParams; nParam++)
-		    new_box[nParam] = dk_alloc_box(0, DV_DB_NULL);
-		  dk_free_box((box_t) params[0]);
-		  params[0] = new_box;
-		  nActualParams = nRequiredParams;
-		}
-	      else
-		{
-		  if (!STMT_IS_PL_CURSOR (stmt))
-		    mutex_leave (cli->cli_mtx);
-		  sqlr_new_error ("07001", "SR228", "Too few actual parameters");
-		}
-	    }
-	  if (_SQL_CURSOR_STATIC ==  nCursorType || _SQL_CURSOR_KEYSET_DRIVEN == nCursorType)
-	    {
-	      if (nActualParams >= nRequiredParams)
-		{
-		  stmt->sst_cursor_state = cs_create (stmt, params[0], opts, cursor_name);
+		for (nParam = 0; nParam < nActualParams; nParam++)
+		  new_box[nParam] = params[0][nParam];
+		for (nParam = nParam; nParam < nRequiredParams; nParam++)
+		  new_box[nParam] = dk_alloc_box (0, DV_DB_NULL);
+		dk_free_box ((box_t) params[0]);
+		params[0] = new_box;
+		nActualParams = nRequiredParams;
+	      }
+	    else
+	      {
+		if (!STMT_IS_PL_CURSOR (stmt))
+		  mutex_leave (cli->cli_mtx);
+		sqlr_new_error ("07001", "SR228", "Too few actual parameters");
+	      }
+	  }
+	if (_SQL_CURSOR_STATIC == nCursorType || _SQL_CURSOR_KEYSET_DRIVEN == nCursorType)
+	  {
+	    if (nActualParams >= nRequiredParams)
+	      {
+		stmt->sst_cursor_state = cs_create (stmt, params[0], opts, cursor_name);
 
-		  cs = stmt->sst_cursor_state;
-		  if (!STMT_IS_PL_CURSOR (stmt))
-		    mutex_leave (cli->cli_mtx);
+		cs = stmt->sst_cursor_state;
+		if (!STMT_IS_PL_CURSOR (stmt))
+		  mutex_leave (cli->cli_mtx);
+		cs->cs_window_pos = CS_WINDOW_START;
+		err = (caddr_t) cs_init_keyset (cs, _SQL_FETCH_FIRST);
+		if ((caddr_t) SQL_SUCCESS == err)
 		  cs->cs_window_pos = CS_WINDOW_START;
-		  err = (caddr_t)cs_init_keyset(cs, _SQL_FETCH_FIRST);
-		  if ((caddr_t) SQL_SUCCESS == err)
-		    cs->cs_window_pos = CS_WINDOW_START;
-		}
-	    }
-	  else
-	    {
-	      err = (caddr_t)SQL_SUCCESS;
-	      stmt->sst_cursor_state = cs_create (stmt, params[0], opts, cursor_name);
-	      if (!STMT_IS_PL_CURSOR (stmt))
-		mutex_leave (cli->cli_mtx);
-	    }
-	}
-    }
+	      }
+	  }
+	else
+	  {
+	    err = (caddr_t) SQL_SUCCESS;
+	    stmt->sst_cursor_state = cs_create (stmt, params[0], opts, cursor_name);
+	    if (!STMT_IS_PL_CURSOR (stmt))
+	      mutex_leave (cli->cli_mtx);
+	  }
+      }
+  }
   QR_RESET_CODE
-    {
-      POP_QR_RESET;
-      if (RST_ERROR == reset_code)
-	err = thr_get_error_code (THREAD_CURRENT_THREAD);
-      else
-	err = srv_make_new_error ("42000", "SR229", "Misc. cursor error");
-    }
+  {
+    POP_QR_RESET;
+    if (RST_ERROR == reset_code)
+      err = thr_get_error_code (THREAD_CURRENT_THREAD);
+    else
+      err = srv_make_new_error ("42000", "SR229", "Misc. cursor error");
+  }
   END_QR_RESET;
 
 
@@ -1879,21 +1821,22 @@ stmt_start_scroll (client_connection_t * cli, srv_stmt_t * stmt,
 	}
       else if (err != SQL_SUCCESS)
 	PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
-      else if (cs) {
-	sql_warnings_send_to_cli ();
-	cli_send_row_count(cs->cs_client, cs->cs_keyset->kset_count, NULL, THREAD_CURRENT_THREAD);
-      } else
+      else if (cs)
 	{
 	  sql_warnings_send_to_cli ();
-	  PrpcAddAnswer((caddr_t)0, DV_ARRAY_OF_POINTER, 1, 1);
+	  cli_send_row_count (cs->cs_client, cs->cs_keyset->kset_count, NULL, THREAD_CURRENT_THREAD);
+	}
+      else
+	{
+	  sql_warnings_send_to_cli ();
+	  PrpcAddAnswer ((caddr_t) 0, DV_ARRAY_OF_POINTER, 1, 1);
 	}
 
       thrs_printf ((thrs_fo, "ses %p thr:%p in start_scroll3\n", IMMEDIATE_CLIENT, THREAD_CURRENT_THREAD));
       DKST_RPC_DONE (IMMEDIATE_CLIENT);
-      session_flush (IMMEDIATE_CLIENT); /* flush blob only after you've left the statement */
+      session_flush (IMMEDIATE_CLIENT);	/* flush blob only after you've left the statement */
       if (start && prof_on)
-	prof_exec (stmt->sst_query, NULL, get_msec_real_time () - start,
-	    PROF_EXEC | (err != NULL ? PROF_ERROR : 0));
+	prof_exec (stmt->sst_query, NULL, get_msec_real_time () - start, PROF_EXEC | (err != NULL ? PROF_ERROR : 0));
       dk_free_tree (err);
     }
   else
@@ -1910,8 +1853,8 @@ stmt_start_scroll (client_connection_t * cli, srv_stmt_t * stmt,
 void
 stmt_scroll_close (srv_stmt_t * stmt)
 {
-  cursor_state_t * cs = stmt->sst_cursor_state;
-  client_connection_t * cli = cs->cs_client;
+  cursor_state_t *cs = stmt->sst_cursor_state;
+  client_connection_t *cli = cs->cs_client;
   stmt->sst_cursor_state = NULL;
   if (!STMT_IS_PL_CURSOR (stmt))
     {
@@ -1921,13 +1864,12 @@ stmt_scroll_close (srv_stmt_t * stmt)
       IN_CLIENT (cli);
     }
   else
-      cs_free (cs);
+    cs_free (cs);
 }
 
 
 void
-sf_sql_extended_fetch (caddr_t stmt_id, long type, long irow, long n_rows,
-		       long is_autocommit, caddr_t bookmark)
+sf_sql_extended_fetch (caddr_t stmt_id, long type, long irow, long n_rows, long is_autocommit, caddr_t bookmark)
 {
   int is_timeout;
   caddr_t err;
@@ -1937,10 +1879,9 @@ sf_sql_extended_fetch (caddr_t stmt_id, long type, long irow, long n_rows,
   dk_session_t *client = IMMEDIATE_CLIENT;
   client_connection_t *cli = DKS_DB_DATA (IMMEDIATE_CLIENT);
 
-  CHANGE_THREAD_USER(cli->cli_user);
+  CHANGE_THREAD_USER (cli->cli_user);
 
-  if (type == _SQL_FETCH_PRIOR || type == _SQL_FETCH_NEXT ||
-      type == _SQL_FETCH_LAST || type == _SQL_FETCH_FIRST)
+  if (type == _SQL_FETCH_PRIOR || type == _SQL_FETCH_NEXT || type == _SQL_FETCH_LAST || type == _SQL_FETCH_FIRST)
     irow = 0;
   mutex_enter (cli->cli_mtx);
   place = (srv_stmt_t **) id_hash_get (cli->cli_statements, (caddr_t) & stmt_id);
@@ -1951,8 +1892,7 @@ sf_sql_extended_fetch (caddr_t stmt_id, long type, long irow, long n_rows,
   if (!stmt || !stmt->sst_cursor_state)
     {
       mutex_leave (cli->cli_mtx);
-      err = srv_make_new_error ("S1010", "SR230",
-	  "Statement not executing or not scrollable cursor in SQLExtendedFetch");
+      err = srv_make_new_error ("S1010", "SR230", "Statement not executing or not scrollable cursor in SQLExtendedFetch");
       PrpcAddAnswer (err, DV_ARRAY_OF_POINTER, 1, 1);
       dk_free_tree (err);
       thrs_printf ((thrs_fo, "ses %p thr:%p in ext_fetch1\n", client, THREAD_CURRENT_THREAD));
@@ -1998,7 +1938,7 @@ cli_set_scroll_current_ofs (client_connection_t * cli, caddr_t * current_ofs)
     {
       if (current_ofs[inx])
 	{
-	  cursor_state_t * cs = cli_find_cs (cli, current_ofs[inx]);
+	  cursor_state_t *cs = cli_find_cs (cli, current_ofs[inx]);
 	  if (cs)
 	    cs->cs_rowset_current_of = (long) unbox (current_ofs[inx + 1]);
 	}
@@ -2007,33 +1947,33 @@ cli_set_scroll_current_ofs (client_connection_t * cli, caddr_t * current_ofs)
 
 
 caddr_t
-cs_nth_id_col (cursor_state_t * cs, char * tb_name, int nth)
+cs_nth_id_col (cursor_state_t * cs, char *tb_name, int nth)
 {
   int idfill = 0, inx;
-  query_cursor_t * qc = cs->cs_query->qr_cursor;
+  query_cursor_t *qc = cs->cs_query->qr_cursor;
   DO_BOX (id_cols_t *, idc, inx, qc->qc_id_cols)
-    {
-      if (0 == strcmp (idc->idc_table, tb_name))
-	{
-	  rowset_item_t * rsi = cs->cs_rowset[cs->cs_rowset_current_of];
-	  return (rsi->rsi_id[idfill + nth]);
-	}
-      idfill += BOX_ELEMENTS (idc->idc_pos);
-    }
+  {
+    if (0 == strcmp (idc->idc_table, tb_name))
+      {
+	rowset_item_t *rsi = cs->cs_rowset[cs->cs_rowset_current_of];
+	return (rsi->rsi_id[idfill + nth]);
+      }
+    idfill += BOX_ELEMENTS (idc->idc_pos);
+  }
   END_DO_BOX;
   sqlr_new_error ("42S02", "SR231", "Cursor does not have table %s", tb_name);
-  return NULL; /*dummy*/
+  return NULL;			/*dummy */
 }
 
 
 caddr_t
 bif_cr_id_part (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  query_instance_t * qi = (query_instance_t*) qst;
+  query_instance_t *qi = (query_instance_t *) qst;
   caddr_t cr_name = bif_string_arg (qst, args, 0, "cr_pk_col");
   caddr_t tb_name = bif_string_arg (qst, args, 1, "cr_pk_col");
   long nth = (long) bif_long_arg (qst, args, 2, "cr_pk_col");
-  cursor_state_t * cs;
+  cursor_state_t *cs;
   IN_CLIENT (qi->qi_client);
   cs = cli_find_cs (qi->qi_client, cr_name);
   LEAVE_CLIENT (qi->qi_client);
@@ -2071,8 +2011,7 @@ bif_pl_cursor_arg (caddr_t * qst, state_slot_t ** args, int nth, char *func)
   dtp_t dtp = DV_TYPE_OF (arg);
   if (dtp != DV_PL_CURSOR)
     sqlr_new_error ("22023", "SR234",
-	"Function %s needs a cursor as argument %d, not an arg of type %s (%d)",
-	func, nth + 1, dv_type_title (dtp), dtp);
+	"Function %s needs a cursor as argument %d, not an arg of type %s (%d)", func, nth + 1, dv_type_title (dtp), dtp);
   return (srv_stmt_t *) arg;
 }
 
@@ -2084,11 +2023,11 @@ bif_scroll_cr_open (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t params_box_buf[5];
   caddr_t params_box;
   caddr_t **params;
-  stmt_options_t *opts = (stmt_options_t *)  dk_alloc_box_zero (sizeof (stmt_options_t), DV_ARRAY_OF_POINTER);
+  stmt_options_t *opts = (stmt_options_t *) dk_alloc_box_zero (sizeof (stmt_options_t), DV_ARRAY_OF_POINTER);
   uint32 inx, n_pars = BOX_ELEMENTS (args) - 1;
 
   BOX_AUTO (params_box, params_box_buf, sizeof (caddr_t), DV_ARRAY_OF_POINTER);
-  params = (caddr_t **)params_box;
+  params = (caddr_t **) params_box;
 
   opts->so_use_bookmarks = 1;
   params[0] = (caddr_t *) dk_alloc_box_zero (n_pars * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
@@ -2116,7 +2055,7 @@ bif_scroll_cr_fetch (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   long type = (long) bif_long_arg (qst, args, 1, "__scroll_cr_fetch");
   caddr_t bookmark = NULL;
   int n_slots = BOX_ELEMENTS (args) - 3;
-  long irow = 0; /* row offset for relative and absolute fetch */
+  long irow = 0;		/* row offset for relative and absolute fetch */
 
   if (!stmt->sst_cursor_state)
     sqlr_new_error ("24000", "SR235", "Virtuoso/PL Scrollable cursor not opened");
@@ -2146,8 +2085,7 @@ bif_scroll_cr_fetch (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	{
 	  dk_free_tree ((box_t) cs->cs_pl_output_row);
 	  cs->cs_pl_output_row = NULL;
-	  sqlr_new_error ("07001", "SR236",
-	      "scrollable fetch with different number of output columns");
+	  sqlr_new_error ("07001", "SR236", "scrollable fetch with different number of output columns");
 	}
       else
 	{
@@ -2191,16 +2129,16 @@ bif_bookmark (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 int
 pl_cursor_destroy (caddr_t box)
 {
-  srv_stmt_t *stmt = (srv_stmt_t *)box;
+  srv_stmt_t *stmt = (srv_stmt_t *) box;
   if (stmt->sst_cursor_state)
     stmt_scroll_close (stmt);
   if (stmt->sst_qst)
-    qi_free ((caddr_t *)stmt->sst_qst);
+    qi_free ((caddr_t *) stmt->sst_qst);
   return 0;
 }
 
 int
-pl_cursor_serialize (void *cursor, dk_session_t *ses)
+pl_cursor_serialize (void *cursor, dk_session_t * ses)
 {
   session_buffered_write_char (DV_SHORT_STRING, ses);
   session_buffered_write_char ((char) 8, ses);
@@ -2210,10 +2148,10 @@ pl_cursor_serialize (void *cursor, dk_session_t *ses)
 
 /*				  0	    1        */
 /*				  012345678901234567 */
-char __scroll_cr_init[17]	= "__scroll_cr_init";
-char __scroll_cr_open[17]	= "__scroll_cr_open";
-char __scroll_cr_close[18]	= "__scroll_cr_close";
-char __scroll_cr_fetch[18]	= "__scroll_cr_fetch";
+char __scroll_cr_init[17] = "__scroll_cr_init";
+char __scroll_cr_open[17] = "__scroll_cr_open";
+char __scroll_cr_close[18] = "__scroll_cr_close";
+char __scroll_cr_fetch[18] = "__scroll_cr_fetch";
 
 
 static caddr_t
@@ -2221,16 +2159,13 @@ bif_burst_mode_set (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   dk_session_t *dks = IMMEDIATE_CLIENT_OR_NULL;
   mutex_enter (thread_mtx);
-  if (!DK_CURRENT_THREAD->dkt_requests[0]->rq_is_second &&
-      dks->dks_thread_state == DKST_RUN
-#if defined(INPROCESS_CLIENT) /*&& !defined(NO_THREAD)*/
+  if (!DK_CURRENT_THREAD->dkt_requests[0]->rq_is_second && dks->dks_thread_state == DKST_RUN
+#if defined(INPROCESS_CLIENT)	/*&& !defined(NO_THREAD) */
       && !SESSION_IS_INPROCESS (dks)
 #endif
       )
     {
-      thrs_printf ((thrs_fo,
-	    "bif_burst_mode_set switch to burst on ses %p thr:%p\n",
-	    dks, THREAD_CURRENT_THREAD));
+      thrs_printf ((thrs_fo, "bif_burst_mode_set switch to burst on ses %p thr:%p\n", dks, THREAD_CURRENT_THREAD));
       mutex_leave (thread_mtx);
       PrpcCheckOut (dks);
       mutex_enter (thread_mtx);
@@ -2240,9 +2175,7 @@ bif_burst_mode_set (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   else
     {
-      thrs_printf ((thrs_fo,
-	    "bif_burst_mode_set on already burst ses %p thr:%p\n",
-	    dks, THREAD_CURRENT_THREAD));
+      thrs_printf ((thrs_fo, "bif_burst_mode_set on already burst ses %p thr:%p\n", dks, THREAD_CURRENT_THREAD));
       mutex_leave (thread_mtx);
       return box_num (0);
     }
@@ -2261,15 +2194,15 @@ bif_cursors_init (void)
 /* this is done to avoid the dependency between config file & internal bif names in sqlprocc.c's cv_call */
   if (CM_UPPER == case_mode)
     {
-      sqlp_upcase(__SCROLL_CR_INIT);
-      sqlp_upcase(__SCROLL_CR_OPEN);
-      sqlp_upcase(__SCROLL_CR_CLOSE);
-      sqlp_upcase(__SCROLL_CR_FETCH);
+      sqlp_upcase (__SCROLL_CR_INIT);
+      sqlp_upcase (__SCROLL_CR_OPEN);
+      sqlp_upcase (__SCROLL_CR_CLOSE);
+      sqlp_upcase (__SCROLL_CR_FETCH);
     }
-  bif_define ( __SCROLL_CR_INIT, bif_scroll_cr_init);
-  bif_define ( __SCROLL_CR_OPEN, bif_scroll_cr_open);
-  bif_define ( __SCROLL_CR_CLOSE, bif_scroll_cr_close);
-  bif_define ( __SCROLL_CR_FETCH, bif_scroll_cr_fetch);
+  bif_define (__SCROLL_CR_INIT, bif_scroll_cr_init);
+  bif_define (__SCROLL_CR_OPEN, bif_scroll_cr_open);
+  bif_define (__SCROLL_CR_CLOSE, bif_scroll_cr_close);
+  bif_define (__SCROLL_CR_FETCH, bif_scroll_cr_fetch);
 
   bif_define ("bookmark", bif_bookmark);
   bif_define_ex ("tree_md5", bif_tree_md5, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
@@ -2285,30 +2218,23 @@ caddr_t bif_sprintf_iri (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 int
 bif_is_relocatable (bif_t bif)
 {
-  bif_metadata_t * bmd;
+  bif_metadata_t *bmd;
   if (
       /* scrollable cursors */
       bif_sql_set_pos == bif
       || bif_cr_id_part == bif
       || bif_scroll_cr_init == bif
-      || bif_scroll_cr_open == bif
-      || bif_scroll_cr_fetch == bif
-      || bif_scroll_cr_close == bif
-      || bif_scroll_cr_close == bif
-
+      || bif_scroll_cr_open == bif || bif_scroll_cr_fetch == bif || bif_scroll_cr_close == bif || bif_scroll_cr_close == bif
       /* UDTs */
       || udt_is_udt_bif (bif)
-
       /* cast (let the VDB layer decide) */
       || bif_convert == bif
       /* box flags */
-      || bif_box_flags_tweak == bif
-      || bif_sprintf_iri == bif
-      )
+      || bif_box_flags_tweak == bif || bif_sprintf_iri == bif)
     return 0;
 
   bmd = find_bif_metadata_by_bif (bif);
-  if (bmd && bmd->bmd_ret_type && DV_IRI_ID ==  bmd->bmd_ret_type->bt_dtp)
+  if (bmd && bmd->bmd_ret_type && DV_IRI_ID == bmd->bmd_ret_type->bt_dtp)
     return 0;
   if (bif_iri_to_id == bif || bif_iri_to_id_nosignal == bif)
     return 0;
@@ -2319,12 +2245,12 @@ bif_is_relocatable (bif_t bif)
 placeholder_t *
 cs_place (query_instance_t * qi, cursor_state_t * cs, dbe_table_t * tb)
 {
-    sqlr_new_error ("HY109", "SR241", "current of not supported");
+  sqlr_new_error ("HY109", "SR241", "current of not supported");
 
 #ifndef KEYCOMP
   int inx;
-  placeholder_t * place = NULL;
-  dbe_key_t * key = tb->tb_primary_key;
+  placeholder_t *place = NULL;
+  dbe_key_t *key = tb->tb_primary_key;
   dtp_t key_image[PAGE_DATA_SZ];
   caddr_t err = NULL;
   caddr_t *qst = (caddr_t *) qi;
@@ -2335,21 +2261,21 @@ cs_place (query_instance_t * qi, cursor_state_t * cs, dbe_table_t * tb)
 
   inx = 0;
   DO_SET (dbe_column_t *, col, &tb->tb_primary_key->key_parts)
-    {
-      if (inx >= tb->tb_primary_key->key_n_significant)
-	break;
-      else
-	{
-	  caddr_t data = cs_nth_id_col (cs, tb->tb_name, inx);
-	  dbe_col_loc_t * cl = key_find_cl (key, col->col_id);
-	  if (!cl)
-	    sqlr_new_error ("42000", "SR463", "No cl");
-	  row_set_col (&key_image[IE_FIRST_KEY], cl, data, &v_fill, ROW_MAX_DATA, key, &err, NULL, NULL, qst);
-	  if (err)
-	    break;
-	}
-      inx ++;
-    }
+  {
+    if (inx >= tb->tb_primary_key->key_n_significant)
+      break;
+    else
+      {
+	caddr_t data = cs_nth_id_col (cs, tb->tb_name, inx);
+	dbe_col_loc_t *cl = key_find_cl (key, col->col_id);
+	if (!cl)
+	  sqlr_new_error ("42000", "SR463", "No cl");
+	row_set_col (&key_image[IE_FIRST_KEY], cl, data, &v_fill, ROW_MAX_DATA, key, &err, NULL, NULL, qst);
+	if (err)
+	  break;
+      }
+    inx++;
+  }
   END_DO_SET ();
   if (err)
     sqlr_resignal (err);
@@ -2357,31 +2283,30 @@ cs_place (query_instance_t * qi, cursor_state_t * cs, dbe_table_t * tb)
   if (ruling_part_bytes > MAX_RULING_PART_BYTES)
     {
       sqlr_new_error ("22026", "SR464", "Key too long, index %.300s, ruling part is %d bytes that exceeds %d byte limit",
-        key->key_name, ruling_part_bytes, MAX_RULING_PART_BYTES );
+	  key->key_name, ruling_part_bytes, MAX_RULING_PART_BYTES);
     }
-  row_deref (qst, (caddr_t) &key_image[0], &place, NULL, PL_EXCLUSIVE);
+  row_deref (qst, (caddr_t) & key_image[0], &place, NULL, PL_EXCLUSIVE);
   if (!place)
     sqlr_new_error ("HY109", "SR241", "Row referenced in where current of not present");
   return place;
 #else
-  return NULL; /* keep compiler happy */
+  return NULL;			/* keep compiler happy */
 #endif
 }
 
 
 int
-current_of_node_scrollable (current_of_node_t * co, query_instance_t * qi, char * cr_name)
+current_of_node_scrollable (current_of_node_t * co, query_instance_t * qi, char *cr_name)
 {
-  cursor_state_t * cs;
+  cursor_state_t *cs;
   IN_CLIENT (qi->qi_client);
   cs = cli_find_cs (qi->qi_client, cr_name);
   LEAVE_CLIENT (qi->qi_client);
   if (!cs)
     return 0;
 
-  qst_set ((caddr_t*) qi, co->co_place, (caddr_t)
-	   cs_place (qi, cs, co->co_table));
-  qn_send_output ((data_source_t *) co, (caddr_t*) qi);
+  qst_set ((caddr_t *) qi, co->co_place, (caddr_t) cs_place (qi, cs, co->co_table));
+  qn_send_output ((data_source_t *) co, (caddr_t *) qi);
   return 1;
 }
 
@@ -2421,4 +2346,3 @@ sqlp_fetch_type_to_code (caddr_t name)
   /* dummy */
   return -1;
 }
-

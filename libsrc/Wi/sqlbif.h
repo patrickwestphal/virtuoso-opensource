@@ -30,18 +30,17 @@
 
 #include "sqlnode.h"
 
-typedef void (*bif_type_func_t) (state_slot_t ** args, long *dtp, long *prec,
-				 long *scale, caddr_t *collation, long * non_null);
+typedef void (*bif_type_func_t) (state_slot_t ** args, long *dtp, long *prec, long *scale, caddr_t * collation, long *non_null);
 
 typedef struct
-  {
-    bif_type_func_t	bt_func;
-    long		bt_dtp;
-    long		bt_prec;
-    long		bt_scale;
-    long		bt_non_null;
-    const char *	bt_sql_dml_name;
-  } bif_type_t;
+{
+  bif_type_func_t bt_func;
+  long bt_dtp;
+  long bt_prec;
+  long bt_scale;
+  long bt_non_null;
+  const char *bt_sql_dml_name;
+} bif_type_t;
 
 #define is_some_sort_of_an_integer(T)\
  ((DV_SHORT_INT == (T)) || (DV_LONG_INT == (T)) ||\
@@ -58,8 +57,10 @@ typedef struct bif_metadata_s *bif_metadata_ptr_t;
 typedef struct sql_comp_s *sql_comp_ptr_t;
 typedef struct sparp_s *sparp_ptr_t;
 
-typedef struct sql_tree_s *bif_sql_optimizer_t (sql_comp_ptr_t sqlc, int bif_opt_opcode, struct sql_tree_s *tree, bif_metadata_ptr_t bmd, void *more);
-typedef struct spar_tree_s *bif_sparql_optimizer_t (sparp_ptr_t sparp, int bif_opt_opcode, struct spar_tree_s *tree, bif_metadata_ptr_t bmd, void *more);
+typedef struct sql_tree_s *bif_sql_optimizer_t (sql_comp_ptr_t sqlc, int bif_opt_opcode, struct sql_tree_s *tree,
+    bif_metadata_ptr_t bmd, void *more);
+typedef struct spar_tree_s *bif_sparql_optimizer_t (sparp_ptr_t sparp, int bif_opt_opcode, struct spar_tree_s *tree,
+    bif_metadata_ptr_t bmd, void *more);
 
 #define BMD_DONE			12053	/*!< The value in arglist of bif_define_ex that indicates the end of arglist */
 #define BMD_ALIAS			1	/*!< An additional (alias) name of a function */
@@ -84,65 +85,66 @@ typedef struct spar_tree_s *bif_sparql_optimizer_t (sparp_ptr_t sparp, int bif_o
 These metadata are created once, remains constant after the creation and never deleted.
 If a metadata record describes BIF that was loaeded from a plugin and later unloaded then at the unload time it can be deleted from
 \c name_to_bif_metadata_idhash and \c bif_to_bif_metadata_hash but it should remain in memory. */
-typedef struct bif_metadata_s {
-  const char *			bmd_name;
-  bif_t				bmd_main_impl;
-  dk_set_t			bmd_aliases;			/*!< see \c BMD_ALIAS */
-  bif_vec_t			bmd_vector_impl;		/*!< see \c BMD_VECTOR_IMPL */
-  bif_sql_optimizer_t *		bmd_sql_optimizer_impl;		/*!< see \c BMD_SQL_OPTIMIZER_IMPL */
-  bif_sparql_optimizer_t *	bmd_sparql_optimizer_impl;	/*!< see \c BMD_SPARQL_OPTIMIZER_IMPL */
-  bif_type_t *			bmd_ret_type;			/*!< see \c BMD_RET_TYPE */
-  ptrlong			bmd_min_argcount;		/*!< see \c BMD_MIN_ARGCOUNT */
-  ptrlong			bmd_argcount_inc;		/*!< see \c BMD_ARGCOUNT_INC */
-  ptrlong			bmd_max_argcount;		/*!< see \c BMD_MAX_ARGCOUNT */
-  ptrlong			bmd_is_aggregate;		/*!< see \c BMD_IS_AGGREGATE */
-  ptrlong			bmd_is_pure;			/*!< see \c BMD_IS_PURE */
-  ptrlong			bmd_is_dba_only;		/*!< see \c BMD_IS_DBA_ONLY */
-  ptrlong			bmd_uses_index;			/*!< see \c BMD_USES_INDEX */
-  ptrlong			bmd_no_cluster;			/*!< see \c BMD_NO_CLUSTER, \c BMD_OUT_OF_PARTITION and \c BMD_NEED_ENLIST */
+typedef struct bif_metadata_s
+{
+  const char *bmd_name;
+  bif_t bmd_main_impl;
+  dk_set_t bmd_aliases;		/*!< see \c BMD_ALIAS */
+  bif_vec_t bmd_vector_impl;	/*!< see \c BMD_VECTOR_IMPL */
+  bif_sql_optimizer_t *bmd_sql_optimizer_impl;	/*!< see \c BMD_SQL_OPTIMIZER_IMPL */
+  bif_sparql_optimizer_t *bmd_sparql_optimizer_impl;	/*!< see \c BMD_SPARQL_OPTIMIZER_IMPL */
+  bif_type_t *bmd_ret_type;	/*!< see \c BMD_RET_TYPE */
+  ptrlong bmd_min_argcount;	/*!< see \c BMD_MIN_ARGCOUNT */
+  ptrlong bmd_argcount_inc;	/*!< see \c BMD_ARGCOUNT_INC */
+  ptrlong bmd_max_argcount;	/*!< see \c BMD_MAX_ARGCOUNT */
+  ptrlong bmd_is_aggregate;	/*!< see \c BMD_IS_AGGREGATE */
+  ptrlong bmd_is_pure;		/*!< see \c BMD_IS_PURE */
+  ptrlong bmd_is_dba_only;	/*!< see \c BMD_IS_DBA_ONLY */
+  ptrlong bmd_uses_index;	/*!< see \c BMD_USES_INDEX */
+  ptrlong bmd_no_cluster;	/*!< see \c BMD_NO_CLUSTER, \c BMD_OUT_OF_PARTITION and \c BMD_NEED_ENLIST */
 } bif_metadata_t;
 
-extern id_hash_t *name_to_bif_metadata_idhash;			/*!< Metadata of all known BIFs (except \c BMD_SPARQL_ONLY records); results of sqlp_box_id_upcase() as keys, pointers to \c bif_metadata_t as values */
-extern dk_hash_t *bif_to_bif_metadata_hash;			/*!< Metadata of all known BIFs (except \c BMD_SPARQL_ONLY records); bif_t pointers as keys, pointers to \c bif_metadata_t as values */
+extern id_hash_t *name_to_bif_metadata_idhash;	/*!< Metadata of all known BIFs (except \c BMD_SPARQL_ONLY records); results of sqlp_box_id_upcase() as keys, pointers to \c bif_metadata_t as values */
+extern dk_hash_t *bif_to_bif_metadata_hash;	/*!< Metadata of all known BIFs (except \c BMD_SPARQL_ONLY records); bif_t pointers as keys, pointers to \c bif_metadata_t as values */
 extern dk_hash_t *name_to_bif_sparql_only_metadata_hash;	/*!< Metadata of \c BMD_SPARQL_ONLY names; unames as keys, pointers to \c bif_metadata_t as values. Note that it is \c dk_hash_t, not \c dk_hash_t */
 
 #define find_bif_metadata_by_bif(b) ((bif_metadata_t *)gethash ((b), bif_to_bif_metadata_hash))
 EXE_EXPORT (bif_metadata_t *, find_bif_metadata_by_name, (const char *name));
 EXE_EXPORT (bif_metadata_t *, find_bif_metadata_by_raw_name, (const char *name));
 #define find_bif_metadata_by_raw_name_safe(name) ((NULL == name_to_bif_metadata_idhash) ? NULL : find_bif_metadata_by_raw_name(name))
-EXE_EXPORT (bif_metadata_t *, bif_define, (const char * name, bif_t bif));
-EXE_EXPORT (bif_metadata_t *, bif_define_ex, (const char * name, bif_t bif, ...));
-EXE_EXPORT (bif_metadata_t *, bif_define_typed, (const char * name, bif_t bif, bif_type_t *bt));
+EXE_EXPORT (bif_metadata_t *, bif_define, (const char *name, bif_t bif));
+EXE_EXPORT (bif_metadata_t *, bif_define_ex, (const char *name, bif_t bif,...));
+EXE_EXPORT (bif_metadata_t *, bif_define_typed, (const char *name, bif_t bif, bif_type_t * bt));
 EXE_EXPORT (void, bif_set_uses_index, (bif_t bif));
 EXE_EXPORT (bif_t, bif_find, (const char *name));
 int bif_is_aggregate (bif_t bif);
-void bif_set_is_aggregate (bif_t  bif);
+void bif_set_is_aggregate (bif_t bif);
 bif_vec_t bif_vectored (bif_t bif);
 void bif_set_vectored (bif_t bif, bif_vec_t vectored);
 
-EXE_EXPORT (caddr_t, sqlr_run_bif_in_sandbox, (bif_metadata_t *bmd, caddr_t *args, caddr_t *err_ret));
+EXE_EXPORT (caddr_t, sqlr_run_bif_in_sandbox, (bif_metadata_t * bmd, caddr_t * args, caddr_t * err_ret));
 
-bif_type_t * bif_type (const char * name);
-void bif_type_set (bif_type_t *bt, state_slot_t *ret, state_slot_t **params);
+bif_type_t *bif_type (const char *name);
+void bif_type_set (bif_type_t * bt, state_slot_t * ret, state_slot_t ** params);
 
 #define bif_arg_nochecks(qst,args,nth) QST_GET ((qst), (args)[(nth)])
-EXE_EXPORT (caddr_t, bif_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
+EXE_EXPORT (caddr_t, bif_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (caddr_t, bif_arg_unrdf, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (caddr_t, bif_arg_unrdf_ext, (caddr_t * qst, state_slot_t ** args, int nth, const char *func, caddr_t *ret_orig));
-EXE_EXPORT (caddr_t, bif_string_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
-EXE_EXPORT (caddr_t, bif_string_or_uname_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
-EXE_EXPORT (caddr_t, bif_string_or_wide_or_uname_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
-EXE_EXPORT (caddr_t, bif_strses_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
+EXE_EXPORT (caddr_t, bif_arg_unrdf_ext, (caddr_t * qst, state_slot_t ** args, int nth, const char *func, caddr_t * ret_orig));
+EXE_EXPORT (caddr_t, bif_string_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (caddr_t, bif_string_or_uname_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (caddr_t, bif_string_or_wide_or_uname_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (caddr_t, bif_strses_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (dk_session_t *, bif_strses_or_http_ses_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (struct xml_entity_s *, bif_entity_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
-EXE_EXPORT (struct xml_tree_ent_s *, bif_tree_ent_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
+EXE_EXPORT (struct xml_entity_s *, bif_entity_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (struct xml_tree_ent_s *, bif_tree_ent_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (caddr_t, bif_bin_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (caddr_t, bif_string_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
+EXE_EXPORT (caddr_t, bif_string_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (caddr_t, bif_string_or_uname_or_iri_id_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (data_col_t *, bif_dc_arg, (caddr_t * qst, state_slot_t ** args, int nth, char * name));
-EXE_EXPORT (caddr_t, bif_string_or_wide_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
-EXE_EXPORT (caddr_t, bif_string_or_uname_or_wide_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
-EXE_EXPORT (caddr_t, bif_string_or_wide_or_null_or_strses_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char * func));
+EXE_EXPORT (data_col_t *, bif_dc_arg, (caddr_t * qst, state_slot_t ** args, int nth, char *name));
+EXE_EXPORT (caddr_t, bif_string_or_wide_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (caddr_t, bif_string_or_uname_or_wide_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (caddr_t, bif_string_or_wide_or_null_or_strses_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (boxint, bif_long_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (ptrlong, bif_long_range_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func, ptrlong low, ptrlong hi));
 EXE_EXPORT (ptrlong, bif_long_low_range_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func, ptrlong low));
@@ -153,16 +155,20 @@ EXE_EXPORT (ptrlong, bif_long_or_char_arg, (caddr_t * qst, state_slot_t ** args,
 EXE_EXPORT (caddr_t, bif_array_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (caddr_t, bif_array_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (caddr_t, bif_strict_array_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (caddr_t *, bif_strict_type_array_arg, (dtp_t element_dtp, caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (caddr_t *, bif_strict_2type_array_arg, (dtp_t element_dtp1, dtp_t element_dtp2, caddr_t * qst, state_slot_t ** args, int nth, const char *func));
+EXE_EXPORT (caddr_t *, bif_strict_type_array_arg, (dtp_t element_dtp, caddr_t * qst, state_slot_t ** args, int nth,
+	const char *func));
+EXE_EXPORT (caddr_t *, bif_strict_2type_array_arg, (dtp_t element_dtp1, dtp_t element_dtp2, caddr_t * qst, state_slot_t ** args,
+	int nth, const char *func));
 EXE_EXPORT (caddr_t, bif_varchar_or_bin_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (iri_id_t, bif_iri_id_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 EXE_EXPORT (iri_id_t, bif_iri_id_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
-EXE_EXPORT (struct id_hash_iterator_s *, bif_dict_iterator_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func, int chk_version));
-EXE_EXPORT (struct id_hash_iterator_s *, bif_dict_iterator_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func, int chk_version));
+EXE_EXPORT (struct id_hash_iterator_s *, bif_dict_iterator_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func,
+	int chk_version));
+EXE_EXPORT (struct id_hash_iterator_s *, bif_dict_iterator_or_null_arg, (caddr_t * qst, state_slot_t ** args, int nth,
+	const char *func, int chk_version));
 EXE_EXPORT (caddr_t, bif_date_arg, (caddr_t * qst, state_slot_t ** args, int nth, char *func));
 
-dbe_key_t * bif_key_arg (caddr_t * qst, state_slot_t ** args, int n, char * fn);
+dbe_key_t *bif_key_arg (caddr_t * qst, state_slot_t ** args, int n, char *fn);
 
 EXE_EXPORT (caddr_t, box_find_mt_unsafe_subtree, (caddr_t box));
 EXE_EXPORT (void, box_make_tree_mt_safe, (caddr_t box));
@@ -182,7 +188,7 @@ const char *dv_type_title (int type);
 caddr_t bif_date_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 
 int bif_is_relocatable (bif_t bif);
-double bif_double_or_null_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func, int * isnull);
+double bif_double_or_null_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func, int *isnull);
 EXE_EXPORT (caddr_t *, bif_array_of_pointer_arg, (caddr_t * qst, state_slot_t ** args, int nth, const char *func));
 
 
@@ -206,22 +212,22 @@ extern bif_type_t bt_xml_entity;
 
 extern dk_mutex_t *time_mtx;
 
-void row_deref (caddr_t * qst, caddr_t id, placeholder_t **place_ret, caddr_t * row_ret, int lock_mode);
+void row_deref (caddr_t * qst, caddr_t id, placeholder_t ** place_ret, caddr_t * row_ret, int lock_mode);
 
 typedef struct sql_tree_s sql_tree_tmp;
 
 EXE_EXPORT (caddr_t, box_cast, (caddr_t * qst, caddr_t data, sql_tree_tmp * dtp, dtp_t arg_dtp));
-caddr_t box_cast_to (caddr_t *qst, caddr_t data, dtp_t data_dtp,
-    dtp_t to_dtp, ptrlong prec, unsigned char  scale, caddr_t *err_ret);
+caddr_t box_cast_to (caddr_t * qst, caddr_t data, dtp_t data_dtp,
+    dtp_t to_dtp, ptrlong prec, unsigned char scale, caddr_t * err_ret);
 
-extern sql_tree_tmp * st_varchar;
-extern sql_tree_tmp * st_nvarchar;
+extern sql_tree_tmp *st_varchar;
+extern sql_tree_tmp *st_nvarchar;
 
-int is_allowed (char * path);
-EXE_EXPORT (void, file_path_assert, (caddr_t fname_cvt, caddr_t *err_ret, int free_fname_cvt));
+int is_allowed (char *path);
+EXE_EXPORT (void, file_path_assert, (caddr_t fname_cvt, caddr_t * err_ret, int free_fname_cvt));
 int mime_get_attr (char *szMessage, long Offset, char szDelim, int *rfc822mode,
     int *override_to_mime, char *_szName, int max_name, char *_szValue, int max_value);
-void dime_compose (dk_session_t * ses, caddr_t *input, caddr_t * err);
+void dime_compose (dk_session_t * ses, caddr_t * input, caddr_t * err);
 
 #define TNF_UNCHANGED	0
 #define TNF_MTYPE 	1
@@ -240,26 +246,23 @@ caddr_t bif_curtime (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_curdatetime (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 
 long get_mime_part (int *rfc822, caddr_t szMessage, long message_size, long offset,
-    char *szBoundry, char *szType, size_t max_szType,
-    caddr_t ** _result, long to_add);
+    char *szBoundry, char *szType, size_t max_szType, caddr_t ** _result, long to_add);
 caddr_t mime_parse_header (int *rfc822, caddr_t szMessage, long message_size, long offset);
 
 #define MIME_POST_LIMIT 10000000
 #define MIME_SESSION_LIMIT 5000000
-caddr_t mime_stream_get_part (int rfc822, dk_session_t *ses, long max_size,
-    dk_session_t *header_ses, long header_size);
-int find_index_to_vector (caddr_t item, caddr_t vec, int veclen, dtp_t vectype,
-    int start, int skip_value, const char *calling_fun);
+caddr_t mime_stream_get_part (int rfc822, dk_session_t * ses, long max_size, dk_session_t * header_ses, long header_size);
+int find_index_to_vector (caddr_t item, caddr_t vec, int veclen, dtp_t vectype, int start, int skip_value, const char *calling_fun);
 
-char * ws_file_ctype (char * name);
-void sprintf_escaped_id (caddr_t str, char *out, dk_session_t *ses);
+char *ws_file_ctype (char *name);
+void sprintf_escaped_id (caddr_t str, char *out, dk_session_t * ses);
 void bif_ldapcli_init (void);
 void bif_hosting_init (void);
 
 #define MD5_SIZE 16
 caddr_t box_md5 (caddr_t str);
 EXE_EXPORT (caddr_t, md5, (caddr_t str));
-caddr_t md5_ses (dk_session_t *ses);
+caddr_t md5_ses (dk_session_t * ses);
 #ifdef _SSL
 caddr_t box_sha1 (caddr_t str);
 caddr_t box_hmac (caddr_t box, caddr_t key, int alg);
@@ -267,8 +270,8 @@ caddr_t box_hmac (caddr_t box, caddr_t key, int alg);
 #define HMAC_ALG_RIPMD160	1
 #endif
 
-extern int32 sqlbif_rnd (int32* seed);
-extern double sqlbif_rnd_double (int32* seed, double upper_limit);
+extern int32 sqlbif_rnd (int32 * seed);
+extern double sqlbif_rnd_double (int32 * seed, double upper_limit);
 extern int32 rnd_seed;		/*!< 32 bit seed */
 extern int32 rnd_seed_b;	/*!< another 32 bit seed used in blobs */
 
@@ -280,17 +283,17 @@ void sqls_define_blog (void);
 void sqls_arfw_define_blog (void);
 void sqls_define_vdb (void);
 void sqls_arfw_define_vdb (void);
-int restore_from_files (const char* prefix);
+int restore_from_files (const char *prefix);
 void ddl_init_plugin (void);
 void pldbg_init (void);
 
 /* sqlbif2 */
 void sqlbif2_init (void);
 void sqlbif_sequence_init (void);
-int dks_is_localhost (dk_session_t *ses);
+int dks_is_localhost (dk_session_t * ses);
 extern int lockdown_mode;
 
-int tcpses_check_disk_error (dk_session_t *ses, caddr_t *qst, int throw_error);
+int tcpses_check_disk_error (dk_session_t * ses, caddr_t * qst, int throw_error);
 #ifdef WIN32
 caddr_t os_get_uname_by_fname (char *fname);
 caddr_t os_get_gname_by_fname (char *fname);
@@ -303,27 +306,28 @@ extern caddr_t file_native_name_from_iri_path_nchars (const char *iri_path, size
 caddr_t get_ssl_error_text (char *buf, int len);
 
 caddr_t regexp_match_01 (const char *pattern, const char *str, int c_opts);
-caddr_t regexp_match_01_const (const char* pattern, const char* str, int c_opts, void ** compiled_ret);
-caddr_t regexp_split_match (const char* pattern, const char* str, int* next, int c_opts);
-int regexp_make_opts (const char* mode);
-int regexp_split_parse (const char* pattern, const char* str, int* offvect, int offvect_sz, int c_opts);
+caddr_t regexp_match_01_const (const char *pattern, const char *str, int c_opts, void **compiled_ret);
+caddr_t regexp_split_match (const char *pattern, const char *str, int *next, int c_opts);
+int regexp_make_opts (const char *mode);
+int regexp_split_parse (const char *pattern, const char *str, int *offvect, int offvect_sz, int c_opts);
 
 /*! Wrapper for uu_decode_part,
  modifies \c src input string! */
-EXE_EXPORT (int, uudecode_base64, (char * , char * ));
+EXE_EXPORT (int, uudecode_base64, (char *, char *));
 
-EXE_EXPORT (caddr_t, sprintf_inverse, (caddr_t *qst, caddr_t *err_ret, ccaddr_t str, ccaddr_t fmt, long hide_errors));
-EXE_EXPORT (caddr_t, sprintf_inverse_ex, (caddr_t *qst, caddr_t *err_ret, ccaddr_t str, ccaddr_t fmt, long hide_errors, unsigned char *expected_dtp_strg));
+EXE_EXPORT (caddr_t, sprintf_inverse, (caddr_t * qst, caddr_t * err_ret, ccaddr_t str, ccaddr_t fmt, long hide_errors));
+EXE_EXPORT (caddr_t, sprintf_inverse_ex, (caddr_t * qst, caddr_t * err_ret, ccaddr_t str, ccaddr_t fmt, long hide_errors,
+	unsigned char *expected_dtp_strg));
 
 /* another 32 bit seed used in blobs */
 extern int32 rnd_seed_b;
 extern int no_free_set;
 
-char * rel_to_abs_path (char *p, const char *path, long len);
+char *rel_to_abs_path (char *p, const char *path, long len);
 
 caddr_t bif_result_names (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_convert (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
-caddr_t bif_clear_temp (caddr_t *  qst, caddr_t * err_ret, state_slot_t ** args);
+caddr_t bif_clear_temp (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_sequence_set (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_sequence_set_no_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 caddr_t bif_sequence_next_no_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
@@ -339,38 +343,38 @@ long raw_length (caddr_t arg);
   qi->qi_g_id = old_g;\
 }
 
-int bif_is_no_cluster (bif_t bif); /* cannot be execd except where invoked */
+int bif_is_no_cluster (bif_t bif);	/* cannot be execd except where invoked */
 int bif_need_enlist (bif_t bif);
 
 #define BIF_NO_CLUSTER		0x1	/*!< bif is not shippable, e.g., depends on local thread context */
 #define BIF_OUT_OF_PARTITION	0x2	/*!< bif makes a cross partition cluster op, can ship only if recursive qf enabled */
-#define BIF_ENLIST		0x4	/*!< require and propagate enlist, bif makes a transactional write */ 
+#define BIF_ENLIST		0x4	/*!< require and propagate enlist, bif makes a transactional write */
 
 typedef struct
 {
-  void * sc_buff;
+  void *sc_buff;
   dk_session_t *sc_out;
   OFF_T sc_bytes_sent;
 } strses_chunked_out_t;
 
-void strses_write_out_gz (dk_session_t *ses, dk_session_t *out, strses_chunked_out_t * outd);
+void strses_write_out_gz (dk_session_t * ses, dk_session_t * out, strses_chunked_out_t * outd);
 int gz_stream_free (void *s);
 extern int32 cl_non_logged_write_mode;
 caddr_t bif_rollback (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 
-int iso_string_to_code (char * i);
+int iso_string_to_code (char *i);
 
 
 typedef struct bif_exec_stat_s
 {
-  uint32	exs_start;
-  client_connection_t * 	exs_cli;
-  caddr_t 	exs_text;
+  uint32 exs_start;
+  client_connection_t *exs_cli;
+  caddr_t exs_text;
 } bif_exec_stat_t;
 
 extern dk_mutex_t bif_exec_pending_mtx;
-extern id_hash_t * bif_exec_pending;
+extern id_hash_t *bif_exec_pending;
 extern int c_no_dbg_print;
 
-#define BIF_NOT_VECTORED ((caddr_t)-2) /* err ret of a vectored bif for reverting to non-vectored form */
+#define BIF_NOT_VECTORED ((caddr_t)-2)	/* err ret of a vectored bif for reverting to non-vectored form */
 #endif /* _SQLBIF_H */

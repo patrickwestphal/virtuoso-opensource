@@ -66,7 +66,7 @@
 #ifndef _WIDV_H
 #define _WIDV_H
 
-#define DV_UNKNOWN	0 /* use only compile time */
+#define DV_UNKNOWN	0	/* use only compile time */
 
 #define DV_GAP1		121
 #define DV_SHORT_GAP	122
@@ -75,17 +75,17 @@
 #define DV_BLOB		125
 #define DV_BLOB_HANDLE	126
 /* #define DV_SYMBOL	127 -- moved to Dkbox.h! */
-#define DV_TIMESTAMP	128 /* special dtp. means col gets stamped */
+#define DV_TIMESTAMP	128	/* special dtp. means col gets stamped */
 #define DV_DATE		129
-#define DV_OWNER	130 /* special dtp. means col with such row belongs to
+#define DV_OWNER	130	/* special dtp. means col with such row belongs to
 				   given u_id */
 
-#define DV_BLOB_BIN	131 /* DV_BLOB, but appears as SQL_LONGVARBINARY in
+#define DV_BLOB_BIN	131	/* DV_BLOB, but appears as SQL_LONGVARBINARY in
 				   ODBC calls */
 
-#define DV_BLOB_WIDE	132 /* DV_BLOB, but appears as SQL_WLONGVARCHAR in
+#define DV_BLOB_WIDE	132	/* DV_BLOB, but appears as SQL_WLONGVARCHAR in
 				   ODBC calls */
-#define DV_BLOB_WIDE_HANDLE	133 /* DV_BLOB_HANDLE, but for LONG NVARCHARs */
+#define DV_BLOB_WIDE_HANDLE	133	/* DV_BLOB_HANDLE, but for LONG NVARCHARs */
 
 /* IvAn/DvBlobXper/001212 Special type for XPER storage will be added soon */
 
@@ -164,7 +164,7 @@ User-level object is of type DV_XML_ENTITY. */
 #define BL_KEY_ID 17
 #define BL_FRAG_NO 21
 #define BL_DP 25
-#define BL_DPS_ON_ROW 16  /* consecutive dp's, last if !) 0 is the dp of the first full dir page */
+#define BL_DPS_ON_ROW 16	/* consecutive dp's, last if !) 0 is the dp of the first full dir page */
 #define BL_PAGE_DIR (BL_DP + 4 * BL_DPS_ON_ROW)
 #define BL_TS (BL_PAGE_DIR + 4)
 #define DV_BLOB_LEN ((int)(BL_TS + sizeof (dp_addr_t)))
@@ -174,26 +174,26 @@ User-level object is of type DV_XML_ENTITY. */
 
 /* occurs in key layout when assigning places for offsets for ref to uncompressed value on other row. 2 bytes per field, laid out before rest */
 #define DV_COMP_OFFSET 136
-#define DV_COL_BLOB_SERIAL 200 /* in column store array ce, a blob must be amrked by dtp > 180, so use this instead of dv blob */
+#define DV_COL_BLOB_SERIAL 200	/* in column store array ce, a blob must be amrked by dtp > 180, so use this instead of dv blob */
 #define DV_TIME		210
 #define DV_DATETIME	211
 #define DV_NUMERIC	219
-#define DV_IGNORE 220 /* in SQLSetPos, means 'do not update' */
-#define DV_DAE 221 /* SQL_DATA_AT_EXEC marker, non-serializable, client only */
+#define DV_IGNORE 220		/* in SQLSetPos, means 'do not update' */
+#define DV_DAE 221		/* SQL_DATA_AT_EXEC marker, non-serializable, client only */
 
 #define DV_BIN 222
 #define DV_LONG_BIN 223
 
-#define DV_EXEC_CURSOR 224 /* in bif_execute - cursor type */
+#define DV_EXEC_CURSOR 224	/* in bif_execute - cursor type */
 
-#define DV_TEXT_SEARCH 227  /* state of a pending text search */
+#define DV_TEXT_SEARCH 227	/* state of a pending text search */
 #define DV_TEXT_BATCH 228
 #define DV_XML_ENTITY 230
 #define DV_XQI 231		/* XPATH query instance */
 /* #define DV_XPATH_QUERY 232 Moved to Dk.h */
 #define DV_XML_MARKUP	233
 
-#define DV_PL_CURSOR 234  /* A PL Scrollable cursor type */
+#define DV_PL_CURSOR 234	/* A PL Scrollable cursor type */
 
 #define DV_XML_PARSER 235	/* XML parser (now unused) */
 #define DV_XML_DTD 236		/* Storable XML DTD */
@@ -201,14 +201,14 @@ User-level object is of type DV_XML_ENTITY. */
 
 #define DV_INDEX_TREE 137
 #define DV_ITC 138
-#define DV_DATA 141 /*vector of data in a column */
+#define DV_DATA 141		/*vector of data in a column */
 #define DV_QI 142
 #define DV_GEO 238
 #define DV_FIXED_STRING 240
 #define DV_TINY_INT 241
 #define DV_ANY 242
 
-#define bnode_iri_ids_are_huge  (wi_inst.wi_master->dbs_stripe_unit != 1) /* stay compatible with some older 6 databases w/ 64 bits ids but bnodes starting at wrong place.  Temporary  */
+#define bnode_iri_ids_are_huge  (wi_inst.wi_master->dbs_stripe_unit != 1)	/* stay compatible with some older 6 databases w/ 64 bits ids but bnodes starting at wrong place.  Temporary  */
 #define min_bnode_iri_id() (bnode_iri_ids_are_huge ? MIN_64BIT_BNODE_IRI_ID : MIN_32BIT_BNODE_IRI_ID)
 #define max_bnode_iri_id() (bnode_iri_ids_are_huge ? MAX_64BIT_BNODE_IRI_ID : MAX_32BIT_BNODE_IRI_ID)
 #define min_named_bnode_iri_id() (bnode_iri_ids_are_huge ? MIN_64BIT_NAMED_BNODE_IRI_ID : MIN_32BIT_NAMED_BNODE_IRI_ID)
@@ -219,7 +219,7 @@ User-level object is of type DV_XML_ENTITY. */
 
 #define IS_IRI_DTP(dtp) (DV_IRI_ID == (dtp) || DV_IRI_ID_8 == (dtp))
 
-#define DV_COMPOSITE 255 /* value important for free text, where long w/ high byte of 255 signifies composite key */
+#define DV_COMPOSITE 255	/* value important for free text, where long w/ high byte of 255 signifies composite key */
 
 /* cluster data */
 #define DV_CLRG 139
@@ -229,16 +229,16 @@ User-level object is of type DV_XML_ENTITY. */
 /*#define DV_REFERENCE 206 Moved to Dk.h */
 #define DV_SHORT_REF 205
 
-#define DV_ROW_EXTENSION 239 /* appears only on a row after DV_DEPENDANT -
-				marks that the dependant part of the row
-				is in a blob.
-				Never appears as a box tag.
-			      */
-#define DV_REXEC_CURSOR 240 /* the rexec cursor */
+#define DV_ROW_EXTENSION 239	/* appears only on a row after DV_DEPENDANT -
+				   marks that the dependant part of the row
+				   is in a blob.
+				   Never appears as a box tag.
+				 */
+#define DV_REXEC_CURSOR 240	/* the rexec cursor */
 
-#define DV_CONNECTION 241 /* the connected TCP session  */
-#define DV_FD      250 /* the open file handle, this to be deleted in future */
-#define DV_ASYNC_QUEUE 245 /* async_queue_t */
+#define DV_CONNECTION 241	/* the connected TCP session  */
+#define DV_FD      250		/* the open file handle, this to be deleted in future */
+#define DV_ASYNC_QUEUE 245	/* async_queue_t */
 #define DV_RI_ITERATOR 229
 
 #define DT_LENGTH 10
@@ -539,4 +539,3 @@ sqlr_new_error is void, and should never return.
   ((type) == DV_GEO) ? "geometry" : \
   "UNK_DV_TYPE" )
 #endif /* _WIDV_H */
-

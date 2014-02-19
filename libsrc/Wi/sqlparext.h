@@ -68,7 +68,7 @@
 #define ONE_PRED		(ptrlong)33
 #define EXISTS_PRED		(ptrlong)34
 #define IN_SUBQ_PRED		(ptrlong)35
-#define SUBQ_F_NOT_IN 1 /*marks not in of subq in the subq.flags */
+#define SUBQ_F_NOT_IN 1		/*marks not in of subq in the subq.flags */
 
 #define SUBQ_PRED_MIN		ANY_PRED
 #define SUBQ_PRED_MAX		IN_SUBQ_PRED
@@ -124,7 +124,7 @@
 #define AMMSC_SUM		(ptrlong)5
 #define AMMSC_COUNTSUM		(ptrlong)6
 #define AMMSC_USER		(ptrlong)7
-#define AMMSC_ONE (long)8  /* return of scalar subq in vectored exec, align set no to calling outside subq  sets */
+#define AMMSC_ONE (long)8	/* return of scalar subq in vectored exec, align set no to calling outside subq  sets */
 
 #define ORDER_BY		(ptrlong)111
 
@@ -365,410 +365,419 @@ Note: bitwise OR of all these masks should be less than SMALLEST_POSSIBLE_POINTE
 
 
 typedef struct sql_tree_s
+{
+  ptrlong type;
+  union
   {
-    ptrlong type;
-    union
-      {
-	struct
-	  {
-	    ST *	top;
-	    caddr_t *	selection;
-	    caddr_t *	target;
-	    ST *	table_exp;
-	  } select_stmt;
-	struct
-	{
-	  ptrlong	all_distinct;
-	  ST *	exp;
-	  ST *	skip_exp;
-	  ptrlong	percent;
-	  ptrlong	ties;
-	  ST *		trans;
-	} top;
-	struct
-	  {
-	    ST *	left;
-	    ST *	subq;
-	    ptrlong	cmp_op;
-	    ptrlong	flags;
-	    ST *	org; /* if rewritten, this is the original syntax */
-	  } subq;
-	struct
-	  {
-	    ST **	from;
-	    ST *	where;
-	    ST **	group_by;
-	    ST *	having;
-	    ST **	order_by;
-	    ptrlong	flags;
-	    caddr_t *	opts;
-	    ST ***	group_by_full;
-	  } table_exp;
+    struct
+    {
+      ST *top;
+      caddr_t *selection;
+      caddr_t *target;
+      ST *table_exp;
+    } select_stmt;
+    struct
+    {
+      ptrlong all_distinct;
+      ST *exp;
+      ST *skip_exp;
+      ptrlong percent;
+      ptrlong ties;
+      ST *trans;
+    } top;
+    struct
+    {
+      ST *left;
+      ST *subq;
+      ptrlong cmp_op;
+      ptrlong flags;
+      ST *org;			/* if rewritten, this is the original syntax */
+    } subq;
+    struct
+    {
+      ST **from;
+      ST *where;
+      ST **group_by;
+      ST *having;
+      ST **order_by;
+      ptrlong flags;
+      caddr_t *opts;
+      ST ***group_by_full;
+    } table_exp;
 #if 0
-	struct
-	  {
-	    caddr_t *	exp_list;
-	    ptrlong	all_distinct;
-	  } selection;
+    struct
+    {
+      caddr_t *exp_list;
+      ptrlong all_distinct;
+    } selection;
 #endif
-	struct
-	  {
-	    ST *	left;
-	    ST *	right;
-	    caddr_t	more;	/* used by BETWEEN, ANY/ALL etc. */
-	    caddr_t	serial; /* for dist identical constant pred trees in order to avoid inappropriate common predicate elimination in sqlo_df */
-	  } bin_exp;
-	struct
-	  {
-	    ST *	left;
-	    ST *	 right;
-	    caddr_t *	cols;
-	    ptrlong	is_best;
-	  } set_exp;
-	struct
-	  {
-	    /* layout like bin_exp */
-	    ST *	left;
-	    ST *	right;
-	    caddr_t	name;
-	    ST *	type;
-	    ST *	xml_col;
-	  } as_exp;
-	struct
-	  {
-	    caddr_t	value;
-	  } literal;
-	struct
-	  {
-	    caddr_t	name;
-	  } param;
-	struct
-	  {
-	    caddr_t	fn_name;
-	    ptrlong	fn_code;
-	    caddr_t	user_aggr_addr;
-	    ptrlong	all_distinct;	/*!< 0 if aggregate ALL, 1 if aggregate DISTINCT */
-	    ST *	fn_arg;		/*!< Single argument */
-	    ST **	fn_arglist;	/*!< Array of arguments (for user aggregates) */
-	  } fn_ref;
-	struct
-	  {
-	    ST *	table;
-	    ST **	cols;
-	    ST **	vals;
-	    ST *	table_exp;
-	  } update_src;
-	struct
-	  {
-	    ST *	table;
-	    ST **	cols;
-	    ST *	vals;
-	    ptrlong	mode;
-	    caddr_t	key;
-	    caddr_t *	opts;
-	  } insert;
-	struct
-	  {
-	    ST **	vals;
-	  } ins_vals;
-	struct
-	  {
-	    ST *	table_exp;
-	  } delete_src;
-	struct
-	  {
-	    ST *	table;
-	    ST **	cols;
-	    ST **	vals;
-	    caddr_t	cursor;
-	    caddr_t *	opts;
-	  } update_pos;
-	struct
-	  {
-	    caddr_t	cursor;
-	    ST *	table;
-	    caddr_t *	opts;
-	  } delete_pos;
-	struct
-	  {
-	    caddr_t	name;
-	    caddr_t	prefix;
-	    caddr_t	u_id;
-	    caddr_t	g_id;
-	    caddr_t *	opts;
-	  } table;
-	struct
-	  {
-	    ST *	table;
-	    caddr_t	range;
-	  } table_ref;
-	struct
-	  {
-	    ptrlong	is_natural;
-	    ptrlong	type;
-	    ST *	left;
-	    ST *	right;
-	    ST *	cond;
-	  } join;
-	struct
-	  {
-	    caddr_t *	cols;
-	  } usage /*using*/;	/* "using" is a keyword! */
-	struct
-	  {
-	    caddr_t	prefix;
-	    caddr_t	name;
-	  } col_ref;
-	struct
-	  {
-	    caddr_t	arg_1;
-	    caddr_t	arg_2;
-	    caddr_t	arg_3;
-	  } op;
-	struct
-	  {
-	    char *	name;
-	    ST **	opts;
-	  } col_del;
-	struct
-	  {
-	    char *	name;
-	    ST **	cols;
-	    ptrlong	flags;
-	  } table_def;
-	struct {
-	  caddr_t	name;
-	  caddr_t  *	inx_opts;
-	  caddr_t *	cols;
-	} col_group;
-	struct
-	  {
-	    caddr_t	name;
-	    ST *	exp;
-	    caddr_t	text;	/* source text, put intp SYS_VIEWS */
-	    ptrlong	check;
-	  } view_def;
-	struct
-	  {
-	    caddr_t *	fk_cols;
-	    char *	pk_tb;
-	    caddr_t *	pk_cols;
-	    ptrlong	match;
-	    ptrlong	u_rule;
-	    ptrlong	d_rule;
-	    char *	fk_name;
-	    ptrlong	fk_state;
-	  } fkey;
-	struct {
-	    caddr_t	proc;
-	    ST **	params;
-	    ST **	cols;
-	    caddr_t *	opts;
-	  } proc_table;
-	struct
-	  {
-	    char *	name;
-	    char *	table;
-	    caddr_t *	cols;
-	    caddr_t *	opts;
-	  } index;
-	struct
-	  {
-	    char *	table;
-	  } under;
-	struct
-	  {
-	    caddr_t	name;
-	    ST **	params;
-	    ST *	ret_type;
-	    caddr_t	init_name;
-	    caddr_t	acc_name;
-	    caddr_t	final_name;
-	    caddr_t	merge_name;
-	    ptrlong	need_order;
-	  } user_aggregate;
-	struct
-	  {
-	    ptrlong	r_type;
-	    caddr_t	name;
-	    ST **	params;
-	    ST *	ret;
-	    ST *	body;
-	    caddr_t 	alt_ret;
-	    caddr_t 	udt_mtd_info;
-	  } routine;
-	struct
-	  {
-	    caddr_t	name;
-	    ST **	procs;
-	  } module;
-	struct
-	  {
-	    caddr_t	name;
-	    ptrlong	time;
-	    caddr_t *	event;
-	    caddr_t	table;
-	    caddr_t     order;
-	    ST **	old_alias;
-	    ST *	body;
-	  } trigger;
-	struct
-	  {
-	    ptrlong	mode;
-	    ST *	name;
-	    ST *	type;
-	    caddr_t	deflt;
-	    caddr_t 	alt_type;
-	  } var;			/* for proc parameters and local vars */
-	struct
-	  {
-	    caddr_t	name;
-	    ST *	spec;
-	    ptrlong	type;
-	    ST **	params;
-	  } cr_def;
-	struct
-	  {
-	    ST *	cond;
-	    ST *	then;
-	  } elseif;
-	struct
-	  {
-	    ST **	elif_list;
-	    ST *	else_clause;
-	  } if_stmt;
-	struct
-	  {
-	    caddr_t	name;
-	    ST **	params;
-	    ST *	ret_param;
-	    caddr_t	type_name; /* for static methods */
-	  } call;
-	struct
-	  {
-	    long	type;
-	    caddr_t *	sql_states;
-	    ST *	code;
-	  } handler;
-	struct
-	  {
-	    ST *	cond;
-	    ST *	body;
-	  } while_stmt;
-	struct
-	  {
-	    caddr_t	name;
-	    ST **	options;
-	    ST **	params;
-	  } open_stmt;
-	struct
-	  {
-	    ST *	arr;
-	    ST *	inx;
-	  } aref;
-	struct
-	  {
-	    ptrlong	op;
-	    caddr_t *	cols;
-	  } priv_op;
-	struct
-	  {
-	    ST **	ops;
-	    ST *	table;
-	    caddr_t *	grantees;
-	  } grant;
-	struct
-	  {
-	    ST *	col;
-	    ptrlong	order;
-	    ST *	gsopt;
-	  } o_spec;
-	struct
-	  {
-	    ST **	exps;
-	  } comma_exp;
-	struct
-	  {
-	    ptrlong	r_type;
-	    caddr_t	remote_name;
-	    ST **	params;
-	    ST *	ret;
-	    caddr_t	local_name;
-	    caddr_t	dsn;
-	    caddr_t *   alt_ret;
-	  } remote_proc;
-	struct
-	  {
-	    caddr_t	element;
-	    caddr_t	tag;
-	    caddr_t	attr_name;
-	    ptrlong	directive;
-	  } xml_col;
-	struct
-	  {
-	    ST *	cursor;
-	    ST **	targets;
-	    caddr_t	scroll_type;
-	    ST *	row_count;
-	  } fetch;
-	struct
-	  {
-	    ST **	body;
-	    caddr_t	line_no;
-	    caddr_t	l_line_no;
-	    caddr_t	file_name;
-	    caddr_t	skip;
-	  }
-	compound;
-	struct {
-	  caddr_t 	name;
-	  caddr_t *	options;
-	  ST **		hosts;
-	} cluster;
-	struct {
-	  caddr_t **	hosts;
-	  ST **	ranges;
-	} host_group;
-	struct {
-	  caddr_t	table;
-	  caddr_t	key;
-	  caddr_t	cluster;
-	  ST **	cols;
-	} part_def;
-	struct {
-	  caddr_t	col;
-	  ptrlong	type;
-	  caddr_t	arg;
-	  caddr_t	arg2;
-	} col_part;
-	struct {
-	  ST *	min;
-	  ST *	max;
-	  ptrlong *	in;
-	  ptrlong *	out;
-	  ptrlong	end_flag;
-	  caddr_t	final_as;
-	  ptrlong	distinct;
-	  ptrlong	no_cycles;
-	  ptrlong	cycles_only;
-	  ptrlong	exists;
-	  ptrlong	no_order;
-	  ptrlong	shortest_only;
-	  ptrlong	direction;
-	} trans;
-	struct {
-	  ptrlong		mode;
-	  ST *		name;
-	  ST *		type;
-	  ST *	exp;
-	} vect_decl;
-	struct {
-	  ST **	decl;
-	  ST *	body;
-	  ptrlong	modify;
-	} for_vec;
-    } _;
-  } sql_tree_t;
+    struct
+    {
+      ST *left;
+      ST *right;
+      caddr_t more;		/* used by BETWEEN, ANY/ALL etc. */
+      caddr_t serial;		/* for dist identical constant pred trees in order to avoid inappropriate common predicate elimination in sqlo_df */
+    } bin_exp;
+    struct
+    {
+      ST *left;
+      ST *right;
+      caddr_t *cols;
+      ptrlong is_best;
+    } set_exp;
+    struct
+    {
+      /* layout like bin_exp */
+      ST *left;
+      ST *right;
+      caddr_t name;
+      ST *type;
+      ST *xml_col;
+    } as_exp;
+    struct
+    {
+      caddr_t value;
+    } literal;
+    struct
+    {
+      caddr_t name;
+    } param;
+    struct
+    {
+      caddr_t fn_name;
+      ptrlong fn_code;
+      caddr_t user_aggr_addr;
+      ptrlong all_distinct;	/*!< 0 if aggregate ALL, 1 if aggregate DISTINCT */
+      ST *fn_arg;		/*!< Single argument */
+      ST **fn_arglist;		/*!< Array of arguments (for user aggregates) */
+    } fn_ref;
+    struct
+    {
+      ST *table;
+      ST **cols;
+      ST **vals;
+      ST *table_exp;
+    } update_src;
+    struct
+    {
+      ST *table;
+      ST **cols;
+      ST *vals;
+      ptrlong mode;
+      caddr_t key;
+      caddr_t *opts;
+    } insert;
+    struct
+    {
+      ST **vals;
+    } ins_vals;
+    struct
+    {
+      ST *table_exp;
+    } delete_src;
+    struct
+    {
+      ST *table;
+      ST **cols;
+      ST **vals;
+      caddr_t cursor;
+      caddr_t *opts;
+    } update_pos;
+    struct
+    {
+      caddr_t cursor;
+      ST *table;
+      caddr_t *opts;
+    } delete_pos;
+    struct
+    {
+      caddr_t name;
+      caddr_t prefix;
+      caddr_t u_id;
+      caddr_t g_id;
+      caddr_t *opts;
+    } table;
+    struct
+    {
+      ST *table;
+      caddr_t range;
+    } table_ref;
+    struct
+    {
+      ptrlong is_natural;
+      ptrlong type;
+      ST *left;
+      ST *right;
+      ST *cond;
+    } join;
+    struct
+    {
+      caddr_t *cols;
+    } usage /*using */ ;	/* "using" is a keyword! */
+    struct
+    {
+      caddr_t prefix;
+      caddr_t name;
+    } col_ref;
+    struct
+    {
+      caddr_t arg_1;
+      caddr_t arg_2;
+      caddr_t arg_3;
+    } op;
+    struct
+    {
+      char *name;
+      ST **opts;
+    } col_del;
+    struct
+    {
+      char *name;
+      ST **cols;
+      ptrlong flags;
+    } table_def;
+    struct
+    {
+      caddr_t name;
+      caddr_t *inx_opts;
+      caddr_t *cols;
+    } col_group;
+    struct
+    {
+      caddr_t name;
+      ST *exp;
+      caddr_t text;		/* source text, put intp SYS_VIEWS */
+      ptrlong check;
+    } view_def;
+    struct
+    {
+      caddr_t *fk_cols;
+      char *pk_tb;
+      caddr_t *pk_cols;
+      ptrlong match;
+      ptrlong u_rule;
+      ptrlong d_rule;
+      char *fk_name;
+      ptrlong fk_state;
+    } fkey;
+    struct
+    {
+      caddr_t proc;
+      ST **params;
+      ST **cols;
+      caddr_t *opts;
+    } proc_table;
+    struct
+    {
+      char *name;
+      char *table;
+      caddr_t *cols;
+      caddr_t *opts;
+    } index;
+    struct
+    {
+      char *table;
+    } under;
+    struct
+    {
+      caddr_t name;
+      ST **params;
+      ST *ret_type;
+      caddr_t init_name;
+      caddr_t acc_name;
+      caddr_t final_name;
+      caddr_t merge_name;
+      ptrlong need_order;
+    } user_aggregate;
+    struct
+    {
+      ptrlong r_type;
+      caddr_t name;
+      ST **params;
+      ST *ret;
+      ST *body;
+      caddr_t alt_ret;
+      caddr_t udt_mtd_info;
+    } routine;
+    struct
+    {
+      caddr_t name;
+      ST **procs;
+    } module;
+    struct
+    {
+      caddr_t name;
+      ptrlong time;
+      caddr_t *event;
+      caddr_t table;
+      caddr_t order;
+      ST **old_alias;
+      ST *body;
+    } trigger;
+    struct
+    {
+      ptrlong mode;
+      ST *name;
+      ST *type;
+      caddr_t deflt;
+      caddr_t alt_type;
+    } var;			/* for proc parameters and local vars */
+    struct
+    {
+      caddr_t name;
+      ST *spec;
+      ptrlong type;
+      ST **params;
+    } cr_def;
+    struct
+    {
+      ST *cond;
+      ST *then;
+    } elseif;
+    struct
+    {
+      ST **elif_list;
+      ST *else_clause;
+    } if_stmt;
+    struct
+    {
+      caddr_t name;
+      ST **params;
+      ST *ret_param;
+      caddr_t type_name;	/* for static methods */
+    } call;
+    struct
+    {
+      long type;
+      caddr_t *sql_states;
+      ST *code;
+    } handler;
+    struct
+    {
+      ST *cond;
+      ST *body;
+    } while_stmt;
+    struct
+    {
+      caddr_t name;
+      ST **options;
+      ST **params;
+    } open_stmt;
+    struct
+    {
+      ST *arr;
+      ST *inx;
+    } aref;
+    struct
+    {
+      ptrlong op;
+      caddr_t *cols;
+    } priv_op;
+    struct
+    {
+      ST **ops;
+      ST *table;
+      caddr_t *grantees;
+    } grant;
+    struct
+    {
+      ST *col;
+      ptrlong order;
+      ST *gsopt;
+    } o_spec;
+    struct
+    {
+      ST **exps;
+    } comma_exp;
+    struct
+    {
+      ptrlong r_type;
+      caddr_t remote_name;
+      ST **params;
+      ST *ret;
+      caddr_t local_name;
+      caddr_t dsn;
+      caddr_t *alt_ret;
+    } remote_proc;
+    struct
+    {
+      caddr_t element;
+      caddr_t tag;
+      caddr_t attr_name;
+      ptrlong directive;
+    } xml_col;
+    struct
+    {
+      ST *cursor;
+      ST **targets;
+      caddr_t scroll_type;
+      ST *row_count;
+    } fetch;
+    struct
+    {
+      ST **body;
+      caddr_t line_no;
+      caddr_t l_line_no;
+      caddr_t file_name;
+      caddr_t skip;
+    }
+    compound;
+    struct
+    {
+      caddr_t name;
+      caddr_t *options;
+      ST **hosts;
+    } cluster;
+    struct
+    {
+      caddr_t **hosts;
+      ST **ranges;
+    } host_group;
+    struct
+    {
+      caddr_t table;
+      caddr_t key;
+      caddr_t cluster;
+      ST **cols;
+    } part_def;
+    struct
+    {
+      caddr_t col;
+      ptrlong type;
+      caddr_t arg;
+      caddr_t arg2;
+    } col_part;
+    struct
+    {
+      ST *min;
+      ST *max;
+      ptrlong *in;
+      ptrlong *out;
+      ptrlong end_flag;
+      caddr_t final_as;
+      ptrlong distinct;
+      ptrlong no_cycles;
+      ptrlong cycles_only;
+      ptrlong exists;
+      ptrlong no_order;
+      ptrlong shortest_only;
+      ptrlong direction;
+    } trans;
+    struct
+    {
+      ptrlong mode;
+      ST *name;
+      ST *type;
+      ST *exp;
+    } vect_decl;
+    struct
+    {
+      ST **decl;
+      ST *body;
+      ptrlong modify;
+    } for_vec;
+  } _;
+} sql_tree_t;
 
 
 #define TRANS_ANY 0

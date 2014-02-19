@@ -39,11 +39,11 @@
 #include "sqlcstate.h"
 
 id_hash_t *global_wide_charsets = NULL;
-wcharset_t * default_charset = NULL;
+wcharset_t *default_charset = NULL;
 caddr_t default_charset_name = NULL;
 
 wchar_t
-CHAR_TO_WCHAR (unsigned char uchar, wcharset_t *charset)
+CHAR_TO_WCHAR (unsigned char uchar, wcharset_t * charset)
 {
   if (!uchar)
     return uchar;
@@ -52,7 +52,7 @@ CHAR_TO_WCHAR (unsigned char uchar, wcharset_t *charset)
 
 
 unsigned char
-WCHAR_TO_CHAR (wchar_t wchar, wcharset_t *charset)
+WCHAR_TO_CHAR (wchar_t wchar, wcharset_t * charset)
 {
   unsigned char value;
   if (charset && charset != CHARSET_UTF8 && wchar)
@@ -61,7 +61,7 @@ WCHAR_TO_CHAR (wchar_t wchar, wcharset_t *charset)
       if (!value)
 	value = '?';
     }
-  else if (((unsigned long)wchar) < 0x100L)
+  else if (((unsigned long) wchar) < 0x100L)
     value = (unsigned char) wchar;
   else
     value = '?';
@@ -75,7 +75,7 @@ WCHAR_TO_CHAR (wchar_t wchar, wcharset_t *charset)
 #define hexdigtoi(C) (isdigit(C) ? ((C) - '0') : (toupper(C) - ('A' - 10)))
 
 int
-parse_wide_string_literal (unsigned char **str_ptr, caddr_t box, wcharset_t *charset)
+parse_wide_string_literal (unsigned char **str_ptr, caddr_t box, wcharset_t * charset)
 {
   unsigned int i = 0;
   volatile unsigned int q;
@@ -83,7 +83,7 @@ parse_wide_string_literal (unsigned char **str_ptr, caddr_t box, wcharset_t *cha
   UCHAR *str = (**str_ptr == 'N' || **str_ptr == 'n') ? *str_ptr + 1 : *str_ptr;
   UCHAR beg_quote = *str++;	/* And skip past N and it. */
   wchar_t c;
-  wchar_t *result = (wchar_t *)box;
+  wchar_t *result = (wchar_t *) box;
   if (!charset)
     {
       client_connection_t *cli = GET_IMMEDIATE_CLIENT_OR_NULL;
@@ -94,7 +94,7 @@ parse_wide_string_literal (unsigned char **str_ptr, caddr_t box, wcharset_t *cha
     charset = default_charset;
 
 
-  for (/* no init */; '\0' != str[0]; str++)
+  for ( /* no init */ ; '\0' != str[0]; str++)
     {
       switch (str[0])
 	{
@@ -112,102 +112,101 @@ parse_wide_string_literal (unsigned char **str_ptr, caddr_t box, wcharset_t *cha
 		  {
 		    /* If a string anomalously ends with a trailing (single) backslash, then
 		       leave it dangling there: */
-		    case '\0':
+		  case '\0':
+		    {
+		      c = CHAR_TO_WCHAR (*(str - 1), charset);
+		      break;
+		    }
+		  case 'a':
+		    {
+		      c = (wchar_t) 7;
+		      break;
+		    }		/* BEL audible alert */
+		  case 'b':
+		    {
+		      c = (wchar_t) '\b';
+		      break;
+		    }		/* BS  backspace */
+		    /*        case 'e': { c = '\033'; break; } *//* ESC escape */
+		  case 'f':
+		    {
+		      c = (wchar_t) '\f';
+		      break;
+		    }		/* FF  form feed */
+		  case 'n':
+		    {
+		      c = (wchar_t) '\n';
+		      break;
+		    }		/* NL (LF) newline */
+		  case 'r':
+		    {
+		      c = (wchar_t) '\r';
+		      break;
+		    }		/* CR  carriage return */
+		  case 't':
+		    {
+		      c = (wchar_t) '\t';
+		      break;
+		    }		/* HT  horizontal tab */
+		  case 'v':
+		    {
+		      c = (wchar_t) '\013';
+		      break;
+		    }		/* VT  vertical tab */
+		  case 'x':	/* There's a hexadecimal char constant \xhh */
+		  case 'X':
+		    {		/* We should check that only max 2 digits are parsed */
+		      q = 4;
+		      z = 0;
+		      str++;
+		      while (*str && isxdigit (*str) && (q--))
 			{
-			  c = CHAR_TO_WCHAR(*(str - 1), charset);
-			  break;
+			  z = ((z << 4) + (isdigit (*str) ? (*str - '0') : (toupper (*str) - 'A' + 10)));
+			  str++;
 			}
-		    case 'a':
-			  {
-			    c = (wchar_t)7;
-			    break;
-			  }		/* BEL audible alert */
-		    case 'b':
-			    {
-			      c = (wchar_t)'\b';
-			      break;
-			    }		/* BS  backspace */
-			    /*	      case 'e': { c = '\033'; break; } *//* ESC escape */
-		    case 'f':
-			      {
-				c = (wchar_t)'\f';
-				break;
-			      }		/* FF  form feed */
-		    case 'n':
-				{
-				  c = (wchar_t)'\n';
-				  break;
-				}		/* NL (LF) newline */
-		    case 'r':
-				  {
-				    c = (wchar_t)'\r';
-				    break;
-				  }		/* CR  carriage return */
-		    case 't':
-				    {
-				      c = (wchar_t)'\t';
-				      break;
-				    }		/* HT  horizontal tab */
-		    case 'v':
-				      {
-					c = (wchar_t)'\013';
-					break;
-				      }		/* VT  vertical tab */
-		    case 'x':	/* There's a hexadecimal char constant \xhh */
-		    case 'X':
-					{		/* We should check that only max 2 digits are parsed */
-					  q = 4;
-					  z = 0;
-					  str++;
-					  while (*str && isxdigit (*str) && (q--))
-					    {
-					      z = ((z << 4) + (isdigit (*str) ?
-						    (*str - '0') : (toupper (*str) - 'A' + 10)));
-					      str++;
-					    }
-					  c = z;
-					  if (!z)
-					    return -1;
-					  str--;	/* str is incremented soon. */
-					  break;
-					}
-		    case '0':
-		    case '1':
-		    case '2':
-		    case '3':
-		    case '4':
-		    case '5':
-		    case '6':
-		    case '7':
-					  {		/* So it's an octal sequence like \033 : */
-					    q = 6;
-					    z = 0;
-					    while (isoctdigit (*str) && (q--))
-					      {
-						z = ((z << 3) + (*str++ - '0'));
-					      }
-					    c = z;
-					    str--;	/* str is incremented soon. */
-					    if (!z)
-					      return -1;
-					    break;
-					  }		/* octal digits */
-			/* \\\n should not appear in the output at all */
-		    case '\n':
-		    case '\r':
-			continue;
-		    default:		/* Every other character after backslash produces */
-					    {		/* that same character, i.e. \\ = \, \' = ', etc. */
-					      c = CHAR_TO_WCHAR(*str, charset);
-					      break;
-					    }		/* default */
+		      c = z;
+		      if (!z)
+			return -1;
+		      str--;	/* str is incremented soon. */
+		      break;
+		    }
+		  case '0':
+		  case '1':
+		  case '2':
+		  case '3':
+		  case '4':
+		  case '5':
+		  case '6':
+		  case '7':
+		    {		/* So it's an octal sequence like \033 : */
+		      q = 6;
+		      z = 0;
+		      while (isoctdigit (*str) && (q--))
+			{
+			  z = ((z << 3) + (*str++ - '0'));
+			}
+		      c = z;
+		      str--;	/* str is incremented soon. */
+		      if (!z)
+			return -1;
+		      break;
+		    }		/* octal digits */
+		    /* \\\n should not appear in the output at all */
+		  case '\n':
+		  case '\r':
+		    continue;
+		  default:	/* Every other character after backslash produces */
+		    {		/* that same character, i.e. \\ = \, \' = ', etc. */
+		      c = CHAR_TO_WCHAR (*str, charset);
+		      break;
+		    }		/* default */
 
-		  }			/* inner switch for character after a backslash */
+		  }		/* inner switch for character after a backslash */
 		if (result)
 		  result[i] = c;
 		i++;
 		break;
-	      } /* if for processing backslashes */
+	      }			/* if for processing backslashes */
 	  }			/* case for backslash. */
 	default:
 	  {
@@ -230,7 +229,7 @@ parse_wide_string_literal (unsigned char **str_ptr, caddr_t box, wcharset_t *cha
 	      {
 	      copy_char:
 		if (result)
-		  result[i] = CHAR_TO_WCHAR(*str, charset);
+		  result[i] = CHAR_TO_WCHAR (*str, charset);
 		i++;
 		break;
 	      }
@@ -251,20 +250,20 @@ out:;
       /* The terminating quote is missing, we should produce an error here! */
       *str_ptr = str;		/* But in this version we are tolerant of that. */
     }
-  return ((i + 1) * sizeof(wchar_t));			/* Return the length. */
+  return ((i + 1) * sizeof (wchar_t));	/* Return the length. */
 }
 
 caddr_t
-box_narrow_string_as_wide (unsigned char *str, caddr_t wide, long max_len, wcharset_t *charset, caddr_t * err_ret, int isbox)
+box_narrow_string_as_wide (unsigned char *str, caddr_t wide, long max_len, wcharset_t * charset, caddr_t * err_ret, int isbox)
 {
-  long i, len = (long)(isbox ? (box_length ((box_t) str) - 1) : strlen((const char *) str));
+  long i, len = (long) (isbox ? (box_length ((box_t) str) - 1) : strlen ((const char *) str));
   wchar_t *box;
   size_t wide_len;
 
-  if (isbox && strlen((const char *) str) < len)
+  if (isbox && strlen ((const char *) str) < len)
     {
       if (err_ret)
-        *err_ret = srv_make_new_error ("22024", "SR578", "Wide string can't contain '\\0' character.");
+	*err_ret = srv_make_new_error ("22024", "SR578", "Wide string can't contain '\\0' character.");
       return NULL;
     }
   if (!charset)
@@ -276,12 +275,11 @@ box_narrow_string_as_wide (unsigned char *str, caddr_t wide, long max_len, wchar
   if (!charset)
     charset = default_charset;
 
-
   if (max_len > 0 && len > max_len)
     len = max_len;
 /*  if (len == 0)
     return NULL; - explicit bug */
-  wide_len = (len + 1) * sizeof(wchar_t);
+  wide_len = (len + 1) * sizeof (wchar_t);
   if (wide_len > MAX_READ_STRING)
     {
       if (err_ret)
@@ -290,14 +288,14 @@ box_narrow_string_as_wide (unsigned char *str, caddr_t wide, long max_len, wchar
     }
   box = (wchar_t *) (wide ? wide : dk_alloc_box_zero (wide_len, DV_WIDE));
   for (i = 0; i < len; i++)
-    box[i] = CHAR_TO_WCHAR(str[i], charset);
+    box[i] = CHAR_TO_WCHAR (str[i], charset);
   box[len] = L'\0';
   return ((caddr_t) box);
 }
 
 
 dk_session_t *
-bh_string_output_w (/* this was before 3.0: index_space_t * isp, */ lock_trx_t * lt, blob_handle_t * bh, int omit)
+bh_string_output_w ( /* this was before 3.0: index_space_t * isp, */ lock_trx_t * lt, blob_handle_t * bh, int omit)
 {
   /* take current page at current place and make string of
      n bytes from the place and write to client */
@@ -308,7 +306,7 @@ bh_string_output_w (/* this was before 3.0: index_space_t * isp, */ lock_trx_t *
   long chars_filled = 0, chars_on_page;
   virt_mbstate_t state;
   wchar_t wpage[PAGE_SZ];
-#if 0 /* this was */
+#if 0				/* this was */
   it_cursor_t *tmp_itc = itc_create (isp, lt);
 #else
   it_cursor_t *tmp_itc = itc_create (NULL, lt);
@@ -320,14 +318,13 @@ bh_string_output_w (/* this was before 3.0: index_space_t * isp, */ lock_trx_t *
       long char_len, byte_len, next;
       unsigned char *mbc;
       if (NULL == string_output)
-	string_output = strses_allocate();
+	string_output = strses_allocate ();
       memset (&state, 0, sizeof (state));
       ITC_IN_KNOWN_MAP (tmp_itc, start);
       page_wait_access (tmp_itc, start, NULL, &buf, PA_READ, RWG_WAIT_ANY);
       if (!buf || PF_OF_DELETED == buf)
 	{
-	  log_info ("Attempt to read deleted blob dp = %d start = %d.",
-		    start, bh->bh_page);
+	  log_info ("Attempt to read deleted blob dp = %d start = %d.", start, bh->bh_page);
 	  break;
 	}
       byte_len = LONG_REF (buf->bd_buffer + DP_BLOB_LEN);
@@ -339,9 +336,9 @@ bh_string_output_w (/* this was before 3.0: index_space_t * isp, */ lock_trx_t *
       if (chars_on_page)
 	{
 	  /* dbg_printf (("Read blob page %ld, %ld bytes.\n", start,
-		bytes_on_page)); */
+	     bytes_on_page)); */
 	  if (!omit)
-	      session_buffered_write (string_output, (char *) (wpage + from_char), chars_on_page * sizeof (wchar_t));
+	    session_buffered_write (string_output, (char *) (wpage + from_char), chars_on_page * sizeof (wchar_t));
 
 	  chars_filled += chars_on_page;
 	  from_char += chars_on_page;
@@ -349,13 +346,12 @@ bh_string_output_w (/* this was before 3.0: index_space_t * isp, */ lock_trx_t *
       next = LONG_REF (buf->bd_buffer + DP_OVERFLOW);
       page_leave_outside_map (buf);
       if (start == bh->bh_page)
-      {
-	      dp_addr_t t = LONG_REF (buf->bd_buffer + DP_BLOB_DIR);
-	      if (bh->bh_dir_page && t!=bh->bh_dir_page)
-		log_info ("Mismatch in directory page ID %d(%x) vs %d(%x).",
-		    t,t,bh->bh_dir_page,bh->bh_dir_page);
-	      bh->bh_dir_page=t;
-      }
+	{
+	  dp_addr_t t = LONG_REF (buf->bd_buffer + DP_BLOB_DIR);
+	  if (bh->bh_dir_page && t != bh->bh_dir_page)
+	    log_info ("Mismatch in directory page ID %d(%x) vs %d(%x).", t, t, bh->bh_dir_page, bh->bh_dir_page);
+	  bh->bh_dir_page = t;
+	}
       bh->bh_current_page = next;
       bh->bh_position = 0;
       from_char = 0;
@@ -367,7 +363,7 @@ bh_string_output_w (/* this was before 3.0: index_space_t * isp, */ lock_trx_t *
 
 
 dk_set_t
-bh_string_list_w (/* this was before 3.0: index_space_t * isp,*/ lock_trx_t * lt, blob_handle_t * bh,
+bh_string_list_w ( /* this was before 3.0: index_space_t * isp, */ lock_trx_t * lt, blob_handle_t * bh,
     long get_chars, int omit)
 {
   /* take current page at current place and make string of
@@ -398,8 +394,7 @@ bh_string_list_w (/* this was before 3.0: index_space_t * isp,*/ lock_trx_t * lt
       type = SHORT_REF (buf->bd_buffer + DP_FLAGS);
       timestamp = LONG_REF (buf->bd_buffer + DP_BLOB_TS);
 
-      if ((DPF_BLOB != type) &&
-	  (DPF_BLOB_DIR != type))
+      if ((DPF_BLOB != type) && (DPF_BLOB_DIR != type))
 	{
 	  page_leave_outside_map (buf);
 	  dbg_printf (("wrong blob type\n"));
@@ -421,7 +416,7 @@ bh_string_list_w (/* this was before 3.0: index_space_t * isp,*/ lock_trx_t * lt
       if (chars_on_page)
 	{
 	  /* dbg_printf (("Read blob page %ld, %ld bytes.\n", start,
-		bytes_on_page)); */
+	     bytes_on_page)); */
 	  if (!omit)
 	    {
 	      if (DK_MEM_RESERVE)
@@ -429,10 +424,9 @@ bh_string_list_w (/* this was before 3.0: index_space_t * isp,*/ lock_trx_t * lt
 		  SET_DK_MEM_RESERVE_STATE (lt);
 		  itc_bust_this_trx (tmp_itc, &buf, ITC_BUST_THROW);
 		}
-	      page_string = dk_alloc_box ((chars_on_page + 1) * sizeof(wchar_t), DV_WIDE);
-	      memcpy (page_string, wpage + from_char,
-		  chars_on_page * sizeof (wchar_t));
-	      ((wchar_t *)page_string)[chars_on_page] = 0;
+	      page_string = dk_alloc_box ((chars_on_page + 1) * sizeof (wchar_t), DV_WIDE);
+	      memcpy (page_string, wpage + from_char, chars_on_page * sizeof (wchar_t));
+	      ((wchar_t *) page_string)[chars_on_page] = 0;
 	      dk_set_push (&string_list, page_string);
 	    }
 	  chars_filled += chars_on_page;
@@ -457,7 +451,7 @@ bh_string_list_w (/* this was before 3.0: index_space_t * isp,*/ lock_trx_t * lt
 
 
 static int
-print_narrow_string_as_wide (dk_session_t *ses, unsigned char *string, wcharset_t *charset)
+print_narrow_string_as_wide (dk_session_t * ses, unsigned char *string, wcharset_t * charset)
 {
   unsigned char *pstr = string;
   long utf8_len = 0, char_utf8_len;
@@ -500,46 +494,42 @@ print_narrow_string_as_wide (dk_session_t *ses, unsigned char *string, wcharset_
 
 
 void
-row_print_wide (caddr_t thing, dk_session_t * ses, dbe_column_t * col,
-    caddr_t * err_ret, dtp_t dtp, wcharset_t * wcharset)
+row_print_wide (caddr_t thing, dk_session_t * ses, dbe_column_t * col, caddr_t * err_ret, dtp_t dtp, wcharset_t * wcharset)
 {
   switch (dtp)
     {
-      case DV_STRING:
-	  if (0 > print_narrow_string_as_wide (ses, (unsigned char *) thing, wcharset))
-	    {
-	      caddr_t err = NULL;
-	      err = srv_make_new_error ("22005", "IN009",
-		 "Bad value for wide string column %s, dtp = %d.",
-		 col->col_name, dtp);
-	      if (err_ret)
-		*err_ret = err;
-	      else
-		sqlr_resignal (err);
-	      return;
-	    }
-	  break;
-      case DV_WIDE:
-          wide_serialize (thing, ses);
-	  break;
-      default:
-	    {
-	      caddr_t err = NULL;
-	      err = srv_make_new_error ("22005", "IN011",
-		 "Bad value for wide string column %s, type=%s.", col->col_name, dv_type_title (dtp));
-	      if (err_ret)
-		*err_ret = err;
-	      else
-		sqlr_resignal (err);
-	    }
-	  break;
+    case DV_STRING:
+      if (0 > print_narrow_string_as_wide (ses, (unsigned char *) thing, wcharset))
+	{
+	  caddr_t err = NULL;
+	  err = srv_make_new_error ("22005", "IN009", "Bad value for wide string column %s, dtp = %d.", col->col_name, dtp);
+	  if (err_ret)
+	    *err_ret = err;
+	  else
+	    sqlr_resignal (err);
+	  return;
+	}
+      break;
+    case DV_WIDE:
+      wide_serialize (thing, ses);
+      break;
+    default:
+      {
+	caddr_t err = NULL;
+	err = srv_make_new_error ("22005", "IN011",
+	    "Bad value for wide string column %s, type=%s.", col->col_name, dv_type_title (dtp));
+	if (err_ret)
+	  *err_ret = err;
+	else
+	  sqlr_resignal (err);
+      }
+      break;
 
     }
 }
 
 int
-compare_wide_to_utf8 (caddr_t _utf8_data, long utf8_len,
-    caddr_t _wide_data, long wide_len, collation_t *collation)
+compare_wide_to_utf8 (caddr_t _utf8_data, long utf8_len, caddr_t _wide_data, long wide_len, collation_t * collation)
 {
   unsigned char *utf8_data = (unsigned char *) _utf8_data;
   wchar_t *wide_data = (wchar_t *) _wide_data;
@@ -554,7 +544,7 @@ compare_wide_to_utf8 (caddr_t _utf8_data, long utf8_len,
 
   ninx = winx = 0;
   if (collation)
-    while(1)
+    while (1)
       {
 	if (ninx == utf8_len)
 	  {
@@ -569,17 +559,15 @@ compare_wide_to_utf8 (caddr_t _utf8_data, long utf8_len,
 	rc = (int) virt_mbrtowc (&wtmp, utf8_data + ninx, utf8_len - ninx, &state);
 	if (rc <= 0)
 	  GPF_T1 ("inconsistent wide char data");
-	if (((wchar_t *)collation->co_table)[wtmp] <
-	    ((wchar_t *)collation->co_table)[wide_data[winx]])
+	if (((wchar_t *) collation->co_table)[wtmp] < ((wchar_t *) collation->co_table)[wide_data[winx]])
 	  return DVC_LESS;
-	if (((wchar_t *)collation->co_table)[wtmp] >
-	    ((wchar_t *)collation->co_table)[wide_data[winx]])
+	if (((wchar_t *) collation->co_table)[wtmp] > ((wchar_t *) collation->co_table)[wide_data[winx]])
 	  return DVC_GREATER;
 	winx++;
 	ninx += rc;
       }
   else
-    while(1)
+    while (1)
       {
 	if (ninx == utf8_len)
 	  {
@@ -605,8 +593,7 @@ compare_wide_to_utf8 (caddr_t _utf8_data, long utf8_len,
 
 
 int
-compare_utf8_with_collation (caddr_t dv1, long n1,
-    caddr_t dv2, long n2, collation_t *collation)
+compare_utf8_with_collation (caddr_t dv1, long n1, caddr_t dv2, long n2, collation_t * collation)
 {
   long inx1, inx2;
 
@@ -619,18 +606,18 @@ compare_utf8_with_collation (caddr_t dv1, long n1,
 
   inx1 = inx2 = 0;
   if (collation)
-    while(1)
+    while (1)
       {
 	if (inx1 == n1)
 	  {
 	    while (inx2 < n2)
-	      { /* skip all ignorable rest chars */
+	      {			/* skip all ignorable rest chars */
 		rc2 = (int) virt_mbrtowc (&wtmp2, (unsigned char *) (dv2 + inx2), n2 - inx2, &state2);
 		if (rc2 <= 0)
 		  GPF_T1 ("inconsistent wide char data");
-		if (!((wchar_t *)collation->co_table)[wtmp2])
+		if (!((wchar_t *) collation->co_table)[wtmp2])
 		  {
-		    inx2+=rc2;
+		    inx2 += rc2;
 		    continue;
 		  }
 		else
@@ -652,27 +639,25 @@ compare_utf8_with_collation (caddr_t dv1, long n1,
 	if (rc2 <= 0)
 	  GPF_T1 ("inconsistent wide char data");
 
-	if (!((wchar_t *)collation->co_table)[wtmp1])
+	if (!((wchar_t *) collation->co_table)[wtmp1])
 	  {
-	    inx1+=rc1;
+	    inx1 += rc1;
 	    continue;
 	  }
-	if (!((wchar_t *)collation->co_table)[wtmp2])
+	if (!((wchar_t *) collation->co_table)[wtmp2])
 	  {
-	    inx2+=rc2;
+	    inx2 += rc2;
 	    continue;
 	  }
-	if (((wchar_t *)collation->co_table)[wtmp1] <
-	    ((wchar_t *)collation->co_table)[wtmp2])
+	if (((wchar_t *) collation->co_table)[wtmp1] < ((wchar_t *) collation->co_table)[wtmp2])
 	  return DVC_LESS;
-	if (((wchar_t *)collation->co_table)[wtmp1] >
-	    ((wchar_t *)collation->co_table)[wtmp2])
+	if (((wchar_t *) collation->co_table)[wtmp1] > ((wchar_t *) collation->co_table)[wtmp2])
 	  return DVC_GREATER;
 	inx1 += rc1;
 	inx2 += rc2;
       }
   else
-    while(1)
+    while (1)
       {
 	if (inx1 == n1)
 	  {
@@ -704,13 +689,13 @@ box_wide_char_string (caddr_t data, size_t len, dtp_t dtp)
 {
   caddr_t res = dk_alloc_box (len + sizeof (wchar_t), dtp);
   memcpy (res, data, len);
-  ((wchar_t *)res)[len / sizeof (wchar_t)] = L'\x0';
+  ((wchar_t *) res)[len / sizeof (wchar_t)] = L'\x0';
   return res;
 }
 
 
 caddr_t
-box_wide_string_as_narrow (caddr_t _str, caddr_t narrow, long max_len, wcharset_t *charset)
+box_wide_string_as_narrow (caddr_t _str, caddr_t narrow, long max_len, wcharset_t * charset)
 {
   wchar_t *str = (wchar_t *) _str;
   long len = box_length (str) / sizeof (wchar_t) - 1, i;
@@ -734,7 +719,7 @@ box_wide_string_as_narrow (caddr_t _str, caddr_t narrow, long max_len, wcharset_
     } in case if not null narrow - leak */
   box = (unsigned char *) (narrow ? narrow : dk_alloc_box (len + 1, DV_LONG_STRING));
   for (i = 0; i < len && str[i]; i++)
-    box[i] = WCHAR_TO_CHAR(str[i], charset);
+    box[i] = WCHAR_TO_CHAR (str[i], charset);
   box[len] = 0;
   return ((caddr_t) box);
 }
@@ -758,7 +743,7 @@ sch_name_to_charset_1 (const char *o_default, const char *q, const char *o, cons
     {
       /* if this changed to strncmp CaSE MODE 2 */
       wcharset_t *cs = *pcs;
-      sch_split_name(NULL, cs->chrs_name, cq, co, cn);
+      sch_split_name (NULL, cs->chrs_name, cq, co, cn);
 
       if (0 != CASEMODESTRCMP (cq, q))
 	continue;
@@ -783,7 +768,7 @@ sch_name_to_charset_1 (const char *o_default, const char *q, const char *o, cons
   if (cs_found)
     {
       if (n_found > 1)
-	return ((wcharset_t *) -1L);
+	return ((wcharset_t *) - 1L);
       return cs_found;
     }
 
@@ -797,7 +782,7 @@ sch_name_to_charset (const char *name)
     return default_charset;
   else
     {
-      wcharset_t **charset = (wcharset_t **) id_hash_get (global_wide_charsets, (caddr_t) &name);
+      wcharset_t **charset = (wcharset_t **) id_hash_get (global_wide_charsets, (caddr_t) & name);
       if (charset)
 	return charset[0];
       else
@@ -811,7 +796,7 @@ complete_charset_name (caddr_t _qi, char *cs_name)
 {
   caddr_t result;
   wcharset_t *cs = sch_name_to_charset (cs_name);
-  query_instance_t *qi = (query_instance_t *)_qi;
+  query_instance_t *qi = (query_instance_t *) _qi;
   if (cs)
     result = box_dv_short_string (cs->chrs_name);
   else
@@ -836,35 +821,40 @@ complete_charset_name (caddr_t _qi, char *cs_name)
 
 
 int
-compare_wide_to_narrow (wchar_t *wbox1, long n1, unsigned char *box2, long n2)
+compare_wide_to_narrow (wchar_t * wbox1, long n1, unsigned char *box2, long n2)
 {
   wchar_t temp;
   long inx = 0;
+
   while (1)
     {
-      if (inx == n1)	/* box1 in end? */
+      if (inx == n1)		/* box1 in end? */
 	{
 	  if (inx == n2)
-	    return DVC_MATCH;  /* box2 of same length */
+	    return DVC_MATCH;	/* box2 of same length */
 	  else
-	    return DVC_LESS;   /* otherwise box1 is shorter than box2 */
+	    return DVC_LESS;	/* otherwise box1 is shorter than box2 */
 	}
+
       if (inx == n2)
 	return DVC_GREATER;	/* box2 in end (but not box1) */
+
       temp = CHAR_TO_WCHAR (box2[inx], NULL);
       if (wbox1[inx] < temp)
 	return DVC_LESS;
+
       if (wbox1[inx] > temp)
 	return DVC_GREATER;
+
       inx++;
     }
-  /*NOTREACHED*/
-  return DVC_LESS;
+
+   /*NOTREACHED*/ return DVC_LESS;
 }
 
 
 caddr_t
-box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wcharset_t *charset)
+box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wcharset_t * charset)
 {
   virt_mbstate_t state;
   long len, inx;
@@ -883,13 +873,13 @@ box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wcharset
   len = (long) virt_mbsnrtowcs (NULL, (unsigned char **) &src, box_length (str), 0, &state);
   if (max_len > 0 && len > max_len)
     len = max_len;
-  if (len < 0) /* there was <= 0 - bug */
+  if (len < 0)			/* there was <= 0 - bug */
     return NULL;
   box = narrow ? narrow : dk_alloc_box (len + 1, DV_LONG_STRING);
   for (inx = 0, src = str, memset (&state, 0, sizeof (virt_mbstate_t)); inx < len; inx++)
     {
       wchar_t wc;
-      long char_len = (long) virt_mbrtowc (&wc, src, (box_length (str)) - (long)((src - str)), &state);
+      long char_len = (long) virt_mbrtowc (&wc, src, (box_length (str)) - (long) ((src - str)), &state);
       if (char_len <= 0)
 	{
 	  box[inx] = '?';
@@ -907,7 +897,7 @@ box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wcharset
 
 /* this function take a string not a box as _str argument */
 caddr_t
-t_box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wcharset_t *charset)
+t_box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wcharset_t * charset)
 {
   virt_mbstate_t state;
   long len, inx;
@@ -926,13 +916,13 @@ t_box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wchars
   len = (long) virt_mbsnrtowcs (NULL, (unsigned char **) &src, strlen ((char *) str), 0, &state);
   if (max_len > 0 && len > max_len)
     len = max_len;
-  if (len < 0) /* there was <= 0 - bug */
+  if (len < 0)			/* there was <= 0 - bug */
     return NULL;
   box = narrow ? narrow : t_alloc_box (len + 1, DV_LONG_STRING);
   for (inx = 0, src = str, memset (&state, 0, sizeof (virt_mbstate_t)); inx < len; inx++)
     {
       wchar_t wc;
-      long char_len = (long) virt_mbrtowc (&wc, src, (strlen ((char *) str)) - (long)((src - str)), &state);
+      long char_len = (long) virt_mbrtowc (&wc, src, (strlen ((char *) str)) - (long) ((src - str)), &state);
       if (char_len <= 0)
 	{
 	  box[inx] = '?';
@@ -949,7 +939,8 @@ t_box_utf8_string_as_narrow (ccaddr_t _str, caddr_t narrow, long max_len, wchars
 }
 
 caddr_t
-DBG_NAME(box_narrow_string_as_utf8) (DBG_PARAMS caddr_t _str, caddr_t narrow, long max_len, wcharset_t *charset, caddr_t * err_ret, int isbox)
+DBG_NAME (box_narrow_string_as_utf8) (DBG_PARAMS caddr_t _str, caddr_t narrow, long max_len, wcharset_t * charset,
+    caddr_t * err_ret, int isbox)
 {
   caddr_t box = NULL, tmp;
   if (!charset)
@@ -990,37 +981,37 @@ t_box_utf8_as_wide_char (ccaddr_t _utf8, caddr_t _wide_dest, size_t utf8_len, si
   if (_wide_dest)
     dest = _wide_dest;
   else
-    dest = t_alloc_box ((int) (wide_len  + 1) * sizeof (wchar_t), dtp);
+    dest = t_alloc_box ((int) (wide_len + 1) * sizeof (wchar_t), dtp);
 
   utf8work = utf8;
   memset (&state, 0, sizeof (virt_mbstate_t));
   if (wide_len != virt_mbsnrtowcs ((wchar_t *) dest, &utf8work, utf8_len, wide_len, &state))
-    GPF_T1("non consistent multi-byte to wide char translation of a buffer");
+    GPF_T1 ("non consistent multi-byte to wide char translation of a buffer");
 
-  ((wchar_t *)dest)[wide_len] = L'\0';
+  ((wchar_t *) dest)[wide_len] = L'\0';
   if (_wide_dest)
-    return ((caddr_t)wide_len);
+    return ((caddr_t) wide_len);
   else
     return dest;
 }
 
-wchar_t * reverse_wide_string (wchar_t * str)
+wchar_t *
+reverse_wide_string (wchar_t * str)
 {
   int inx;
   size_t len = box_length (str) / sizeof (wchar_t) - 1;
-  for (inx=0;inx<len/2;inx++)
+  for (inx = 0; inx < len / 2; inx++)
     {
       wchar_t tmp = str[inx];
-      str[inx]=str[len - inx - 1];
-      str[len - inx -1] = tmp;
+      str[inx] = str[len - inx - 1];
+      str[len - inx - 1] = tmp;
     }
   return str;
 }
 
 /* slow solution, should be rewritten later */
 caddr_t
-strstr_utf8_with_collation (caddr_t dv1, long n1,
-    caddr_t dv2, long n2, caddr_t *next, collation_t *collation)
+strstr_utf8_with_collation (caddr_t dv1, long n1, caddr_t dv2, long n2, caddr_t * next, collation_t * collation)
 {
   int n1inx = 0, n2inx = 0, n1inx_beg = 0;
   int utf8_1len = box_length (dv1) - 1;
@@ -1043,52 +1034,49 @@ strstr_utf8_with_collation (caddr_t dv1, long n1,
 	  if (n2inx == utf8_2len)
 	    {
 	      if (next)
-		next[0] = dv1+n1inx;
+		next[0] = dv1 + n1inx;
 
-	      while(1)
+	      while (1)
 		{
 		  /* ignore all remaining ignorable signs */
-		  rc1 = (int) virt_mbrtowc (&wtmp1, (unsigned char *) dv1+n1inx_beg,
-		      utf8_1len-n1inx_beg, &state1);
+		  rc1 = (int) virt_mbrtowc (&wtmp1, (unsigned char *) dv1 + n1inx_beg, utf8_1len - n1inx_beg, &state1);
 		  if (rc1 < 0)
 		    GPF_T1 ("inconsistent wide char data");
-		  if (!((wchar_t *)collation->co_table)[wtmp1])
-		    { /* ignore symbol, unicode normalization algorithm */
-		      n1inx_beg+=rc1;
+		  if (!((wchar_t *) collation->co_table)[wtmp1])
+		    {		/* ignore symbol, unicode normalization algorithm */
+		      n1inx_beg += rc1;
 		    }
 		  else
-		    return dv1+n1inx_beg;
+		    return dv1 + n1inx_beg;
 		}
 	    }
-	  rc2 = (int) virt_mbrtowc (&wtmp2, (unsigned char *) dv2+n2inx,
-	      utf8_2len-n2inx, &state2);
+	  rc2 = (int) virt_mbrtowc (&wtmp2, (unsigned char *) dv2 + n2inx, utf8_2len - n2inx, &state2);
 	  if (rc2 < 0)
 	    GPF_T1 ("inconsistent wide char data");
-	  if (!((wchar_t *)collation->co_table)[wtmp2])
-	    { /* ignore symbol, unicode normalization algorithm */
-	      n2inx+=rc2;
+	  if (!((wchar_t *) collation->co_table)[wtmp2])
+	    {			/* ignore symbol, unicode normalization algorithm */
+	      n2inx += rc2;
 	      goto again;
 	    }
-	  rc1 = (int) virt_mbrtowc (&wtmp1, (unsigned char *) dv1+n1inx,
-	      utf8_1len-n1inx, &state1);
+	  rc1 = (int) virt_mbrtowc (&wtmp1, (unsigned char *) dv1 + n1inx, utf8_1len - n1inx, &state1);
 	  if (rc1 < 0)
 	    GPF_T1 ("inconsistent wide char data");
-	  if (!((wchar_t *)collation->co_table)[wtmp1])
-	    { /* ignore symbol, unicode normalization algorithm */
-	      n1inx+=rc1;
+	  if (!((wchar_t *) collation->co_table)[wtmp1])
+	    {			/* ignore symbol, unicode normalization algorithm */
+	      n1inx += rc1;
 	      goto again;
 	    }
 
-	  if (((wchar_t *)collation->co_table)[wtmp1] != ((wchar_t *)collation->co_table)[wtmp2])
+	  if (((wchar_t *) collation->co_table)[wtmp1] != ((wchar_t *) collation->co_table)[wtmp2])
 	    {
-	      n1inx+=rc1;
-	      n2inx=0;
-	      n1inx_beg=n1inx;
+	      n1inx += rc1;
+	      n2inx = 0;
+	      n1inx_beg = n1inx;
 	      memset (&state2, 0, sizeof (virt_mbstate_t));
 	      continue;
 	    }
-	  n1inx+=rc1;
-	  n2inx+=rc2;
+	  n1inx += rc1;
+	  n2inx += rc2;
 	}
     }
   else
@@ -1103,25 +1091,23 @@ strstr_utf8_with_collation (caddr_t dv1, long n1,
 	  if (n2inx == utf8_2len)
 	    {
 	      if (next)
-		next[0] = dv1+n1inx;
-	      return dv1+n1inx_beg;
+		next[0] = dv1 + n1inx;
+	      return dv1 + n1inx_beg;
 	    }
-	  rc1 = (int) virt_mbrtowc (&wtmp1, (unsigned char *) dv1+n1inx,
-	      utf8_1len-n1inx, &state1);
-	  rc2 = (int) virt_mbrtowc (&wtmp2, (unsigned char *) dv2+n2inx,
-	      utf8_2len-n2inx, &state2);
-	  if (rc1 < 0  || rc2 < 0)
+	  rc1 = (int) virt_mbrtowc (&wtmp1, (unsigned char *) dv1 + n1inx, utf8_1len - n1inx, &state1);
+	  rc2 = (int) virt_mbrtowc (&wtmp2, (unsigned char *) dv2 + n2inx, utf8_2len - n2inx, &state2);
+	  if (rc1 < 0 || rc2 < 0)
 	    GPF_T1 ("inconsistent wide char data");
 	  if (wtmp1 != wtmp2)
 	    {
-	      n1inx+=rc1;
-	      n2inx=0;
-	      n1inx_beg=n1inx;
+	      n1inx += rc1;
+	      n2inx = 0;
+	      n1inx_beg = n1inx;
 	      memset (&state2, 0, sizeof (virt_mbstate_t));
 	      continue;
 	    }
-	  n1inx+=rc1;
-	  n2inx+=rc2;
+	  n1inx += rc1;
+	  n2inx += rc2;
 	}
     }
 

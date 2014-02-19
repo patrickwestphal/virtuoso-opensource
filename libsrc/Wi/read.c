@@ -282,26 +282,26 @@ itc_prefetch_col (it_cursor_t * itc, buffer_desc_t * buf, dbe_col_loc_t * cl, ro
       if (buf->bd_content_map->pm_count <= rows[r])
 	continue;		/* safety against wrong argumenst */
       {
-      db_buf_t row = BUF_ROW (buf, rows[r]);
-      db_buf_t xx, xx2;
-      unsigned short vl1, vl2, offset;
-      key_ver_t kv = IE_KEY_VERSION (row);
-      if (KV_LEFT_DUMMY == kv || KV_LEAF_PTR == kv)
-	continue;
-      ROW_STR_COL (buf->bd_tree->it_key->key_versions[kv], buf, row, cl, xx, vl1, xx2, vl2, offset);
-      if (vl2)
-	GPF_T1 ("col ref string should nott be compressed");
-      dtp = *xx;
-      if (DV_STRING == dtp)
-	GPF_T1 ("not supposed to have string in col ref string");
-      n_pages = (vl1 - CPP_DP) / sizeof (dp_addr_t);
-      for (inx = 0; inx < n_pages; inx++)
-	{
-	  dp_addr_t dp = LONG_REF_NA ((xx + CPP_DP) + sizeof (dp_addr_t) * inx);
-	  if (!fill || dp != dps[fill - 1])
-	    dps[fill++] = dp;
-	}
-    }
+	db_buf_t row = BUF_ROW (buf, rows[r]);
+	db_buf_t xx, xx2;
+	unsigned short vl1, vl2, offset;
+	key_ver_t kv = IE_KEY_VERSION (row);
+	if (KV_LEFT_DUMMY == kv || KV_LEAF_PTR == kv)
+	  continue;
+	ROW_STR_COL (buf->bd_tree->it_key->key_versions[kv], buf, row, cl, xx, vl1, xx2, vl2, offset);
+	if (vl2)
+	  GPF_T1 ("col ref string should nott be compressed");
+	dtp = *xx;
+	if (DV_STRING == dtp)
+	  GPF_T1 ("not supposed to have string in col ref string");
+	n_pages = (vl1 - CPP_DP) / sizeof (dp_addr_t);
+	for (inx = 0; inx < n_pages; inx++)
+	  {
+	    dp_addr_t dp = LONG_REF_NA ((xx + CPP_DP) + sizeof (dp_addr_t) * inx);
+	    if (!fill || dp != dps[fill - 1])
+	      dps[fill++] = dp;
+	  }
+      }
     }
   *dps_fill = fill;
 }

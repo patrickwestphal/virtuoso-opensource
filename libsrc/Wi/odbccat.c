@@ -36,7 +36,10 @@
 #include "2pc.h"
 #endif
 
+
 unsigned long vdb_oracle_catalog_fix = 0;
+
+
 
 #define NO_VDB \
 	sqlr_new_error ("42000", "VD999", "This build does not include virtual database support."); \
@@ -52,12 +55,12 @@ bif_sql_escape_meta_identifier (caddr_t * qst, caddr_t * err_ret, state_slot_t *
 
 
 
+
 caddr_t
 bif_sql_unescape_meta_identifier (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   NO_VDB;
 }
-
 
 
 
@@ -197,6 +200,9 @@ bif_sql_write_file_dsn (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   NO_VDB;
 }
 #endif
+
+
+
 
 void
 odbc_cat_init (void)

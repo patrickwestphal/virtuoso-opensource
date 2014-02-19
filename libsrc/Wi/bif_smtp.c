@@ -34,7 +34,7 @@
 #include "libutil.h"
 #include "security.h"
 
-#define RESP_OK '2' 		/*2xx ok response */
+#define RESP_OK '2'		/*2xx ok response */
 #define RESP_OK_MID '3'		/*3xx intermediary ok response */
 
 #define IS_OK_GO(ses, resp, rc, rt)  CATCH_READ_FAIL (ses) \
@@ -63,23 +63,23 @@
 caddr_t get_message_header_field (char *szMessage, long message_size, caddr_t szHeaderFld);
 
 int
-is_smtp_ok (char * resp, char c)
+is_smtp_ok (char *resp, char c)
 {
   if (strlen (resp) < 2)
     return 0;
-  else if (resp [0] == c)
+  else if (resp[0] == c)
     return 1;
   return 0;
 }
 
 dk_session_t *
-smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient, caddr_t msg_body)
+smtp_connect (char *host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient, caddr_t msg_body)
 {
   volatile int rc, inx, len, addr, at;
-  dk_session_t * volatile ses = dk_session_allocate (SESCLASS_TCPIP);
+  dk_session_t *volatile ses = dk_session_allocate (SESCLASS_TCPIP);
   caddr_t cmd = NULL;
-  char resp [1024];
-  char tmp [1024], *ptmp;
+  char resp[1024];
+  char tmp[1024], *ptmp;
   char c;
   caddr_t volatile hf = NULL, host;
 
@@ -95,7 +95,8 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
     }
 
   rc = session_set_address (ses->dks_session, host);
-  dk_free_box (host); host = NULL;
+  dk_free_box (host);
+  host = NULL;
 
   if (SER_SUCC != rc)
     {
@@ -114,26 +115,25 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
     }
 
 
-  cmd = dk_alloc_box (MAX (MAX (box_length(sender), box_length(recipient)), 1000) + 24, DV_LONG_STRING);
+  cmd = dk_alloc_box (MAX (MAX (box_length (sender), box_length (recipient)), 1000) + 24, DV_LONG_STRING);
 
   /* get initial line */
   IS_OK_GO (ses, resp, rc, RESP_OK)
-  /* send HELO */
-  if (gethostname (tmp, sizeof (tmp)))
+      /* send HELO */
+      if (gethostname (tmp, sizeof (tmp)))
     strcpy_ck (tmp, "localhost");
   snprintf (cmd, box_length (cmd), "HELO %s\r\n", tmp);
-  /*WRITE_CMD (ses, rc, "HELO virtuoso.mail\r\n");*/
+  /*WRITE_CMD (ses, rc, "HELO virtuoso.mail\r\n"); */
   WRITE_CMD (ses, rc, cmd);
   IS_OK_GO (ses, resp, rc, RESP_OK)
-
-  /* send SENDER */
-  len = box_length (sender);
+      /* send SENDER */
+      len = box_length (sender);
   ptmp = tmp;
   addr = -1;
   at = 0;
   for (inx = 0; inx < len; inx++)
     {
-      c = sender [inx];
+      c = sender[inx];
       if (c == '<')
 	addr = 1;
       else if (c == '>' && addr == 1)
@@ -145,9 +145,9 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
 	}
       else if (c == '@')
 	at = 1;
-      if (((ptmp - tmp) < sizeof(tmp)) && (addr == 1 || addr == 2))
+      if (((ptmp - tmp) < sizeof (tmp)) && (addr == 1 || addr == 2))
 	*ptmp++ = c;
-      else if ((ptmp - tmp) >= sizeof(tmp))
+      else if ((ptmp - tmp) >= sizeof (tmp))
 	{
 	  strcpy_ck (resp, "Sender\'s e-mail address is too long.");
 	  goto error_end;
@@ -158,21 +158,19 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
 	  *ptmp = 0;
 	  snprintf (cmd, box_length (cmd), "MAIL FROM: %s\r\n", tmp);
 	  WRITE_CMD (ses, rc, cmd);
-	  IS_OK_GO (ses, resp, rc, RESP_OK)
-	  break;
+	  IS_OK_GO (ses, resp, rc, RESP_OK) break;
 	}
     }
   if ((at == 0 && addr == -1) || addr == 1)
-    { /*No any sender specified*/
+    {				/*No any sender specified */
       strcpy_ck (resp, "Bad sender e-mail address specified");
       goto error_end;
     }
   else if (at == 1 && addr == -1)
     {
-      snprintf (cmd, box_length(cmd), "MAIL FROM: <%s>\r\n", sender);
+      snprintf (cmd, box_length (cmd), "MAIL FROM: <%s>\r\n", sender);
       WRITE_CMD (ses, rc, cmd);
-      IS_OK_GO (ses, resp, rc, RESP_OK)
-    }
+    IS_OK_GO (ses, resp, rc, RESP_OK)}
 
   /* send RECIPIENTS */
   len = box_length (recipient);
@@ -181,7 +179,7 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
   at = 0;
   for (inx = 0; inx < len; inx++)
     {
-      c = recipient [inx];
+      c = recipient[inx];
       if (c == '<')
 	addr = 1;
       else if (c == '>' && addr == 1)
@@ -193,9 +191,9 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
 	}
       else if (c == '@')
 	at = 1;
-      if (((ptmp - tmp) < sizeof(tmp)) && (addr == 1 || addr == 2))
+      if (((ptmp - tmp) < sizeof (tmp)) && (addr == 1 || addr == 2))
 	*ptmp++ = c;
-      else if ((ptmp - tmp) >= sizeof(tmp))
+      else if ((ptmp - tmp) >= sizeof (tmp))
 	{
 	  strcpy_ck (resp, "Recipient\'s e-mail address is too long.");
 	  goto error_end;
@@ -205,14 +203,13 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
 	{
 	  *ptmp = 0;
 	  snprintf (cmd, box_length (cmd), "RCPT TO: %s\r\n", tmp);
-          WRITE_CMD (ses, rc, cmd);
-	  IS_OK_GO (ses, resp, rc, RESP_OK)
-	  addr = 0;
+	  WRITE_CMD (ses, rc, cmd);
+	  IS_OK_GO (ses, resp, rc, RESP_OK) addr = 0;
 	  ptmp = tmp;
 	}
     }
   if ((at == 0 && addr == -1) || addr == 1)
-    { /*No any recipient specified*/
+    {				/*No any recipient specified */
       strcpy_ck (resp, "Bad recipient(s) e-mail address specified");
       goto error_end;
     }
@@ -220,48 +217,47 @@ smtp_connect (char * host1, caddr_t * err_ret, caddr_t sender, caddr_t recipient
     {
       snprintf (cmd, box_length (cmd), "RCPT TO: <%s>\r\n", recipient);
       WRITE_CMD (ses, rc, cmd);
-      IS_OK_GO (ses, resp, rc, RESP_OK)
-    }
+    IS_OK_GO (ses, resp, rc, RESP_OK)}
 
   /* send DATA command and message body */
   WRITE_CMD (ses, rc, "DATA\r\n");
-  IS_OK_GO (ses, resp, rc, RESP_OK_MID)
-  CATCH_WRITE_FAIL (ses)
-    {
-      hf = get_message_header_field (msg_body, box_length (msg_body) - 1, "From");
-      if (hf[0] == 0)
-	{
-	  snprintf (cmd, box_length (cmd), "From: %s\r\n", sender);
-	  rc = session_buffered_write (ses, cmd, strlen (cmd));
-	  session_flush_1 (ses);
-	}
-      dk_free_box (hf); hf = NULL;
-      hf = get_message_header_field (msg_body, box_length (msg_body) - 1, "To");
-      if (hf[0] == 0)
-	{
-	  snprintf (cmd, box_length (cmd), "To: %s\r\n", recipient);
-	  rc = session_buffered_write (ses, cmd, strlen (cmd));
-	  session_flush_1 (ses);
-	}
-      dk_free_box (hf); hf = NULL;
-      rc = session_buffered_write (ses, msg_body, box_length (msg_body) - 1);
-      session_flush_1 (ses);
-      /* end of message body */
-      rc = session_buffered_write (ses, "\r\n.\r\n", 5);
-      session_flush_1 (ses);
-    }
+  IS_OK_GO (ses, resp, rc, RESP_OK_MID) CATCH_WRITE_FAIL (ses)
+  {
+    hf = get_message_header_field (msg_body, box_length (msg_body) - 1, "From");
+    if (hf[0] == 0)
+      {
+	snprintf (cmd, box_length (cmd), "From: %s\r\n", sender);
+	rc = session_buffered_write (ses, cmd, strlen (cmd));
+	session_flush_1 (ses);
+      }
+    dk_free_box (hf);
+    hf = NULL;
+    hf = get_message_header_field (msg_body, box_length (msg_body) - 1, "To");
+    if (hf[0] == 0)
+      {
+	snprintf (cmd, box_length (cmd), "To: %s\r\n", recipient);
+	rc = session_buffered_write (ses, cmd, strlen (cmd));
+	session_flush_1 (ses);
+      }
+    dk_free_box (hf);
+    hf = NULL;
+    rc = session_buffered_write (ses, msg_body, box_length (msg_body) - 1);
+    session_flush_1 (ses);
+    /* end of message body */
+    rc = session_buffered_write (ses, "\r\n.\r\n", 5);
+    session_flush_1 (ses);
+  }
   FAILED
-    {
-      dk_free_box (hf);
-      strcpy_ck (resp, "Cannot send message body. Disconnect from the target mail server.");
-      goto error_end;
-    }
+  {
+    dk_free_box (hf);
+    strcpy_ck (resp, "Cannot send message body. Disconnect from the target mail server.");
+    goto error_end;
+  }
   END_WRITE_FAIL (ses);
   IS_OK_GO (ses, resp, rc, RESP_OK)
-  /* EXIT from mail server */
-  WRITE_CMD (ses, rc, "QUIT\r\n");
-  IS_OK_GO (ses, resp, rc, RESP_OK)
-  dk_free_box (cmd);
+      /* EXIT from mail server */
+      WRITE_CMD (ses, rc, "QUIT\r\n");
+  IS_OK_GO (ses, resp, rc, RESP_OK) dk_free_box (cmd);
 
   return ses;
 error_end:
@@ -277,11 +273,11 @@ bif_smtp_send (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t mailer = bif_string_or_null_arg (qst, args, 0, "smtp_send");
   caddr_t err = NULL;
-  dk_session_t * volatile ses = NULL;
+  dk_session_t *volatile ses = NULL;
   caddr_t sender = NULL;
   caddr_t recipient = NULL;
   caddr_t msg_body = NULL;
-  IO_SECT(qst);
+  IO_SECT (qst);
 
   sender = bif_string_arg (qst, args, 1, "smtp_send");
   recipient = bif_string_arg (qst, args, 2, "smtp_send");
@@ -308,11 +304,11 @@ bif_smtp_send (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 static int
 type_connection_destroy (caddr_t box)
 {
-  caddr_t *type = (caddr_t *)box;
-  dk_session_t * ses;
+  caddr_t *type = (caddr_t *) box;
+  dk_session_t *ses;
   ptrlong to_close = 1;
 
-  if (!IS_BOX_POINTER(type))
+  if (!IS_BOX_POINTER (type))
     return -1;
 
   ses = (dk_session_t *) type[0];
@@ -333,7 +329,7 @@ type_connection_destroy (caddr_t box)
 caddr_t
 bif_ses_connect (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  volatile dk_session_t * ses = NULL;
+  volatile dk_session_t *ses = NULL;
   caddr_t host = bif_string_arg (qst, args, 0, "ses_connect");
   long cert = BOX_ELEMENTS (args) > 1 ? bif_long_arg (qst, args, 1, "ses_connect") : 0;
   long id = BOX_ELEMENTS (args) > 2 ? bif_long_arg (qst, args, 2, "ses_connect") : 0;
@@ -344,7 +340,7 @@ bif_ses_connect (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   SSL_METHOD *ssl_method;
 #endif
 
-  IO_SECT(qst);
+  IO_SECT (qst);
   sec_check_dba ((query_instance_t *) qst, "ses_connect");
   ses = http_dks_connect (host, &err);
 #ifdef _SSL
@@ -383,8 +379,8 @@ bif_ses_connect (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   if (!id)
     {
-  res = (caddr_t *) dk_alloc_box (sizeof (caddr_t), DV_CONNECTION);
-  res[0] = (caddr_t) ses;
+      res = (caddr_t *) dk_alloc_box (sizeof (caddr_t), DV_CONNECTION);
+      res[0] = (caddr_t) ses;
     }
   else
     {
@@ -398,7 +394,7 @@ bif_ses_connect (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       dk_free_tree (res);
       res = NULL;
     }
-  return (caddr_t)res;
+  return (caddr_t) res;
 }
 
 
@@ -409,15 +405,14 @@ ses_ready (dk_session_t * accept)
 
 
 dk_session_t *
-ses_listen (char * host)
+ses_listen (char *host)
 {
   dk_session_t *listening = NULL;
   int rc = 0;
 
   listening = dk_session_allocate (SESCLASS_TCPIP);
 
-  SESSION_SCH_DATA (listening)->sio_default_read_ready_action
-      = (io_action_func) ses_ready;
+  SESSION_SCH_DATA (listening)->sio_default_read_ready_action = (io_action_func) ses_ready;
 
   if (SER_SUCC != session_set_address (listening->dks_session, host))
     goto err_exit;
@@ -440,8 +435,8 @@ caddr_t
 bif_ses_accept (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   int rc;
-  dk_session_t * new_ses = NULL;
-  dk_session_t * ses = http_session_arg (qst, args, 0, "ses_accept");
+  dk_session_t *new_ses = NULL;
+  dk_session_t *ses = http_session_arg (qst, args, 0, "ses_accept");
   caddr_t *res;
 
   new_ses = dk_session_allocate (SESCLASS_TCPIP);
@@ -455,15 +450,15 @@ bif_ses_accept (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       dk_free_tree (res);
       res = NULL;
     }
-  return (caddr_t)res;
+  return (caddr_t) res;
 }
 
-dk_session_t *http_listen (char * host, caddr_t * https_opts);
+dk_session_t *http_listen (char *host, caddr_t * https_opts);
 
 caddr_t
 bif_ses_listen (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  volatile dk_session_t * ses = NULL;
+  volatile dk_session_t *ses = NULL;
   caddr_t port = bif_string_arg (qst, args, 0, "ses_listen");
   caddr_t *res;
   sec_check_dba ((query_instance_t *) qst, "ses_listen");
@@ -476,23 +471,23 @@ bif_ses_listen (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   res = (caddr_t *) dk_alloc_box (sizeof (caddr_t), DV_CONNECTION);
   res[0] = (caddr_t) ses;
-  return (caddr_t)res;
+  return (caddr_t) res;
 }
 
 caddr_t
 bif_ses_disconnect (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  dk_session_t * ses;
-  caddr_t *ses_arg = (caddr_t *)bif_arg (qst, args, 0, "ses_disconnect");
+  dk_session_t *ses;
+  caddr_t *ses_arg = (caddr_t *) bif_arg (qst, args, 0, "ses_disconnect");
   if (DV_TYPE_OF (ses_arg) != DV_CONNECTION)
     sqlr_new_error ("22023", "SSSSS", "The argument of ses_disconnect must be an valid session");
-  ses = (dk_session_t *) ses_arg [0];
+  ses = (dk_session_t *) ses_arg[0];
   IO_SECT (qst);
   PrpcDisconnect (ses);
   PrpcSessionFree (ses);
   END_IO_SECT (err_ret);
-  ses_arg [0] = NULL;
-  return box_num(0);
+  ses_arg[0] = NULL;
+  return box_num (0);
 }
 
 void
@@ -505,4 +500,3 @@ bif_smtp_init (void)
   bif_define ("ses_listen", bif_ses_listen);
   bif_define ("ses_disconnect", bif_ses_disconnect);
 }
-

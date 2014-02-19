@@ -20,7 +20,6 @@
  *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  */
-
 /* 2D Spatial  Index */
 
 #include "sqlnode.h"
@@ -137,7 +136,7 @@ cmpf_geo (buffer_desc_t * buf, int irow, it_cursor_t * itc)
       geo_t *pt = (geo_t *) itc->itc_search_params[1];
       double prec = unbox_coord (itc->itc_search_params[2]);
       if (GEO_POINT == GEO_TYPE (pt->geo_flags) && (rx2 - rx) < (prec / 100) && (ry2 - ry) < (prec / 100)
-        && prec < geo_distance (pt->geo_srcode, rx, ry, Xkey(pt), Ykey(pt)))
+	  && prec < geo_distance (pt->geo_srcode, rx, ry, Xkey (pt), Ykey (pt)))
 	return DVC_LESS;
     }
   return DVC_MATCH;
@@ -465,7 +464,7 @@ itc_geo_leaf (it_cursor_t * itc, bbox_t * box, dp_addr_t dp, int pos)
   if (DV_SINGLE_FLOAT == dtp)
     {
       rd->rd_non_comp_len += 16;
-      if (IS_OV (box->x) || IS_OV (box->y) || IS_OV (box->x2) || IS_OV (box->y2)) 
+      if (IS_OV (box->x) || IS_OV (box->y) || IS_OV (box->x2) || IS_OV (box->y2))
 	GPF_T1 ("geo inx with nan or inf coord");
       rd->rd_values[RD_X] = box_float (box->x);
       rd->rd_values[RD_Y] = box_float (box->y);
@@ -1079,7 +1078,8 @@ geo_insert (query_instance_t * qi, dbe_table_t * tb, caddr_t g, boxint id, int i
     memcpy (&box, g, sizeof (geo_t));
   if (DV_SINGLE_FLOAT == dtp)
     {
-      if (IS_OV ((float)box.XYbox.Xmin) || IS_OV ((float)box.XYbox.Xmax) || IS_OV ((float)box.XYbox.Ymin) || IS_OV ((float)box.XYbox.Ymax))
+      if (IS_OV ((float) box.XYbox.Xmin) || IS_OV ((float) box.XYbox.Xmax) || IS_OV ((float) box.XYbox.Ymin)
+	  || IS_OV ((float) box.XYbox.Ymax))
 	sqlr_new_error ("42000", "GEOOV", "inserting geometry with bounding box with NAN or INF coordinates");
       rd.rd_non_comp_len += 16;
       rd.rd_values[RD_X] = box_float (box.XYbox.Xmin);
@@ -1161,7 +1161,6 @@ bif_geo_arg (caddr_t * qst, state_slot_t ** args, int inx, const char *f, int tp
     }
   return g;
 }
-
 
 int
 key_is_geo (dbe_key_t * key)
@@ -1260,7 +1259,7 @@ geo_wkt (caddr_t x)
   if ((GEO_POINT == GEO_TYPE (g->geo_flags)) && (GEO_SRCODE_DEFAULT == g->geo_srcode))
     {
       char xx[100];
-      snprintf (xx, sizeof (xx), "POINT(%g %g)", Xkey(g), Ykey(g));
+      snprintf (xx, sizeof (xx), "POINT(%g %g)", Xkey (g), Ykey (g));
       return box_dv_short_string (xx);
     }
   else
@@ -1296,7 +1295,7 @@ geo_parse_wkt (char *text, caddr_t * err_ret)
     }
   while (0);
   g = ewkt_parse (text, err_ret);
-  return (caddr_t)g;
+  return (caddr_t) g;
 }
 
 double
@@ -1313,7 +1312,7 @@ txs_prec (text_node_t * txs, caddr_t * inst)
   return 0;
 }
 
-query_t * geo_ck_qr;
+query_t *geo_ck_qr;
 
 void
 geo_rdf_check (text_node_t * txs, caddr_t * inst)
@@ -1322,19 +1321,22 @@ geo_rdf_check (text_node_t * txs, caddr_t * inst)
   QNCAST (query_instance_t, qi, inst);
   int n_sets = txs->src_gen.src_prev ? QST_INT (inst, txs->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
   caddr_t geo = NULL;
-  data_col_t * ser_dc;
+  data_col_t *ser_dc;
   double prec;
   geo_t *g2;
   caddr_t err = NULL;
-  state_slot_t ** args;
-  select_node_t * sel;
+  state_slot_t **args;
+  select_node_t *sel;
   local_cursor_t lc;
   AUTO_POOL (100);
   QST_INT (inst, txs->src_gen.src_out_fill) = 0;
   SRC_IN_STATE (txs, inst) = NULL;
   if (!geo_ck_qr)
     {
-      geo_ck_qr = sql_compile_static ("select coalesce (blob_to_string (ro_long), ro_val)  from rdf_obj table option (no cluster) where ro_id = ?", qi->qi_client, &err, SQLC_DEFAULT);
+      geo_ck_qr =
+	  sql_compile_static
+	  ("select coalesce (blob_to_string (ro_long), ro_val)  from rdf_obj table option (no cluster) where ro_id = ?",
+	  qi->qi_client, &err, SQLC_DEFAULT);
       if (err)
 	sqlr_resignal (err);
     }
@@ -1342,8 +1344,8 @@ geo_rdf_check (text_node_t * txs, caddr_t * inst)
   qi->qi_set_mask = NULL;
   qi->qi_n_sets = n_sets;
   if (SSL_VEC != txs->txs_d_id->ssl_type)
-    sqlr_new_error ("VECSL", "VECSL",  "Geo chekc ro id is to be a vec ssl.  For support.");
-  args = (state_slot_t**)ap_list (&ap, 1, txs->txs_d_id);
+    sqlr_new_error ("VECSL", "VECSL", "Geo chekc ro id is to be a vec ssl.  For support.");
+  args = (state_slot_t **) ap_list (&ap, 1, txs->txs_d_id);
   sel = geo_ck_qr->qr_select_node;
   memset (&lc, 0, sizeof (lc));
   err = qr_subq_exec_vec (qi->qi_client, geo_ck_qr, qi, NULL, 0, args, NULL, NULL, &lc);
@@ -1355,8 +1357,8 @@ geo_rdf_check (text_node_t * txs, caddr_t * inst)
   while (lc_next (&lc))
     {
       dtp_t dtp;
-      int set = qst_vec_get_int64  (lc.lc_inst, sel->sel_set_no, lc.lc_position), hl;
-      db_buf_t dv = ((db_buf_t *)ser_dc->dc_values)[set];
+      int set = qst_vec_get_int64 (lc.lc_inst, sel->sel_set_no, lc.lc_position), hl;
+      db_buf_t dv = ((db_buf_t *) ser_dc->dc_values)[lc.lc_position];
       if (!IS_BOX_POINTER (dv))
 	continue;
       if (DV_SHORT_STRING_SERIAL == *dv)
@@ -1370,10 +1372,10 @@ geo_rdf_check (text_node_t * txs, caddr_t * inst)
       g2 = (geo_t *) qst_get (inst, txs->txs_text_exp);
       dtp = DV_TYPE_OF (g2);
       if (DV_RDF == dtp)
-    {
+	{
 	  g2 = (geo_t *) ((rdf_box_t *) g2)->rb_box;
 	  dtp = DV_TYPE_OF (g2);
-    }
+	}
       if (DV_GEO == dtp && geo_pred ((geo_t *) geo, g2, txs->txs_geo, prec))
 	qn_result ((data_source_t *) txs, inst, set);
     }
@@ -1442,7 +1444,8 @@ again:
 		{
 		  QNCAST (rdf_box_t, rb, geo);
 		  if (!rb->rb_is_complete)
-		    sqlr_new_error ("22023", "GEO..", "An incomplete rdf box is not accepted as 2nd arg of st_intersect ro id=%Ld", rb->rb_ro_id);
+		    sqlr_new_error ("22023", "GEO..", "An incomplete rdf box is not accepted as 2nd arg of st_intersect ro id=%Ld",
+			rb->rb_ro_id);
 		  geo = (geo_t *) rb->rb_box;
 		}
 	      if (DV_GEO != DV_TYPE_OF ((caddr_t) geo))
@@ -1463,14 +1466,14 @@ again:
 		  itc->itc_search_params[0] = (caddr_t) box;
 		}
 	      prec = txs_prec (txs, inst);
-		  if (itc->itc_search_params[2])
-		    *(double *) itc->itc_search_params[2] = prec;
-		  else
-		    {
-		      caddr_t dbox = box_double (prec);
-		      ITC_OWNS_PARAM (itc, dbox);
-		      itc->itc_search_params[2] = dbox;
-		    }
+	      if (itc->itc_search_params[2])
+		*(double *) itc->itc_search_params[2] = prec;
+	      else
+		{
+		  caddr_t dbox = box_double (prec);
+		  ITC_OWNS_PARAM (itc, dbox);
+		  itc->itc_search_params[2] = dbox;
+		}
 	      org_flags = box->geo_flags;
 	      geo_get_bounding_XYbox (geo, box, prec, prec);
 	      box->geo_flags = org_flags;
@@ -1568,7 +1571,7 @@ dbg_geo_to_text (caddr_t x)
   switch (GEO_TYPE (g->geo_flags))
     {
     case GEO_POINT:
-      snprintf (tmp, sizeof (tmp), "<point %g %g>", Xkey(g), Ykey(g));
+      snprintf (tmp, sizeof (tmp), "<point %g %g>", Xkey (g), Ykey (g));
       break;
     default:
       sprintf (tmp, "<geo type %d>", GEO_TYPE (g->geo_flags));
@@ -1582,9 +1585,9 @@ dk_mutex_t *geo_reg_mtx;
 void
 geo_init ()
 {
-  bif_define_ex ("geo_insert"		, bif_geo_insert						, BMD_USES_INDEX, BMD_NEED_ENLIST, BMD_DONE);
-  bif_define_ex ("geo_delete"		, bif_geo_delete						, BMD_USES_INDEX, BMD_NEED_ENLIST, BMD_DONE);
-  bif_define_ex ("geo_estimate"		, bif_geo_estimate						, BMD_USES_INDEX, BMD_DONE);
+  bif_define_ex ("geo_insert", bif_geo_insert, BMD_USES_INDEX, BMD_NEED_ENLIST, BMD_DONE);
+  bif_define_ex ("geo_delete", bif_geo_delete, BMD_USES_INDEX, BMD_NEED_ENLIST, BMD_DONE);
+  bif_define_ex ("geo_estimate", bif_geo_estimate, BMD_USES_INDEX, BMD_DONE);
   dk_mem_hooks_2 (DV_GEO, (box_copy_f) geo_copy, (box_destr_f) geo_destroy, 0, (box_tmp_copy_f) mp_geo_copy);
   get_readtable ()[DV_GEO] = (macro_char_func) geo_deserialize;
   PrpcSetWriter (DV_GEO, (ses_write_func) geo_serialize);

@@ -26,10 +26,10 @@
 #ifndef _XQF_H
 #define _XQF_H
 
-typedef void (*qpq_ctr_callback)(caddr_t *n, const char *str, int do_what);
-typedef int (*qpq_rangecheck_callback)(caddr_t *n, int do_what);
-typedef void (*qpq_oper_callback)(caddr_t *n, const char *arg1, const char *arg2, int do_what);
-typedef void (*qpq_teroper_callback)(caddr_t *n, const char *arg1, const char *arg2, const char *arg3, int do_what);
+typedef void (*qpq_ctr_callback) (caddr_t * n, const char *str, int do_what);
+typedef int (*qpq_rangecheck_callback) (caddr_t * n, int do_what);
+typedef void (*qpq_oper_callback) (caddr_t * n, const char *arg1, const char *arg2, int do_what);
+typedef void (*qpq_teroper_callback) (caddr_t * n, const char *arg1, const char *arg2, const char *arg3, int do_what);
 
 typedef struct xqf_str_parser_desc_s
 {
@@ -48,8 +48,8 @@ xqf_str_parser_desc_t;
 extern xqf_str_parser_desc_t *xqf_str_parser_descs_ptr;
 extern int xqf_str_parser_desc_count;
 
-extern sql_tree_tmp * st_integer;
-extern int dt_local_tz; /* defined in datesupp.c */
-extern void xqf_init(void);
+extern sql_tree_tmp *st_integer;
+extern int dt_local_tz;		/* defined in datesupp.c */
+extern void xqf_init (void);
 
 #endif /* _XQF_H */

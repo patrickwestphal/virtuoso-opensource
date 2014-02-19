@@ -49,6 +49,7 @@
 #include "virtpwd.h"
 #include "virtpwd.h"
 #include "xmltree.h"
+#include "aqueue.h"
 
 #define SQL_NO_TOTAL			(-4)
 
@@ -56,6 +57,7 @@
 #include "2pc.h"
 #endif
 #include "msdtc.h"
+
 
 id_hash_t *remote_dss;
 id_hash_t *remote_tables;
@@ -173,7 +175,6 @@ find_remote_proc (char *name, int create)
 
 
 
-
 static caddr_t
 bif_proc_is_remote (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
@@ -185,20 +186,25 @@ bif_proc_is_remote (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 int
 rds_supports_sql_type (remote_ds_t * rds, long sql_type)
 {
+
   return 0;
 }
+
 
 caddr_t
 rds_get_info (remote_ds_t * rds, int finfo)
 {
+
   return NULL;
 }
+
 
 
 
 caddr_t
 bif_vdd_set_password (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
+
   return NULL;
 }
 
@@ -221,9 +227,16 @@ bif_vdd_init (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 void
+remote_qs ()
+{
+}
+
+
+void
 remote_init (int cl_reinit)
 {
   bif_define ("vdd_init", bif_vdd_init);
+
   bif_define ("vdd_remote_table", bif_remote_table);
   bif_define ("vdd_pass_through_function", bif_pass_through_function);
   bif_define_ex ("proc_is_remote", bif_proc_is_remote, BMD_RET_TYPE, &bt_integer, BMD_DONE);

@@ -43,7 +43,8 @@
 #include "bif_text.h"
 #include "xpf.h"
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "xmlparser_impl.h"
 #ifdef __cplusplus
@@ -53,17 +54,16 @@ extern "C" {
 
 
 int
-xte_is_xsl_elt (caddr_t * xte, const char * elt)
+xte_is_xsl_elt (caddr_t * xte, const char *elt)
 {
-  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (xte)
-      && DV_ARRAY_OF_POINTER == DV_TYPE_OF (XTE_HEAD (xte)))
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (xte) && DV_ARRAY_OF_POINTER == DV_TYPE_OF (XTE_HEAD (xte)))
     {
-      char * name = XTE_HEAD_NAME (XTE_HEAD (xte));
+      char *name = XTE_HEAD_NAME (XTE_HEAD (xte));
       if (is_xslns (name))
 	{
-	  char * col = strrchr (name, ':');
+	  char *col = strrchr (name, ':');
 	  if (col && 0 == strcmp (col + 1, elt))
-	  return 1;
+	    return 1;
 	}
 
     }
@@ -76,9 +76,8 @@ xte_is_xsl (caddr_t * xte)
 {
   if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (xte))
     {
-      caddr_t * head = XTE_HEAD (xte);
-      if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (head)
-	  && is_xslns (XTE_HEAD_NAME (head)))
+      caddr_t *head = XTE_HEAD (xte);
+      if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (head) && is_xslns (XTE_HEAD_NAME (head)))
 	return 1;
     }
   return 0;
@@ -86,71 +85,60 @@ xte_is_xsl (caddr_t * xte)
 
 
 int
-xsl_is_xpath_attr (char * attr)
+xsl_is_xpath_attr (char *attr)
 {
   if (0 == strcmp (attr, "match")
-      ||  0 == strcmp (attr, "select")
-      ||  0 == strcmp (attr, "test")
-      ||  0 == strcmp (attr, "from")
-      ||  0 == strcmp (attr, "count")
-      ||  0 == strcmp (attr, "pattern")
-      ||  0 == strcmp (attr, "use")
-      ||  0 == strcmp (attr, "sparql")
-      ||  0 == strcmp (attr, "sql")
-      )
+      || 0 == strcmp (attr, "select")
+      || 0 == strcmp (attr, "test")
+      || 0 == strcmp (attr, "from")
+      || 0 == strcmp (attr, "count")
+      || 0 == strcmp (attr, "pattern") || 0 == strcmp (attr, "use") || 0 == strcmp (attr, "sparql") || 0 == strcmp (attr, "sql"))
     return 1;
   return 0;
 }
 
 
 int
-xsl_is_qname_attr (char * attr)
+xsl_is_qname_attr (char *attr)
 {
-  if (0 == strcmp (attr, "namespace")
-      ||  0 == strcmp (attr, "name")
-      )
+  if (0 == strcmp (attr, "namespace") || 0 == strcmp (attr, "name"))
     return 1;
   return 0;
 }
 
 
 int
-xsl_is_qnames_attr (char * attr)
+xsl_is_qnames_attr (char *attr)
 {
-  if (0 == strcmp (attr, "cdata-section-elements") ||
-      0 == strcmp (attr, "use-attribute-sets")
-      )
+  if (0 == strcmp (attr, "cdata-section-elements") || 0 == strcmp (attr, "use-attribute-sets"))
     return 1;
   return 0;
 }
 
 
 int
-xsl_need_ns_scope (char * name)
+xsl_need_ns_scope (char *name)
 {
-  if (0 == strcmp (name, "attribute")
-      || 0 == strcmp (name, "element"))
+  if (0 == strcmp (name, "attribute") || 0 == strcmp (name, "element"))
     return 0x1;
-  if (0 == strcmp (name, "stylesheet")
-      || 0 == strcmp (name, "transform"))
+  if (0 == strcmp (name, "stylesheet") || 0 == strcmp (name, "transform"))
     return 0x2;
   return 0;
 }
 
 
 caddr_t
-xslt_attr_value (caddr_t * xsltree, const char * name, int reqd)
+xslt_attr_value (caddr_t * xsltree, const char *name, int reqd)
 {
   size_t name_len = strlen (name);
   int inx;
-  caddr_t * head = XTE_HEAD (xsltree);
+  caddr_t *head = XTE_HEAD (xsltree);
   int attrs = BOX_ELEMENTS (head);
-  if (!IS_POINTER (XTE_HEAD(xsltree)[0]))
+  if (!IS_POINTER (XTE_HEAD (xsltree)[0]))
     sqlr_new_error_xsltree_xdl ("XS370", "XS049", xsltree, "Internal error in XSLT processor");
   for (inx = 1; inx < attrs; inx += 2)
     {
-      if ((strlen (head[inx]) >= name_len)
-	  && 0 == strcmp (head[inx] + strlen (head[inx]) - name_len, name))
+      if ((strlen (head[inx]) >= name_len) && 0 == strcmp (head[inx] + strlen (head[inx]) - name_len, name))
 	return (head[inx + 1]);
     }
   if (reqd)
@@ -162,7 +150,7 @@ xslt_attr_value (caddr_t * xsltree, const char * name, int reqd)
 static int
 xslt_avt_find_expression_end (caddr_t value, int i)
 {
-  /*int value_len = box_length (value) - 1;*/
+  /*int value_len = box_length (value) - 1; */
   int value_len = (int) strlen (value);
   char quote = 0;
   for (; i < value_len; i++)
@@ -170,22 +158,22 @@ xslt_avt_find_expression_end (caddr_t value, int i)
       char c = value[i];
       switch (c)
 	{
-	  case '}':
-	      if (!quote)
-		return i;
-	      break;
-	  case '{':
-	      if (!quote)
-		return -1;
-	      break;
+	case '}':
+	  if (!quote)
+	    return i;
+	  break;
+	case '{':
+	  if (!quote)
+	    return -1;
+	  break;
 
-	  case '\"':
-	  case '\'':
-	      if (quote == c)
-		quote = 0;
-	      else if (!quote)
-		quote = c;
-	      break;
+	case '\"':
+	case '\'':
+	  if (quote == c)
+	    quote = 0;
+	  else if (!quote)
+	    quote = c;
+	  break;
 	}
     }
   return -1;
@@ -193,7 +181,7 @@ xslt_avt_find_expression_end (caddr_t value, int i)
 
 
 static caddr_t
-xslt_avt_parse_attribute_value_template (xp_node_t *xn, caddr_t value)
+xslt_avt_parse_attribute_value_template (xp_node_t * xn, caddr_t value)
 {
   caddr_t xp_qr_text = NULL;
   int fill = 0, n_exprs = 0, concat_done = 0;
@@ -215,42 +203,41 @@ xslt_avt_parse_attribute_value_template (xp_node_t *xn, caddr_t value)
       char c = value[i];
       switch (c)
 	{
-	  case '{':
-	      if (i + 1 < value_len && value[i + 1] == '{')
+	case '{':
+	  if (i + 1 < value_len && value[i + 1] == '{')
+	    {
+	      i++;
+	      xp_qr_text[fill++] = '{';
+	    }
+	  else
+	    {
+	      int n;
+	      if (0 > (n = xslt_avt_find_expression_end (value, i + 1)))
 		{
-		  i++;
-		  xp_qr_text[fill++] = '{';
+		  dk_free_box (xp_qr_text);
+		  xn_error (xn, "Missing } in an XSL-T attribute value template");
 		}
+	      n_exprs++;
+	      tailprintf (xp_qr_text, box_length (xp_qr_text), &fill, concat_done ? "'," : "concat (");
+	      memcpy (&(xp_qr_text[fill]), value + i + 1, n - i - 1);
+	      fill += n - i - 1;
+	      concat_done = 1;
+	      if (n + 1 < value_len)
+		tailprintf (xp_qr_text, box_length (xp_qr_text), &fill, ",'");
 	      else
-		{
-		  int n;
-		  if (0 > (n = xslt_avt_find_expression_end (value, i + 1)))
-		    {
-		      dk_free_box (xp_qr_text);
-		      xn_error (xn, "Missing } in an XSL-T attribute value template");
-		    }
-		  n_exprs ++;
-		  tailprintf (xp_qr_text, box_length (xp_qr_text), &fill,
-		      concat_done ? "'," : "concat (");
-		  memcpy (&(xp_qr_text[fill]), value + i + 1, n - i - 1);
-		  fill += n - i - 1;
-		  concat_done = 1;
-		  if (n + 1 < value_len)
-		    tailprintf (xp_qr_text, box_length (xp_qr_text), &fill, ",'");
-		  else
-		    tailprintf (xp_qr_text, box_length (xp_qr_text), &fill, ")");
-		  i = n;
-		}
-	      break;
-	  case '}':
-	      xp_qr_text[fill++] = '}';
-	      if (i + 1 < value_len && value[i + 1] == '}')
-		i++;
-	      break;
+		tailprintf (xp_qr_text, box_length (xp_qr_text), &fill, ")");
+	      i = n;
+	    }
+	  break;
+	case '}':
+	  xp_qr_text[fill++] = '}';
+	  if (i + 1 < value_len && value[i + 1] == '}')
+	    i++;
+	  break;
 
-	  default:
-	      xp_qr_text[fill++] = c;
-	      break;
+	default:
+	  xp_qr_text[fill++] = c;
+	  break;
 	}
     }
   if (!fill || xp_qr_text[fill - 1] != ')')
@@ -259,13 +246,13 @@ xslt_avt_parse_attribute_value_template (xp_node_t *xn, caddr_t value)
   if (n_exprs)
     {
       caddr_t err = NULL;
-      xp_query_t * xqr;
+      xp_query_t *xqr;
       xp_query_env_t xqre;
       memset (&xqre, 0, sizeof (xp_query_env_t));
       xqre.xqre_nsctx_xn = xn;
       xqre.xqre_query_charset = CHARSET_UTF8;
       xqre.xqre_checked_functions = &(xn->xn_xp->xp_checked_functions);
-      xqr = xp_query_parse (NULL /* no need in qi for XPath */, xp_qr_text, 'p' /* like xpath_contains */, &err, &xqre);
+      xqr = xp_query_parse (NULL /* no need in qi for XPath */ , xp_qr_text, 'p' /* like xpath_contains */ , &err, &xqre);
       if (err)
 	{
 	  char msg[1000];
@@ -309,8 +296,8 @@ xslt_qnames_string_to_array (xp_node_t * xn, char *attr_value)
 void
 xn_xslt_attributes (xp_node_t * xn)
 {
-  char * colon;
-  caddr_t * head = xn->xn_attrs;
+  char *colon;
+  caddr_t *head = xn->xn_attrs;
   int headlen = (int) BOX_ELEMENTS (head);
   int inx;
   int is_xslt_start = 0;
@@ -337,17 +324,17 @@ xn_xslt_attributes (xp_node_t * xn)
       if (is_xslt)
 	{
 #ifdef EXTERNAL_XDLS
-	  caddr_t * head2 = dk_alloc_box ((headlen + 4) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
-          elem_xdl = (xp_debug_location_t *) dk_alloc_box_zero (sizeof (xp_debug_location_t), DV_ARRAY_OF_LONG);
-          elem_xdl->xdl_element = head[0];
-	  elem_xdl->xdl_line = VXmlGetOuterLineNumber(parser);
+	  caddr_t *head2 = dk_alloc_box ((headlen + 4) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	  elem_xdl = (xp_debug_location_t *) dk_alloc_box_zero (sizeof (xp_debug_location_t), DV_ARRAY_OF_LONG);
+	  elem_xdl->xdl_element = head[0];
+	  elem_xdl->xdl_line = VXmlGetOuterLineNumber (parser);
 #else
-	  caddr_t * head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
-          elem_xdl = (xp_debug_location_t *) dk_alloc_box_zero (sizeof (xp_debug_location_t), DV_ARRAY_OF_POINTER);
-          elem_xdl->xdl_element = box_copy (head[0]);
-	  elem_xdl->xdl_line = box_num (VXmlGetOuterLineNumber(parser));
+	  caddr_t *head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	  elem_xdl = (xp_debug_location_t *) dk_alloc_box_zero (sizeof (xp_debug_location_t), DV_ARRAY_OF_POINTER);
+	  elem_xdl->xdl_element = box_copy (head[0]);
+	  elem_xdl->xdl_line = box_num (VXmlGetOuterLineNumber (parser));
 #endif
-          elem_xdl->xdl_file = box_dv_uname_string (VXmlGetOuterFileName (parser));
+	  elem_xdl->xdl_file = box_dv_uname_string (VXmlGetOuterFileName (parser));
 	  memcpy (head2, head, headlen * sizeof (caddr_t));
 	  head2[headlen++] = uname__bang_location;
 	  head2[headlen++] = (caddr_t) elem_xdl;
@@ -367,14 +354,15 @@ xn_xslt_attributes (xp_node_t * xn)
 	  if (xsl_is_xpath_attr (head[inx]))
 	    {
 	      caddr_t err = NULL;
-	      xp_query_t * xqr;
+	      xp_query_t *xqr;
 	      xp_query_env_t xqre;
 	      memset (&xqre, 0, sizeof (xp_query_env_t));
 	      xqre.xqre_nsctx_xn = xn;
 	      xqre.xqre_query_charset = CHARSET_UTF8;
 	      xqre.xqre_checked_functions = &(xn->xn_xp->xp_checked_functions);
-	      xqre.xqre_key_gen = 1; /* For profiling */
-	      xqr = xp_query_parse (NULL /* no need in qi for XPath */, head[inx + 1], 'p' /* like xpath_contains */, &err, &xqre);
+	      xqre.xqre_key_gen = 1;	/* For profiling */
+	      xqr =
+		  xp_query_parse (NULL /* no need in qi for XPath */ , head[inx + 1], 'p' /* like xpath_contains */ , &err, &xqre);
 	      if (err)
 		{
 		  char msg[2000];
@@ -386,7 +374,7 @@ xn_xslt_attributes (xp_node_t * xn)
 		    {
 		      memcpy (&tmp_xdl, elem_xdl, sizeof (xp_debug_location_t));
 		      tmp_xdl.xdl_attribute = head[inx];
-		      snprint_xdl (msg+item_len, sizeof(msg)-item_len, &tmp_xdl);
+		      snprint_xdl (msg + item_len, sizeof (msg) - item_len, &tmp_xdl);
 		    }
 		  xn_error (xn, msg);
 		}
@@ -423,7 +411,7 @@ xn_xslt_attributes (xp_node_t * xn)
 	    {
 	      char name_buf[30];
 	      caddr_t arr = xslt_qnames_string_to_array (xn, head[inx + 1]);
-	      caddr_t * head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	      caddr_t *head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 	      memcpy (head2, head, headlen * sizeof (caddr_t));
 	      snprintf (name_buf, sizeof (name_buf), " !%s", head[inx]);
 	      head2[headlen++] = box_dv_uname_string (name_buf);
@@ -431,22 +419,22 @@ xn_xslt_attributes (xp_node_t * xn)
 	      dk_free_box ((caddr_t) head);
 	      xn->xn_attrs = head = head2;
 	    }
-          if (is_xslt_start && !strcmp (head[inx], "exclude-result-prefixes"))
-            {
-              caddr_t val = head[inx + 1], ret = NULL;
+	  if (is_xslt_start && !strcmp (head[inx], "exclude-result-prefixes"))
+	    {
+	      caddr_t val = head[inx + 1], ret = NULL;
 	      if (strchr (val, '{'))
-                ret = xslt_avt_parse_attribute_value_template (xn, val);
+		ret = xslt_avt_parse_attribute_value_template (xn, val);
 	      if (ret && ret != val)
-                xn->xn_xp->xp_top_excl_res_prefx = ret;
-              else
-                xn->xn_xp->xp_top_excl_res_prefx = box_copy_tree (head[inx+1]);
-            }
+		xn->xn_xp->xp_top_excl_res_prefx = ret;
+	      else
+		xn->xn_xp->xp_top_excl_res_prefx = box_copy_tree (head[inx + 1]);
+	    }
 	}
       colon = strrchr (head[0], ':');
       if (colon && xsl_need_ns_scope (colon + 1))
 	{
 	  caddr_t scope = list_to_array (xn_namespace_scope (xn));
-	  caddr_t * head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+	  caddr_t *head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 	  memcpy (head2, head, headlen * sizeof (caddr_t));
 	  head2[headlen++] = uname__bang_xmlns;
 	  head2[headlen++] = scope;
@@ -462,9 +450,9 @@ xn_xslt_attributes (xp_node_t * xn)
 	    {
 	      char *colon = strrchr (head[inx], ':');
 	      if (colon && !strcmp (colon + 1, "use-attribute-sets"))
-	        {
+		{
 		  caddr_t arr = xslt_qnames_string_to_array (xn, head[inx + 1]);
-		  caddr_t * head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+		  caddr_t *head2 = (caddr_t *) dk_alloc_box ((headlen + 2) * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
 		  memcpy (head2, head, headlen * sizeof (caddr_t));
 		  head2[headlen++] = uname__bang_use_attribute_sets;
 		  head2[headlen++] = arr;
@@ -491,7 +479,7 @@ xst_rule_default_priority (xp_query_t * xqr)
 {
   if (DV_XPATH_QUERY == DV_TYPE_OF (xqr))
     {
-      XT * tree = xqr->xqr_tree;
+      XT *tree = xqr->xqr_tree;
       if (!ST_P (tree, XP_STEP))
 	return 0.5;
       switch (tree->_.step.axis)
@@ -510,24 +498,29 @@ xst_rule_default_priority (xp_query_t * xqr)
 	return -0.5;
       switch (tree->_.step.node->type)
 	{
-	  case XP_NAME_EXACT: return 0;
-	  case XP_NAME_NSURI: return -0.25;
-	  case XP_NAME_LOCAL: return (float)((((caddr_t)XP_STAR) == tree->_.name_test.nsuri) ? -0.499 :  -0.498);
-	  default: GPF_T; return 0;
+	case XP_NAME_EXACT:
+	  return 0;
+	case XP_NAME_NSURI:
+	  return -0.25;
+	case XP_NAME_LOCAL:
+	  return (float) ((((caddr_t) XP_STAR) == tree->_.name_test.nsuri) ? -0.499 : -0.498);
+	default:
+	  GPF_T;
+	  return 0;
 	}
     }
 
-    return 0;
+  return 0;
 }
 
 
 xslt_template_t *
-xte_to_template_1 (caddr_t * xte, xp_query_t *match, caddr_t name)
+xte_to_template_1 (caddr_t * xte, xp_query_t * match, caddr_t name)
 {
   caddr_t mode;
   caddr_t priority;
   NEW_VARZ (xslt_template_t, xst);
-  xst->xst_tree = xte = (caddr_t *)box_copy_tree ((caddr_t)xte);
+  xst->xst_tree = xte = (caddr_t *) box_copy_tree ((caddr_t) xte);
   mode = xslt_attr_value (xte, "mode", 0);
   priority = xslt_attr_value (xte, "priority", 0);
   if (priority)
@@ -536,13 +529,13 @@ xte_to_template_1 (caddr_t * xte, xp_query_t *match, caddr_t name)
     xst->xst_priority = xst_rule_default_priority (match);
   if (match)
     {
-      XT * tree = match->xqr_tree;
+      XT *tree = match->xqr_tree;
       if (ST_P (tree, XP_STEP))
 	{
 	  if ((XP_ATTRIBUTE == tree->_.step.axis) || (XP_ATTRIBUTE_WR == tree->_.step.axis))
 	    xst->xst_match_attributes = 1;
 	  else if (!tree->_.step.input && !tree->_.step.preds
-		   && tree->_.step.axis != XP_ROOT && ((XT *) XP_ELT != tree->_.step.node))
+	      && tree->_.step.axis != XP_ROOT && ((XT *) XP_ELT != tree->_.step.node))
 	    xst->xst_node_test = tree->_.step.node;
 	}
     }
@@ -558,16 +551,16 @@ xte_flat_union (XT * tree, caddr_t * xte, dk_set_t * res)
 {
   if (XP_UNION != tree->type)
     {
-      xp_query_t * orig_xqr = (xp_query_t *) xslt_attr_value (xte, "match", 0);
-      XT * orig_xqr_tree = orig_xqr->xqr_tree;
-      xp_query_t * clone_xqr;
+      xp_query_t *orig_xqr = (xp_query_t *) xslt_attr_value (xte, "match", 0);
+      XT *orig_xqr_tree = orig_xqr->xqr_tree;
+      xp_query_t *clone_xqr;
       xslt_template_t *union_member;
       orig_xqr->xqr_tree = NULL;
-      clone_xqr = (xp_query_t *) xqr_clone ((caddr_t)orig_xqr);
+      clone_xqr = (xp_query_t *) xqr_clone ((caddr_t) orig_xqr);
       orig_xqr->xqr_tree = orig_xqr_tree;
-      clone_xqr->xqr_tree = (XT*) box_copy_tree ((caddr_t) tree);
+      clone_xqr->xqr_tree = (XT *) box_copy_tree ((caddr_t) tree);
       union_member = xte_to_template_1 (xte, clone_xqr, NULL);
-      dk_set_push (res, (void*)union_member);
+      dk_set_push (res, (void *) union_member);
       union_member->xst_union_member_idx = dk_set_length (res[0]);
     }
   else
@@ -582,21 +575,20 @@ dk_set_t
 xte_to_template (caddr_t * xte)
 {
   dk_set_t res = NULL;
-  xp_query_t * match = (xp_query_t *) xslt_attr_value (xte, "match", 0);
+  xp_query_t *match = (xp_query_t *) xslt_attr_value (xte, "match", 0);
   caddr_t name = xslt_attr_value (xte, "name", 0);
   if (match && (match->xqr_tree->type == XP_UNION))
     xte_flat_union (match->xqr_tree, xte, &res);
-  if ((match && (match->xqr_tree->type != XP_UNION)) || name ||
-      !is_xslns (XTE_HEAD_NAME (XTE_HEAD (xte))))
+  if ((match && (match->xqr_tree->type != XP_UNION)) || name || !is_xslns (XTE_HEAD_NAME (XTE_HEAD (xte))))
     {
       if (NULL != match)
-        {
+	{
 #ifdef DEBUG
 	  if (DV_XPATH_QUERY != DV_TYPE_OF (match))
 	    GPF_T;
 #endif
-          match = (xp_query_t *)xqr_clone ((caddr_t)match);
-        }
+	  match = (xp_query_t *) xqr_clone ((caddr_t) match);
+	}
       dk_set_push (&res, xte_to_template_1 (xte, match, name));
     }
   return res;
@@ -609,16 +601,16 @@ caddr_t *
 xte_insert_inc (caddr_t * arr1, int place, caddr_t * replace)
 {
   int new_len = BOX_ELEMENTS (arr1) + BOX_ELEMENTS (replace) - 2;
-  caddr_t * target = (caddr_t *) dk_alloc_box (new_len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+  caddr_t *target = (caddr_t *) dk_alloc_box (new_len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
   int fill = 0, inx, inx2;
-  for (inx = 0; inx < (int) BOX_ELEMENTS (arr1); inx ++)
+  for (inx = 0; inx < (int) BOX_ELEMENTS (arr1); inx++)
     {
       if (inx == place)
 	{
 	  for (inx2 = 1; inx2 < (int) BOX_ELEMENTS (replace); inx2++)
 	    {
 	      target[fill++] = replace[inx2];
-	      replace [inx2] = NULL;
+	      replace[inx2] = NULL;
 	    }
 	}
       else
@@ -631,20 +623,21 @@ xte_insert_inc (caddr_t * arr1, int place, caddr_t * replace)
 }
 
 
-void xslt_includes_recursion (xslt_sheet_t *xsh, caddr_t **sheet_tree_ptr, query_instance_t * qi)
+void
+xslt_includes_recursion (xslt_sheet_t * xsh, caddr_t ** sheet_tree_ptr, query_instance_t * qi)
 {
   caddr_t *sheet_tree = sheet_tree_ptr[0];
   int inx = BOX_ELEMENTS (sheet_tree);
-  while (--inx > 1) /* The order is important. Ascending scan will result in problems with growing width of tree on xsl:include-s */
+  while (--inx > 1)		/* The order is important. Ascending scan will result in problems with growing width of tree on xsl:include-s */
     {
-      caddr_t * elt = (caddr_t *) sheet_tree[inx];
+      caddr_t *elt = (caddr_t *) sheet_tree[inx];
       if (xte_is_xsl_elt (elt, "include"))
 	{
 	  caddr_t name = xslt_attr_value (elt, "href", 1);
-	  xslt_sheet_t * inc;
-	  caddr_t * inctree, *new_sheet_tree;
+	  xslt_sheet_t *inc;
+	  caddr_t *inctree, *new_sheet_tree;
 	  inc = xslt_sheet (qi, xsh->xsh_shuric.shuric_uri, name, NULL, &(xsh->xsh_shuric));
-	  shuric_release (&(inc->xsh_shuric)); /* But data from \c inc are still valid because \c inc is included in \c xsh */
+	  shuric_release (&(inc->xsh_shuric));	/* But data from \c inc are still valid because \c inc is included in \c xsh */
 	  inctree = (caddr_t *) box_copy_tree ((box_t) inc->xsh_raw_tree);
 	  xslt_includes_recursion (inc, &inctree, qi);
 	  new_sheet_tree = xte_insert_inc (sheet_tree, inx, inctree);
@@ -664,9 +657,9 @@ void xslt_includes_recursion (xslt_sheet_t *xsh, caddr_t **sheet_tree_ptr, query
 	  continue;
 	}
       if (xte_is_xsl_elt (elt, "import"))
-	{ /* No real processing here, just establishing a proper 'included_by' relation between shurics. */
+	{			/* No real processing here, just establishing a proper 'included_by' relation between shurics. */
 	  caddr_t name = xslt_attr_value (elt, "href", 1);
-	  xslt_sheet_t * inc = xslt_sheet (qi, xsh->xsh_shuric.shuric_uri, name, NULL, &(xsh->xsh_shuric));
+	  xslt_sheet_t *inc = xslt_sheet (qi, xsh->xsh_shuric.shuric_uri, name, NULL, &(xsh->xsh_shuric));
 	  shuric_release (&(inc->xsh_shuric));
 	  continue;
 	}
@@ -674,12 +667,12 @@ void xslt_includes_recursion (xslt_sheet_t *xsh, caddr_t **sheet_tree_ptr, query
 }
 
 int
-xslt_includes (xslt_sheet_t *xsh, caddr_t * top, query_instance_t * qi)
+xslt_includes (xslt_sheet_t * xsh, caddr_t * top, query_instance_t * qi)
 {
   int inx, sheet_inx = 0;
-  caddr_t * sheet_tree = NULL;
+  caddr_t *sheet_tree = NULL;
 
-  for (inx = 1; inx < (int) BOX_ELEMENTS (top); inx ++)
+  for (inx = 1; inx < (int) BOX_ELEMENTS (top); inx++)
     {
       caddr_t *elt = (caddr_t *) top[inx];
       if (xte_is_entity (elt))
@@ -708,7 +701,7 @@ xslt_includes (xslt_sheet_t *xsh, caddr_t * top, query_instance_t * qi)
 			{
 			  caddr_t err = NULL;
 			  caddr_t err_msg = NULL;
-			  int ns_len =  (int) (colon - head[inx1] + 1);
+			  int ns_len = (int) (colon - head[inx1] + 1);
 			  caddr_t new_name = box_dv_ubuf (box_length (head[inx1]) - 3);
 			  memset (new_name, 0, box_length (head[inx1]) - 2);
 			  memcpy (new_name, head[inx1], ns_len);
@@ -716,10 +709,10 @@ xslt_includes (xslt_sheet_t *xsh, caddr_t * top, query_instance_t * qi)
 			  dk_free_box (head[inx1]);
 			  dk_free_tree (head[inx1 + 1]);
 			  head[inx1] = box_dv_uname_from_ubuf (new_name);
-			  head[inx1 + 1] = (caddr_t) xp_query_parse (qi, "/", 'p' /* like xpath_contains */, &err, &xqre_default);
+			  head[inx1 + 1] = (caddr_t) xp_query_parse (qi, "/", 'p' /* like xpath_contains */ , &err, &xqre_default);
 			  if (NULL != err)
 			    {
-			      err_msg = box_copy (ERR_MESSAGE(err));
+			      err_msg = box_copy (ERR_MESSAGE (err));
 			      dk_free_box (err);
 			      sqlr_new_error_xsltree_xdl ("XS370", "XS050", elt, "%s", err_msg);
 			    }
@@ -742,16 +735,17 @@ xslt_includes (xslt_sheet_t *xsh, caddr_t * top, query_instance_t * qi)
 
   if (sheet_inx < 0)
     return sheet_inx;
-  xslt_includes_recursion (xsh, (caddr_t **)(top + sheet_inx), qi);
+  xslt_includes_recursion (xsh, (caddr_t **) (top + sheet_inx), qi);
   return sheet_inx;
 }
 
 
-static xslt_metadata_t *xslt_sheet_compile_el (caddr_t *tree, int containsgroups)
+static xslt_metadata_t *
+xslt_sheet_compile_el (caddr_t * tree, int containsgroups)
 {
-  caddr_t *head = (caddr_t *)(tree[0]);
+  caddr_t *head = (caddr_t *) (tree[0]);
   caddr_t name = head[0];
-  char * local_name = strrchr (name, ':');
+  char *local_name = strrchr (name, ':');
   caddr_t *newhead;
   ptrlong argctr, location_argctr = 0;
   size_t attrctr, location_attrctr = 0;
@@ -759,19 +753,20 @@ static xslt_metadata_t *xslt_sheet_compile_el (caddr_t *tree, int containsgroups
   if (local_name)
     {
       local_name++;
-      mdataptr = (xslt_metadata_t **) id_hash_get (xslt_meta_hash, (caddr_t) &local_name);
+      mdataptr = (xslt_metadata_t **) id_hash_get (xslt_meta_hash, (caddr_t) & local_name);
     }
   if (!mdataptr)
-    sqlr_new_error_xsltree_xdl ("XS370", "XS020", ((caddr_t *)(tree)), "Bad xsl node '%s'", local_name);
+    sqlr_new_error_xsltree_xdl ("XS370", "XS020", ((caddr_t *) (tree)), "Bad xsl node '%s'", local_name);
   mdata = mdataptr[0];
   if (!(mdata->xsltm_el_memberofgroups & containsgroups))
     {
       if (XSLT_EL_TEMPLATE == mdata->xsltm_el_id)
-        sqlr_new_error_xsltree_xdl ("XS370", "XS061", ((caddr_t *)(tree)), "Unlike earlier drafts, XSLT 1.0 W3C Recommendation (16 Nov 1999) prohibits the use of nested templates");
-      sqlr_new_error_xsltree_xdl ("XS370", "XS018", ((caddr_t *)(tree)), "Misplaced xsl node '%s'", local_name);
+	sqlr_new_error_xsltree_xdl ("XS370", "XS061", ((caddr_t *) (tree)),
+	    "Unlike earlier drafts, XSLT 1.0 W3C Recommendation (16 Nov 1999) prohibits the use of nested templates");
+      sqlr_new_error_xsltree_xdl ("XS370", "XS018", ((caddr_t *) (tree)), "Misplaced xsl node '%s'", local_name);
     }
-  newhead = (caddr_t *)dk_alloc_box_zero (sizeof (caddr_t) * (1 + mdata->xsltm_arg_no), DV_ARRAY_OF_POINTER);
-  newhead[0] = (caddr_t)(mdata->xsltm_idx);
+  newhead = (caddr_t *) dk_alloc_box_zero (sizeof (caddr_t) * (1 + mdata->xsltm_arg_no), DV_ARRAY_OF_POINTER);
+  newhead[0] = (caddr_t) (mdata->xsltm_idx);
   argctr = mdata->xsltm_arg_no;
   while (argctr--)
     {
@@ -779,24 +774,24 @@ static xslt_metadata_t *xslt_sheet_compile_el (caddr_t *tree, int containsgroups
       caddr_t arg = NULL;
       if (NULL == descr->xsltma_subelem)
 	{
-	  for (attrctr = 1; attrctr < BOX_ELEMENTS(head); attrctr += 2)
+	  for (attrctr = 1; attrctr < BOX_ELEMENTS (head); attrctr += 2)
 	    {
 	      if (strcmp (head[attrctr], descr->xsltma_uname))
 		continue;
 	      if (!strcmp (head[attrctr], " !location"))
-	        {
-	          location_attrctr = attrctr;
+		{
+		  location_attrctr = attrctr;
 		  location_argctr = argctr;
 		}
-	      arg = head[attrctr+1];
-	      head[attrctr+1] = 0;
+	      arg = head[attrctr + 1];
+	      head[attrctr + 1] = 0;
 	      break;
 	    }
 	}
       if ((NULL == arg) && descr->xsltma_required)
 	{
 	  dk_free_tree ((box_t) newhead);
-	  sqlr_new_error_xsltree_xdl ("XS370", "XS051", ((caddr_t *)(tree)), "Attribute '%s' not specified", descr->xsltma_uname);
+	  sqlr_new_error_xsltree_xdl ("XS370", "XS051", ((caddr_t *) (tree)), "Attribute '%s' not specified", descr->xsltma_uname);
 	}
       if ((NULL != arg) && (XSLTMA_QNAME == descr->xsltma_type))
 	{
@@ -805,79 +800,81 @@ static xslt_metadata_t *xslt_sheet_compile_el (caddr_t *tree, int containsgroups
 	    {
 	      dk_free_tree (raw_arg);
 	      dk_free_tree ((box_t) newhead);
-	      sqlr_new_error_xsltree_xdl ("XS370", "XS052", ((caddr_t *)(tree)), "The value of attribute '%s' is not a qualified name", descr->xsltma_uname);
+	      sqlr_new_error_xsltree_xdl ("XS370", "XS052", ((caddr_t *) (tree)),
+		  "The value of attribute '%s' is not a qualified name", descr->xsltma_uname);
 	    }
 	  arg = box_dv_uname_string (raw_arg);
 	  dk_free_box (raw_arg);
 	}
-      newhead[argctr+1] = arg;
+      newhead[argctr + 1] = arg;
     }
-  for (attrctr = 1; attrctr < BOX_ELEMENTS(head); attrctr += 2)
+  for (attrctr = 1; attrctr < BOX_ELEMENTS (head); attrctr += 2)
     {
-      if (NULL != head[attrctr+1])
+      if (NULL != head[attrctr + 1])
 	{
 	  if (location_attrctr != 0)
 	    {
-	      head[location_attrctr+1] = newhead[location_argctr+1];
-	      newhead[location_argctr+1] = NULL;
+	      head[location_attrctr + 1] = newhead[location_argctr + 1];
+	      newhead[location_argctr + 1] = NULL;
 	    }
 	  dk_free_tree ((box_t) newhead);
-	  sqlr_new_error_xsltree_xdl ("XS370", "XS053", ((caddr_t *)(tree)), "Unsupported attribute '%s'", head[attrctr]);
+	  sqlr_new_error_xsltree_xdl ("XS370", "XS053", ((caddr_t *) (tree)), "Unsupported attribute '%s'", head[attrctr]);
 	}
     }
   dk_free_tree ((box_t) head);
-  tree[0] = (caddr_t)newhead;
+  tree[0] = (caddr_t) newhead;
   return mdata;
 }
 
 
-static caddr_t *xslt_sheet_compile_subtree (caddr_t *tree, int containsgroups)
+static caddr_t *
+xslt_sheet_compile_subtree (caddr_t * tree, int containsgroups)
 {
   if (xte_is_entity (tree))
     {
       int childgroups = containsgroups;
       size_t child_idx, el_count, inscount;
       xslt_metadata_t *mdata = NULL;
-      caddr_t name = XTE_HEAD_NAME(XTE_HEAD(tree));
+      caddr_t name = XTE_HEAD_NAME (XTE_HEAD (tree));
       if (is_xslns (name))
-        {
+	{
 	  mdata = xslt_sheet_compile_el (tree, containsgroups);
 	  childgroups = (int) mdata->xsltm_el_containsgroups;
-        }
+	}
       el_count = BOX_ELEMENTS (tree);
       inscount = 1;
       for (child_idx = 1; child_idx < el_count; child_idx++)
 	{
-	  caddr_t *child = (caddr_t *)(tree[child_idx]);
+	  caddr_t *child = (caddr_t *) (tree[child_idx]);
 	  caddr_t child_name;
 	  if (!xte_is_entity (child))
 	    {
 	      if (xslt_non_whitespace ((caddr_t) child))
-	        {
-	          if (!(XSLT_ELGRP_PCDATA & childgroups))
-		    sqlr_new_error_xsltree_xdl ("XS370", "XS059", ((caddr_t *)(tree)), "PCDATA children are no allowed");
+		{
+		  if (!(XSLT_ELGRP_PCDATA & childgroups))
+		    sqlr_new_error_xsltree_xdl ("XS370", "XS059", ((caddr_t *) (tree)), "PCDATA children are no allowed");
 		}
 	      else if ((NULL == mdata) || (XSLT_EL_TEXT != mdata->xsltm_el_id))
-	        { /* whitespaces are dropped */
+		{		/* whitespaces are dropped */
 		  tree[child_idx] = NULL;
 		  dk_free_tree ((box_t) child);
 		  continue;
 		}
 	      /* Optimization by concatenation of texts:
-After processing 'text1<!--comment-->text2' two string children text1 and text2 are neighbours */
-	      if ((inscount > 1) && !xte_is_entity (tree[inscount-1]))
-	        {
-	          caddr_t newtext = box_dv_short_concat (tree[inscount-1], (caddr_t)child);
-	          dk_free_box (tree[inscount-1]);
-	          tree[child_idx] = NULL;
-		  tree[inscount-1] = newtext;
+	         After processing 'text1<!--comment-->text2' two string children text1 and text2 are neighbours */
+	      if ((inscount > 1) && !xte_is_entity (tree[inscount - 1]))
+		{
+		  caddr_t newtext = box_dv_short_concat (tree[inscount - 1], (caddr_t) child);
+		  dk_free_box (tree[inscount - 1]);
+		  tree[child_idx] = NULL;
+		  tree[inscount - 1] = newtext;
 		  continue;
-	        }
+		}
 	      tree[child_idx] = NULL;
-	      tree[inscount++] = (caddr_t)child;
+	      tree[inscount++] = (caddr_t) child;
 	      continue;
 	    }
-          child_name = XTE_HEAD_NAME(XTE_HEAD(child));
+	  child_name = XTE_HEAD_NAME (XTE_HEAD (child));
 	  if (child_name == uname__comment)
 	    {
 	      tree[child_idx] = NULL;
@@ -885,24 +882,22 @@ After processing 'text1<!--comment-->text2' two string children text1 and text2 
 	      continue;
 	    }
 	  if (!is_xslns (child_name))
-            {
+	    {
 	      if (!(XSLT_ELGRP_RESELS & childgroups))
-                {
-                  if (
-		      !(strncmp (child_name, "http://www.w3.org/1999/xhtml:", 29) &&
-		        strncmp (child_name, "http://www.w3.org/1999/02/22-rdf-syntax-ns#:", 44)) &&
-                      !(strcmp (name, "http://www.w3.org/1999/XSL/Transform:stylesheet") &&
-                        strcmp (name, "http://www.w3.org/1999/XSL/Transform:transform"))
-		    )
-                    { /* Relax syntax for weird comments inside the stylesheet. */
-	              tree[child_idx] = NULL;
+		{
+		  if (!(strncmp (child_name, "http://www.w3.org/1999/xhtml:", 29) &&
+			  strncmp (child_name, "http://www.w3.org/1999/02/22-rdf-syntax-ns#:", 44)) &&
+		      !(strcmp (name, "http://www.w3.org/1999/XSL/Transform:stylesheet") &&
+			  strcmp (name, "http://www.w3.org/1999/XSL/Transform:transform")))
+		    {		/* Relax syntax for weird comments inside the stylesheet. */
+		      tree[child_idx] = NULL;
 		      dk_free_tree ((box_t) child);
 		      continue;
-                    }
-	          sqlr_new_error_xsltree_xdl ("XS370", "XS060", ((caddr_t *)(tree)), "Misplaced element '%s'", child_name);
-                }
-            }
-	  { /* The order of assignments here is very important. Memory leaks in other cases */
+		    }
+		  sqlr_new_error_xsltree_xdl ("XS370", "XS060", ((caddr_t *) (tree)), "Misplaced element '%s'", child_name);
+		}
+	    }
+	  {			/* The order of assignments here is very important. Memory leaks in other cases */
 	    caddr_t newchild = (caddr_t) xslt_sheet_compile_subtree (child, childgroups);
 	    tree[child_idx] = NULL;
 	    tree[inscount++] = newchild;
@@ -910,13 +905,13 @@ After processing 'text1<!--comment-->text2' two string children text1 and text2 
 	  }
 	}
       if (inscount < el_count)
-        {
-          size_t newlen = sizeof(caddr_t) * inscount;
-          caddr_t *newtree = (caddr_t *) dk_alloc_box (newlen, box_tag(tree));
-          memcpy (newtree, tree, newlen);
-          dk_free_box ((box_t) tree);
-          tree = newtree;
-        }
+	{
+	  size_t newlen = sizeof (caddr_t) * inscount;
+	  caddr_t *newtree = (caddr_t *) dk_alloc_box (newlen, box_tag (tree));
+	  memcpy (newtree, tree, newlen);
+	  dk_free_box ((box_t) tree);
+	  tree = newtree;
+	}
       return tree;
     }
   GPF_T;
@@ -942,7 +937,7 @@ xst_bsort (xslt_template_t ** bs, int n_bufs)
 	    }
 	}
     }
-  for (m = 0; m < n_bufs / 2; m ++)
+  for (m = 0; m < n_bufs / 2; m++)
     {
       if (m != n_bufs - m - 1)
 	{
@@ -1007,10 +1002,9 @@ xst_bsort (xslt_template_t ** bs, int n_bufs)
 	  xn->xsnf_##name = box_copy (xsnf_default->xsnf_##name);
 
 void
-xslt_sheet_prepare (xslt_sheet_t *xsh, caddr_t * xstree, query_instance_t * qi,
-		    caddr_t * err_ret, xml_ns_2dict_t *ns_2dict)
+xslt_sheet_prepare (xslt_sheet_t * xsh, caddr_t * xstree, query_instance_t * qi, caddr_t * err_ret, xml_ns_2dict_t * ns_2dict)
 {
-  char * indent;
+  char *indent;
   caddr_t *root_elt_head;
   int inx, inx2, sheet_inx, is_simple = 0;
   dk_set_t imports = NULL;
@@ -1025,105 +1019,104 @@ xslt_sheet_prepare (xslt_sheet_t *xsh, caddr_t * xstree, query_instance_t * qi,
       *err_ret = srv_make_new_error ("22023", "XS030", "Bad style sheet in xslt_sheet");
       return;
     }
-  root_elt_head = ((caddr_t **)(xstree))[0];
+  root_elt_head = ((caddr_t **) (xstree))[0];
   for (inx = BOX_ELEMENTS (root_elt_head) - 2; inx > 0; inx -= 2)
     {
       if (strcmp (root_elt_head[inx], uname__bang_exclude_result_prefixes))
-        continue;
-      xsh->xsh_top_excl_res_prefx = box_copy_tree (root_elt_head[inx+1]);
+	continue;
+      xsh->xsh_top_excl_res_prefx = box_copy_tree (root_elt_head[inx + 1]);
       break;
     }
-QR_RESET_CTX
+  QR_RESET_CTX
   {
-  sheet_inx = xslt_includes (xsh, xstree, qi);
-
-  if (sheet_inx < 0)
-    {
-      is_simple = 1;
-      sheet_inx = -sheet_inx;
-    }
-  xsh->xsh_raw_tree = (caddr_t*) box_copy_tree (xstree[sheet_inx]);
-  if (is_simple)
-    {
-      xsh->xsh_new_templates = dk_set_conc (xsh->xsh_new_templates, xte_to_template (xsh->xsh_raw_tree));
-    }
-  else
-    {
-      indent = xslt_attr_value (xsh->xsh_raw_tree, "indent-result", 0);
-      if (indent && 0 == stricmp (indent, "yes"))
-	xsh->xout_indent = 1;
-      for (inx = 1; inx < (int) BOX_ELEMENTS (xsh->xsh_raw_tree); inx++)
-	{
-	  caddr_t * elt = (caddr_t *) xsh->xsh_raw_tree[inx];
-	  if (xte_is_xsl_elt (elt, "template"))
-	    xsh->xsh_new_templates = dk_set_conc (xsh->xsh_new_templates, xte_to_template (elt));
-	  else if (xte_is_xsl_elt (elt, "import"))
-	    {
-	      xslt_sheet_t * imp;
-	      caddr_t hval = xslt_attr_value (elt, "href", 1);
+    sheet_inx = xslt_includes (xsh, xstree, qi);
+    if (sheet_inx < 0)
+      {
+	is_simple = 1;
+	sheet_inx = -sheet_inx;
+      }
+    xsh->xsh_raw_tree = (caddr_t *) box_copy_tree (xstree[sheet_inx]);
+    if (is_simple)
+      {
+	xsh->xsh_new_templates = dk_set_conc (xsh->xsh_new_templates, xte_to_template (xsh->xsh_raw_tree));
+      }
+    else
+      {
+	indent = xslt_attr_value (xsh->xsh_raw_tree, "indent-result", 0);
+	if (indent && 0 == stricmp (indent, "yes"))
+	  xsh->xout_indent = 1;
+	for (inx = 1; inx < (int) BOX_ELEMENTS (xsh->xsh_raw_tree); inx++)
+	  {
+	    caddr_t *elt = (caddr_t *) xsh->xsh_raw_tree[inx];
+	    if (xte_is_xsl_elt (elt, "template"))
+	      xsh->xsh_new_templates = dk_set_conc (xsh->xsh_new_templates, xte_to_template (elt));
+	    else if (xte_is_xsl_elt (elt, "import"))
+	      {
+		xslt_sheet_t *imp;
+		caddr_t hval = xslt_attr_value (elt, "href", 1);
 /* The last (loaded_by) arg of the next call is not &(xsh->xsh_shuric)
 because the 'included_by' dependency has been set already in
 xslt_includes_recursion(). At the current moment the including hierarchy is flatten by
 expanding 'xsl:include' into inlined subtrees. */
-	      imp = xslt_sheet (qi, xsh->xsh_shuric.shuric_uri, hval, NULL, NULL /* not &(xsh->xsh_shuric) */);
-	      shuric_release (&(imp->xsh_shuric)); /* Imp is not destroyed because is logged as imported into xsh */
-	      dk_set_push (&imports, (void*) imp);
-	      xml_ns_2dict_extend (&(xsh->xsh_ns_2dict), &(imp->xsh_ns_2dict));
-	    }
-	  else if (xte_is_xsl_elt (elt, "output"))
-	    {
-	      caddr_t val;
-	      XOUT_SET_OPTION_VALUE (elt, xsh, method, "method");
-	      XOUT_SET_OPTION_VALUE (elt, xsh, version, "version");
-	      XOUT_SET_UPCASE_OPTION_VALUE (elt, xsh, encoding, "encoding");
-	      if (xslt_attr_value (elt, "encoding", 0))
-		xsh->xout_encoding_meta = 1;
-	      XOUT_SET_BOOL_VALUE (elt, xsh, omit_xml_declaration, "omit-xml-declaration");
-	      XOUT_SET_BOOL_VALUE (elt, xsh, standalone, "standalone");
-	      XOUT_SET_OPTION_VALUE (elt, xsh, doctype_public, "doctype-public");
-	      XOUT_SET_OPTION_VALUE (elt, xsh, doctype_system, "doctype-system");
-	      XOUT_SET_BOOL_VALUE (elt, xsh, indent, "indent");
-	      XOUT_SET_OPTION_VALUE (elt, xsh, media_type, "media-type");
-	      if (xsh->xout_standalone && !(xsh->xout_doctype_system || xsh->xout_doctype_public))
-		sqlr_new_error_xsltree_xdl ("XS379", "XS032", elt, "Standalone required but no SYSTEM or PUBLIC doctype");
-	      val = xslt_attr_value (elt, " !cdata-section-elements", 0);
+		imp = xslt_sheet (qi, xsh->xsh_shuric.shuric_uri, hval, NULL, NULL /* not &(xsh->xsh_shuric) */ );
+		shuric_release (&(imp->xsh_shuric));	/* Imp is not destroyed because is logged as imported into xsh */
+		dk_set_push (&imports, (void *) imp);
+		xml_ns_2dict_extend (&(xsh->xsh_ns_2dict), &(imp->xsh_ns_2dict));
+	      }
+	    else if (xte_is_xsl_elt (elt, "output"))
+	      {
+		caddr_t val;
+		XOUT_SET_OPTION_VALUE (elt, xsh, method, "method");
+		XOUT_SET_OPTION_VALUE (elt, xsh, version, "version");
+		XOUT_SET_UPCASE_OPTION_VALUE (elt, xsh, encoding, "encoding");
+		if (xslt_attr_value (elt, "encoding", 0))
+		  xsh->xout_encoding_meta = 1;
+		XOUT_SET_BOOL_VALUE (elt, xsh, omit_xml_declaration, "omit-xml-declaration");
+		XOUT_SET_BOOL_VALUE (elt, xsh, standalone, "standalone");
+		XOUT_SET_OPTION_VALUE (elt, xsh, doctype_public, "doctype-public");
+		XOUT_SET_OPTION_VALUE (elt, xsh, doctype_system, "doctype-system");
+		XOUT_SET_BOOL_VALUE (elt, xsh, indent, "indent");
+		XOUT_SET_OPTION_VALUE (elt, xsh, media_type, "media-type");
+		if (xsh->xout_standalone && !(xsh->xout_doctype_system || xsh->xout_doctype_public))
+		  sqlr_new_error_xsltree_xdl ("XS379", "XS032", elt, "Standalone required but no SYSTEM or PUBLIC doctype");
+		val = xslt_attr_value (elt, " !cdata-section-elements", 0);
 
-	      if (val)
-		{
-		  int inx;
-		  if (!xsh->xout_cdata_section_elements)
-		    xsh->xout_cdata_section_elements = id_str_hash_create (10);
-		  DO_BOX (caddr_t, qname, inx, (caddr_t *)val)
+		if (val)
+		  {
+		    int inx;
+		    if (!xsh->xout_cdata_section_elements)
+		      xsh->xout_cdata_section_elements = id_str_hash_create (10);
+		    DO_BOX (caddr_t, qname, inx, (caddr_t *) val)
 		    {
 		      caddr_t box_name = box_dv_short_string (qname);
 		      caddr_t box_val = box_num (1);
-		      id_hash_set (xsh->xout_cdata_section_elements, (caddr_t) &box_name, (caddr_t) &box_val);
+		      id_hash_set (xsh->xout_cdata_section_elements, (caddr_t) & box_name, (caddr_t) & box_val);
 		    }
-		  END_DO_BOX;
-		}
-	    }
-	  else if (xte_is_xsl_elt (elt, "decimal-format"))
-	    {
-	      virt_mbstate_t state;
-	      wchar_t wchar;
-	      caddr_t intermediate;
-	      int len;
+		    END_DO_BOX;
+		  }
+	      }
+	    else if (xte_is_xsl_elt (elt, "decimal-format"))
+	      {
+		virt_mbstate_t state;
+		wchar_t wchar;
+		caddr_t intermediate;
+		int len;
 
-	      xslt_number_format_t *xn = XSNF_NEW;
+		xslt_number_format_t *xn = XSNF_NEW;
 
-	      xn->xsnf_name = box_copy (xslt_attr_value (elt, "name", 0));
-	      NUMBER_FORMAT_SET_CHAR (decimal_sep, "decimal-separator");
-	      NUMBER_FORMAT_SET_CHAR (grouping_sep, "grouping-separator");
-	      NUMBER_FORMAT_SET_STRING (infinity, "infinity");
-	      NUMBER_FORMAT_SET_CHAR (minus_sign, "minus-sign");
-	      NUMBER_FORMAT_SET_STRING (NaN, "NaN");
-	      NUMBER_FORMAT_SET_CHAR (percent, "percent");
-	      NUMBER_FORMAT_SET_CHAR (per_mille, "per-mille");
-	      NUMBER_FORMAT_SET_CHAR (zero_digit, "zero-digit");
-	      NUMBER_FORMAT_SET_CHAR (digit, "digit");
-	      NUMBER_FORMAT_SET_CHAR (pattern_sep, "pattern-separator");
+		xn->xsnf_name = box_copy (xslt_attr_value (elt, "name", 0));
+		NUMBER_FORMAT_SET_CHAR (decimal_sep, "decimal-separator");
+		NUMBER_FORMAT_SET_CHAR (grouping_sep, "grouping-separator");
+		NUMBER_FORMAT_SET_STRING (infinity, "infinity");
+		NUMBER_FORMAT_SET_CHAR (minus_sign, "minus-sign");
+		NUMBER_FORMAT_SET_STRING (NaN, "NaN");
+		NUMBER_FORMAT_SET_CHAR (percent, "percent");
+		NUMBER_FORMAT_SET_CHAR (per_mille, "per-mille");
+		NUMBER_FORMAT_SET_CHAR (zero_digit, "zero-digit");
+		NUMBER_FORMAT_SET_CHAR (digit, "digit");
+		NUMBER_FORMAT_SET_CHAR (pattern_sep, "pattern-separator");
 
-	      DO_SET (xslt_number_format_t *, xn_set, &xsh->xsh_formats)
+		DO_SET (xslt_number_format_t *, xn_set, &xsh->xsh_formats)
 		{
 		  if (box_equal (xn_set->xsnf_name, xn->xsnf_name))
 		    {
@@ -1134,29 +1127,30 @@ expanding 'xsl:include' into inlined subtrees. */
 			    xn->xsnf_name ? xn->xsnf_name : "<default>");
 		    }
 		}
-	      END_DO_SET();
-	      dk_set_push (&xsh->xsh_formats, xn);
-	    }
-	}
-    }
+		END_DO_SET ();
+		dk_set_push (&xsh->xsh_formats, xn);
+	      }
+	  }
+      }
 
-  xsh->xsh_all_templates = (xslt_template_t **)list_to_array (xsh->xsh_new_templates);
-  xsh->xsh_new_templates = NULL;
+    xsh->xsh_all_templates = (xslt_template_t **) list_to_array (xsh->xsh_new_templates);
+    xsh->xsh_new_templates = NULL;
 
-  DO_BOX (xslt_template_t *, xst, inx, xsh->xsh_all_templates)
+    DO_BOX (xslt_template_t *, xst, inx, xsh->xsh_all_templates)
     {
       xst->xst_tree = xslt_sheet_compile_subtree (xst->xst_tree, (is_simple ? XSLT_ELGRP_TMPLBODY : XSLT_ELGRP_TOPLEVEL));
       xst->xst_sheet = xsh;
       if (is_simple)
 	xst->xst_simple = 1;
     }
-  END_DO_BOX;
-  xsh->xsh_compiled_tree = (caddr_t *) box_copy_tree ((box_t) xsh->xsh_raw_tree);
-  xsh->xsh_compiled_tree = xslt_sheet_compile_subtree (xsh->xsh_compiled_tree, (is_simple ? XSLT_ELGRP_TMPLBODY : XSLT_ELGRP_ROOTLEVEL));
-  /* no qsort here, must be stable, i.e. preserve order of equal elements */
-  xst_bsort (xsh->xsh_all_templates, BOX_ELEMENTS (xsh->xsh_all_templates));
+    END_DO_BOX;
+    xsh->xsh_compiled_tree = (caddr_t *) box_copy_tree ((box_t) xsh->xsh_raw_tree);
+    xsh->xsh_compiled_tree =
+	xslt_sheet_compile_subtree (xsh->xsh_compiled_tree, (is_simple ? XSLT_ELGRP_TMPLBODY : XSLT_ELGRP_ROOTLEVEL));
+    /* no qsort here, must be stable, i.e. preserve order of equal elements */
+    xst_bsort (xsh->xsh_all_templates, BOX_ELEMENTS (xsh->xsh_all_templates));
 
-  DO_BOX (xslt_template_t *, xst, inx, xsh->xsh_all_templates)
+    DO_BOX (xslt_template_t *, xst, inx, xsh->xsh_all_templates)
     {
       xslt_sheet_mode_t *xstm;
       xslt_template_t ***list_ptr;
@@ -1164,19 +1158,17 @@ expanding 'xsl:include' into inlined subtrees. */
       if (!xst->xst_match)
 	continue;
       if (NULL == xst->xst_mode)
-        xstm = &(xsh->xsh_default_mode);
+	xstm = &(xsh->xsh_default_mode);
       else
-        {
-          xstm = (xslt_sheet_mode_t *) gethash (xst->xst_mode, xsh->xsh_named_modes);
+	{
+	  xstm = (xslt_sheet_mode_t *) gethash (xst->xst_mode, xsh->xsh_named_modes);
 	  if (NULL == xstm)
 	    {
 	      xstm = (xslt_sheet_mode_t *) list (3, box_copy (xst->xst_mode), NULL, NULL);
 	      sethash (xst->xst_mode, xsh->xsh_named_modes, xstm);
 	    }
 	}
-      list_ptr = (xst->xst_match_attributes ?
-	&(xstm->xstm_attr_templates) :
-	&(xstm->xstm_nonattr_templates) );
+      list_ptr = (xst->xst_match_attributes ? &(xstm->xstm_attr_templates) : &(xstm->xstm_nonattr_templates));
       if (NULL == list_ptr[0])
 	{
 	  new_list = (xslt_template_t **) dk_alloc_box (sizeof (ptrlong), DV_ARRAY_OF_LONG);
@@ -1187,74 +1179,76 @@ expanding 'xsl:include' into inlined subtrees. */
 	  new_list = (xslt_template_t **) dk_alloc_box (old_bytes + sizeof (ptrlong), DV_ARRAY_OF_LONG);
 	  memcpy (new_list, list_ptr[0], old_bytes);
 	}
-      new_list [BOX_ELEMENTS(new_list)-1] = xst;
-      dk_free_box ((caddr_t)(list_ptr[0]));
+      new_list[BOX_ELEMENTS (new_list) - 1] = xst;
+      dk_free_box ((caddr_t) (list_ptr[0]));
       list_ptr[0] = new_list;
     }
-  END_DO_BOX;
+    END_DO_BOX;
 
-  imports = dk_set_nreverse (imports); /* ... to order imports correctly */
-  do
-    {
-      dk_set_t imps = NULL;
-      while (NULL != imports)
-	{
-	  int inx2;
-	  xslt_sheet_t * i2 = (xslt_sheet_t *)dk_set_pop(&imports);
-	  if (dk_set_member (imps, (void*) i2))
+    imports = dk_set_nreverse (imports);	/* ... to order imports correctly */
+    do
+      {
+	dk_set_t imps = NULL;
+	while (NULL != imports)
+	  {
+	    int inx2;
+	    xslt_sheet_t *i2 = (xslt_sheet_t *) dk_set_pop (&imports);
+	    if (dk_set_member (imps, (void *) i2))
+	      {
+		continue;
+	      }
+	    DO_BOX (xslt_sheet_t *, imp, inx2, i2->xsh_imported_sheets)
 	    {
-	      continue;
-	    }
-	  DO_BOX (xslt_sheet_t *, imp, inx2, i2->xsh_imported_sheets)
-	    {
-	      if (!dk_set_member (imps, (void*) imp))
+	      if (!dk_set_member (imps, (void *) imp))
 		{
-		  dk_set_push (&imps, (void*) imp);
+		  dk_set_push (&imps, (void *) imp);
 		}
 	    }
-	  END_DO_BOX;
-	}
-      imps = dk_set_nreverse (imps); /* ... to order normalized imports correctly */
-      imps = dk_set_cons ((caddr_t) xsh, imps);
-      xsh->xsh_imported_sheets = (xslt_sheet_t **) list_to_array (imps);
-    } while (0);
+	    END_DO_BOX;
+	  }
+	imps = dk_set_nreverse (imps);	/* ... to order normalized imports correctly */
+	imps = dk_set_cons ((caddr_t) xsh, imps);
+	xsh->xsh_imported_sheets = (xslt_sheet_t **) list_to_array (imps);
+      }
+    while (0);
 /* Post-processing */
 /* Storing template names in the dictionary */
-  DO_BOX (xslt_sheet_t *, xsh1, inx, xsh->xsh_imported_sheets)
+    DO_BOX (xslt_sheet_t *, xsh1, inx, xsh->xsh_imported_sheets)
     {
       DO_BOX (xslt_template_t *, xst2, inx2, xsh1->xsh_all_templates)
-	{
-	  caddr_t name = xst2->xst_name;
-	  if (!name)
-	    continue;
+      {
+	caddr_t name = xst2->xst_name;
+	if (!name)
+	  continue;
 #ifdef DEBUG
-	  if (DV_UNAME != DV_TYPE_OF (name))
-	    GPF_T;
+	if (DV_UNAME != DV_TYPE_OF (name))
+	  GPF_T;
 #endif
-	  if (gethash (name, xsh->xsh_all_templates_byname))
-	    continue;
-	  sethash (name, xsh->xsh_all_templates_byname, xst2);
-	}
+	if (gethash (name, xsh->xsh_all_templates_byname))
+	  continue;
+	sethash (name, xsh->xsh_all_templates_byname, xst2);
+      }
       END_DO_BOX;
     }
-  END_DO_BOX;
+    END_DO_BOX;
 
   }
-QR_RESET_CODE
+  QR_RESET_CODE
   {
-    du_thread_t * self = THREAD_CURRENT_THREAD;
+    du_thread_t *self = THREAD_CURRENT_THREAD;
     caddr_t err = thr_get_error_code (self);
     POP_QR_RESET;
     dk_set_free (imports);
     err_ret[0] = err;
     thr_set_error_code (self, NULL);
   }
-END_QR_RESET;
+  END_QR_RESET;
 }
 
 
-shuric_t *shuric_load_xml_by_qi (query_instance_t * qi, caddr_t base, caddr_t ref,
-	    caddr_t * err_ret, shuric_t *loaded_by, shuric_vtable_t *vt, const char *caller)
+shuric_t *
+shuric_load_xml_by_qi (query_instance_t * qi, caddr_t base, caddr_t ref,
+    caddr_t * err_ret, shuric_t * loaded_by, shuric_vtable_t * vt, const char *caller)
 {
   shuric_t *shu;
   caddr_t path_utf8 = NULL, str = NULL, ts = NULL, err = NULL;
@@ -1290,13 +1284,13 @@ shuric_t *shuric_load_xml_by_qi (query_instance_t * qi, caddr_t base, caddr_t re
     {
       if (ts && (!shu->shuric_loading_time || strcmp (ts, shu->shuric_loading_time)))
 	{
-          shuric_stale_tree (shu);
+	  shuric_stale_tree (shu);
 	  shuric_release (shu);
 	  shu = NULL;
 	}
       else
 	{
-          dk_free_box (path_utf8);
+	  dk_free_box (path_utf8);
 	  dk_free_box (ts);
 	  if (loaded_by != NULL)
 	    shuric_make_include (loaded_by, shu);
@@ -1333,22 +1327,22 @@ shuric_t *shuric_load_xml_by_qi (query_instance_t * qi, caddr_t base, caddr_t re
 
 
 xslt_sheet_t *
-xslt_sheet (query_instance_t * qi, caddr_t base, caddr_t ref,
-	    caddr_t * err_ret, shuric_t *loaded_by)
+xslt_sheet (query_instance_t * qi, caddr_t base, caddr_t ref, caddr_t * err_ret, shuric_t * loaded_by)
 {
   shuric_t *shu = shuric_load_xml_by_qi (qi, base, ref, err_ret, loaded_by, &shuric_vtable__xslt, "XSLT compiler");
-  return (xslt_sheet_t *)(shu->shuric_data);
+  return (xslt_sheet_t *) (shu->shuric_data);
 }
 
 
 /* Metadata */
 
-id_hash_t * xslt_meta_hash;
+id_hash_t *xslt_meta_hash;
 int xslt_meta_list_length;
 xslt_metadata_t xslt_meta_list[XSLTM_MAXID];
 
 xslt_metadata_t *
-xslt_define (const char * name, int xslt_el_id, xslt_el_fun_t f, int xslt_el_memberofgroups, int xslt_el_containsgroups, xsltm_arg_descr_t *arg1, ...)
+xslt_define (const char *name, int xslt_el_id, xslt_el_fun_t f, int xslt_el_memberofgroups, int xslt_el_containsgroups,
+    xsltm_arg_descr_t * arg1, ...)
 {
   va_list list;
   xsltm_arg_descr_t *args[20];
@@ -1357,8 +1351,8 @@ xslt_define (const char * name, int xslt_el_id, xslt_el_fun_t f, int xslt_el_mem
   int argctr, argc;
   curr->xsltm_uname = box_dv_uname_string (name);
   box_dv_uname_make_immortal (curr->xsltm_uname);
-  if (id_hash_get (xslt_meta_hash, (caddr_t) &(curr->xsltm_uname)))
-    GPF_T; /* redefinition? */
+  if (id_hash_get (xslt_meta_hash, (caddr_t) & (curr->xsltm_uname)))
+    GPF_T;			/* redefinition? */
   curr->xsltm_executable = f;
   curr->xsltm_el_id = xslt_el_id;
   curr->xsltm_el_memberofgroups = xslt_el_memberofgroups;
@@ -1368,7 +1362,7 @@ xslt_define (const char * name, int xslt_el_id, xslt_el_fun_t f, int xslt_el_mem
   if (curr->xsltm_idx != (curr->xsltm_el_id & XSLT_EL__MASK))
     GPF_T;
 #endif
-  id_hash_set (xslt_meta_hash, (caddr_t) &(curr->xsltm_uname), (caddr_t) (&curr));
+  id_hash_set (xslt_meta_hash, (caddr_t) & (curr->xsltm_uname), (caddr_t) (&curr));
   argc = 0;
   args_tail = arg1;
   va_start (list, arg1);
@@ -1383,13 +1377,13 @@ xslt_define (const char * name, int xslt_el_id, xslt_el_fun_t f, int xslt_el_mem
     }
   va_end (list);
   curr->xsltm_arg_no = argc + XSLT_ATTR_FIRST_SPECIAL - 1;
-  curr->xsltm_args = (xsltm_arg_descr_t *) dk_alloc_box_zero ((2+argc) * sizeof (xsltm_arg_descr_t), DV_CUSTOM);
-  curr->xsltm_args[XSLT_ATTR_ANY_LOCATION-1].xsltma_uname = uname__bang_location;
-  curr->xsltm_args[XSLT_ATTR_ANY_LOCATION-1].xsltma_idx = XSLT_ATTR_ANY_LOCATION;
-  curr->xsltm_args[XSLT_ATTR_ANY_LOCATION-1].xsltma_type = XSLTMA_LOCATION;
-  curr->xsltm_args[XSLT_ATTR_ANY_NS-1].xsltma_uname = uname__bang_ns;
-  curr->xsltm_args[XSLT_ATTR_ANY_NS-1].xsltma_idx = XSLT_ATTR_ANY_NS;
-  curr->xsltm_args[XSLT_ATTR_ANY_NS-1].xsltma_type = XSLTMA_ANY;
+  curr->xsltm_args = (xsltm_arg_descr_t *) dk_alloc_box_zero ((2 + argc) * sizeof (xsltm_arg_descr_t), DV_CUSTOM);
+  curr->xsltm_args[XSLT_ATTR_ANY_LOCATION - 1].xsltma_uname = uname__bang_location;
+  curr->xsltm_args[XSLT_ATTR_ANY_LOCATION - 1].xsltma_idx = XSLT_ATTR_ANY_LOCATION;
+  curr->xsltm_args[XSLT_ATTR_ANY_LOCATION - 1].xsltma_type = XSLTMA_LOCATION;
+  curr->xsltm_args[XSLT_ATTR_ANY_NS - 1].xsltma_uname = uname__bang_ns;
+  curr->xsltm_args[XSLT_ATTR_ANY_NS - 1].xsltma_idx = XSLT_ATTR_ANY_NS;
+  curr->xsltm_args[XSLT_ATTR_ANY_NS - 1].xsltma_type = XSLTMA_ANY;
   for (argctr = 0; argctr < argc; argctr++)
     {
       xsltm_arg_descr_t *src = args[argctr];
@@ -1401,4 +1395,3 @@ xslt_define (const char * name, int xslt_el_id, xslt_el_fun_t f, int xslt_el_mem
     }
   return curr;
 }
-

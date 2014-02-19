@@ -92,9 +92,7 @@ tb_has_similar_trigger (dbe_table_t * tb, query_t * qr)
 	    if (!trig->qr_trig_upd_cols)
 	      /* unqualified upd trig in place. Table trigger profile not changed */
 	      return 1;
-	    if (qr->qr_trig_upd_cols
-		&& box_equal ((caddr_t) trig->qr_trig_upd_cols,
-		    (caddr_t) qr->qr_trig_upd_cols))
+	    if (qr->qr_trig_upd_cols && box_equal ((caddr_t) trig->qr_trig_upd_cols, (caddr_t) qr->qr_trig_upd_cols))
 	      return 1;
 	  }
 	else
@@ -112,8 +110,7 @@ tb_is_trig (dbe_table_t * tb, int event, caddr_t * col_names)
 {
 
   if ((event == TRIG_INSERT && tb->tb_rls_procs[TB_RLS_I]) ||
-      (event == TRIG_UPDATE && tb->tb_rls_procs[TB_RLS_U]) ||
-      (event == TRIG_DELETE && tb->tb_rls_procs[TB_RLS_D]))
+      (event == TRIG_UPDATE && tb->tb_rls_procs[TB_RLS_U]) || (event == TRIG_DELETE && tb->tb_rls_procs[TB_RLS_D]))
     return 1;
 
   DO_SET (query_t *, qr, &tb->tb_triggers->trig_list)
@@ -125,13 +122,13 @@ tb_is_trig (dbe_table_t * tb, int event, caddr_t * col_names)
   if (recursive_trigger_calls)
     {
       DO_SET (dbe_key_t *, key, &tb->tb_primary_key->key_supers)
-	{
-	  if (!key->key_migrate_to && key->key_table)
-	    {
-	      if (tb_is_trig (key->key_table, event, col_names))
-		return 1;
-	    }
-	}
+      {
+	if (!key->key_migrate_to && key->key_table)
+	  {
+	    if (tb_is_trig (key->key_table, event, col_names))
+	      return 1;
+	  }
+      }
       END_DO_SET ();
     }
   return 0;
@@ -151,13 +148,13 @@ tb_is_trig_at (dbe_table_t * tb, int event, int trig_time, caddr_t * col_names)
   if (recursive_trigger_calls)
     {
       DO_SET (dbe_key_t *, key, &tb->tb_primary_key->key_supers)
-	{
-	  if (!key->key_migrate_to && key->key_table)
-	    {
-	      if (tb_is_trig_at (key->key_table, event, trig_time, col_names))
-		return 1;
-	    }
-	}
+      {
+	if (!key->key_migrate_to && key->key_table)
+	  {
+	    if (tb_is_trig_at (key->key_table, event, trig_time, col_names))
+	      return 1;
+	  }
+      }
       END_DO_SET ();
     }
   return 0;
@@ -165,7 +162,7 @@ tb_is_trig_at (dbe_table_t * tb, int event, int trig_time, caddr_t * col_names)
 
 
 void
-trig_call_1 (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t *calling_tb, int is_vec)
+trig_call_1 (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t * calling_tb, int is_vec)
 {
   query_instance_t *qi = (query_instance_t *) qst;
   char auto_qi[AUTO_QI_DEFAULT_SZ];
@@ -183,7 +180,7 @@ trig_call_1 (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t *cal
     /* a trigger being compiled is defined but must not be called */
     return;
   if (qr->qr_to_recompile)
-    { /* if qr need to be recompiled do it first, otherwise new cols may not be passed */
+    {				/* if qr need to be recompiled do it first, otherwise new cols may not be passed */
       qr = qr_recompile (qr, NULL);
       trig_key = qr->qr_trig_dbe_table->tb_primary_key;
       trig_key_n_parts = dk_set_length (trig_key->key_parts);
@@ -196,39 +193,36 @@ trig_call_1 (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t *cal
   else
     GPF_T;
 
-  pars = (caddr_t *) dk_alloc_box (
-      n_total_pars * sizeof (caddr_t *), DV_ARRAY_OF_POINTER);
+  pars = (caddr_t *) dk_alloc_box (n_total_pars * sizeof (caddr_t *), DV_ARRAY_OF_POINTER);
 
   inx = 0;
   DO_SET (dbe_column_t *, col, &trig_key->key_parts)
-    {
-      pars[inx] = is_vec ? (caddr_t) args[inx] : (caddr_t) qst_address (qst, args[inx]);
-      if (n_total_pars > trig_key_n_parts)
-	{
-	  caddr_t cast_value;
-	  if (is_vec)
-	    {
-	      pars[inx + trig_key_n_parts] = (caddr_t)  args[inx + calling_key_n_parts];
-	      continue;
-	    }
-	  cast_value = row_set_col_cast (QST_GET (qst,
-		args[inx + calling_key_n_parts]), &col->col_sqt, &err,
-	        col->col_id, trig_key, qst);
+  {
+    pars[inx] = is_vec ? (caddr_t) args[inx] : (caddr_t) qst_address (qst, args[inx]);
+    if (n_total_pars > trig_key_n_parts)
+      {
+	caddr_t cast_value;
+	if (is_vec)
+	  {
+	    pars[inx + trig_key_n_parts] = (caddr_t) args[inx + calling_key_n_parts];
+	    continue;
+	  }
+	cast_value = row_set_col_cast (QST_GET (qst,
+		args[inx + calling_key_n_parts]), &col->col_sqt, &err, col->col_id, trig_key, qst);
 
-	  if (cast_value)
-	    qst_set_with_ref (qst, args[inx + calling_key_n_parts], cast_value);
+	if (cast_value)
+	  qst_set_with_ref (qst, args[inx + calling_key_n_parts], cast_value);
 
-	  pars[inx + trig_key_n_parts] = (caddr_t) qst_address (qst, args[inx + calling_key_n_parts]);
-	}
-      inx = inx + 1;
-    }
+	pars[inx + trig_key_n_parts] = (caddr_t) qst_address (qst, args[inx + calling_key_n_parts]);
+      }
+    inx = inx + 1;
+  }
   END_DO_SET ();
   if (is_vec)
-      err = qr_subq_exec_vec (qi->qi_client, qr, qi,
-			      (caddr_t *) & auto_qi, sizeof (auto_qi), (state_slot_t**)pars, NULL, NULL, NULL);
+    err = qr_subq_exec_vec (qi->qi_client, qr, qi,
+	(caddr_t *) & auto_qi, sizeof (auto_qi), (state_slot_t **) pars, NULL, NULL, NULL);
   else
-  err = qr_subq_exec (qi->qi_client, qr, qi,
-      (caddr_t *) & auto_qi, sizeof (auto_qi), NULL, pars, NULL);
+    err = qr_subq_exec (qi->qi_client, qr, qi, (caddr_t *) & auto_qi, sizeof (auto_qi), NULL, pars, NULL);
   dk_free_box ((caddr_t) pars);
   if (err != (caddr_t) SQL_SUCCESS && err != (caddr_t) SQL_NO_DATA_FOUND)
     sqlr_resignal (err);
@@ -236,11 +230,11 @@ trig_call_1 (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t *cal
 
 
 void
-trig_call (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t *calling_tb, data_source_t * qn)
+trig_call (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t * calling_tb, data_source_t * qn)
 {
   QNCAST (query_instance_t, qi, qst);
   int is_vec = qn->src_sets;
-  if (!is_vec &&  qr->qr_proc_vectored)
+  if (!is_vec && qr->qr_proc_vectored)
     trig_call_1 (qr, qst, args, calling_tb, 1);
   else if (!is_vec && !qr->qr_proc_vectored)
     trig_call_1 (qr, qst, args, calling_tb, 0);
@@ -253,9 +247,9 @@ trig_call (query_t * qr, caddr_t * qst, state_slot_t ** args, dbe_table_t *calli
       n_sets = qi->qi_n_sets;
       qi->qi_set_mask = NULL;
       SET_LOOP
-	{
-	  trig_call_1 (qr, qst, args, calling_tb, 0);
-	}
+      {
+	trig_call_1 (qr, qst, args, calling_tb, 0);
+      }
       END_SET_LOOP;
     }
   else
@@ -304,17 +298,16 @@ trig_call_check (query_t * qr, int event, data_source_t * qn)
 #define MAX_TRIGS 100
 
 void
-trig_copy_trigger_qrs (dbe_table_t * tb, dbe_table_t *calling_tb,
-    int event, data_source_t * qn, query_t *trigs[], int *fill)
+trig_copy_trigger_qrs (dbe_table_t * tb, dbe_table_t * calling_tb, int event, data_source_t * qn, query_t * trigs[], int *fill)
 {
   /* copy the applicable trigger list to temp since recompile may alter the list */
   if (recursive_trigger_calls)
     {
       DO_SET (dbe_key_t *, key, &tb->tb_primary_key->key_supers)
-	{
-	  if (!key->key_migrate_to && key->key_table)
-	    trig_copy_trigger_qrs (key->key_table, calling_tb, event, qn, trigs, fill);
-	}
+      {
+	if (!key->key_migrate_to && key->key_table)
+	  trig_copy_trigger_qrs (key->key_table, calling_tb, event, qn, trigs, fill);
+      }
       END_DO_SET ();
     }
 
@@ -338,16 +331,14 @@ cl_trig_flush (qn_input_fn qn_run, data_source_t * qn, caddr_t * qst)
 
 
 void
-trig_wrapper (caddr_t * qst, state_slot_t ** args, dbe_table_t * tb,
-    int event, data_source_t * qn, qn_input_fn qn_run)
+trig_wrapper (caddr_t * qst, state_slot_t ** args, dbe_table_t * tb, int event, data_source_t * qn, qn_input_fn qn_run)
 {
   int fill = 0, inx;
   query_t *trigs[MAX_TRIGS];
   int instead = 0;
   query_instance_t *qi = (query_instance_t *) qst;
 
-  if (qi->qi_no_triggers
-      || qi->qi_client->cli_no_triggers)
+  if (qi->qi_no_triggers || qi->qi_client->cli_no_triggers)
     {
       qn_run (qn, qst, qst);
       if (!(TRIG_INSERT == event && qi->qi_non_txn_insert))

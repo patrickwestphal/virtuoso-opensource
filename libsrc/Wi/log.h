@@ -26,10 +26,10 @@
 #ifndef _WI_LOG_H
 #define _WI_LOG_H
 
-#define LOG_INSERT	1  /* prime row as DV_STRING */
-#define LOG_UPDATE	2  /* prime key as DV_STRING, cols as DV_ARRAY_OF_LONG,
-			      value as DV_ARRAY_OF_POINTER */
-#define LOG_DELETE	3  /* prime key as DV_STRING */
+#define LOG_INSERT	1	/* prime row as DV_STRING */
+#define LOG_UPDATE	2	/* prime key as DV_STRING, cols as DV_ARRAY_OF_LONG,
+				   value as DV_ARRAY_OF_POINTER */
+#define LOG_DELETE	3	/* prime key as DV_STRING */
 #define LOG_COMMIT	4
 #define LOG_ROLLBACK	5
 #define LOG_DD_CHANGE	6
@@ -39,18 +39,18 @@
 
 
 #define LOG_CHECKPOINT	7
-#define LOG_ENDS	8  /* used to mark end of backup log on tape or raw device */
+#define LOG_ENDS	8	/* used to mark end of backup log on tape or raw device */
 #define LOG_INSERT_REPL	8
-#define LOG_INSERT_SOFT	9  /* prime key row follows, like insert. */
-#define LOG_TEXT	10 /* SQL string follows */
-#define LOG_SEQUENCE	11 /* series name, count */
-#define LOG_SEQUENCE_64	12 /* series name, count */
+#define LOG_INSERT_SOFT	9	/* prime key row follows, like insert. */
+#define LOG_TEXT	10	/* SQL string follows */
+#define LOG_SEQUENCE	11	/* series name, count */
+#define LOG_SEQUENCE_64	12	/* series name, count */
 #define LOG_KEY_INSERT 13
 #define LOG_KEY_DELETE 14
-#define LOG_USER_TEXT   15 /* SQL string log'd by an user */
+#define LOG_USER_TEXT   15	/* SQL string log'd by an user */
 
 
-#define LOGH_CL_2PC		0 /* string with commit flag and 8 byte lt_trx_no.  If not cluster pc, then null pointer. */
+#define LOGH_CL_2PC		0	/* string with commit flag and 8 byte lt_trx_no.  If not cluster pc, then null pointer. */
 #define LOGH_USER		1
 #define LOGH_REPLICATION 	2
 #define LOGH_BYTES		3
@@ -67,8 +67,8 @@
 #define REPLH_ACCOUNT		0
 #define REPLH_SERVER		1
 #define REPLH_LEVEL		2
-#define REPL_ORIGIN		3  /* name of origin server, use to detect cycles */
-#define REPLH_CIRCULATION	4  /* This and up to the box's end */
+#define REPL_ORIGIN		3	/* name of origin server, use to detect cycles */
+#define REPLH_CIRCULATION	4	/* This and up to the box's end */
 
 /* A LOG_CHANGE message is sent by the DBMS when making a checkpoint and
  * starting a new log.  It's a 2 element box with:
@@ -77,25 +77,26 @@
 #define LOGC_NEW_FILE		1
 #define LOGC_LENGTH		2
 
-typedef struct {
-  dk_mutex_t *	lre_mtx;
-  dk_hash_t *	lre_aqs; /** key_id_t => lre_queue_t */
-  stmt_options_t * lre_opts;
+typedef struct
+{
+  dk_mutex_t *lre_mtx;
+  dk_hash_t *lre_aqs;	 /** key_id_t => lre_queue_t */
+  stmt_options_t *lre_opts;
   int lre_aqr_count;   /** number of running requests */
   caddr_t lre_err;   /** the first reported error */
   int lre_stopped; /** after first error */
-  char	lre_need_sync;
-  dk_session_t * lre_in;
+  char lre_need_sync;
+  dk_session_t *lre_in;
 } lr_executor_t;
 
 
-#ifdef SQL_SUCCESS  /* If included in the DBMS code */
+#ifdef SQL_SUCCESS		/* If included in the DBMS code */
 void logh_set_level (lock_trx_t * lt, caddr_t * logh);
 
 int log_replay_trx (lr_executor_t * lr_executor, dk_session_t * in, client_connection_t * cli,
-		    caddr_t repl_head, int is_repl, int is_pushback, OFF_T log_rec_start);
+    caddr_t repl_head, int is_repl, int is_pushback, OFF_T log_rec_start);
 int log_replay_time (caddr_t * header);
-int log_write_replication (caddr_t * header, char * string, long bytes);
+int log_write_replication (caddr_t * header, char *string, long bytes);
 #endif
 
 void tcpses_set_fd (session_t * ses, int fd);
@@ -107,7 +108,7 @@ int log_check_header (caddr_t * header);
 extern uint32 log_last_2pc_archive_time;
 extern int log_in_cl_recov;
 int log_time (caddr_t * box);
-caddr_t * log_time_header (caddr_t dt);
+caddr_t *log_time_header (caddr_t dt);
 
 #define LOG_CL_2PC_PREPARE 0x11
 #define LOG_CL_2PC_PREPARE_FROM_SYNC 0x13
@@ -118,8 +119,8 @@ caddr_t * log_time_header (caddr_t dt);
 #define LOG_2PC_ABORT		0x02
 #define LOG_MTS_ENABLED		0x03
 #define LOG_2PC_DISABLED	0x04
-#define LOG_2PC_NO_MONITOR 0x12 /* recov query could not be made */
-#define LOG_2PC_NO_RECORD 0x0 /* not mentioned in logs */
+#define LOG_2PC_NO_MONITOR 0x12	/* recov query could not be made */
+#define LOG_2PC_NO_RECORD 0x0	/* not mentioned in logs */
 
 #define LOG_2PC_COMMIT_S	"\001"
 #define LOG_2PC_ABORT_S		"\002"

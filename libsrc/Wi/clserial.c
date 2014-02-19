@@ -40,18 +40,18 @@
 int
 rd_is_blob (row_delta_t * rd, int nth)
 {
-  dbe_key_t * key = rd->rd_key;
+  dbe_key_t *key = rd->rd_key;
   if (key->key_table && !key->key_table->tb_any_blobs)
     return 0;
   else
     {
       DO_CL (cl, key->key_row_var)
-	{
-	  if (nth < cl->cl_nth)
-	    return 0;
-	  if (cl->cl_nth == nth && IS_BLOB_DTP (cl->cl_sqt.sqt_dtp))
-	    return 1;
-	}
+      {
+	if (nth < cl->cl_nth)
+	  return 0;
+	if (cl->cl_nth == nth && IS_BLOB_DTP (cl->cl_sqt.sqt_dtp))
+	  return 1;
+      }
       END_DO_CL;
     }
   return 0;
@@ -62,10 +62,10 @@ dbe_col_loc_t *
 key_nth_cl (dbe_key_t * key, int nth)
 {
   DO_CL (cl, key->key_row_var)
-    {
-      if (cl->cl_nth == nth)
-	return cl;
-    }
+  {
+    if (cl->cl_nth == nth)
+      return cl;
+  }
   END_DO_CL;
   return NULL;
 }

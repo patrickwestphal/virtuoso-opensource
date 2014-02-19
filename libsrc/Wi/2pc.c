@@ -85,15 +85,12 @@ int tp_trx_exclude_001 (lock_trx_t * lt, struct rds_connection_s *rcon);
 int tp_trx_commit_1 (lock_trx_t * lt, int is_commit);
 int tp_trx_commit_2 (caddr_t distr_trx, int is_commit);
 
-int virt_recover_status (client_connection_t * cli, struct in_addr *addr,
-    unsigned long port, unsigned long trx_id);
+int virt_recover_status (client_connection_t * cli, struct in_addr *addr, unsigned long port, unsigned long trx_id);
 static void global_xa_init ();
 void DoSQLError (SQLHDBC hdbc, SQLHSTMT hstmt);
 char *virt_2pc_format_error_string (caddr_t err);
 
-caddr_t
-log_replay_entry (lock_trx_t * lt, dtp_t op, dk_session_t * in,
-    int is_pushback);
+caddr_t log_replay_entry (lock_trx_t * lt, dtp_t op, dk_session_t * in, int is_pushback);
 
 
 /*
@@ -102,8 +99,7 @@ log_replay_entry (lock_trx_t * lt, dtp_t op, dk_session_t * in,
 
 txa_info_t txi;
 
-txa_entry_t *txa_create_entry (void *xid, char *path, ptrlong offset,
-    char *res);
+txa_entry_t *txa_create_entry (void *xid, char *path, ptrlong offset, char *res);
 void txa_free_entry (txa_entry_t * e);
 caddr_t *txa_read_entries (int fd);
 void txa_write_info (int fd, caddr_t * info);
@@ -123,6 +119,7 @@ def_prepare_done (void *res, int trx_status)
   semaphore_leave (future->ft_sem);
   return 0;
 }
+
 static unsigned long
 def_commit_done (void *res, int trx_status)
 {
@@ -176,6 +173,7 @@ static queue_vtbl_t tp_vtbl = {
   def_abort_done,
   def_prep_log
 };
+
 static queue_vtbl_t xa_tp_vtbl = {
   def_prepare_done,
   def_commit_done,
@@ -224,13 +222,12 @@ mq_create_message (int type, void *resource, void *client_v)
   NEW_VARZ (tp_message_t, mm);
 
   mm->mm_type = type;
-  mm->mm_resource = (tp_future_t *)resource;
+  mm->mm_resource = (tp_future_t *) resource;
   mm->mm_trx = client->cli_trx;
   mm->mm_tp_data = client->cli_tp_data;
   mm->vtbl = &tp_vtbl;
 
-  if (((TP_COMMIT == type) ||
-	  (TP_ABORT == type)) && (fail_after_prepare == 0))
+  if (((TP_COMMIT == type) || (TP_ABORT == type)) && (fail_after_prepare == 0))
     {
       log_error ("raw_exit for 2PC recovery test");
       call_exit (0);
@@ -250,14 +247,13 @@ mq_create_xa_message (int type, void *resource, void *tp_data)
   NEW_VARZ (tp_message_t, mm);
 
   mm->mm_type = type;
-  mm->mm_resource = (tp_future_t *)resource;
+  mm->mm_resource = (tp_future_t *) resource;
   mm->mm_trx = tpd->cli_tp_lt;
   mm->mm_tp_data = tpd;
   mm->vtbl = &xa_tp_vtbl;
 
 #ifdef DEBUG
-  if (((TP_COMMIT == type) ||
-	  (TP_ABORT == type)) && (fail_after_prepare == 0))
+  if (((TP_COMMIT == type) || (TP_ABORT == type)) && (fail_after_prepare == 0))
     {
       GPF_T1 ("asked fail for testing purposes\n");
     }
@@ -278,8 +274,7 @@ long tc_no_client_in_tp_data = 0;
 
 
 static void
-tp_free_cli_after_unenlist (client_connection_t * client,
-    struct tp_data_s *tp_data)
+tp_free_cli_after_unenlist (client_connection_t * client, struct tp_data_s *tp_data)
 {
   int free_after_unenlist;
 
@@ -289,8 +284,7 @@ tp_free_cli_after_unenlist (client_connection_t * client,
 #ifndef NDEBUG
       tc_initial_while_closing_died++;
 #endif
-      _2pc_printf (("deferred client_died of the client connection %p",
-	      client));
+      _2pc_printf (("deferred client_died of the client connection %p", client));
       srv_client_connection_died (client);
     }
 }
@@ -350,8 +344,7 @@ tp_message_hook (void *queue_v)
 	};
 
       _2pc_printf (("got message %s %x %x", (mm->mm_type == TP_COMMIT) ?
-	      "commit" : ((mm->mm_type == TP_PREPARE) ?
-		  "prepare" : "abort"), client, tp_data->cli_tp_lt));
+	      "commit" : ((mm->mm_type == TP_PREPARE) ? "prepare" : "abort"), client, tp_data->cli_tp_lt));
 
       IN_TXN;
       if (!tp_data->tpd_client_is_reset)
@@ -366,8 +359,7 @@ tp_message_hook (void *queue_v)
 		GPF_T;
 
 	      lt_log_debug (("lt_start lt=%x, thrs=%d st=%d\n",
-		      tp_data->cli_tp_lt, tp_data->cli_tp_lt->lt_threads,
-		      tp_data->cli_tp_lt->lt_status));
+		      tp_data->cli_tp_lt, tp_data->cli_tp_lt->lt_threads, tp_data->cli_tp_lt->lt_status));
 	      tp_data->tpd_last_act = mm->mm_type;
 	      tp_data->cli_tp_lt->lt_2pc._2pc_type = tp_data->cli_trx_type;
 	      tp_data->tpd_client_is_reset = 1;
@@ -391,8 +383,7 @@ tp_message_hook (void *queue_v)
     ready:
       if (tp_data->cli_tp_enlisted == CONNECTION_LOCAL)
 	{
-	  lt_log_debug (("tp_msg_hook : msg %d on a non-enlisted lt. skip.\n",
-		  (int) mm->mm_type));
+	  lt_log_debug (("tp_msg_hook : msg %d on a non-enlisted lt. skip.\n", (int) mm->mm_type));
 	  goto free;
 	}
 
@@ -404,10 +395,8 @@ tp_message_hook (void *queue_v)
 	    lt_log_debug (
 		("tp_msg_hook commit tp_data=%p client=%p cli_tp_data=%p type=%d, enlisted=%d\n",
 		    tp_data, client, client ? client->cli_tp_data : NULL,
-		    tp_data->cli_tp_lt->lt_2pc._2pc_type,
-		    client->cli_tp_data->cli_tp_enlisted));
-	    mm->vtbl->commit_done (mm->mm_resource,
-		cli_2pc_transact (tp_data->cli_tp_lt, SQL_COMMIT));
+		    tp_data->cli_tp_lt->lt_2pc._2pc_type, client->cli_tp_data->cli_tp_enlisted));
+	    mm->vtbl->commit_done (mm->mm_resource, cli_2pc_transact (tp_data->cli_tp_lt, SQL_COMMIT));
 	    lt_log_debug (
 		("tp_msg_hook commit tp_data=%p client=%p cli_tp_data=%p done\n",
 		    tp_data, client, client ? client->cli_tp_data : NULL));
@@ -424,8 +413,7 @@ tp_message_hook (void *queue_v)
 	    lt_log_debug (
 		("tp_msg_hook prepare tp_data=%p client=%p cli_tp_data=%p type=%d, enlisted=%d\n",
 		    tp_data, client, client ? client->cli_tp_data : NULL,
-		    tp_data->cli_tp_lt->lt_2pc._2pc_type,
-		    tp_data->cli_tp_enlisted));
+		    tp_data->cli_tp_lt->lt_2pc._2pc_type, tp_data->cli_tp_enlisted));
 	    mm->vtbl->prepare_set_log (mm);
 	    res = cli_2pc_prepare (tp_data->cli_tp_lt);
 	    mm->vtbl->prepare_done (mm->mm_resource, res);
@@ -447,10 +435,8 @@ tp_message_hook (void *queue_v)
 	    lt_log_debug (
 		("tp_msg_hook abort tp_data=%p client=%p cli_tp_data=%p type=%d, enlisted=%d\n",
 		    tp_data, client, client ? client->cli_tp_data : NULL,
-		    tp_data->cli_tp_lt->lt_2pc._2pc_type,
-		    tp_data->cli_tp_enlisted));
-	    mm->vtbl->abort_done (mm->mm_resource,
-		cli_2pc_transact (tp_data->cli_tp_lt, SQL_ROLLBACK));
+		    tp_data->cli_tp_lt->lt_2pc._2pc_type, tp_data->cli_tp_enlisted));
+	    mm->vtbl->abort_done (mm->mm_resource, cli_2pc_transact (tp_data->cli_tp_lt, SQL_ROLLBACK));
 	    lt_log_debug (
 		("tp_msg_hook abort tp_data=%p client=%p cli_tp_data=%p done\n",
 		    tp_data, client, client ? client->cli_tp_data : NULL));
@@ -468,21 +454,18 @@ tp_message_hook (void *queue_v)
       dk_free (mm, sizeof (tp_message_t));
 #ifdef MQ_DEBUG
       _2pc_printf (("aborts %ld commits %ld prepares %ld errors %ld\n",
-	      queue->mq_aborts, queue->mq_commits,
-	      queue->mq_prepares, queue->mq_errors));
+	      queue->mq_aborts, queue->mq_commits, queue->mq_prepares, queue->mq_errors));
 #endif
     }
 
-  /*NOTREACHED*/
-  return 0;
+   /*NOTREACHED*/ return 0;
 }
 
 int
 cli_2pc_prepare (lock_trx_t * lt)
 {
   unsigned long prepared = 0;
-  _2pc_printf (("cli_2pc_prepare... %x %d", lt->lt_2pc._2pc_prepared,
-	  lt->lt_status));
+  _2pc_printf (("cli_2pc_prepare... %x %d", lt->lt_2pc._2pc_prepared, lt->lt_status));
   IN_TXN;
   if (LT_PENDING == lt->lt_status)
     lt->lt_status = LT_PREPARE_PENDING;
@@ -491,8 +474,7 @@ cli_2pc_prepare (lock_trx_t * lt)
       LEAVE_TXN;
       return LTE_DEADLOCK;
     }
-  if ((LTE_OK != lt->lt_error) ||
-      ((caddr_t) TP_PREPARE_CHKPNT == lt->lt_2pc._2pc_prepared))
+  if ((LTE_OK != lt->lt_error) || ((caddr_t) TP_PREPARE_CHKPNT == lt->lt_2pc._2pc_prepared))
     {
       LEAVE_TXN;
       return LTE_DEADLOCK;
@@ -529,24 +511,23 @@ cli_2pc_transact (lock_trx_t * lt, int operation)
   if (lt->lt_status == LT_COMMITTED && !LT_IS_RUNNING (lt))
     {
       lt_threads_inc_inner (lt);
-      LT_CLOSE_ACK_THREADS(lt);
+      LT_CLOSE_ACK_THREADS (lt);
       lt->lt_close_ack_threads++;
-    lt_2pc_commit (lt);
+      lt_2pc_commit (lt);
     }
   else
     lt_kill_other_trx (lt, NULL, NULL, LT_KILL_ROLLBACK);
 
   if (lt->lt_error != LTE_OK)
     {
-      lt_log_debug (("cli_2pc_transact op=%d result=%d lt=%p cli=%p", operation,
-	    (int) lt->lt_error, lt, lt->lt_client));
+      lt_log_debug (("cli_2pc_transact op=%d result=%d lt=%p cli=%p", operation, (int) lt->lt_error, lt, lt->lt_client));
     }
-  lt->lt_2pc._2pc_wait_commit = 0; /* commit happened */
+  lt->lt_2pc._2pc_wait_commit = 0;	/* commit happened */
   LEAVE_TXN;
   return lt->lt_error;
 }
 
-extern dk_mutex_t * log_write_mtx;
+extern dk_mutex_t *log_write_mtx;
 
 int
 lt_2pc_prepare (lock_trx_t * lt)
@@ -614,8 +595,8 @@ lt_2pc_commit (lock_trx_t * lt)
   else
     {
       if (state == LT_FINAL_COMMIT_PENDING)
-	{ /* we're in lt_ack_close: set the treads */
-	  LT_CLOSE_ACK_THREADS(lt);
+	{			/* we're in lt_ack_close: set the treads */
+	  LT_CLOSE_ACK_THREADS (lt);
 	  lt->lt_close_ack_threads++;
 	}
       lt_transact (lt, SQL_COMMIT);
@@ -650,12 +631,10 @@ tp_wait_commit (client_connection_t * client)
   if (client->cli_tp_data && client->cli_tp_data->cli_tp_lt)
     {
       lt_log_debug (
-	  ("tp_wait_commit before sem_enter cli=%p tp_data=%p lt=%p", client,
-	      client->cli_tp_data, client->cli_tp_data->cli_tp_lt));
+	  ("tp_wait_commit before sem_enter cli=%p tp_data=%p lt=%p", client, client->cli_tp_data, client->cli_tp_data->cli_tp_lt));
       semaphore_enter (client->cli_tp_data->cli_tp_sem2);
       lt_log_debug (("tp_wait_commit after sem_enter cli=%p tp_data=%p lt=%p",
-	      client, client->cli_tp_data,
-	      client->cli_tp_data ? client->cli_tp_data->cli_tp_lt : NULL));
+	      client, client->cli_tp_data, client->cli_tp_data ? client->cli_tp_data->cli_tp_lt : NULL));
       if (client->cli_tp_data)
 	{
 	  struct tp_data_s *tp_data;
@@ -692,8 +671,7 @@ int
 tp_retire (query_instance_t * qi)
 {
   lock_trx_t *lt = qi->qi_client->cli_trx;
-  _2pc_printf (("*** tp_retire cli %x lt %x st %d\n",
-	  qi->qi_client, lt, lt->lt_status));
+  _2pc_printf (("*** tp_retire cli %x lt %x st %d\n", qi->qi_client, lt, lt->lt_status));
   if (LT_BLOWN_OFF == lt->lt_status || LT_DELTA_ROLLED_BACK == lt->lt_status)
     lt->lt_status = LT_PENDING;
   return 0;
@@ -794,8 +772,7 @@ bif_2pc_enlist_001 (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   query_instance_t *qi = (query_instance_t *) QST_INSTANCE (qst);
   client_connection_t *cli = qi->qi_client;
-  caddr_t branch_cookie =
-      bif_string_arg (qst, args, 0, "virt_tp_update_cli_001");
+  caddr_t branch_cookie = bif_string_arg (qst, args, 0, "virt_tp_update_cli_001");
   NEW_VARZ (tp_data_t, tpd);
   _2pc_printf (("bif_2pc_enlist... %x %x", cli, cli->cli_trx));
   tpd->cli_tp_enlisted = CONNECTION_PREPARED;
@@ -849,8 +826,7 @@ exec_trx_sql_1 (client_connection_t * cli, char *pl_call_text, int params,
   if (global_lock)
     LEAVE_TXN;
 
-  err = qr_rec_exec (qr, cli, &lc, CALLER_LOCAL, NULL, params,
-      ":0", (ptrlong) trx_id, QRP_INT, ":1", state, QRP_STR);
+  err = qr_rec_exec (qr, cli, &lc, CALLER_LOCAL, NULL, params, ":0", (ptrlong) trx_id, QRP_INT, ":1", state, QRP_STR);
   if (SQL_SUCCESS != err)
     {
       if (err_ret)
@@ -893,8 +869,7 @@ virt_trx_id_t
 tp_add_transaction_entry (client_connection_t * cli, char **err_ret)
 {
   static char *pl_call_text = "_2PC.DBA._0001_ADD_ENTRY()";
-  return (virt_trx_id_t) (ptrlong) exec_trx_sql_1 (cli, pl_call_text, 0, 0, 0,
-      err_ret, 1);
+  return (virt_trx_id_t) (ptrlong) exec_trx_sql_1 (cli, pl_call_text, 0, 0, 0, err_ret, 1);
 }
 
 virt_branch_id_t
@@ -908,8 +883,7 @@ tp_add_remote (client_connection_t * cli, virt_trx_t * vtrx, char **err_ret)
 
 /* returns zero if failed */
 int
-virt_trx_set_state (client_connection_t * cli, virt_trx_id_t trx_id,
-    const char *state_str)
+virt_trx_set_state (client_connection_t * cli, virt_trx_id_t trx_id, const char *state_str)
 {
   static char *pl_call_text = "_2PC.DBA._0001_TRX_SSTATE (?,?)";
   char *err = NULL;
@@ -917,8 +891,7 @@ virt_trx_set_state (client_connection_t * cli, virt_trx_id_t trx_id,
   if (err)
     {
       _2pc_printf (
-	  ("failed to set new state [%s] for transaction [%ld] err = %s",
-	      state_str, trx_id, virt_2pc_format_error_string (err)));
+	  ("failed to set new state [%s] for transaction [%ld] err = %s", state_str, trx_id, virt_2pc_format_error_string (err)));
       return 0;
     }
   return 1;
@@ -1042,8 +1015,7 @@ tp_get_server_uuid ()
       caddr_t srv_uuid = dk_alloc_box (sizeof (trx_uuid_t), DV_SHORT_STRING);
       trx_uuid_t trx_uuid;
       memset (&trx_uuid, 0, sizeof (trx_uuid_t));
-      memcpy (trx_uuid.p_uuid.addr, (unsigned char *) (local->h_addr_list[0]),
-	  sizeof (trx_uuid.p_uuid.addr));
+      memcpy (trx_uuid.p_uuid.addr, (unsigned char *) (local->h_addr_list[0]), sizeof (trx_uuid.p_uuid.addr));
       memcpy (srv_uuid, &trx_uuid.raw, sizeof (trx_uuid_t));
       return srv_uuid;
     }
@@ -1059,6 +1031,7 @@ tp_set_trx_id (caddr_t trx_uuid_rw, long trx_id)
   trx_uuid_t *trx_uuid = (trx_uuid_t *) trx_uuid_rw;
   trx_uuid->p_uuid.trx_id = htonl (trx_id);
 }
+
 static void
 tp_set_port (caddr_t trx_uuid_rw, long port)
 {
@@ -1142,8 +1115,7 @@ tp_trx_exclude_001 (lock_trx_t * lt, rds_connection_t * rcon)
   future_t *f;
 
   _2pc_printf (("tp_trx_exclude... "));
-  f = PrpcFuture (dbc->con_session, &s_sql_tp_transact, SQL_TP_UNENLIST,
-      NULL);
+  f = PrpcFuture (dbc->con_session, &s_sql_tp_transact, SQL_TP_UNENLIST, NULL);
   res = PrpcFutureNextResult (f);
   PrpcFutureFree (f);
   _2pc_printf ((" done.\n"));
@@ -1215,12 +1187,10 @@ virt_tp_create ()
 }
 
 static caddr_t
-bif_mts_fail_after_prepare (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_mts_fail_after_prepare (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   _2pc_printf (("setting fail_after_prepare"));
-  fail_after_prepare =
-      (long) bif_long_arg (qst, args, 0, "mts_fail_after_prepare");
+  fail_after_prepare = (long) bif_long_arg (qst, args, 0, "mts_fail_after_prepare");
   return NEW_DB_NULL;
 }
 
@@ -1274,8 +1244,7 @@ xid_hash (caddr_t xid_v)
 static int
 xidhashcmp (caddr_t x1, caddr_t x2)
 {
-  return 0 == memcmp (((virtXID **) x1)[0], ((virtXID **) x2)[0],
-      sizeof (uuid_t));
+  return 0 == memcmp (((virtXID **) x1)[0], ((virtXID **) x2)[0], sizeof (uuid_t));
 }
 
 char *xa_persistent_file = "test.xa";
@@ -1284,16 +1253,11 @@ static void
 global_xa_init ()
 {
   global_xa_map = (virt_xa_map_t *) dk_alloc (sizeof (virt_xa_map_t));
-  global_xa_map->xm_xids =
-      id_hash_allocate (231, sizeof (caddr_t), sizeof (caddr_t), xid_hash,
-      xidhashcmp);
-  global_xa_map->xm_log_xids =
-      id_hash_allocate (231, sizeof (caddr_t), sizeof (caddr_t), xid_hash,
-      xidhashcmp);
+  global_xa_map->xm_xids = id_hash_allocate (231, sizeof (caddr_t), sizeof (caddr_t), xid_hash, xidhashcmp);
+  global_xa_map->xm_log_xids = id_hash_allocate (231, sizeof (caddr_t), sizeof (caddr_t), xid_hash, xidhashcmp);
   global_xa_map->xm_mtx = mutex_allocate ();
   if (-1 == txa_open (xa_persistent_file))
-    log_error ("could not read/create XA persistent file %s",
-	xa_persistent_file);
+    log_error ("could not read/create XA persistent file %s", xa_persistent_file);
 
 }
 
@@ -1315,7 +1279,7 @@ virt_xa_add_trx (void *xid, lock_trx_t * lt)
   if (x == 0)
     {
       xa_id_t *xx = (xa_id_t *) dk_alloc (sizeof (xa_id_t));
-      tp_data_t * tpd = (tp_data_t*)dk_alloc (sizeof (tp_data_t));
+      tp_data_t *tpd = (tp_data_t *) dk_alloc (sizeof (tp_data_t));
       memset (tpd, 0, sizeof (tp_data_t));
       memcpy (&xx->xid, xid, sizeof (virtXID));
       virt_xa_tp_set_xid (tpd, xid);
@@ -1416,7 +1380,8 @@ virt_xa_client (void *xid, client_connection_t * cli, struct tp_data_s **tpd, in
 
   if (!xx)
     {
-      if ((op == SQL_XA_COMMIT) || (op == SQL_XA_WAIT) || (op == SQL_XA_RESUME) || (op == SQL_XA_ENLIST_END) || (op == SQL_XA_SUSPEND))
+      if ((op == SQL_XA_COMMIT) || (op == SQL_XA_WAIT) || (op == SQL_XA_RESUME) || (op == SQL_XA_ENLIST_END)
+	  || (op == SQL_XA_SUSPEND))
 	{
 	  mutex_leave (global_xa_map->xm_mtx);
 	  return -1;
@@ -1483,7 +1448,7 @@ virt_xa_remove_xid (void *xid)
   xx = (xa_id_t **) id_hash_get (global_xa_map->xm_xids, (caddr_t) & xid);
   if (xx)
     {
-      xa_id_t * x = xx[0];
+      xa_id_t *x = xx[0];
       x->xid_cli->cli_tp_data = NULL;
       id_hash_remove (global_xa_map->xm_xids, (caddr_t) & xid);
       if (x->xid_sem)
@@ -1605,8 +1570,7 @@ virt_xa_replay_trx (void *xid, caddr_t trx, struct client_connection_s *cli)
 }
 
 static caddr_t
-bif_heuristic_transact (caddr_t * qst, caddr_t * err_ret,
-    state_slot_t ** args)
+bif_heuristic_transact (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t tr_xid = bif_string_arg (qst, args, 0, "heuristic_transact");
   int is_commit = (int) bif_long_arg (qst, args, 1, "heuristic_transact");
@@ -1616,8 +1580,7 @@ bif_heuristic_transact (caddr_t * qst, caddr_t * err_ret,
   mutex_enter (global_xa_map->xm_mtx);
   {
     int result;
-    caddr_t trlog =
-	(caddr_t) id_hash_get (global_xa_map->xm_log_xids, (caddr_t) & xid);
+    caddr_t trlog = (caddr_t) id_hash_get (global_xa_map->xm_log_xids, (caddr_t) & xid);
     if (!trlog)
       {
 	mutex_leave (global_xa_map->xm_mtx);
@@ -1655,18 +1618,15 @@ bif_txa_bin_encode (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return xid_bin_encode (xid);
 }
 
-static caddr_t
-bif_txa_get_all_trx (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+static caddr_t bif_txa_get_all_trx (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 
 void
 tp_bif_init ()
 {
   /* compatibility */
   bif_define_ex ("tp_enlist", bif_2pc_enlist, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_typed ("virt_tp_update_cli_001", bif_2pc_enlist_001,
-      &bt_integer);
-  bif_define_typed ("__mts_fail_after_prepare", bif_mts_fail_after_prepare,
-      &bt_integer);
+  bif_define_typed ("virt_tp_update_cli_001", bif_2pc_enlist_001, &bt_integer);
+  bif_define_typed ("__mts_fail_after_prepare", bif_mts_fail_after_prepare, &bt_integer);
 
   /* XA xid mapping init */
   global_xa_init ();
@@ -1826,7 +1786,7 @@ txa_add_entry (txa_entry_t * e)
 void
 txa_remove_entry (void *xid, int check)
 {
-  txa_entry_t * e;
+  txa_entry_t *e;
   mutex_enter (global_xa_map->xm_mtx);
   if (NULL != (e = txa_search_trx (xid)))
     {
@@ -1866,8 +1826,7 @@ txa_serialize (txa_entry_t ** ppe)
   int inx;
   DO_BOX (txa_entry_t *, e, inx, ppe)
   {
-    caddr_t *ser_e =
-	(caddr_t *) dk_alloc_box (4 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+    caddr_t *ser_e = (caddr_t *) dk_alloc_box (4 * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
     ser_e[0] = box_copy (e->txe_id);
     ser_e[1] = box_copy (e->txe_path);
     ser_e[2] = box_copy (e->txe_offset);
@@ -1924,8 +1883,7 @@ txa_search_trx (void *xid)
       /* use hash later */
       for (idx = 0; idx < BOX_ELEMENTS_INT (txi.txi_parsed_info); idx++)
 	{
-	  if (!memcmp (xid, txi.txi_parsed_info[idx]->txe_id,
-		  box_length (xid)))
+	  if (!memcmp (xid, txi.txi_parsed_info[idx]->txe_id, box_length (xid)))
 	    return txi.txi_parsed_info[idx];
 	}
     }
@@ -1968,12 +1926,9 @@ _txa_test ()
 {
   int res = txa_open ("trx.xa");
   log_info ("txa_open result = %d", res);
-  txa_add_entry (txa_create_entry (box_string ("hello"),
-	  box_string ("virtuoso.trx"), 10001, box_string ("PRP")));
-  txa_add_entry (txa_create_entry (box_string ("hello1"),
-	  box_string ("virtuoso.trx"), 10002, box_string ("PRP")));
-  txa_add_entry (txa_create_entry (box_string ("hello2"),
-	  box_string ("virtuoso.trx"), 10003, box_string ("CMT")));
+  txa_add_entry (txa_create_entry (box_string ("hello"), box_string ("virtuoso.trx"), 10001, box_string ("PRP")));
+  txa_add_entry (txa_create_entry (box_string ("hello1"), box_string ("virtuoso.trx"), 10002, box_string ("PRP")));
+  txa_add_entry (txa_create_entry (box_string ("hello2"), box_string ("virtuoso.trx"), 10003, box_string ("CMT")));
   res = txa_write ();
   log_info ("txa_write result = %d", res);
   txi.txi_parsed_info = 0;
@@ -1985,16 +1940,13 @@ _txa_test ()
       {
 	txa_entry_t **ppe = txi.txi_parsed_info;
 	log_info ("txe_entry [ %s %s %d %s]",
-	    ppe[idx]->txe_id,
-	    ppe[idx]->txe_path,
-	    unbox (ppe[idx]->txe_offset), ppe[idx]->txe_res);
+	    ppe[idx]->txe_id, ppe[idx]->txe_path, unbox (ppe[idx]->txe_offset), ppe[idx]->txe_res);
       }
   }
 }
 
 int
-server_logmsg_ap (int level, char *file, int line, int mask, char *format,
-      va_list ap)
+server_logmsg_ap (int level, char *file, int line, int mask, char *format, va_list ap)
 {
   return logmsg_ap (level, file, line, mask, format, ap);
 }
