@@ -43,9 +43,6 @@
 #include "xmltree.h"		/* For trick with precompilation of strings that are XPATH/XQuery expressions */
 #include "xpf.h"
 
-#ifndef NO_OPL_KIT
-#include "license.h"
-#endif
 
 
 void yyerror (const char *s);
