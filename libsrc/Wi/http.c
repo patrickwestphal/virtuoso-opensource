@@ -435,12 +435,87 @@ http_acl_match (caddr_t * alist, caddr_t name, ccaddr_t dst, int obj_id, int rw_
   return -1;			/* not found */
 }
 
+int32 enable_http_acl_restrictions = 1;
+
+static int
+ws_check_acl_restrictions (ws_connection_t * ws, acl_hit_t ** hit)
+{
+  static query_t *qr = NULL;
+  client_connection_t *cli = ws->ws_cli;
+  query_t *proc;
+  caddr_t err = NULL;
+  int rc = 1;
+  local_cursor_t *lc = NULL;
+
+  if (!enable_http_acl_restrictions)
+    return 1;
+
+  if (!(proc = (query_t *) sch_name_to_object (wi_inst.wi_schema, sc_to_proc, "DB.DBA.HTTP_RESTRICTIONS_GET", NULL, "dba", 0)))
+    {
+      err = srv_make_new_error ("42000", "HT058", "The stored procedure DB.DBA.HTTP_RESTRICTIONS_GET does not exist");
+      goto error_end;
+    }
+  if (!sec_user_has_group (G_ID_DBA, proc->qr_proc_owner))
+    {
+      err = srv_make_new_error ("42000", "HT059", "The stored procedure DB.DBA.HTTP_RESTRICTIONS_GET is not property of DBA group");
+      goto error_end;
+    }
+  if (proc->qr_to_recompile)
+    {
+      proc = qr_recompile (proc, &err);
+      if (err)
+	goto error_end;
+    }
+  if (!qr)
+    qr = sql_compile_static ("DB.DBA.HTTP_RESTRICTIONS_GET ()", bootstrap_cli, &err, SQLC_DEFAULT);
+  ws->ws_cli->cli_http_ses = ws->ws_strses;
+  ws->ws_cli->cli_ws = ws;
+  IN_TXN;
+  lt_wait_checkpoint ();
+  lt_threads_set_inner (cli->cli_trx, 1);
+  LEAVE_TXN;
+  err = qr_quick_exec (qr, cli, NULL, &lc, 0);
+  IN_TXN;
+  if (err && (err != (caddr_t) SQL_NO_DATA_FOUND))
+    lt_rollback (cli->cli_trx, TRX_CONT);
+  else
+    lt_commit (cli->cli_trx, TRX_CONT);
+  CLI_NEXT_USER (cli);
+  lt_threads_set_inner (cli->cli_trx, 0);
+  LEAVE_TXN;
+
+  if (!err && lc && DV_ARRAY_OF_POINTER == DV_TYPE_OF (lc->lc_proc_ret) && BOX_ELEMENTS ((caddr_t *) lc->lc_proc_ret) > 1 &&
+      ARRAYP (((caddr_t *) lc->lc_proc_ret)[1]) && BOX_ELEMENTS (((caddr_t *) lc->lc_proc_ret)[1]) > 3)
+    {
+      caddr_t *ret = (caddr_t *) (((caddr_t *) lc->lc_proc_ret)[1]);
+      ws_acl_t acl;
+      caddr_t name = DV_STRINGP (ret[1]) ? ret[1] : ws->ws_client_ip;
+
+      memset (&acl, 0, sizeof (ws_acl_t));
+      acl.ha_rate = unbox (ret[0]);
+      acl.ha_flag = (acl.ha_rate > 0);
+      acl.ha_limit = unbox (ret[2]);
+      ws->ws_body_limit = acl.ha_limit;
+      if (http_acl_check_rate (&acl, name, ACL_CHECK_HITS, -1, hit))
+	rc = 0;
+    }
+error_end:
+  if (err)
+    dk_free_tree (err);
+  if (lc)
+    lc_free (lc);
+  return rc;
+}
+
 static int
 ws_check_acl (ws_connection_t * ws, acl_hit_t ** hit)
 {
   static char *szHttpAclName = "HTTP";
   caddr_t *list, **plist;
   int rc = 1;			/* all enabled by default */
+
+  if (!ws_check_acl_restrictions (ws, hit))
+    return 0;
 
   plist = (caddr_t **) id_hash_get (http_acls, (caddr_t) & szHttpAclName);
   list = plist ? *plist : NULL;

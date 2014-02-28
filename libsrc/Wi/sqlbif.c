@@ -7217,10 +7217,12 @@ caddr_t BIF_NAME (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)\
 #define RNG_Q 127773L		/* m div a */
 #define RNG_R 2836L		/* m mod a */
 /* 32 bit seed */
-    int32 rnd_seed;
+     int32
+	 rnd_seed;
 
 /* another 32 bit seed used in blobs */
-int32 rnd_seed_b;
+     int32
+	 rnd_seed_b;
 
 
 #if 0
@@ -12457,7 +12459,8 @@ end:
     cl_ddl (qi, qi->qi_trx, name, is_trig ? CLO_DDL_TRIG : CLO_DDL_PROC, tb_name);
   if (qi->qi_trx->lt_branch_of && !qi->qi_client->cli_is_log)
     {
-      caddr_t *arr = is_trig ? (caddr_t *) list (3, box_dv_short_string ("__proc_changed (?, ?)"), box_dv_short_string (name),
+      caddr_t *arr = is_trig
+	  ? (caddr_t *) list (3, box_dv_short_string ("__proc_changed (?, ?)"), box_dv_short_string (name),
 	  box_dv_short_string (tb_name)) : (caddr_t *) list (2, box_dv_short_string ("__proc_changed (?)"),
 	  box_dv_short_string (name));
       log_text_array (qi->qi_trx, (caddr_t) arr);
