@@ -225,12 +225,19 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
     case DFE_TABLE:
       {
 	char spacing[40];
+	char key_str2[100];
+	char *key_str = key_str2;
+	if (dfe->_.table.key)
+	  key_str = dfe->_.table.key->key_name;
+	else
+	  snprintf (key_str2, sizeof (key_str2), "no key %s", dfe->_.table.ot->ot_table->tb_name);
+
 	spacing[0] = 0;
 	if (dfe->_.table.hit_spacing)
 	  snprintf (spacing, sizeof (spacing), "%s spacing %9.2g", dfe->_.table.in_order ? "in order" : "",
 	      dfe->_.table.hit_spacing);
-	sqlo_print ((" key %s (%s %s) %s %s", dfe->_.table.key ? dfe->_.table.key->key_name : "no key",
-		dfe->_.table.ot->ot_prefix ? dfe->_.table.ot->ot_prefix : "", dfe->_.table.ot->ot_new_prefix,
+	sqlo_print ((" key %s (%s %s) %s %s", key_str, dfe->_.table.ot->ot_prefix ? dfe->_.table.ot->ot_prefix : "",
+		dfe->_.table.ot->ot_new_prefix,
 		dfe->_.table.hash_role == HR_FILL ? " hash filler " : dfe->_.table.hash_role == HR_REF ? "hash join" : "",
 		dfe->_.table.is_cl_part_first ? "cl new partition" : ""));
 	if (compiler_unit_msecs)
@@ -359,6 +366,23 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	      sqlo_print (("  unit %9.2g arity %9.2g reached %7.2g \n",
 		      (double) dfe->dfe_unit, (double) dfe->dfe_arity, dfe->_.sub.in_arity));
 	    sqlo_print (("%*.*sOut cols :\n", offset, offset, " "));
+	    if (dfe->_.sub.hash_filler)
+	      {
+		sqlo_print (("dt hash join, build:\n"));
+		sqlo_dfe_print (dfe->_.sub.hash_filler, offset);
+		if (dfe->_.sub.hash_ref_after_code)
+		  {
+		    sqlo_print (("\n code after hash probe:\n"));
+		    sqlo_dfe_print ((df_elt_t *) dfe->_.sub.hash_ref_after_code, offset);
+		  }
+		if (dfe->_.sub.join_test)
+		  {
+		    sqlo_print (("\n after join test:\n"));
+		    sqlo_dfe_print ((df_elt_t *) dfe->_.sub.join_test, offset);
+		  }
+		sqlo_print (("}\n"));
+		return;
+	      }
 	    DO_BOX (df_elt_t *, out, inx, dfe->_.sub.dt_out)
 	    {
 	      sqlo_dfe_print (out, offset + OFS_INCR);
@@ -385,6 +409,12 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	  }
 	sqlo_print (("%*.*s", offset, offset, " "));
 	sqlo_print (("}\n"));
+	if (dfe->_.sub.join_test)
+	  {
+	    sqlo_print (("\n join test:\n"));
+	    sqlo_dfe_print ((df_elt_t *) dfe->_.sub.join_test, offset);
+	  }
+
 	if (dfe->_.sub.after_join_test)
 	  {
 	    sqlo_print (("%*.*s", offset, offset, " "));

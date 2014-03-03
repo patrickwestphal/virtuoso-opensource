@@ -264,10 +264,19 @@ hi_free (hash_index_t * hi)
 {
   if (hi->hi_chash)
     {
+      if (hi->hi_thread_cha)
+	{
+	  DO_HT (ptrlong, k, chash_t *, slice_cha, hi->hi_thread_cha)
+	  {
+	    /* a partitioned chash or a mt build hash build has the same mp in all the threads but a group by that is used as a partitioned chash build side has a different mp in each */
+	    if (slice_cha->cha_pool && slice_cha->cha_pool != hi->hi_chash->cha_pool)
+	      mp_free (slice_cha->cha_pool);
+	  }
+	  END_DO_HT;
+	  hash_table_free (hi->hi_thread_cha);
+	}
       cha_free (hi->hi_chash);
       hi->hi_pool = NULL;
-      if (hi->hi_thread_cha)
-	hash_table_free (hi->hi_thread_cha);
     }
   if (hi->hi_memcache)
     {
@@ -1357,6 +1366,13 @@ memcache_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
   data_col_t *set_no_dc = NULL;
   if (ks->ks_set_no_col_ssl || SSL_VEC != setp->setp_ha->ha_tree->ssl_type)
     n_sets = 1;
+  if (!state)
+    {
+      hit = (id_hash_iterator_t *) qst_get (inst, ks->ks_proc_set_ctr);
+      /* This can start via a continue.  If so and not inited, do as if it started with a state */
+      if (!hit)
+	state = inst;
+    }
   if (state)
     {
       QST_INT (inst, ts->clb.clb_nth_set) = 0;
@@ -1365,8 +1381,6 @@ memcache_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
       qst_set (inst, ks->ks_proc_set_ctr, (caddr_t) hit);
       id_hash_iterator (hit, hi->hi_memcache);
     }
-  else
-    hit = (id_hash_iterator_t *) qst_get (inst, ks->ks_proc_set_ctr);
   if (ks->ks_set_no_col_ssl)
     set_no_dc = QST_BOX (data_col_t *, inst, ks->ks_set_no_col_ssl->ssl_index);
 next_batch:

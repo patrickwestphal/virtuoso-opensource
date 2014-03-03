@@ -1643,7 +1643,7 @@ aq_transact_func (caddr_t av, caddr_t * err_ret)
 
 
 
-int enable_mt_transact = 0;
+int enable_mt_transact = 1;
 
 void
 lt_transact (lock_trx_t * lt, int op)

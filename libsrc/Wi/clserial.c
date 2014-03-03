@@ -34,6 +34,7 @@
 #include "rdfinf.h"
 #include "xmlnode.h"
 #include "remote.h"
+#include "sqlrcomp.h"
 
 
 
@@ -69,3 +70,10 @@ key_nth_cl (dbe_key_t * key, int nth)
   END_DO_CL;
   return NULL;
 }
+
+/*CL6*/
+
+#define SER_WRITE
+#include "clserial.h"
+#undef SER_WRITE
+#include "clserial.h"

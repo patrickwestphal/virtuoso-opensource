@@ -688,7 +688,7 @@ fs_set_range (file_source_t * fs, caddr_t * inst, int n_slices, int nth_slice)
 {
   dk_session_t *ses = (dk_session_t *) QST_GET_V (inst, fs->fs_ses);
   int fd = tcpses_get_fd (ses->dks_session);
-  int64 len = lseek (fd, 0, SEEK_END);
+  int64 len = LSEEK (fd, 0, SEEK_END);
   int64 low = unbox (qst_get (inst, fs->fs_start_offset));
   int64 high = unbox (qst_get (inst, fs->fs_limit));
   int64 size, slice, low2, rc;
@@ -696,13 +696,15 @@ fs_set_range (file_source_t * fs, caddr_t * inst, int n_slices, int nth_slice)
     high = len;
   if (high > len)
     high = len;
+  if (low == 0)
+    low = fs->fs_skip_rows;
   if (low >= high)
     return 0;
   size = high - low;
   slice = size / n_slices;
   low2 = low + (slice * nth_slice);
   rc;
-  rc = lseek (fd, low2, SEEK_SET);
+  rc = LSEEK (fd, low2, SEEK_SET);
   ses->dks_bytes_received = 0;
   ses->dks_in_fill = 0;
   ses->dks_in_read = 0;
@@ -788,7 +790,7 @@ ft_ts_start_search (table_source_t * ts, caddr_t * inst)
   int set_save = qi->qi_set;
   file_table_t *ft = tb->tb_ft;
   caddr_t file_name;
-  int fd;
+  int fd, inx;
   qi->qi_set = 0;
   file_name = fs->fs_file_name ? qst_get (inst, fs->fs_file_name) : ft->ft_file;
   ITC_INIT (itc, NULL, NULL);
@@ -950,7 +952,7 @@ ft_ts_split (table_source_t * ts, caddr_t * inst, int n_sets)
     return 1;			/* cluster slice, fd already positioned */
   ses = (dk_session_t *) QST_GET_V (inst, fs->fs_ses);
   fd = tcpses_get_fd (ses->dks_session);
-  len = lseek (fd, 0, SEEK_END);
+  len = LSEEK (fd, 0, SEEK_END);
   low = unbox (qst_get (inst, fs->fs_start_offset));
   high = unbox (qst_get (inst, fs->fs_limit));
   if (-1 == high)
@@ -1182,6 +1184,30 @@ ft_char_opt (char *name, caddr_t * opts, char *ret, int must_have)
   return 0;
 }
 
+int
+ft_int_opt (char *name, caddr_t * opts, int *ret, int must_have)
+{
+  int inx, len = BOX_ELEMENTS (opts);
+  for (inx = 0; inx < len - 1; inx += 2)
+    {
+      caddr_t opt = opts[inx];
+      if (!DV_STRINGP (opt))
+	continue;
+      if (!stricmp (opt, name))
+	{
+	  caddr_t val = opts[inx + 1];
+	  if (DV_LONG_INT != DV_TYPE_OF (val))
+	    break;
+	  *ret = unbox (val);
+	  return 1;
+	}
+    }
+  if (must_have)
+    sqlr_new_error ("42000", "FTOPT", "File table required option %s not given", name);
+  return 0;
+}
+
+
 
 caddr_t
 bif_ft_file_table (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
@@ -1212,6 +1238,7 @@ bif_ft_file_table (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   ft_string_opt ("newline", opts, &ft->ft_newline, 1);
   ft_char_opt ("delimiter", opts, &ft->ft_delim, 1);
   ft_char_opt ("escape", opts, &ft->ft_escape, 0);
+  ft_int_opt ("skip_rows", opts, &ft->ft_skip_rows, 0);
   ft = (file_table_t *) tlsf_base_alloc (sizeof (file_table_t));
   memcpy (ft, &tft, sizeof (file_table_t));
   tb->tb_ft = ft;

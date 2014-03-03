@@ -61,7 +61,7 @@ select_node_input_subq_vec (select_node_t * sel, caddr_t * inst, caddr_t * state
 {
   QNCAST (query_instance_t, qi, inst);
   db_buf_t bits = NULL;
-  int n_rows, prev_set, row, top = 0, top_ctr, skip = 0;
+  int n_rows, row, top = 0, top_ctr, skip = 0;
   int bits_max;
   if (sel->src_gen.src_prev)
     n_rows = QST_INT (inst, sel->src_gen.src_prev->src_out_fill);
@@ -103,7 +103,6 @@ select_node_input_subq_vec (select_node_t * sel, caddr_t * inst, caddr_t * state
       top = unbox (qst_get (inst, sel->sel_top));
       if (sel->sel_top_skip)
 	skip = unbox (qst_get (inst, sel->sel_top_skip));
-      prev_set = unbox (QST_GET (inst, sel->sel_prev_set_no));
       top_ctr = state ? QST_INT (inst, sel->src_gen.src_out_fill) : 0;
     }
   if (sel->sel_vec_set_mask)
@@ -141,23 +140,37 @@ select_node_input_subq_vec (select_node_t * sel, caddr_t * inst, caddr_t * state
 	    bits = sel_extend_bits (sel, inst, set_no, &bits_max);
 	  bits[set_no >> 3] |= 1 << (set_no & 7);
 	}
+      return;
     }
   else if (SEL_VEC_SCALAR == sel->sel_vec_role && sel->sel_scalar_ret)
     {
       int64 *ext_sets = (int64 *) QST_BOX (data_col_t *, inst, sel->sel_ext_set_no->ssl_index)->dc_values;
+      data_col_t *out_dc = QST_BOX (data_col_t *, inst, sel->sel_out_slots[0]->ssl_index);
+      data_col_t *ret_dc = QST_BOX (data_col_t *, inst, sel->sel_out_slots[0]->ssl_index);
+      int box_direct = (DCT_BOXES & out_dc->dc_type) && (DCT_BOXES & ret_dc->dc_type) && SSL_VEC == sel->sel_out_slots[0]->ssl_type;
       db_buf_t bits = QST_BOX (db_buf_t, inst, sel->sel_vec_set_mask);
       for (row = 0; row < n_rows; row++)
 	{
-	  int set_no = sslr_set_no (inst, sel->sel_set_no, row);
+	  int set_no = sel->sel_set_no ? sslr_set_no (inst, sel->sel_set_no, row) : 0;
 	  int ext_set_no = ext_sets[set_no];
 	  if (ext_set_no > bits_max)
 	    bits = sel_extend_bits (sel, inst, ext_set_no, &bits_max);
 	  if (!(bits[ext_set_no >> 3] & (1 << (ext_set_no & 7))))
 	    {
 	      bits[ext_set_no >> 3] |= 1 << (ext_set_no & 7);
-	      dc_assign (inst, sel->sel_scalar_ret, ext_set_no, sel->sel_out_slots[0], row);
+
+	      if (box_direct)
+		{
+		  caddr_t box = ((caddr_t *) out_dc->dc_values)[row];
+		  ((caddr_t *) out_dc->dc_values)[row] = NULL;
+		  qi->qi_set = ext_set_no;
+		  qst_set (inst, sel->sel_scalar_ret, box);
+		}
+	      else
+		dc_assign (inst, sel->sel_scalar_ret, ext_set_no, sel->sel_out_slots[0], row);
 	    }
 	}
+      return;
     }
   else if (SEL_VEC_DT == sel->sel_vec_role)
     {
@@ -242,9 +255,7 @@ select_node_input_vec (select_node_t * sel, caddr_t * inst, caddr_t * state)
   QST_INT (inst, sel->sel_client_batch_start) = QST_INT (inst, sel->src_gen.src_out_fill);
   for (row = QST_INT (inst, sel->src_gen.src_out_fill); row < n_rows; row++)
     {
-      int set_no;
       qi->qi_set = row;
-      set_no = sel->sel_set_no ? unbox (qst_get (inst, sel->sel_set_no)) : 0;
       if (!top || top_ctr < top)
 	{
 	  int is_full = qi->qi_prefetch_bytes && qi->qi_bytes_selected > qi->qi_prefetch_bytes;
@@ -530,6 +541,47 @@ ose_vec_outer_rows (outer_seq_end_node_t * ose, caddr_t * inst)
 
 
 void
+sctr_right_outer (set_ctr_node_t * sctr, caddr_t * inst)
+{
+  /* produce the outer rows for a right oj.  If local parallel, set all slices and continue, if single threaded call roj input, if cluster, send special continue */
+  hash_source_t *hs = (hash_source_t *) sctr->sctr_ose->src_gen.src_prev;
+  stage_node_t *stn;
+  if (CL_RUN_LOCAL == cl_run_local_only)
+    {
+      stn = qn_next_stn ((data_source_t *) sctr);
+      if (!stn)
+	{
+	  QST_INT (inst, hs->hs_roj_state) = 1;
+	  QST_INT (inst, hs->clb.clb_nth_set) = 0;
+	  QST_INT (inst, hs->hs_roj) = 0;
+	  hash_source_roj_input (hs, inst, NULL);
+	}
+      else
+	{
+	  caddr_t **qis = QST_BOX (caddr_t **, inst, stn->stn_slice_qis->ssl_index);
+	  table_source_t *ts = NULL;
+	  int inx;
+	  DO_BOX (caddr_t *, slice_inst, inx, qis)
+	  {
+	    if (slice_inst)
+	      {
+		QST_INT (slice_inst, hs->hs_roj_state) = 1;
+		QST_INT (slice_inst, hs->clb.clb_nth_set) = 0;
+		QST_INT (slice_inst, hs->hs_roj) = 0;
+		SRC_IN_STATE (hs, slice_inst) = slice_inst;
+	      }
+	  }
+	  END_DO_BOX;
+	  ts = (table_source_t *) qn_next_qn ((data_source_t *) sctr, (qn_input_fn) table_source_input);
+	  if (!ts)
+	    sqlr_new_error ("42000", "ROJTS", "In right oj outer continue, no ts found, internal, support");
+	  ts_sdfg_run (ts, inst);
+	}
+    }
+}
+
+
+void
 set_ctr_vec_input (set_ctr_node_t * sctr, caddr_t * inst, caddr_t * state)
 {
   int fill = 0;
@@ -553,7 +605,10 @@ set_ctr_vec_input (set_ctr_node_t * sctr, caddr_t * inst, caddr_t * state)
   if (!state)
     {
       SRC_IN_STATE (sctr, inst) = NULL;
-      ose_vec_outer_rows (ose, inst);
+      if (SCTR_RIGHT_OJ == sctr->sctr_role)
+	sctr_right_outer (sctr, inst);
+      else
+	ose_vec_outer_rows (ose, inst);
       return;
     }
   if (ose)
@@ -652,7 +707,7 @@ sqs_out_sets (subq_source_t * sqs, caddr_t * inst)
   QST_INT (inst, sqs->src_gen.src_out_fill) = 0;
   for (inx = 0; inx < n_res; inx++)
     {
-      int set = qst_vec_get_int64 (inst, sel->sel_set_no, inx);
+      int set = sel->sel_set_no ? qst_vec_get_int64 (inst, sel->sel_set_no, inx) : 0;
       qn_result ((data_source_t *) sqs, inst, set);
     }
 }
@@ -669,7 +724,6 @@ subq_node_vec_input (subq_source_t * sqs, caddr_t * inst, caddr_t * state)
   data_col_t *set_nos = QST_BOX (data_col_t *, inst, sqs->sqs_set_no->ssl_index);
   select_node_t *sel = qr->qr_select_node;
   int n_sets = sqs->src_gen.src_prev ? QST_INT (inst, sqs->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
-
   for (;;)
     {
       if (state)
@@ -714,7 +768,7 @@ subq_node_vec_input (subq_source_t * sqs, caddr_t * inst, caddr_t * state)
       QST_INT (inst, sqs->src_gen.src_out_fill) = 0;
       for (inx = 0; inx < n_res; inx++)
 	{
-	  int set = qst_vec_get_int64 (inst, sel->sel_set_no, inx);
+	  int set = sel->sel_top_level_single_set ? 0 : qst_vec_get_int64 (inst, sel->sel_set_no, inx);
 	  qn_result ((data_source_t *) sqs, inst, set);
 	}
       if (QST_INT (inst, sqs->src_gen.src_out_fill))
@@ -734,24 +788,32 @@ outer_seq_end_vec_input (outer_seq_end_node_t * ose, caddr_t * inst, caddr_t * s
   int n_sets = QST_INT (inst, ose->src_gen.src_prev->src_out_fill);
   int set, inx;
   db_buf_t bits = (db_buf_t) QST_GET_V (inst, ose->ose_bits);
-  int n_in_sctr;
   set_ctr_node_t *sctr = ose->ose_sctr;
-  n_in_sctr = QST_INT (inst, sctr->src_gen.src_out_fill);
-  if (!bits || box_length (bits) < ALIGN_8 (n_in_sctr) / 8)
-    GPF_T1 ("in outer seq end, inner bit mask  too short");
-  QST_INT (inst, ose->src_gen.src_out_fill) = 0;
-  nos_dc = QST_BOX (data_col_t *, inst, ose->ose_set_no->ssl_index);
-  for (set = 0; set < n_sets; set += 64)
+  if (!ose->ose_is_right_oj)
     {
-      int set2, upper = MIN (n_sets, set + 64);
-      int sets[64];
-      sslr_n_consec_ref (inst, (state_slot_ref_t *) ose->ose_set_no, sets, set, upper - set);
-      for (set2 = set; set2 < upper; set2++)
+      int n_in_sctr = QST_INT (inst, sctr->src_gen.src_out_fill);
+      if (!bits || box_length (bits) < ALIGN_8 (n_in_sctr) / 8)
+	GPF_T1 ("in outer seq end, inner bit mask  too short");
+      QST_INT (inst, ose->src_gen.src_out_fill) = 0;
+      nos_dc = QST_BOX (data_col_t *, inst, ose->ose_set_no->ssl_index);
+      for (set = 0; set < n_sets; set += 64)
 	{
-	  int no = ((int64 *) nos_dc->dc_values)[sets[set2 - set]];
-	  bits[no >> 3] |= 1 << (no & 7);
-	  qn_result ((data_source_t *) ose, inst, no);
+	  int set2, upper = MIN (n_sets, set + 64);
+	  int sets[64];
+	  sslr_n_consec_ref (inst, (state_slot_ref_t *) ose->ose_set_no, sets, set, upper - set);
+	  for (set2 = set; set2 < upper; set2++)
+	    {
+	      int no = ((int64 *) nos_dc->dc_values)[sets[set2 - set]];
+	      bits[no >> 3] |= 1 << (no & 7);
+	      qn_result ((data_source_t *) ose, inst, no);
+	    }
 	}
+    }
+  else
+    {
+      QN_CHECK_SETS (ose, inst, n_sets);
+      QST_INT (inst, ose->src_gen.src_out_fill) = n_sets;
+      int_asc_fill (QST_BOX (int *, inst, ose->src_gen.src_sets), n_sets, 0);
     }
   DO_BOX (state_slot_t *, out, inx, ose->ose_out_shadow)
   {

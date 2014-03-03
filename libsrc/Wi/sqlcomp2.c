@@ -996,6 +996,8 @@ sc_free (sql_comp_t * sc)
     }
   if (sc->sc_qn_to_dfe)
     hash_table_free (sc->sc_qn_to_dfe);
+  if (sc->sc_cn_normalize)
+    hash_table_free (sc->sc_cn_normalize);
   /*if left due to error in vec */
   if (sc->sc_vec_ssl_def)
     hash_table_free (sc->sc_vec_ssl_def);
@@ -1009,6 +1011,7 @@ sc_free (sql_comp_t * sc)
     hash_table_free (sc->sc_vec_last_ref);
   if (sc->sc_vec_save_shadow)
     hash_table_free (sc->sc_vec_save_shadow);
+  sc_dfr_free (sc);
 }
 
 query_t *
@@ -1499,6 +1502,20 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
   }
   THROW_CODE
   {
+    if (QRC_FOUND == reset_code)
+      {
+	db_activity_t tmp;
+	qr_free (qr);
+	qr = sc.sc_cc->cc_query;
+	CLI_THREAD_TIME (cli);
+	tmp = cli->cli_activity;
+	da_sub (&tmp, &da_before);
+	da_add (&cli->cli_compile_activity, &tmp);
+	da_sub (&cli->cli_activity, &tmp);
+	MP_DONE ();
+	sc_free (&sc);
+	return qr;
+      }
     if (qr && qr->qr_proc_name)
       query_free (qr);
     else
@@ -1540,7 +1557,10 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
   if (qr)
     {
       qr->qr_text = SET_QR_TEXT (qr, sc.sc_text);
-      qr->qr_parse_tree = box_copy_tree ((box_t) the_parse_tree);
+      if (sc.sc_stl)
+	qrc_set (&sc, qr);
+      else
+	qr->qr_parse_tree = box_copy_tree ((box_t) the_parse_tree);
     }
 
   if (!nested_sql_comp)
@@ -1552,6 +1572,8 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
       CLI_THREAD_TIME (cli);
       tmp = cli->cli_activity;
       da_sub (&tmp, &da_before);
+      if (qr && qr->qr_qce)
+	qr->qr_qce->qce_compile_msec = (tmp.da_thread_time - tmp.da_thread_disk_wait) / 2000000;
       da_add (&cli->cli_compile_activity, &tmp);
       da_sub (&cli->cli_activity, &tmp);
       cli->cli_compile_activity.da_memory = sqlc_mem;

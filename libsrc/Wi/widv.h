@@ -181,7 +181,6 @@ User-level object is of type DV_XML_ENTITY. */
 #define DV_IGNORE 220		/* in SQLSetPos, means 'do not update' */
 #define DV_DAE 221		/* SQL_DATA_AT_EXEC marker, non-serializable, client only */
 
-#define DV_BIN 222
 #define DV_LONG_BIN 223
 
 #define DV_EXEC_CURSOR 224	/* in bif_execute - cursor type */

@@ -30,6 +30,15 @@
 
 
 
+#define MHASH_STEP_1(h, data) \
+do { \
+  uint64 __k = data; \
+      __k *= MHASH_M;  \
+      __k ^= __k >> MHASH_R;  \
+      h = __k * MHASH_M;   \
+ } while (0)
+
+
 #ifndef MHASH_STEP
 #define MHASH_STEP(h, data) \
 { \

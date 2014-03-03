@@ -409,6 +409,16 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
       else
 	n_sets = qi->qi_n_sets;
       qi->qi_n_sets = n_sets;
+      if (!state && setp->setp_is_streaming)
+	{
+	  QST_BOX (caddr_t *, inst, setp->setp_current_branch) = inst;
+	  QST_INT (inst, setp->src_gen.src_out_fill) = 0;
+	  qn_result ((data_source_t *) setp, inst, 0);
+	  SRC_IN_STATE (setp, inst) = NULL;
+	  dc_reset (QST_BOX (data_col_t *, inst, setp->setp_last_streaming_value->ssl_index));
+	  qn_send_output ((data_source_t *) setp, inst);
+	  return 0;
+	}
       if (vals)
 	{
 	  /* inputs to group by counts etc must be variable ssls.  Set them here if the arg val is a const */
@@ -426,7 +436,7 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
 	  END_DO_SET ();
 	}
       if (setp->setp_ha->ha_ch_len && setp_chash_group (setp, inst))
-	return 1;
+	return setp->setp_is_streaming ? 0 : 1;
       for (set = 0; set < n_sets; set++)
 	{
 	  qi->qi_set = set;
@@ -1042,7 +1052,7 @@ next_batch:
   for (set = last_set; set < n_sets; set++)
     {
       data_col_t *dc;
-      qi->qi_set = qst_vec_get_int64 (inst, ks->ks_set_no, set);
+      qi->qi_set = ks->ks_set_no ? qst_vec_get_int64 (inst, ks->ks_set_no, set) : 0;
       if (qi->qi_set < 0 || qi->qi_set >= n_sets)
 	{
 	  qi->qi_set = 0;

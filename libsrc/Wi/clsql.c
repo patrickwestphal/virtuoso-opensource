@@ -39,6 +39,9 @@
 
 
 int enable_hash_colocate = 1;
+int enable_reader_colocate = 1;
+int enable_fref_colocate = 0;
+int enable_reader_before_fref = 0;
 int enable_dfg = 1;
 int enable_multistate_code = 1;
 int enable_last_qf_dml = 1;
@@ -165,6 +168,27 @@ sqlg_cl_insert (sql_comp_t * sc, comp_context_t * cc, insert_node_t * ins, ST * 
 
 
 
+void
+stn_set_in_slots (sql_comp_t * sc, stage_node_t * stn)
+{
+  int inx;
+  dk_set_t l = NULL;
+  DO_BOX (state_slot_t *, ssl, inx, stn->stn_inner_params)
+  {
+    if (SSL_VEC != ssl->ssl_type)
+      continue;
+    dk_set_push (&l, (void *) ssl);
+  }
+  END_DO_BOX;
+  stn->stn_in_slots = dk_set_nreverse (l);
+  if (!stn->stn_in_slots)
+    {
+      if (sc)
+	sqlc_new_error (sc->sc_cc, "CLVEC", "STNNV",
+	    "A stn must have at least one vector parameter, at least set no should be a vector. Internal error, contact support");
+      GPF_T1 ("a stn compilation received from cluster with no vector [parameters, at least set no should be a vector");
+    }
+}
 
 state_slot_t **
 sqlg_env_remove_globals (state_slot_t ** env)
@@ -189,6 +213,23 @@ sqlg_env_remove_globals (state_slot_t ** env)
   return env;
 }
 
+
+int
+qf_params_any_vec (dk_set_t params)
+{
+  /* a qf/dfg needs at least one vector.  A column or non qr global or non special scalar like ht id or hash partition value will do */
+  DO_SET (state_slot_t *, ssl, &params)
+  {
+    if (ssl->ssl_column)
+      return 1;
+    if (ssl->ssl_qr_global)
+      continue;
+    if (SSL_VARIABLE == ssl->ssl_type && ssl->ssl_name)
+      return 1;
+  }
+  END_DO_SET ();
+  return 0;
+}
 
 void
 cl_qn_set_save (data_source_t * qn, state_slot_t ** env)
@@ -239,6 +280,39 @@ cl_qn_set_save (data_source_t * qn, state_slot_t ** env)
     {
     }
 #endif
+  if ((qn_input_fn) stage_node_input == qn->src_input)
+    {
+      int inx, inx2;
+      QNCAST (stage_node_t, stn, qn);
+      query_frag_t *qf = stn->stn_qf;
+      dk_set_t save = NULL, params = NULL;
+      DO_BOX (state_slot_t *, ssl, inx2, env)
+      {
+	if (qf->qf_agg_res)
+	  {
+	    /*if a non grouped aggregate, the state of the aggregate is not a param even through it is  refd before assigned  */
+	    DO_BOX (state_slot_t *, agg_ssl, inx, qf->qf_agg_res)
+	    {
+	      if (ssl == agg_ssl)
+		goto next;
+	    }
+	    END_DO_BOX;
+	  }
+	if (!ssl->ssl_qr_global)
+	  dk_set_push (&save, (void *) ssl);
+	dk_set_push (&params, (void *) ssl);
+      next:;
+      }
+      END_DO_BOX;
+      stn->clb.clb_save = (state_slot_t **) list_to_array (save);
+      /*in a top level qr with no params the set no is optimized away but at least one vector param must exist, so if nothing else, have the set no */
+      if (!qf_params_any_vec (params))
+	dk_set_push (&params, (void *) top_sc->sc_set_no_ssl);
+      stn->stn_params = (state_slot_t **) list_to_array (params);
+      dk_free_box ((caddr_t) env);
+    }
+  else
+    dk_free_box ((caddr_t) env);
 }
 
 
@@ -1484,7 +1558,6 @@ sqlg_cl_multistate_group (sql_comp_t * sc)
   if (!sc->sc_set_no_ssl)
     {
       sc->sc_set_no_ssl = ssl_new_variable (sc->sc_cc, "set_ctr", DV_LONG_INT);
-      fref->fnr_is_set_ctr = 1;
     }
   ssa_init (sc, &fref->fnr_ssa, sc->sc_set_no_ssl);
   if (!fref->fnr_setps)
@@ -1496,13 +1569,227 @@ sqlg_cl_multistate_group (sql_comp_t * sc)
   END_DO_SET ();
 }
 
-int enable_high_card_part = 0;
+/* colocation of query fragments */
+
+
+
+
+void
+sc_ssl_add_eq (sql_comp_t * sc, state_slot_t * ssl1, state_slot_t * ssl2)
+{
+  dk_set_t eqs = gethash ((void *) ssl1, sc->sc_ssl_eqs);
+  if (eqs && !dk_set_member (eqs, (void *) ssl2))
+    dk_set_conc (eqs, dk_set_cons ((void *) ssl2, NULL));
+  else
+    sethash ((void *) ssl1, sc->sc_ssl_eqs, (void *) dk_set_cons ((void *) ssl2, NULL));
+}
+
+
+void
+ssl_assert_eq (sql_comp_t * sc, state_slot_t * ssl1, state_slot_t * ssl2)
+{
+  if (!sc->sc_ssl_eqs)
+    sc->sc_ssl_eqs = hash_table_allocate (23);
+  sc_ssl_add_eq (sc, ssl1, ssl2);
+  sc_ssl_add_eq (sc, ssl2, ssl1);
+}
+
+
+caddr_t bif_all_eq (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+caddr_t bif_iri_id_num (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+caddr_t bif_iri_id_from_num (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+
+
+void
+sqlg_process_all_eq (sql_comp_t * sc, code_vec_t cv)
+{
+  if (!cv)
+    return;
+  DO_INSTR (ins, 0, cv)
+  {
+    if (INS_CALL_BIF == ins->ins_type && ins->_.bif.bif == bif_all_eq)
+      {
+	int n = BOX_ELEMENTS (ins->_.bif.params), i1, i2;
+	for (i1 = 0; i1 < n; i1++)
+	  {
+	    ssl_assert_eq (sc, ins->_.bif.ret, ins->_.bif.params[i1]);
+	    for (i2 = 0; i2 < n; i2++)
+	      {
+		ssl_assert_eq (sc, ins->_.bif.params[i1], ins->_.bif.params[i2]);
+	      }
+	  }
+      }
+    else if (IN_ARTM_IDENTITY == ins->ins_type)
+      {
+	ssl_assert_eq (sc, ins->_.artm.result, ins->_.artm.left);
+      }
+    else if (INS_CALL_BIF == ins->ins_type && (ins->_.bif.bif == bif_iri_id_num || ins->_.bif.bif == bif_iri_id_from_num)
+	&& BOX_ELEMENTS (ins->_.bif.params))
+      {
+	ssl_assert_eq (sc, ins->_.bif.ret, ins->_.bif.params[0]);
+      }
+  }
+  END_DO_INSTR;
+}
+
+
+state_slot_t *ks_find_ssl (key_source_t * ks, oid_t col_id);
+
+
+void
+sqlg_ks_eqs (sql_comp_t * sc, key_source_t * ks)
+{
+  search_spec_t *sp;
+  for (sp = ks->ks_spec.ksp_spec_array; sp; sp = sp->sp_next)
+    {
+      if (CMP_EQ == sp->sp_min_op)
+	{
+	  state_slot_t *out = ks_find_ssl (ks, sp->sp_cl.cl_col_id);
+	  if (out)
+	    ssl_assert_eq (sc, sp->sp_min_ssl, out);
+	}
+    }
+
+  for (sp = ks->ks_row_spec; sp; sp = sp->sp_next)
+    {
+      if (CMP_EQ == sp->sp_min_op)
+	{
+	  state_slot_t *out = ks_find_ssl (ks, sp->sp_cl.cl_col_id);
+	  if (out)
+	    ssl_assert_eq (sc, sp->sp_min_ssl, out);
+	}
+    }
+}
+
+
+int
+ssl_is_eq (sql_comp_t * sc, state_slot_t * ssl1, state_slot_t * ssl2)
+{
+  dk_set_t eqs;
+  if (ssl1 == ssl2)
+    return 1;
+  if (!sc->sc_ssl_eqs)
+    return 0;
+  eqs = (dk_set_t) gethash ((void *) ssl1, sc->sc_ssl_eqs);
+  return NULL != dk_set_member (eqs, (void *) ssl2);
+}
+
+
+int
+col_is_id (void *cp, void *id)
+{
+  dbe_column_t *col = (dbe_column_t *) cp;
+  if (!IS_BOX_POINTER (col))
+    return 0;
+  return col->col_id == (ptrlong) id;
+}
+
+
+int
+dk_set_position_test (dk_set_t set, void *elt, int (*test) (void *d1, void *d2))
+{
+  int inx = 0;
+  DO_SET (void *, e, &set)
+  {
+    if (test (e, elt))
+      return inx;
+    inx++;
+  }
+  END_DO_SET ();
+  return -1;
+}
+
+
+state_slot_t *
+ks_find_ssl (key_source_t * ks, oid_t col_id)
+{
+  /* get the assigned ssl that corresponds to col with col_id */
+  int pos = dk_set_position_test (ks->ks_out_cols, (void *) col_id, col_is_id);
+  if (-1 == pos)
+    return NULL;
+  return (state_slot_t *) dk_set_nth (ks->ks_out_slots, pos);
+}
+
+
+col_partition_t *
+cp_copy (col_partition_t * cp, int col_id)
+{
+  NEW_VARZ (col_partition_t, cp2);
+  memcpy (cp2, cp, sizeof (col_partition_t));
+  cp2->cp_col_id = col_id;
+  return cp2;
+}
+
+key_partition_def_t *
+kpd_copy (key_partition_def_t * kpd)
+{
+  int inx;
+  NEW_VARZ (key_partition_def_t, cpy);
+  *cpy = *kpd;
+  cpy->kpd_cols = (col_partition_t **) box_copy ((caddr_t) kpd->kpd_cols);
+  DO_BOX (col_partition_t *, colp, inx, cpy->kpd_cols) cpy->kpd_cols[inx] = cp_copy (colp, colp->cp_col_id);
+  END_DO_BOX;
+  return cpy;
+}
+
+int enable_high_card_part = 1;
 float c_setp_partition_threshold = 100000;
 
 int
 setp_is_high_card (setp_node_t * setp)
 {
   return enable_high_card_part && setp->setp_card > c_setp_partition_threshold && !setp->setp_in_union;
+}
+
+
+
+table_source_t *
+sqlg_loc_ts (table_source_t * ts, table_source_t * prev_ts)
+{
+  if (!ts)
+    return NULL;
+  if (IS_QN (ts, subq_node_input))
+    {
+      QNCAST (subq_source_t, sqs, ts);
+      if (sqs->sqs_leading_of_qf)
+	return sqlg_loc_ts ((table_source_t *) sqs->sqs_query->qr_head_node, prev_ts);
+    }
+
+  if (IS_TS (ts))
+    {
+      return ts;
+    }
+  if (IS_QN (ts, setp_node_input))
+    return ((setp_node_t *) ts)->setp_loc_ts;
+  if (IS_QN (ts, hash_source_input))
+    {
+      QNCAST (hash_source_t, hs, ts);
+      return hs->hs_loc_ts ? hs->hs_loc_ts : prev_ts;
+    }
+  if (IS_QN (ts, chash_read_input))
+    return ts;
+  if (CL_RUN_LOCAL == cl_run_local_only && IS_QN (ts, subq_node_input))
+    return NULL;
+  GPF_T1 ("only a table source or code node can be a dfg stage break");
+  return NULL;
+}
+
+void
+stn_init (sql_comp_t * sc, stage_node_t * stn)
+{
+  clb_init (sc->sc_cc, &stn->clb, 1);
+  stn->stn_dfg_state = ssl_new_variable (sc->sc_cc, "dfg_state", DV_ANY);
+  stn->clb.clb_itcl = ssl_new_variable (sc->sc_cc, "stn_itcl", DV_ANY);
+  stn->stn_reset_ctr = cc_new_instance_slot (sc->sc_cc);
+  stn->stn_input_fill = cc_new_instance_slot (sc->sc_cc);
+  stn->stn_input_used = cc_new_instance_slot (sc->sc_cc);
+  stn->stn_read_to = cc_new_instance_slot (sc->sc_cc);
+  stn->stn_state = cc_new_instance_slot (sc->sc_cc);
+  stn->stn_n_ins_in_out = cc_new_instance_slot (sc->sc_cc);
+  /* the state slots at higher inx so that the remote qf inst len is not too short, it comes from the inx of the last ssl */
+  stn->stn_input = ssl_new_variable (sc->sc_cc, "stn_in", DV_ANY);
+  stn->stn_current_input = ssl_new_variable (sc->sc_cc, "stn_c_in", DV_ANY);
+  stn->stn_dre = ssl_new_variable (sc->sc_cc, "stn_dre", DV_ANY);
 }
 
 

@@ -264,6 +264,7 @@ libwi_la_SOURCES = \
 	sqlrun.c \
 	sqlsrv.c \
 	sqlstmts.c \
+	sqlsub.c \
 	sqltrig.c \
 	sqltype.c \
 	sqlvec.c \
@@ -412,6 +413,7 @@ libwi_odbc_la_SOURCES = \
 	sqlrun.c \
 	sqlsrv.c \
 	sqlstmts.c \
+	sqlsub.c \
 	sqltrig.c \
 	sqltype.c \
 	sqlvec.c \
@@ -461,6 +463,7 @@ libwi_la_SOURCES += \
 	geo_shapes.c \
 	http_client.c \
 	qncache.c \
+	qrc.c \
 	shuric.c \
 	subseq.c \
 	text.c \
@@ -500,6 +503,7 @@ libwi_odbc_la_SOURCES += \
 	geo_shapes.c \
 	http_client.c \
 	qncache.c \
+	qrc.c \
 	shuric.c \
 	subseq.c \
 	text.c \

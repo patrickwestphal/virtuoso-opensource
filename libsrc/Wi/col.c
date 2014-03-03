@@ -1235,6 +1235,71 @@ ce_cmp_1 (col_pos_t * cpo, int row, dtp_t flags, db_buf_t val, int len, int64 of
 
 
 int
+cmp_like_const (col_pos_t * cpo, dtp_t flags, db_buf_t val, int len1, dtp_t lf)
+{
+  db_buf_t hit;
+  int pos = 0;
+  search_spec_t *sp = cpo->cpo_min_spec;
+  caddr_t pattern;
+  int pattern_len, inx;
+  int len;
+  if (CET_ANY == (CE_DTP_MASK & flags))
+    {
+      if (DV_SHORT_STRING_SERIAL == *val)
+	{
+	  len = val[1];
+	  val += 2;
+	}
+      else if (DV_STRING == val[0])
+	{
+	  len = LONG_REF_NA (val + 1);
+	  val += 5;
+	}
+      else
+	return sp->sp_is_reverse;	/* not true whether like or not like */
+    }
+  else if (CET_CHARS == (flags & CE_DTP_MASK))
+    {
+      val += len1 > 127 ? 2 : 1;
+    }
+  else
+    return sp->sp_is_reverse;
+
+  pattern = cpo->cpo_cmp_max;
+  pattern_len = box_length (pattern) - 1;
+  hit = val;
+  while (pos < pattern_len)
+    {
+      ushort const_len = *(ushort *) (pattern + pos + 1);
+      char lf = pattern[pos];
+      if (LK_LEADING == lf)
+	{
+	  if (const_len > pattern_len - pos)
+	    return 0;
+	  memcmp_8 (val, pattern + pos + 3, const_len, neq);
+	  pos += const_len + 3;
+	  continue;
+	}
+      if (LK_TRAILING == lf)
+	{
+	  if (len - (hit - val) < const_len)
+	    return 0;
+	  memcmp_8 ((val + (len - const_len)), (pattern + pos + 3), const_len, neq);
+	  return 1;
+	}
+      hit = strstr_sse42 (hit, len - (hit - val), pattern + pos + 3, const_len);
+      if (!hit)
+	return 0;
+      hit = hit + const_len;
+      pos += const_len + 3;
+    }
+  return 1;
+neq:
+  return 0;
+}
+
+
+int
 ce_filter (col_pos_t * cpo, int row, dtp_t flags, db_buf_t val, int len, int64 offset, int rl)
 {
   /* for integers, offset is the number.  For anys val is the 1st byte of the any and offset is the tail offset */
@@ -1250,15 +1315,25 @@ ce_filter (col_pos_t * cpo, int row, dtp_t flags, db_buf_t val, int len, int64 o
     case CMP_NONE:
       break;
     case CMP_LIKE:
-      if (CE_INTLIKE (flags))
-	{
-	  dtp_t dtp = CE_IS_IRI & flags ? DV_IRI_ID : DV_LONG_INT;
-	  if (dtp != (dtp_t) cpo->cpo_cmp_min[3])
-	    goto filter_done;
-	}
-      else if (DVC_MATCH != ce_like_filter (cpo, row, flags, val, len, offset, rl))
-	goto filter_done;
-      break;
+      {
+	search_spec_t *sp = cpo->cpo_min_spec;
+	dtp_t lf = cpo->cpo_max_op;
+	if (lf && !offset)
+	  {
+	    if (sp->sp_is_reverse == cmp_like_const (cpo, flags, val, len, lf))
+	      goto filter_done;
+	    break;
+	  }
+	if (CE_INTLIKE (flags))
+	  {
+	    dtp_t dtp = CE_IS_IRI & flags ? DV_IRI_ID : DV_LONG_INT;
+	    if (dtp != (dtp_t) cpo->cpo_cmp_min[3])
+	      goto filter_done;
+	  }
+	else if (sp->sp_is_reverse == (DVC_MATCH == ce_like_filter (cpo, row, flags, val, len, offset, rl)))
+	  goto filter_done;
+	break;
+      }
     case CMP_HASH_RANGE:
       {
 	int rl2;
@@ -1290,7 +1365,7 @@ ce_filter (col_pos_t * cpo, int row, dtp_t flags, db_buf_t val, int len, int64 o
 	goto filter_done;
     }
 
-  if (cpo->cpo_max_op)
+  if (cpo->cpo_max_op && CMP_LIKE != cpo->cpo_max_op)
     {
       rc = ce_col_cmp (val, offset, flags, cpo->cpo_cl, cpo->cpo_cmp_max);
       if (!(rc & cpo->cpo_max_op))
@@ -5519,11 +5594,10 @@ bif_rnd_string (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 
-
 int
 crc_test (caddr_t str, int rep)
 {
-#ifdef COL_CRC_TEST
+#ifdef SSE42
   int inx, len = box_length (str) - 1;
   int64 h = 1;
   for (inx = 0; inx < rep; inx++)
@@ -5754,7 +5828,7 @@ bif_col_count_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 caddr_t
 bif_string_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-#ifdef COL_CRC_TEST
+#ifdef SSE42
   /* test bit ops. op is 0 for rld count and 1 for bm count.  Add 2 for word op. add 1024 for non aligned */
   QNCAST (query_instance_t, qi, qst);
   db_buf_t str1 = (db_buf_t) bif_string_arg (qst, args, 0, "col_count_test");
@@ -5776,7 +5850,7 @@ bif_string_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       res[inx & 0xf] =
 	  __builtin_ia32_pcmpestri128 ((v16qi_t) __builtin_ia32_loadups ((float *) str1), len1,
-	  (v16qi_t) __builtin_ia32_loadups ((float *) str2), len2, PSTR_EQUAL_EACH | PSTR_NEGATIVE_POLARITY);
+	  (v16qi_t) __builtin_ia32_loadups ((float *) str2), len2, PSTR_EQUAL_ORDERED);
       str1++;
       str2++;
       len1--;

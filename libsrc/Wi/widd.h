@@ -114,6 +114,7 @@ typedef struct file_table_s
   char ft_cast_error;
   char ft_error_if_no_column;
   caddr_t ft_newline;
+  int ft_skip_rows;
 } file_table_t;
 
 
@@ -135,8 +136,10 @@ struct dbe_table_s
   oid_t tb_owner_col_id;
   char tb_any_blobs;
   char tb_is_rdf_quad;
+  char tb_is_counted;
   struct remote_ds_s *tb_remote_ds;
   caddr_t tb_remote_name;
+  struct file_ds_s *tb_file;
   dk_hash_t *tb_misc_id_to_col_id;
   dk_hash_t *tb_col_id_to_misc_id;
   struct xml_table_ins_s *tb_xml_ins;
@@ -511,8 +514,8 @@ fragment instead of searching for the the fragment actually needed. */
   int key_n_fragments;
   dbe_storage_t *key_storage;
   caddr_t *key_options;
-  uint32 key_segs_sampled;
-  uint32 key_rows_in_sampled_segs;
+  uint64 key_segs_sampled;
+  uint64 key_rows_in_sampled_segs;
   id_hash_t *key_p_stat;	/* for rdf inx starting with p, stats on the rest for a given p */
 };
 

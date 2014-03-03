@@ -176,10 +176,10 @@ void sqlp_pragma_line (char *text);
 #define SQL_GPF_T1(cc, tx) GPF_T1(tx)
 #else
 #define SQL_GPF_T(cc)   sqlc_new_error (cc, "37000", "SQ155", \
-    "General internal Optimized compiler error in %.200s:%d.\n" \
+    "sqlo error in %.200s:%d.\n" \
     "Please report the statement compiled.", __FILE__, __LINE__)
 #define SQL_GPF_T1(cc, tx)   sqlc_new_error (cc, "37000", "SQ156", \
-    "Internal Optimized compiler error : %.200s in %.200s:%d.\n" \
+    "sqlo: %.200s in %.200s:%d.\n" \
     "Please report the statement compiled.", tx, __FILE__, __LINE__)
 #endif
 
@@ -233,6 +233,7 @@ caddr_t sqlp_minus (caddr_t n);
 char *sqlp_default_cluster ();
 dk_set_t cl_all_host_group_list ();
 dk_set_t sqlp_index_default_opts (dk_set_t opts);
+ST *sqlp_extract (char *name, ST * arg);
 char *sqlp_inx_col_opt ();
 
 #endif /* _SQLPFN_H */

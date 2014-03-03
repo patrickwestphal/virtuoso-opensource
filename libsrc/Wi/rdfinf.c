@@ -2449,8 +2449,16 @@ qn_prev (data_source_t ** head, data_source_t * qn)
 data_source_t *
 qn_ensure_prev (sql_comp_t * sc, data_source_t ** head, data_source_t * qn)
 {
+  int is_roj = IS_QN (qn, hash_source_input) && ((hash_source_t *) qn)->hs_roj;
   data_source_t *prev = qn_prev (head, qn);
-  if (prev)
+  /* if right outer join, need an extra node in front of the first if the first is a ts */
+  if (is_roj)
+    {
+      prev = *head;
+      if (!IS_TS (prev))
+	return prev;
+    }
+  else if (prev)
     return prev;
   {
     SQL_NODE_INIT (end_node_t, en, end_node_input, NULL);
@@ -2510,6 +2518,7 @@ sqlg_cl_bracket_outer (sqlo_t * so, data_source_t * first)
   data_source_t *first1 = first ? qn_next (first) : NULL;
   data_source_t *org_first = first1;
   void *dp;
+  int is_roj = 0;
   SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_SQLC_ASG_SET, res);
   sc->sc_any_clb = 1;
   while (first1)
@@ -2521,6 +2530,11 @@ sqlg_cl_bracket_outer (sqlo_t * so, data_source_t * first)
       qn_refd_slots (so->so_sc, first1, NULL, NULL, &is_sc);
       qn_set_after_join_test (first1, ajt);
       first1 = qn_next (first1);
+      if (first1 && IS_QN (first1, hash_source_input) && ((hash_source_t *) first1)->hs_roj)
+	{
+	  is_roj = 1;
+	  break;		/* if right oj, then the nulls are from the nodes before the right oj hash */
+	}
     }
   SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_SQLC_ASG_SET, NULL);
   {
@@ -2528,6 +2542,7 @@ sqlg_cl_bracket_outer (sqlo_t * so, data_source_t * first)
     SQL_NODE_INIT (outer_seq_end_node_t, ose2, outer_seq_end_input, ose_free);
     ose = ose2;
     ose->ose_out_slots = (state_slot_t **) ht_keys_to_array (res);
+    ose->ose_is_right_oj = is_roj;
     DO_BOX (state_slot_t *, ssl, inx, ose->ose_out_slots)
     {
       ssl->ssl_always_vec = 1;
@@ -2545,7 +2560,7 @@ sqlg_cl_bracket_outer (sqlo_t * so, data_source_t * first)
     SQL_NODE_INIT (set_ctr_node_t, sctr, set_ctr_input, set_ctr_free);
     qn_ins_before (sc, &first, qn_next (first), (data_source_t *) sctr);
     clb_init (sc->sc_cc, &sctr->clb, 1);
-    sctr->sctr_role = SCTR_OJ;
+    sctr->sctr_role = is_roj ? SCTR_RIGHT_OJ : SCTR_OJ;
     sctr->sctr_itcl = ssl_new_inst_variable (so->so_sc->sc_cc, "buf_row", DV_ARRAY_OF_POINTER);
     sctr->sctr_ose = ose;
     sctr->sctr_set_no = ose->ose_set_no;
@@ -2578,6 +2593,8 @@ sqlg_cl_outer_with_iters (df_elt_t * tb_dfe, data_source_t * ts, data_source_t *
   outer_seq_end_node_t *ose = NULL;
   while (qn)
     {
+      if (IS_TS (qn))
+	((table_source_t *) qn)->ts_is_outer = 0;
       if (IS_ITER (qn))
 	{
 	  if (!first_iter)
@@ -2586,11 +2603,11 @@ sqlg_cl_outer_with_iters (df_elt_t * tb_dfe, data_source_t * ts, data_source_t *
       else if (ts == qn)
 	{
 	  data_source_t *before;
-	  if (!first_iter && !qn_next (ts) && !sqlg_is_vector)
-	    return;		/* if the ts is not  rapped in iters before or after, use its own outer flag */
 	  if (!first_iter)
 	    first_iter = qn;
 	  before = qn_prev (head, first_iter);
+	  if (DFE_TABLE == tb_dfe->dfe_type && 2 == tb_dfe->_.table.is_right_oj)
+	    before = *head;
 	  ose = sqlg_cl_bracket_outer (tb_dfe->dfe_sqlo, before);
 	  for (ts = ts; ts; ts = qn_next (ts))
 	    {

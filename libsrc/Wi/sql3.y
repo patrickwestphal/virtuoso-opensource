@@ -1704,6 +1704,7 @@ sql_option
 	| HASH SET INTNUM  { $$ = t_CONS (OPT_HASH_SET, t_CONS ($3, NULL)); }
 	| HASH PARTITION column { $$ = t_CONS (OPT_HASH_PARTITION, t_CONS ( $3, NULL)); }
 	| HASH REPLICATION { $$ = t_CONS (OPT_HASH_REPLICATION, t_CONS ((ptrlong)1, NULL)); }
+	| HASH UNIQUE { $$ = t_CONS (OPT_HASH_REPLICATION, t_CONS ((ptrlong)1, NULL)); }
 	| ISOLATION_L txn_isolation_level { $$ = t_CONS (OPT_ISOLATION, t_CONS ( $2, NULL)); }
 	| INTERSECT { $$ = t_CONS (OPT_JOIN, t_CONS (OPT_INTERSECT, NULL)); }
 	| NO_L __LOCK { $$ = t_CONS (OPT_NO_LOCK, t_CONS (1, NULL)); }
@@ -1712,6 +1713,7 @@ sql_option
 	| LOOP { $$ = t_CONS (OPT_JOIN, t_CONS (OPT_LOOP, NULL)); }
 	| LOOP EXISTS { $$ = t_CONS (OPT_SUBQ_LOOP, t_CONS (SUBQ_LOOP, NULL)); }
 	| DO NOT LOOP EXISTS { $$ = t_CONS (OPT_SUBQ_LOOP, t_CONS (SUBQ_NO_LOOP, NULL)); }
+	| NO_L EXISTS JOIN { $$ = t_CONS (OPT_NO_EXISTS_JOIN, t_CONS (OPT_NO_EXISTS_JOIN, NULL)); }
 	| INDEX identifier { $$ = t_CONS (OPT_INDEX, t_CONS ($2, NULL)); }
 	| INDEX PRIMARY KEY { $$ = t_CONS (OPT_INDEX, t_CONS (t_box_string ("PRIMARY KEY"), NULL)); }
 	| INDEX TEXT_L KEY { $$ = t_CONS (OPT_INDEX, t_CONS (t_box_string ("TEXT KEY"), NULL)); }
@@ -2135,13 +2137,13 @@ column_commalist_or_empty
 table_ref
 	: table
 		{ $$ = t_listbox (3, TABLE_REF,$1, (caddr_t) NULL); }
-	| '(' query_or_sparql_exp ')' identifier
+	| '(' query_or_sparql_exp ')' identifier opt_table_opt
 		{
-		  $$ = t_listbox (3, DERIVED_TABLE, sqlp_view_def (NULL, $2, 0), $4);
+		  $$ = t_listbox (4, DERIVED_TABLE, sqlp_view_def (NULL, $2, 0), $4, $5);
 		}
-	| '(' query_or_sparql_exp ')' AS identifier
+	| '(' query_or_sparql_exp ')' AS identifier opt_table_opt
 		{
-		  $$ = t_listbox (3, DERIVED_TABLE, sqlp_view_def (NULL, $2, 0), $5);
+		  $$ = t_listbox (4, DERIVED_TABLE, sqlp_view_def (NULL, $2, 0), $5, $6);
 		}
 	| joined_table
 		{ $$ = t_listbox (3, TABLE_REF,$1, (caddr_t) NULL); }
@@ -2667,11 +2669,7 @@ function_call
 		      t_listst (3, t_box_num($3), $5, $7));
 		}
 	| EXTRACT '(' NAME FROM scalar_exp ')'
-		{
-		  $$ = t_listst (3, CALL_STMT,
-		      t_sqlp_box_id_upcase ("__extract"),
-		      t_listst (2, t_box_string ($3), $5));
-		}
+		{$$ = sqlp_extract ($3, $5); 		}
 	| BEGIN_FN_X identifier '(' opt_scalar_exp_commalist ')' ENDX
 		{ $$ = t_listst (3, CALL_STMT, $2, t_list_to_array ($4)); }
 	| BEGIN_FN_X LEFT '(' opt_scalar_exp_commalist ')' ENDX

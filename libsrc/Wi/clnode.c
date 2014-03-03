@@ -45,6 +45,8 @@
 #define in_printf(a)
 #endif
 
+int32 cl_seed = 11;
+
 
 
 
@@ -344,6 +346,60 @@ col_part_hash (col_partition_t * cp, caddr_t val, int is_already_cast, int *cast
 }
 
 
+
+int
+clo_frag_n_sets (cl_op_t * clo)
+{
+  int inx;
+  DO_BOX (data_col_t *, dc, inx, clo->_.frag.params) if (DV_DATA == DV_TYPE_OF (dc))
+    return dc->dc_n_values;
+  END_DO_BOX;
+  return 1;
+}
+
+int
+qi_n_cl_aq_threads (query_instance_t * qi)
+{
+  if ((!enable_mt_txn && PL_EXCLUSIVE == qi->qi_lock_mode) || local_cll.cll_atomic_trx_id)
+    return 0;
+  return MAX (0, enable_qp - 1);
+}
+
+client_connection_t *
+cl_cli ()
+{
+  /* the cli that belongs to the thread */
+  du_thread_t *self;
+  dk_session_t *ses = IMMEDIATE_CLIENT;
+  client_connection_t *cli;
+  if (ses)
+    return DKS_DB_DATA (ses);
+  self = THREAD_CURRENT_THREAD;
+  cli = (client_connection_t *) THR_ATTR (self, TA_IMMEDIATE_CLIENT);
+  if (cli)
+    return cli;
+  cli = ((client_connection_t *) THR_ATTR (THREAD_CURRENT_THREAD, TA_SQLC_CURRENT_CLIENT));
+  if (cli)
+    return cli;
+  GPF_T1 ("the thread is not associated to a cli");
+  return NULL;
+}
+
+
+itc_cluster_t *
+itcl_allocate (lock_trx_t * lt, caddr_t * inst)
+{
+  NEW_VARZ (itc_cluster_t, itcl);
+  itcl->itcl_clrg = cl_req_group (lt);
+  itcl->itcl_clrg->clrg_keep_local_clo = 1;
+  itcl->itcl_clrg->clrg_itcl = itcl;
+  itcl->itcl_clrg->clrg_inst = inst;
+  itcl->itcl_qst = inst;
+  itcl->itcl_pool = mem_pool_alloc ();
+  return itcl;
+}
+
+
 caddr_t
 ins_value_by_cl (dbe_col_loc_t * cl, dbe_column_t * col_1, char **names, caddr_t * values, int *found)
 {
@@ -510,16 +566,6 @@ void
 lt_expedite_1pc (lock_trx_t * lt)
 {
   GPF_T;
-}
-
-
-itc_cluster_t *
-itcl_allocate (lock_trx_t * lt, caddr_t * inst)
-{
-  NEW_VARZ (itc_cluster_t, itcl);
-  itcl->itcl_qst = inst;
-  itcl->itcl_pool = mem_pool_alloc ();
-  return itcl;
 }
 
 

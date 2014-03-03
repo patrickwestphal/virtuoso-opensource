@@ -2257,7 +2257,8 @@ the_grim_lock_reaper (void)
   long now = approx_msec_real_time ();
   int server_is_idle = 1;
   int n_threads = 0, n_vdb_threads = 0, n_lw_threads = 0;
-  dt_init ();
+  if (!resources_clear_last_time)
+    dt_init ();
   dt_now ((caddr_t) & srv_approx_dt);
   if (CPT_CHECKPOINT == wi_inst.wi_is_checkpoint_pending)
     return;

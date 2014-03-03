@@ -208,7 +208,7 @@ setp_distinct_hash (sql_comp_t * sc, setp_node_t * setp, uint64 n_rows, int op)
   if (setp->setp_any_user_aggregate_gos)
     ha->ha_memcache_only = 1;
   if ((HA_GROUP == op && sqlg_is_vector && !setp->setp_any_user_aggregate_gos
-	  && !setp->setp_any_distinct_gos && ha->ha_n_keys <= CHASH_GB_MAX_KEYS) || setp->setp_distinct)
+	  && ha->ha_n_keys <= CHASH_GB_MAX_KEYS) || setp->setp_distinct)
     {
       int n_slots = BOX_ELEMENTS (ha->ha_slots);
       ha->ha_ch_len = sizeof (int64) * (1 + n_slots);

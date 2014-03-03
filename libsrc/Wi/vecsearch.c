@@ -862,7 +862,8 @@ itc_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 			    pt = LIKE_ARG_WCHAR;
 			  if (DV_WIDE == ltype || DV_LONG_WIDE == ltype)
 			    st = LIKE_ARG_WCHAR;
-			  if (DVC_MATCH != cmp_like (col->col_default, v, sp->sp_collation, sp->sp_like_escape, st, pt))
+			  if (sp->sp_is_reverse == (DVC_MATCH == cmp_like (col->col_default, v, sp->sp_collation,
+				      sp->sp_like_escape, st, pt)))
 			    return DVC_LESS;
 			}
 		      if (sp->sp_max_op != CMP_NONE
@@ -885,13 +886,13 @@ itc_vec_row_check (it_cursor_t * itc, buffer_desc_t * buf)
 	    }
 	  else if (op == CMP_LIKE)
 	    {
-	      if (DVC_MATCH != itc_like_compare (itc, buf, itc->itc_search_params[sp->sp_min], sp))
+	      if (sp->sp_is_reverse == (DVC_MATCH == itc_like_compare (itc, buf, itc->itc_search_params[sp->sp_min], sp)))
 		return DVC_LESS;
 	      goto next_sp;
 	    }
 	  else if (CMP_HASH_RANGE == op)
 	    {
-	      if (DVC_MATCH != itc_hash_compare (itc, buf, sp))
+	      if ((sp->sp_is_reverse ? DVC_LESS : DVC_MATCH) != itc_hash_compare (itc, buf, sp))
 		return DVC_LESS;
 	      goto next_sp;
 	    }

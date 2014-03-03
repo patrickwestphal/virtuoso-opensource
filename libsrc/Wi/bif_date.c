@@ -469,6 +469,27 @@ bif_week (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 
+
+caddr_t
+bif_year (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t dt = bif_date_arg (qst, args, 0, "year");
+  TIMESTAMP_STRUCT ts;
+  int year, month, day;
+  num2date (DT_DAY (dt), &year, &month, &day);
+  if ((1 == month && 1 == day) || (12 == month && 31 == day))
+    {
+      int tz = DT_TZ (dt);
+      if (!tz)
+	return box_num (year);
+      dt_to_timestamp_struct (dt, &ts);
+      return box_num (ts.year);
+    }
+  return box_num (year);
+}
+
+
+
 #define DT_PART(part) \
 caddr_t \
 bif_##part (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args) \
@@ -480,7 +501,7 @@ bif_##part (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args) \
 }
 
 
-DT_PART (year) DT_PART (month) DT_PART (day) DT_PART (hour) DT_PART (minute) DT_PART (second) caddr_t
+DT_PART (month) DT_PART (day) DT_PART (hour) DT_PART (minute) DT_PART (second) caddr_t
 bif_timezone (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t arg = bif_date_arg (qst, args, 0, "timezone");

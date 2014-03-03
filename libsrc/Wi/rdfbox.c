@@ -1958,7 +1958,7 @@ bif_rdf_box_to_ro_id_search_fields (caddr_t * qst, caddr_t * err_ret, state_slot
     }
   if (DV_STRING != dtp)
     return NULL;
-  if (BF_IRI & box_flags (box))
+  if (BF_IRI == box_flags (box))
     return NULL;
   len = box_length (box) - 1;
   if (len > RB_BOX_HASH_MIN_LEN)

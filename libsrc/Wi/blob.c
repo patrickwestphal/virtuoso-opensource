@@ -2112,7 +2112,7 @@ bh_is_ready:
 	  blob_log_write (row_itc, first_page, DV_BLOB_DTP_FOR_BLOB_HANDLE_DTP (box_tag (target_bh)), 0, 0, 0, 0);
       }
     bh_to_dv (target_bh, col, DV_BLOB_DTP_FOR_BLOB_HANDLE_DTP (box_tag (target_bh)));
-    if (!row_is_temporary && row_itc->itc_ltrx->lt_client->cli_cl_dae_blob)
+    if (!row_is_temporary && !row_itc->itc_ltrx->lt_client->cli_cl_dae_blob)
       blob_schedule_delayed_delete (row_itc, bl_from_dv (col, row_itc), BL_DELETE_AT_ROLLBACK);
     if (BLOB_NULL_RECEIVED != read_status)
       source_bh->bh_ask_from_client = 0;	/* next time this bh is used it will refer to
@@ -3043,6 +3043,8 @@ blob_check (blob_handle_t * bh)
 }
 
 
+dp_addr_t bl_trap;
+
 int
 bl_check (blob_layout_t * bl)
 {
@@ -3080,6 +3082,8 @@ bl_check (blob_layout_t * bl)
       for (inx = 0; inx < n; inx++)
 	{
 	  dp = bl->bl_pages[inx];
+	  if (dp == bl_trap)
+	    bing ();
 	  if (dp < 3 || dp > it->it_storage->dbs_n_pages)
 	    {
 	      error = 1;
@@ -3853,3 +3857,49 @@ blob_fill_buffer_from_wide_string (caddr_t _bh, caddr_t _buf, int *at_end, long 
   return (utf8len == -1 ? 0 : utf8len);
 }
 #endif
+
+dk_set_t
+bh_dp_list_n (lock_trx_t * lt, blob_handle_t * bh)
+{
+  /* take current page at current place and make string of
+     n bytes from the place and return as string list */
+  caddr_t page_string;
+  dk_set_t list = NULL;
+  dp_addr_t start = bh->bh_current_page;
+  buffer_desc_t *buf = NULL;
+  long from_byte = bh->bh_position;
+  long bytes_filled = 0, bytes_on_page;
+  it_cursor_t *tmp_itc;
+  tmp_itc = itc_create (NULL, lt);
+  itc_from_it (tmp_itc, bh->bh_it);
+  dk_set_push (&list, box_num (bh->bh_dir_page));
+  while (start)
+    {
+      long len, next;
+      uint32 timestamp;
+      int type;
+
+      if (!page_wait_blob_access (tmp_itc, start, &buf, PA_READ, bh, 1))
+	break;
+      type = SHORT_REF (buf->bd_buffer + DP_FLAGS);
+      timestamp = LONG_REF (buf->bd_buffer + DP_BLOB_TS);
+      if ((bh->bh_timestamp != BH_ANY) && (bh->bh_timestamp != timestamp))
+	{
+	  page_leave_outside_map (buf);
+	  return 0;
+	}
+      if ((DPF_BLOB != type) && (DPF_BLOB_DIR != type))
+	{
+	  page_leave_outside_map (buf);
+	  return 0;
+	}
+      dk_set_push (&list, box_num (start));
+      next = LONG_REF (buf->bd_buffer + DP_OVERFLOW);
+      page_leave_outside_map (buf);
+      bh->bh_current_page = next;
+      bh->bh_position = 0;
+      start = next;
+    }
+  itc_free (tmp_itc);
+  return (dk_set_nreverse (list));
+}

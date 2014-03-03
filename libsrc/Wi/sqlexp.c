@@ -690,7 +690,16 @@ scalar_exp_generate (sql_comp_t * sc, ST * tree, dk_set_t * code)
   char is_re_emit = sc->sc_re_emit_code;
   if (sc->sc_so)
     {
+      if (ST_P (tree, LIT_PARAM))
+	return scalar_exp_generate (sc, tree->_.lit_param.value, code);
       dfe = sqlo_df (sc->sc_so, tree);
+      if (DFE_CONST == dfe->dfe_type && sc->sc_so->so_stl && dfe->dfe_nth_param)
+	{
+	  if (sc->sc_no_lit_param)
+	    return ssl_new_constant (sc->sc_cc, dfe->dfe_tree);
+	  else
+	    return dfe->dfe_ssl;
+	}
       if (dfe->dfe_ssl && (!is_re_emit || !dk_set_member (sc->sc_re_emitted_dfes, (void *) dfe)))
 	return (dfe->dfe_ssl);
     }
@@ -1812,7 +1821,11 @@ cv_is_local_1 (code_vec_t cv, int is_cluster)
 	if (!enable_rec_qf && CV_IS_LOCAL_CN == is_cluster)
 	  break;
 	if (enable_rec_qf && is_cluster)
-	  return qr_is_local (ins->_.subq.query, is_cluster);
+	  {
+	    if (!qr_is_local (ins->_.subq.query, is_cluster))
+	      return 0;
+	    break;
+	  }
 	return 0;
       case INS_CALL:
 	{
@@ -1820,12 +1833,16 @@ cv_is_local_1 (code_vec_t cv, int is_cluster)
 	  if (is_cluster && sqlo_proc_cl_locatable (ins->_.call.proc, 0, &qr))
 	    {
 	      ins->_.call.pn = proc_name_ref (qr->qr_pn);	/* name resolved for known proc here, so no need to send current qualifier etc to cluster */
-	      if (is_cluster != CV_IS_LOCAL_AGG && sch_ua_func_ua (qr->qr_proc_name))
+	      if (!(is_cluster & CV_IS_LOCAL_AGG) && sch_ua_func_ua (qr->qr_proc_name))
 		return 0;
 	      break;
 	    }
 	  else if (is_cluster)
-	    sqlc_need_enlist (sqlc_current_sc);
+	    {
+	      if (CV_IS_LOCAL_NO_ENLIST & is_cluster)
+		return 0;
+	      sqlc_need_enlist (sqlc_current_sc);
+	    }
 	  if (is_cluster != CV_IS_LOCAL_AGG && sch_ua_func_ua (ins->_.call.proc))
 	    return 0;
 	  return is_cluster ? 0 : enable_mt_txn ? 1 : 0;
@@ -1837,7 +1854,11 @@ cv_is_local_1 (code_vec_t cv, int is_cluster)
 	if (CV_NO_INDEX & is_cluster && bif_uses_index (ins->_.bif.bif))
 	  return 0;
 	if (bif_need_enlist (ins->_.bif.bif))
-	  sqlc_need_enlist (sqlc_current_sc);
+	  {
+	    if (CV_IS_LOCAL_NO_ENLIST & is_cluster)
+	      return 0;
+	    sqlc_need_enlist (sqlc_current_sc);
+	  }
 	if (is_cluster != CV_IS_LOCAL_AGG && bif_is_aggregate (ins->_.bif.bif))
 	  return 0;
 	if (is_cluster && bif_is_no_cluster (ins->_.bif.bif))
@@ -2089,6 +2110,7 @@ cv_refd_slots (sql_comp_t * sc, code_vec_t cv, dk_hash_t * res, dk_hash_t * all_
 void
 setp_refd_slots (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res, dk_hash_t * all_res, int *non_cl_local)
 {
+  int op = setp->setp_ha ? setp->setp_ha->ha_op : -1;
   ref_ssl_list (sc, res, setp->setp_keys);
   ref_ssl_list (sc, res, setp->setp_dependent);
   DO_SET (state_slot_t *, ssl, &setp->setp_const_gb_args)
@@ -2098,7 +2120,8 @@ setp_refd_slots (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res, dk_hash_t
   END_DO_SET ();
   REF_SSL (res, setp->setp_top);
   REF_SSL (res, setp->setp_top_skip);
-  REF_SSL (res, setp->setp_ssa.ssa_set_no);
+  if ((HA_ORDER == op && setp->setp_multistate_oby) || (HA_GROUP == op && setp->setp_set_no_in_key))
+    REF_SSL (res, setp->setp_ssa.ssa_set_no);
   DO_SET (gb_op_t *, go, &setp->setp_gb_ops)
   {
     if (go->go_ua_arglist)
@@ -2109,7 +2132,7 @@ setp_refd_slots (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res, dk_hash_t
   END_DO_SET ();
   if (setp->setp_loc_ts)
     qn_refd_slots (sc, (data_source_t *) setp->setp_loc_ts, res, all_res, non_cl_local);
-  if (setp->setp_ha && HA_FILL == setp->setp_ha->ha_op)
+  if (setp->setp_ha && (HA_FILL == setp->setp_ha->ha_op || setp->setp_is_gb_build))
     {
       /* if this is a hash filler then ref the set no so that the 1st stage of the filler qf should have at least one param else it  has none and can't compile without */
       REF_SSL (res, sc->sc_set_no_ssl);
@@ -2145,6 +2168,14 @@ ks_refd_slots (sql_comp_t * sc, key_source_t * ks, dk_hash_t * res, dk_hash_t * 
     ASG_SSL (res, all_res, out);
   }
   END_DO_SET ();
+  DO_SET (search_spec_t *, sp, &ks->ks_hash_spec)
+  {
+    QNCAST (hash_range_spec_t, hrng, sp->sp_min_ssl);
+    REF_SSL (res, hrng->hrng_ht);
+    REF_SSL (res, hrng->hrng_ht_id);
+  }
+  END_DO_SET ();
+  REF_SSL (res, ks->ks_ht_id);
 }
 
 
@@ -2585,7 +2616,7 @@ sqlg_agg_ins (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun_ref_co
 {
   state_slot_t *result = NULL;
   state_slot_t *arg = scalar_exp_generate (sc, tree->_.fn_ref.fn_arg, fun_ref_code);
-  state_slot_t *set_no = sc->sc_set_no_ssl;
+  state_slot_t *set_no = sc->sc_is_single_state ? NULL : sc->sc_set_no_ssl;
   switch (tree->_.fn_ref.fn_code)
     {
     case AMMSC_MIN:
@@ -2610,7 +2641,6 @@ sqlg_agg_ins (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun_ref_co
 	  sum = ssl_new_inst_variable (sc->sc_cc, "sum", DV_UNKNOWN);
 	else
 	  sum = ssl_new_inst_variable (sc->sc_cc, "count", DV_UNKNOWN);
-	sum->ssl_qr_global = 1;
 	dk_set_push (&sc->sc_fun_ref_temps, (void *) sum);
 	if (tree->_.fn_ref.fn_code == AMMSC_SUM)
 	  sc->sc_fun_ref_defaults = NCONC (sc->sc_fun_ref_defaults, CONS (dk_alloc_box (0, DV_DB_NULL), NULL));
@@ -2634,7 +2664,6 @@ sqlg_agg_ins (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun_ref_co
       {
 	void *dist_opt = NULL;
 	state_slot_t *count = ssl_new_inst_variable (sc->sc_cc, "count", DV_LONG_INT);
-	count->ssl_qr_global = 1;
 	dk_set_push (&sc->sc_fun_ref_temps, (void *) count);
 	if (!tree->_.fn_ref.all_distinct)
 	  sc->sc_fun_ref_defaults = NCONC (sc->sc_fun_ref_defaults, CONS (box_num (-1), NULL));
@@ -2694,7 +2723,6 @@ select_ref_generate (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun
 	    jmp_label_t better = sqlc_new_label (sc);
 
 	    dk_set_push (&sc->sc_fun_ref_temps, (void *) best);
-	    best->ssl_qr_global = 1;
 	    sc->sc_fun_ref_defaults = NCONC (sc->sc_fun_ref_defaults, CONS (dk_alloc_box (0, DV_DB_NULL), NULL));
 	    sc->sc_fun_ref_default_ssls = NCONC (sc->sc_fun_ref_default_ssls, CONS (best, NULL));
 
@@ -2720,7 +2748,6 @@ select_ref_generate (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun
 	      sum = ssl_new_inst_variable (sc->sc_cc, "sum", DV_UNKNOWN);
 	    else
 	      sum = ssl_new_inst_variable (sc->sc_cc, "count", DV_UNKNOWN);
-	    sum->ssl_qr_global = 1;
 	    dk_set_push (&sc->sc_fun_ref_temps, (void *) sum);
 	    if (tree->_.fn_ref.fn_code == AMMSC_SUM)
 	      sc->sc_fun_ref_defaults = NCONC (sc->sc_fun_ref_defaults, CONS (dk_alloc_box (0, DV_DB_NULL), NULL));
@@ -2758,7 +2785,6 @@ select_ref_generate (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun
 	case AMMSC_COUNT:
 	  {
 	    state_slot_t *count = ssl_new_inst_variable (sc->sc_cc, "count", DV_LONG_INT);
-	    count->ssl_qr_global = 1;
 	    dk_set_push (&sc->sc_fun_ref_temps, (void *) count);
 	    if (!tree->_.fn_ref.all_distinct)
 	      sc->sc_fun_ref_defaults = NCONC (sc->sc_fun_ref_defaults, CONS (box_num (-1), NULL));
@@ -2781,8 +2807,6 @@ select_ref_generate (sql_comp_t * sc, ST * tree, dk_set_t * code, dk_set_t * fun
 	    caddr_t deflt;
 	    state_slot_t *sum = ssl_new_inst_variable (sc->sc_cc, "sum", DV_UNKNOWN);
 	    state_slot_t *count = ssl_new_inst_variable (sc->sc_cc, "count", DV_UNKNOWN);
-	    count->ssl_qr_global = 1;
-	    sum->ssl_qr_global = 1;
 	    deflt = dk_alloc_box (0, DV_DB_NULL);
 	    sc->sc_fun_ref_defaults = NCONC (sc->sc_fun_ref_defaults, CONS (deflt, NULL));
 	    sc->sc_fun_ref_default_ssls = NCONC (sc->sc_fun_ref_default_ssls, CONS (sum, NULL));

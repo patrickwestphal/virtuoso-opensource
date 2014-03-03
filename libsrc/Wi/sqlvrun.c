@@ -41,6 +41,7 @@
 
 
 extern int32 enable_qp;
+int sdfg_max_slices = 100;	/* larger than max reasonable enable_qp */
 int enable_split_range = 1;
 int enable_split_sets = 1;
 int32 enable_dyn_batch_sz = 0;
@@ -2239,7 +2240,7 @@ qi_vec_copy_nodes (query_instance_t * qi, caddr_t * cp_inst, query_t * qr, int r
       qst_sets_copy ((caddr_t *) qi, cp_inst, qn->src_sets, qn->src_out_fill);
     if (IS_QN (qn, subq_node_input))
       qi_vec_copy_nodes (qi, cp_inst, ((subq_source_t *) qn)->sqs_query, reset_only);
-    if (IS_QN (qn, fun_ref_node_input))
+    if (IS_QN (qn, fun_ref_node_input) && qn->src_prev)
       {
 	QNCAST (query_instance_t, cp_qi, cp_inst);
 	QNCAST (fun_ref_node_t, fref, qn);
@@ -2253,6 +2254,11 @@ qi_vec_copy_nodes (query_instance_t * qi, caddr_t * cp_inst, query_t * qr, int r
 	QNCAST (fun_ref_node_t, fref, qn);
 	QST_INT (cp_inst, fref->fnr_hash_part_min) = QST_INT (qi, fref->fnr_hash_part_min);
 	QST_INT (cp_inst, fref->fnr_hash_part_max) = QST_INT (qi, fref->fnr_hash_part_max);
+      }
+    if (IS_TS (qn) && ((table_source_t *) qn)->ts_in_sdfg)
+      {
+	QNCAST (table_source_t, ts, qn);
+	QST_INT (cp_inst, ts->ts_in_sdfg) = QST_INT (qi, ts->ts_in_sdfg);
       }
     if (IS_QN (qn, hash_source_input) && ((hash_source_t *) qn)->hs_done_in_probe)
       {
@@ -2354,6 +2360,7 @@ itc_copy (it_cursor_t * itc)
   cp->itc_simple_ps = itc->itc_simple_ps;
   cp->itc_landed = 1;
   cp->itc_dive_mode = itc->itc_dive_mode;
+  cp->itc_count_scan = itc->itc_count_scan;
   cp->itc_bp = itc->itc_bp;
   cp->itc_n_branches = itc->itc_n_branches;
   cp->itc_multistate_row_specs = itc->itc_multistate_row_specs;
@@ -2400,6 +2407,22 @@ itc_copy (it_cursor_t * itc)
     }
   return cp;
 }
+
+
+void
+ts_scan_counted (table_source_t * ts, caddr_t * inst)
+{
+  QNCAST (QI, qi, inst);
+  dbe_key_t *key = ts->ts_order_ks->ks_key;
+  dbe_table_t *tb = key->key_table;
+  db_activity_t *da = &qi->qi_client->cli_activity;
+  key->key_segs_sampled = da->da_scan_segs;
+  key->key_rows_in_sampled_segs = da->da_scan_rows;
+  tb->tb_count_estimate = da->da_scan_rows;
+  tb->tb_count_delta = 0;
+  tb->tb_is_counted = 1;
+}
+
 
 #if 0
 #define qp_printf(q) printf q
@@ -2472,6 +2495,12 @@ ts_handle_aq (table_source_t * ts, caddr_t * inst, buffer_desc_t ** order_buf_re
 	if (err2)
 	  sqlr_resignal (err2);
 	SRC_IN_STATE (ts, inst) = NULL;
+	if (ts->ts_order_cursor)
+	  {
+	    it_cursor_t *itc = (it_cursor_t *) QST_GET_V (inst, ts->ts_order_cursor);
+	    if (itc && itc->itc_count_scan)
+	      ts_scan_counted (ts, inst);
+	  }
 	ts_aq_result (ts, inst);
 	if (qi->qi_client->cli_activity.da_anytime_result)
 	  cli_anytime_timeout (qi->qi_client);
@@ -2498,12 +2527,23 @@ ts_aq_handle_end (table_source_t * ts, caddr_t * inst)
 void
 ts_aq_final (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
 {
-  int aq_state;
+  int aq_state = 0;
+  if (ts->ts_aq_state)
+    aq_state = QST_INT (inst, ts->ts_aq_state);
   if (itc)
-    ts_check_batch_sz (ts, inst, itc);
+    {
+      ts_check_batch_sz (ts, inst, itc);
+      if (!aq_state && itc->itc_count_scan)
+	ts_scan_counted (ts, inst);
+    }
+  if (!aq_state && !itc && ts->ts_order_cursor)
+    {
+      itc = (it_cursor_t *) QST_GET_V (inst, ts->ts_order_cursor);
+      if (itc && itc->itc_count_scan)
+	ts_scan_counted (ts, inst);
+    }
   if (!ts->ts_aq)
     return;
-  aq_state = QST_INT (inst, ts->ts_aq_state);
   if (TS_AQ_COORD_AQ_WAIT == aq_state)
     {
       ts_handle_aq (ts, inst, NULL, NULL);
@@ -2528,6 +2568,10 @@ qi_qp_anytime (caddr_t * inst, query_t * qr)
   END_DO_SET ();
 }
 
+#define CLAQ_IN_CLL if (claq) IN_CLL;
+#define CLAQ_LEAVE_CLL if (claq) LEAVE_CLL;
+
+
 
 caddr_t
 aq_qr_func (caddr_t av, caddr_t * err_ret)
@@ -2538,21 +2582,27 @@ aq_qr_func (caddr_t av, caddr_t * err_ret)
   client_connection_t *cli = GET_IMMEDIATE_CLIENT_OR_NULL;
   query_t *qr = (query_t *) (ptrlong) unbox (args[1]);
   cl_slice_t *csl = (cl_slice_t *) (ptrlong) unbox (args[3]);
+  cl_aq_ctx_t *claq = BOX_ELEMENTS (args) > 4 ? (cl_aq_ctx_t *) unbox (args[4]) : NULL;
   qi->qi_trx = cli->cli_trx;
   qi->qi_trx->lt_rc_w_id = unbox (args[2]);
   dk_free_box (args[1]);
   dk_free_box (args[2]);
   dk_free_box (args[3]);
+  if (BOX_ELEMENTS (args) > 4)
+    dk_free_box (args[4]);
   dk_free_box (av);
   qi->qi_client = cli;
+  cli->cli_claq = claq;
   if (!cli->cli_user)
     {
       *err_ret = srv_make_new_error ("42000", "SR186", "cli with no user in query branch");
       dk_free_box ((caddr_t) inst);
       return NULL;
     }
+  CLAQ_IN_CLL;
   qi->qi_thread = THREAD_CURRENT_THREAD;
   qi->qi_threads = 1;
+  CLAQ_LEAVE_CLL;
   QR_RESET_CTX
   {
     if (csl)
@@ -2566,6 +2616,10 @@ aq_qr_func (caddr_t av, caddr_t * err_ret)
   QR_RESET_CODE
   {
     du_thread_t *prev_qi_thread = qi->qi_thread;
+    CLAQ_IN_CLL;
+    qi->qi_threads = 0;
+    qi->qi_thread = NULL;
+    CLAQ_LEAVE_CLL;
     cli_set_slice (cli, NULL, QI_NO_SLICE, NULL);
     if (RST_GB_ENOUGH == reset_code)
       {
@@ -2584,6 +2638,10 @@ aq_qr_func (caddr_t av, caddr_t * err_ret)
   END_QR_RESET;
   cli_set_slice (cli, NULL, QI_NO_SLICE, NULL);
   qi_inc_branch_count (qi, 0, -1);	/* branch completed */
+  CLAQ_IN_CLL;
+  qi->qi_threads = 0;
+  qi->qi_thread = NULL;
+  CLAQ_LEAVE_CLL;
   return (caddr_t) qi;
 }
 
@@ -2628,7 +2686,7 @@ fun_ref_reset_setps (fun_ref_node_t * fref, caddr_t * inst)
 {
   DO_SET (setp_node_t *, setp, &fref->fnr_setps)
   {
-    if (setp->setp_ha && HA_FILL != setp->setp_ha->ha_op)
+    if (setp->setp_ha && HA_FILL != setp->setp_ha->ha_op && !setp->setp_is_gb_build)
       qst_set (inst, setp->setp_ha->ha_tree, NULL);
   }
   END_DO_SET ();
@@ -2660,7 +2718,7 @@ ts_thread (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int aq_state,
     }
   if (!qis || BOX_ELEMENTS (qis) <= inx)
     {
-      caddr_t **new_qis = (caddr_t **) dk_alloc_box_zero (sizeof (caddr_t) * (inx + 20), DV_ARRAY_OF_POINTER);
+      caddr_t **new_qis = (caddr_t **) dk_alloc_box_zero (sizeof (caddr_t) * sdfg_max_slices, DV_ARRAY_OF_POINTER);
       if (qis)
 	memcpy (new_qis, qis, box_length (qis));
       QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index) = new_qis;
@@ -2674,6 +2732,15 @@ ts_thread (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int aq_state,
     GPF_T1 ("cannot reuse a qi for qp.  Make new instead");
   qis[inx] = cp_inst;
   cp_qi = (query_instance_t *) cp_inst;
+  if (ts->ts_in_sdfg)
+    {
+      stage_node_t *stn = qn_next_stn ((data_source_t *) ts);
+      QST_INT (cp_inst, stn->stn_coordinator_id) = local_cll.cll_this_host;
+      cp_qi->qi_is_dfg_slice = 1;
+      cp_qi->qi_slice = inx;
+      cp_qi->qi_slice_merits_thread = 1;
+      QST_INT (cp_inst, ts->ts_in_sdfg) = 1;
+    }
   qst_set (cp_inst, ts->ts_order_cursor, (caddr_t) itc);
   itc->itc_out_state = cp_inst;
   itc_copy_vec_params (itc, ts->ts_order_ks->ks_spec.ksp_spec_array);
@@ -2700,13 +2767,14 @@ ts_thread (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int aq_state,
       memcpy_16_nt (itc->itc_param_order, order, sizeof (int) * itc->itc_n_sets);
       itc_set_param_row (itc, itc->itc_set);
     }
-  if (0 && ts->ts_branch_by_value)
+  if (ts->ts_branch_by_value)
     aq_state = TS_AQ_FIRST;
   QST_INT (cp_inst, ts->ts_aq_state) = aq_state;
   SRC_IN_STATE (ts, cp_inst) = cp_inst;
-  aq_request (aq, aq_qr_func, list (4, box_copy ((caddr_t) cp_inst), box_num ((ptrlong) ts->src_gen.src_query),
-	  box_num (qi->qi_trx->lt_rc_w_id ? qi->qi_trx->lt_rc_w_id : qi->qi_trx->lt_w_id),
-	  box_num ((ptrlong) qi->qi_client->cli_csl)));
+  if (!ts->ts_in_sdfg)
+    aq_request (aq, aq_qr_func, list (5, box_copy ((caddr_t) cp_inst), box_num ((ptrlong) ts->src_gen.src_query),
+	    box_num (qi->qi_trx->lt_rc_w_id ? qi->qi_trx->lt_rc_w_id : qi->qi_trx->lt_w_id),
+	    box_num ((ptrlong) qi->qi_client->cli_csl), box_num ((ptrlong) qi->qi_client->cli_claq)));
 }
 
 
@@ -2727,38 +2795,50 @@ sp_list_copy (search_spec_t * sp)
 void
 itc_add_value_range_spec (it_cursor_t * itc, caddr_t lower, caddr_t upper, int min_op, int max_op)
 {
-  search_spec_t *sp, *copy_1 = NULL;
-  search_spec_t **copy = &copy_1;
+  search_spec_t *ksp1 = itc->itc_key_spec.ksp_spec_array;
   NEW_VARZ (search_spec_t, r_sp);
   itc->itc_local_key_spec = 1;
   itc->itc_key_spec.ksp_key_cmp = pg_key_compare;
-  for (sp = itc->itc_row_specs; sp; sp = sp->sp_next)
+  if (ksp1)
     {
-      *copy = sp_copy (sp);
-      copy = &(*copy)->sp_next;
+      *r_sp = *ksp1;
     }
-  *copy = r_sp;
-  itc->itc_key_spec.ksp_spec_array = copy_1;
-  r_sp->sp_min_op = min_op;
+  else
+    {
+      r_sp->sp_min_op = r_sp->sp_max_op = CMP_NONE;
+      r_sp->sp_cl = *key_find_cl (itc->itc_insert_key, ((dbe_column_t *) itc->itc_insert_key->key_parts->data)->col_id);
+    }
+  itc->itc_key_spec.ksp_spec_array = r_sp;
+  r_sp->sp_next = NULL;
   if (CMP_NONE != min_op)
     {
+      if (CMP_GT == r_sp->sp_min_op && DVC_MATCH == cmp_boxes (lower, itc->itc_search_params[r_sp->sp_min], NULL, NULL))
+	min_op = CMP_GT;
+      r_sp->sp_min_op = min_op;
       r_sp->sp_min = itc->itc_search_par_fill++;
+      ITC_P_VEC (itc, r_sp->sp_min) = NULL;
+      lower = box_copy_tree (lower);
       itc->itc_search_params[r_sp->sp_min] = lower;
       ITC_OWNS_PARAM (itc, lower);
     }
-  r_sp->sp_max_op = max_op;
   if (CMP_NONE != max_op)
     {
+      r_sp->sp_max_op = max_op;
       r_sp->sp_max = itc->itc_search_par_fill++;
+      ITC_P_VEC (itc, r_sp->sp_max) = NULL;
+      upper = box_copy_tree (upper);
       itc->itc_search_params[r_sp->sp_max] = upper;
       ITC_OWNS_PARAM (itc, upper);
     }
   if (itc->itc_is_col)
     {
+      search_spec_t *r_sp_cp = sp_copy (r_sp);
+      r_sp_cp->sp_cl = *cl_list_find (itc->itc_insert_key->key_row_var, r_sp->sp_cl.cl_col_id);
       if (RSP_CHANGED != itc->itc_hash_row_spec)
 	itc->itc_row_specs = sp_list_copy (itc->itc_row_specs);
-      ks_spec_add (&itc->itc_row_specs, sp_copy (r_sp));
+      ks_spec_add (&itc->itc_row_specs, r_sp_cp);
       itc->itc_hash_row_spec = RSP_CHANGED;
+      itc_set_sp_stat (itc);
     }
 }
 
@@ -2822,7 +2902,11 @@ itc_angle (it_cursor_t * itc, buffer_desc_t ** buf_ret, int angle, placeholder_t
   itc_clear_stats (itc);
   itc->itc_st.mode = ITC_STAT_ANGLE;
   est = itc_sample_1 (itc, buf_ret, &n_leaves, angle);
-  if (!tsp->tsp_card_est)
+  if (!itc->itc_key_spec.ksp_spec_array)
+    est = tsp->tsp_card_est = dbe_key_count (itc->itc_insert_key) / key_n_partitions (itc->itc_insert_key);
+  else if (tsp->tsp_ts && tsp->tsp_ts->ts_inx_cardinality)
+    est = tsp->tsp_card_est = tsp->tsp_ts->ts_inx_cardinality;
+  else if (!tsp->tsp_card_est)
     tsp->tsp_card_est = est;
   ITC_RESTORE_ROW_SPECS (itc);
   itc->itc_bp.bp_new_on_row = 1;
@@ -2847,7 +2931,8 @@ itc_angle (it_cursor_t * itc, buffer_desc_t ** buf_ret, int angle, placeholder_t
     }
   if (tsp->tsp_ts->ts_branch_col)
     {
-      dk_free_box (tsp->tsp_value);
+      dk_free_box (tsp->tsp_prev_value);
+      tsp->tsp_prev_value = tsp->tsp_value;
       tsp->tsp_value = itc_box_column (itc, *buf_ret, tsp->tsp_ts->ts_branch_col->col_id, NULL);
     }
   itc->itc_landed = 1;
@@ -2907,6 +2992,8 @@ ts_split_sets (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_par
   n_ways = 1 + qi_inc_branch_count (qi, enable_qp, n_ways - 1);
   if (n_ways < 2)
     return itc_reset (itc);
+  if (n_ways > n_sets)
+    n_ways = n_sets;
   chunk = n_sets / n_ways;
   for (inx = 0; inx < n_ways - 1; inx++)
     {
@@ -2947,10 +3034,6 @@ tsp_next_col (ts_split_state_t * tsp, it_cursor_t * itc, buffer_desc_t ** buf_re
 	    itc->itc_fail_context = save;
 	    return rc;
 	  }
-	if (!itc->itc_key_spec.ksp_spec_array)
-	  tsp->tsp_card_est = dbe_key_count (itc->itc_insert_key) / key_n_partitions (itc->itc_insert_key);
-	else if (tsp->tsp_ts->ts_inx_cardinality)
-	  tsp->tsp_card_est = tsp->tsp_ts->ts_inx_cardinality;
 	tsp->tsp_org_n_parts = n_parts = tsp->tsp_n_parts;
       }
     else
@@ -2981,6 +3064,12 @@ tsp_next_col (ts_split_state_t * tsp, it_cursor_t * itc, buffer_desc_t ** buf_re
 		  }
 	      }
 	    itc->itc_fail_context = save;
+	    if (tsp->tsp_ts->ts_branch_col)
+	      {
+		dk_free_box (tsp->tsp_prev_value);
+		tsp->tsp_prev_value = tsp->tsp_value;
+		tsp->tsp_value = itc_box_column (itc, *buf_ret, tsp->tsp_ts->ts_branch_col->col_id, NULL);
+	      }
 	    return is_last ? TSS_LAST : TSS_NEXT;
 	  }
 	rows_to_go -= n_rows - itc->itc_map_pos;
@@ -3039,6 +3128,33 @@ tsp_next (ts_split_state_t * tsp, it_cursor_t * itc, buffer_desc_t ** buf_ret, i
 }
 
 
+void
+tsp_done (ts_split_state_t * tsp)
+{
+  dk_free_tree (tsp->tsp_prev_value);
+  dk_free_tree (tsp->tsp_value);
+  tsp->tsp_prev_value = NULL;
+  tsp->tsp_value = NULL;
+}
+
+
+void
+itc_set_boundary (it_cursor_t * itc, it_cursor_t * boundary, buffer_desc_t * buf, ts_split_state_t * tsp, int rc)
+{
+  if (tsp->tsp_ts->ts_branch_by_value)
+    {
+      if (!tsp->tsp_prev_value)
+	itc_add_value_range_spec (itc, NULL, tsp->tsp_value, CMP_NONE, CMP_LT);
+      else if (TSS_AT_END == rc || TSS_LAST == rc)
+	itc_add_value_range_spec (itc, tsp->tsp_value, NULL, CMP_GTE, CMP_NONE);
+      else
+	itc_add_value_range_spec (itc, tsp->tsp_prev_value, tsp->tsp_value, CMP_GTE, CMP_LT);
+    }
+  else
+    itc->itc_boundary = plh_landed_copy ((placeholder_t *) boundary, buf);
+}
+
+
 buffer_desc_t *
 ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_parts)
 {
@@ -3050,6 +3166,9 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
   ts_split_state_t tsp;
   caddr_t aq_qis = qst_get (inst, ts->ts_aq_qis);
   ts_reset_qis (ts, inst, (caddr_t **) aq_qis);
+  if (ts->ts_in_sdfg && QST_INT (inst, ts->ts_in_sdfg))
+    return itc_reset (itc);
+
   n_branches = qi_inc_branch_count (qi, 0, 0);
   if (n_branches >= enable_qp)
     return itc_reset (itc);
@@ -3069,13 +3188,14 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
       if (TSS_NO_SPLIT == rc)
 	{
 	  QST_INT (inst, ts->ts_aq_state) = 0;
+	  tsp_done (&tsp);
 	  return itc_reset (itc);
 	}
       if (TSS_NEXT == rc)
 	{
 	  if (prev)
 	    {
-	      prev->itc_boundary = plh_landed_copy ((placeholder_t *) itc, buf);
+	      itc_set_boundary (prev, itc, buf, &tsp, rc);
 	      if (itc->itc_map_pos >= buf->bd_content_map->pm_count)
 		GPF_T1 ("ts reg after end");
 	      ts_thread (ts, inst, prev, TS_AQ_PLACED, ctr++);
@@ -3087,7 +3207,7 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
 	  else
 	    {
 	      cp_itc = itc_copy (itc);
-	      cp_itc->itc_boundary = plh_landed_copy ((placeholder_t *) itc, buf);
+	      itc_set_boundary (cp_itc, itc, buf, &tsp, rc);
 	      if (itc->itc_map_pos >= buf->bd_content_map->pm_count)
 		GPF_T1 ("ts reg after end");
 	      prev = itc_copy (itc);
@@ -3101,21 +3221,35 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
 	{
 	  if (prev)
 	    {
-	      prev->itc_boundary = plh_landed_copy ((placeholder_t *) itc, buf);
+	      itc_set_boundary (prev, itc, buf, &tsp, rc);
 	      ts_thread (ts, inst, prev, TS_AQ_PLACED, ctr++);
 	      QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD;
 	      if (ctr + 1 != tsp.tsp_n_parts)
 		qi_inc_branch_count (qi, 10000, 1 + ctr - tsp.tsp_n_parts);
+	      if (ts->ts_branch_by_value)
+		{
+		  itc_set_boundary (itc, NULL, NULL, &tsp, TSS_LAST);
+		  itc_page_leave (itc, buf);
+		  tsp_done (&tsp);
+		  return itc_reset (itc);
+		}
 	      return buf;
 	    }
 	  else
 	    {
 	      cp_itc = itc_copy (itc);
-	      cp_itc->itc_boundary = plh_landed_copy ((placeholder_t *) itc, buf);
+	      itc_set_boundary (cp_itc, itc, buf, &tsp, rc);
 	      ts_thread (ts, inst, cp_itc, TS_AQ_FIRST, ctr++);
 	      QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD;
 	      if (ctr + 1 != tsp.tsp_n_parts)
 		qi_inc_branch_count (qi, 10000, 1 + ctr - tsp.tsp_n_parts);
+	      if (ts->ts_branch_by_value)
+		{
+		  itc_set_boundary (itc, NULL, NULL, &tsp, TSS_LAST);
+		  itc_page_leave (itc, buf);
+		  tsp_done (&tsp);
+		  return itc_reset (itc);
+		}
 	      return buf;
 	    }
 	}
@@ -3126,16 +3260,27 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
 	      QST_INT (inst, ts->ts_aq_state) = 0;
 	      if (ctr + 1 != tsp.tsp_n_parts)
 		qi_inc_branch_count (qi, 10000, 1 + ctr - tsp.tsp_n_parts);
+	      tsp_done (&tsp);
 	      return itc_reset (itc);
 	    }
 	  else
 	    {
-	      buf = itc_set_by_placeholder (itc, (placeholder_t *) prev);
-	      itc_unregister_inner (prev, buf, 0);
-	      itc_free (prev);
 	      QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD;
+	      if (ts->ts_branch_by_value)
+		{
+		  itc_set_boundary (itc, NULL, NULL, &tsp, TSS_LAST);
+		}
+	      else
+		{
+		  buf = itc_set_by_placeholder (itc, (placeholder_t *) prev);
+		  itc_unregister_inner (prev, buf, 0);
+		}
+	      itc_free (prev);
 	      if (ctr + 1 != tsp.tsp_n_parts)
 		qi_inc_branch_count (qi, 10000, 1 + ctr - tsp.tsp_n_parts);
+	      tsp_done (&tsp);
+	      if (ts->ts_branch_by_value)
+		return itc_reset (itc);
 	      return buf;
 	    }
 	}
@@ -3151,7 +3296,7 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
 int qp_even_if_lock = 0;
 
 buffer_desc_t *
-ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
+ts_initial_itc_1 (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
 {
   QNCAST (query_instance_t, qi, inst);
   int no_mt = 0;
@@ -3170,6 +3315,82 @@ ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
   if (!qi->qi_is_branch && !qi->qi_root_id)
     qi_assign_root_id (qi);
   return ts_split_range (ts, inst, itc, enable_qp);
+}
+
+
+#define ABS(x) (x < 0 ? -(x) : x)
+
+
+void
+itc_may_count_scan (it_cursor_t * itc)
+{
+  dbe_key_t *key = itc->itc_insert_key;
+  dbe_table_t *tb = key->key_table;
+  if (!key->key_is_primary || key->key_not_null)
+    return;
+  if (DBE_NO_STAT_DATA == key->key_table->tb_count)
+    {
+      if ((!tb->tb_is_counted || ABS (tb->tb_count_delta) > tb->tb_count_estimate / 100)
+	  || (key->key_rows_in_sampled_segs < tb->tb_count_estimate / 2))
+	{
+	  itc->itc_ltrx->lt_client->cli_activity.da_scan_rows = 0;
+	  itc->itc_ltrx->lt_client->cli_activity.da_scan_segs = 0;
+	  itc->itc_count_scan = 1;
+	}
+    }
+}
+
+data_source_t *fnr_skip_hash_fillers (fun_ref_node_t * fref);
+
+
+
+buffer_desc_t *
+ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
+{
+  /* Recognize case where sdfg must be started.  Run the complete sdfg. */
+  caddr_t **qis;
+  int last = -1, inx;
+  QNCAST (query_instance_t, qi, inst);
+  buffer_desc_t *buf;
+  client_connection_t *cli = qi->qi_client;
+  if (ts->ts_may_count_scan && itc->itc_is_col && !itc->itc_key_spec.ksp_spec_array)
+    itc_may_count_scan (itc);
+  if (!ts->ts_in_sdfg || QST_INT (inst, ts->ts_in_sdfg))
+    return ts_initial_itc_1 (ts, inst, itc);
+  ts_sdfg_init (ts, inst);
+  buf = ts_initial_itc_1 (ts, inst, itc);
+  qis = QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index);
+  DO_BOX (caddr_t *, slice_qi, inx, qis) if (slice_qi)
+    last = inx;
+  END_DO_BOX;
+  if (!ts->ts_branch_by_value)
+    {
+      itc_register_and_leave (itc, buf);
+    }
+  QST_BOX (caddr_t, inst, ts->ts_order_cursor->ssl_index) = NULL;	/* the other thread will take the itc */
+  ts_thread (ts, inst, itc, TS_AQ_PLACED, last + 1);
+  ts_sdfg_run (ts, inst);
+  if (ts->ts_agg_node && IS_QN (ts->ts_agg_node, fun_ref_node_input))
+    {
+      QNCAST (fun_ref_node_t, fref, ts->ts_agg_node);
+      int n_sets = QST_INT (inst, fnr_skip_hash_fillers (fref)->src_out_fill);
+      setp_node_t *setp = fref->fnr_setp;
+      if (!n_sets)
+	GPF_T1
+	    ("A fref with 0 sets of input ought not to execute in the first place.  Probably missed copy of out fills in qi branchj copy");
+      if (fref->fnr_default_ssls)
+	{
+	  vec_fref_single_result (fref, ts, inst, n_sets);
+	}
+      else
+	{
+	  if ((!setp && fref->fnr_setps) || (setp->setp_ha && (HA_ORDER == setp->setp_ha->ha_op)))
+	    vec_fref_group_result (fref, ts, inst, n_sets);
+	}
+      if (!(setp && HA_GROUP == setp->setp_ha->ha_op))
+	qst_set (inst, ts->ts_aq_qis, NULL);
+    }
+  return NULL;
 }
 
 
@@ -3368,12 +3589,27 @@ vec_fref_single_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * in
 	  select_node_t *sel = fref->src_gen.src_query->qr_select_node;
 	  if (!sel)
 	    sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq is supposed to start with sctr");
-	  set_nos = QST_BOX (data_col_t *, inst, sel->sel_set_no->ssl_index);
-	  if (!set_nos)
-	    sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq does not have a set no in select");
+	  if (!sel->sel_set_no)
+	    set_nos = NULL;
+	  else
+	    {
+	      set_nos = QST_BOX (data_col_t *, inst, sel->sel_set_no->ssl_index);
+	      if (!set_nos)
+		sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq does not have a set no in select");
+	    }
 	}
       else
-	set_nos = QST_BOX (data_col_t *, inst, sctr->sctr_set_no->ssl_index);
+	{
+	  select_node_t *sel = fref->src_gen.src_query->qr_select_node;
+	  if (sel && !sel->sel_set_no)
+	    set_nos = NULL;
+	  else
+	    {
+	      set_nos = QST_BOX (data_col_t *, inst, sctr->sctr_set_no->ssl_index);
+	      if (!set_nos->dc_n_values)
+		set_nos = NULL;
+	    }
+	}
     }
   else
     set_nos = NULL;
@@ -3499,8 +3735,10 @@ vec_merge_setp (setp_node_t ** setp_ret, hash_area_t ** ha_ret, setp_node_t * tm
       tmp_ha->ha_slots = (state_slot_t **) box_copy ((caddr_t) tmp_ha->ha_slots);
       DO_BOX (state_slot_t *, ssl, inx, tmp_ha->ha_slots)
       {
-	if (inx >= tmp_ha->ha_n_keys && tmp_setp->setp_merge_temps && BOX_ELEMENTS (tmp_setp->setp_merge_temps) > inx)
-	  tmp_ha->ha_slots[inx] = ssl_single_state_shadow (tmp_setp->setp_merge_temps[inx], &tmp_ssls[inx]);
+	/* Note that if the setp has a set no in front, the merge temps will not have a merge temp for the set no, so offset by one */
+	int mrg_inx = tmp_setp->setp_set_no_in_key ? inx - 1 : inx;
+	if (inx >= tmp_ha->ha_n_keys && tmp_setp->setp_merge_temps && BOX_ELEMENTS (tmp_setp->setp_merge_temps) > mrg_inx)
+	  tmp_ha->ha_slots[inx] = ssl_single_state_shadow (tmp_setp->setp_merge_temps[mrg_inx], &tmp_ssls[inx]);
 	else
 	  tmp_ha->ha_slots[inx] = ssl_single_state_shadow (ssl, &tmp_ssls[inx]);
 	if (inx >= tmp_ha->ha_n_keys)

@@ -56,7 +56,11 @@ setp_node_free (setp_node_t * setp)
   DO_SET (gb_op_t *, go, &setp->setp_gb_ops)
   {
     if (go->go_distinct_ha)
-      ha_free (go->go_distinct_ha);
+      {
+	ha_free (go->go_distinct_ha);
+	go->go_distinct_setp->setp_reserve_ha = NULL;
+	setp_node_free (go->go_distinct_setp);
+      }
     dk_free_box ((caddr_t) go->go_ua_arglist);
     cv_free (go->go_ua_init_setp_call);
     cv_free (go->go_ua_acc_setp_call);
@@ -146,7 +150,7 @@ sqlc_make_sort_out_node (sql_comp_t * sc, dk_set_t out_cols, dk_set_t out_slots,
 
     ks->ks_key = sc->sc_sort_insert_node->setp_ha->ha_key;
     ks->ks_row_check = itc_row_check;
-    ks->ks_set_no = sc->sc_set_no_ssl;
+    ks->ks_set_no = sc->sc_is_single_state ? NULL : sc->sc_set_no_ssl;
     if (setp->setp_set_no_in_key)
       {
 	dk_set_t iter;
@@ -185,6 +189,8 @@ sqlc_make_sort_out_node (sql_comp_t * sc, dk_set_t out_cols, dk_set_t out_slots,
 	ks->ks_cha_chp = cc_new_instance_slot (sc->sc_cc);
       }
   }
+  if (setp)
+    setp->setp_reader = ts;
   table_source_om (sc->sc_cc, ts);
   if (is_gb)
     ts->ts_order_ks->ks_proc_set_ctr = ssl_new_variable (sc->sc_cc, "hash_iter", DV_BIN);

@@ -2271,10 +2271,14 @@ sqlp_in_exp (ST * left, dk_set_t right, int is_not)
     {
       ST *res = t_listst (3, CALL_STMT, uname_one_of_these,
 	  t_list_to_array (t_CONS (left, right)));
+      res = (t_listst (3, BOP_LT, t_box_num (0), res));
       if (is_not)
-	return (t_listst (3, BOP_EQ, t_box_num (0), res));
-      else
-	return (t_listst (3, BOP_LT, t_box_num (0), res));
+	{
+	  ST *not_res = NULL;
+	  NEGATE (not_res, res);
+	  return not_res;
+	}
+      return res;
     }
 }
 
@@ -2620,6 +2624,21 @@ sqlp_index_default_opts (dk_set_t opts)
     }
   return opts;
 }
+
+
+ST *
+sqlp_extract (char *name, ST * arg)
+{
+  if (!stricmp (name, "year")
+      || !stricmp (name, "month")
+      || !stricmp (name, "day")
+      || !stricmp (name, "hour")
+      || !stricmp (name, "minute")
+      || !stricmp (name, "second") || !stricmp (name, "year") || !stricmp (name, "year") || !stricmp (name, "year"))
+    return t_listst (3, CALL_STMT, t_box_string (name), t_listst (1, arg));
+  return t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("__extract"), t_listst (2, t_box_string (name), arg));
+}
+
 
 char *
 sqlp_inx_col_opt ()

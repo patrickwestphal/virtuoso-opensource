@@ -4759,6 +4759,8 @@ qr_recompile (query_t * qr, caddr_t * err_ret)
   int is_entered = 0;
   if (err_ret)
     *err_ret = NULL;
+  if (qr->qr_qce)
+    qrc_remove (qr, 0);
   qr_recompile_enter (&is_entered, err_ret);
   if (err_ret && *err_ret)
     return NULL;

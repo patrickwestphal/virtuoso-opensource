@@ -32,7 +32,7 @@
 #define _WI_H
 
 #define VAJRA
-//#define VOS
+#define VOS
 #ifndef VOS
 #endif
 #define NO_CL GPF_T1 ("not available without cluster support")
@@ -452,6 +452,13 @@ typedef struct chash_page_s
 } chash_page_t;
 
 
+typedef struct _roj_s
+{
+  int roj_fill;
+  uint32 *roj_pos;
+} right_oj_t;
+
+
 typedef struct chash_s
 {
   sql_type_t *cha_sqt;
@@ -462,16 +469,14 @@ typedef struct chash_s
   char cha_unique;		/* guaranteed unique/happens to be unique/nott unique.  If not unique, entries have a next pointer at end. */
   char cha_is_1_int;		/* key is 1 int or iri and no dependent and no duplicates, all data is in the chash array, no separate rows  */
   char cha_is_1_int_key;	/* key is single int or iri */
-  char cha_rehash_reqd;
   char cha_is_parallel;		/* hash join temp filled on multiple threads */
   char cha_error;
   char cha_hash_last;		/* if hash join cha where hash filled after all rows are received */
-  short cha_threads;
-  short cha_rehash_ack_threads;	/* if parallel fill and rehash needed, count of threads that have stopped to allow the rehash */
+  char cha_oversized;
+  char cha_serial_bloom;
   short cha_first_len;
   short cha_next_len;
   short cha_next_ptr;
-  uint32 cha_n_partitions;
   int64 cha_size;
   int64 cha_count;
   int64 cha_distinct_count;
@@ -480,8 +485,12 @@ typedef struct chash_s
   int64 **cha_array;
   int64 **cha_exceptions;
   int cha_exception_fill;
+  uint32 cha_n_partitions;
+  uint32 cha_roj_flags;
+  uint32 cha_except_roj_flags;
   uint32 cha_n_bloom;
   uint64 *cha_bloom;
+  db_buf_t cha_roj_bits;
   chash_page_t *cha_current;
   chash_page_t *cha_current_data;
   mem_pool_t *cha_pool;
@@ -491,9 +500,6 @@ typedef struct chash_s
   int64 cha_reserved;
   chash_page_t *cha_init_page;
   chash_page_t *cha_init_data;
-  du_thread_t *cha_wait_excl;	/* exclusive owner of the chash */
-  dk_set_t cha_waiting;		/* thread waiting on this */
-  char cha_oversized;
 } chash_t;
 
 /* cha_unique */
@@ -516,6 +522,7 @@ struct hash_index_s
   mem_pool_t *hi_pool;
   id_hash_t *hi_memcache;
   chash_t *hi_chash;
+  chash_t *hi_slice_chash;
   uint64 hi_cl_id;		/* if cluster hash join temp, id for reference */
   dk_hash_t *hi_thread_cha;	/* when filling hash join chash, maps from thread to cha */
   int hi_size;
@@ -676,8 +683,8 @@ struct search_spec_s
   char sp_max_op;		/* if this is a range match, compare op for upper bound */
   char sp_is_reverse;		/* true if inserting a DESC sorted item */
   unsigned char sp_col_filter;
-  short sp_min;			/* index into itc_search_params */
-  short sp_max;			/* ibid */
+  ssl_index_t sp_min;		/* index into itc_search_params */
+  ssl_index_t sp_max;		/* ibid */
   search_spec_t *sp_next;
   dbe_col_loc_t sp_cl;		/* column on key, if key on page matches key in compilation */
   dbe_column_t *sp_col;		/* col descriptor, use for finding the col if key on page is obsolete */
@@ -688,6 +695,14 @@ struct search_spec_s
 };
 
 
+
+/* sp_like_flag */
+#define LK_LEADING 1
+#define LK_SUBSTR 2
+#define LK_TRAILING 3
+
+
+
 typedef struct hash_range_spec_s
 {
   /* if hash partitioning, test that hash no in range.  Occurs as sp_min_ssl in search_spec_t  */
@@ -695,6 +710,8 @@ typedef struct hash_range_spec_s
   struct state_slot_s *hrng_part_ssl;
   ssl_index_t hrng_min;
   ssl_index_t hrng_max;
+  short hrng_substr_start;
+  short hrng_substr_len;
   char hrng_flags;		/* range filter only, use bloom, not in, not exists in invisible hash join */
   struct hash_source_s *hrng_hs;
   struct state_slot_s *hrng_ht;
@@ -875,6 +892,8 @@ struct it_cursor_s
   bitf_t itc_is_ac:1;
   bitf_t itc_col_ac_redo:1;	/* should retry col autocompact of last page */
   bitf_t itc_log_actual_ins:1;	/* if log ins soft, fetch  or distinct key, log only if actual insert */
+  bitf_t itc_count_scan:1;	/* update table count as result of a full scan. add rows into the da  */
+  bitf_t itc_range_opt:2;
   char itc_split_search_res;
   char itc_prev_split_search_res;	/* if exact params repeat, store how it was with the previous set */
   unsigned char itc_n_vec_sort_cols;	/* how many first params to use for sorting the param rows */
@@ -968,6 +987,7 @@ struct it_cursor_s
   int itc_match_in;
   int itc_match_out;
   sp_stat_t *itc_sp_stat;
+  search_spec_t *itc_col_range_spec;	/* range cond on first ordering col */
   db_buf_t itc_last_cmp_ce;
   int64 itc_last_cmp_value;
   int itc_last_cmp_row;
@@ -995,6 +1015,7 @@ struct it_cursor_s
   buffer_desc_t *itc_buf_entered;	/* this is set to the entered buf when another thread enters this itc into a buf as a result of page_leave_inner on that other thread */
   key_spec_t itc_cl_org_spec;
   dk_set_t itc_ac_non_leaf_splits;
+  struct index_choice_s *itc_sample_ic;
   struct
   {
     char mode;

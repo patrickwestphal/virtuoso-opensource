@@ -52,6 +52,8 @@
 #define BOP_NULL		(ptrlong)16
 #define BOP_SAME		(ptrlong)17
 #define BOP_NSAME		(ptrlong)18
+#define BOP_NOT_LIKE		(ptrlong)19
+
 
 #define BOP_AS			(ptrlong)21
 #define BOP_IN_ATOM		(ptrlong)22
@@ -323,6 +325,7 @@ Note: bitwise OR of all these masks should be less than SMALLEST_POSSIBLE_POINTE
 #define OPT_FROM_FILE ((ptrlong)953)
 #define OPT_FILE_START  ((ptrlong)954)
 #define OPT_FILE_END  ((ptrlong)955)
+#define OPT_JOIN_RESTR ((ptrlong)958)	/* do not put table as extra restriction on hash build side */
 
 #define OPT_HASH ((ptrlong) 903)
 #define OPT_INTERSECT ((ptrlong) 1015)
@@ -340,6 +343,7 @@ Note: bitwise OR of all these masks should be less than SMALLEST_POSSIBLE_POINTE
 #define OPT_HASH_SET ((ptrlong)940)
 #define OPT_HASH_PARTITION ((ptrlong)941)
 #define OPT_HASH_REPLICATION ((ptrlong)942)
+#define OPT_HASH_UNIQUE ((ptrlong)957)
 #define OPT_ISOLATION ((ptrlong)943)
 #define OPT_CHECK ((ptrlong)944)
 #define OPT_PART_GBY ((ptrlong)945)
@@ -348,7 +352,9 @@ Note: bitwise OR of all these masks should be less than SMALLEST_POSSIBLE_POINTE
 
 #define OPT_EST_TIME ((ptrlong)950)
 #define OPT_EST_SIZE ((ptrlong)951)
+#define OPT_NO_EXISTS_JOIN ((ptrlong)960)
 
+#define LIT_PARAM ((ptrlong)990)
 /* GROUPING SETS */
 #define GROUPING_FUNC	"__grouping"
 #define GROUPING_SET_FUNC   "__grouping_set_bitmap"
@@ -502,6 +508,12 @@ typedef struct sql_tree_s
       ST *table;
       caddr_t range;
     } table_ref;
+    struct
+    {
+      ST *table;
+      caddr_t range;
+      caddr_t *opts;
+    } dt_ref;
     struct
     {
       ptrlong is_natural;
@@ -776,6 +788,11 @@ typedef struct sql_tree_s
       ST *body;
       ptrlong modify;
     } for_vec;
+    struct
+    {
+      ptrlong nth;
+      caddr_t value;
+    } lit_param;
   } _;
 } sql_tree_t;
 

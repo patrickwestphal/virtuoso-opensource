@@ -3174,6 +3174,20 @@ itc_up_rnd_check (it_cursor_t * itc, buffer_desc_t ** buf_ret)
 }
 
 
+int
+col_is_leading (dbe_column_t * col)
+{
+  dbe_table_t *tb = col->col_defined_in;
+  DO_SET (dbe_key_t *, key, &tb->tb_keys)
+  {
+    if (key->key_parts && (void *) col == key->key_parts->data)
+      return 1;
+  }
+  END_DO_SET ();
+  return 0;
+}
+
+
 caddr_t
 col_min_max_trunc (caddr_t val)
 {
@@ -3309,7 +3323,7 @@ itc_col_stat_free (it_cursor_t * itc, int upd_col, float est)
 		  /* if it is an int then the max distinct is the difference between min and max seen */
 		  col->col_min = box_num (min);
 		  col->col_max = box_num (max);
-		  if (col->col_n_distinct > max - min)
+		  if (col->col_n_distinct > max - min && !col_is_leading (col))
 		    col->col_n_distinct = MAX (1, max - min);
 		}
 	      if (!is_int)

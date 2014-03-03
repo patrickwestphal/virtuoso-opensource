@@ -260,17 +260,19 @@ sqlo_col_eq (op_table_t * ot, df_elt_t * col, df_elt_t * val)
 
 
 void
-sqlo_init_eqs (sqlo_t * so, op_table_t * ot)
+sqlo_init_eqs (sqlo_t * so, op_table_t * ot, dk_set_t preds)
 {
-  if (!ot->ot_from_dfes || !ot->ot_from_dfes->next)
+  if (!preds && (!ot->ot_from_dfes || !ot->ot_from_dfes->next))
     return;
-  DO_SET (df_elt_t *, pred, &ot->ot_preds)
+  if (!preds)
+    preds = ot->ot_preds;
+  DO_SET (df_elt_t *, pred, &preds)
   {
     if (DFE_BOP_PRED == pred->dfe_type && BOP_EQ == pred->_.bin.op)
       {
 	df_elt_t *left = pred->_.bin.left;
 	df_elt_t *right = right = pred->_.bin.right;
-	if (DFE_COLUMN == left->dfe_type && DFE_COLUMN == right->dfe_type)
+	if (DFE_COLUMN == left->dfe_type && DFE_COLUMN == right->dfe_type && !dfe_col_of_oj (left) && !dfe_col_of_oj (right))
 	  {
 	    sqlo_col_eq (ot, left, right);
 	    sqlo_col_eq (ot, right, left);

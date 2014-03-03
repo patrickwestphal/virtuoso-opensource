@@ -566,6 +566,8 @@ EXE_EXPORT (void, sqlr_resignal, (caddr_t err));
 #define TA_DBG_STR 1216
 #define TA_STAT_INST 1217
 #define TA_TOTAL_RDTSC 1218
+#define TA_CL_CHASH_SSL_ID 1219
+#define TA_STAT_COMM 1220
 
 void update_node_input (update_node_t * del, caddr_t * inst, caddr_t * state);
 
@@ -1363,6 +1365,7 @@ void ssi_free (ssa_iter_node_t * ssi);
 
 
 caddr_t box_append_1 (caddr_t box, caddr_t elt);
+caddr_t box_concat (caddr_t b1, caddr_t b2);
 
 query_t *sch_ua_func_ua (caddr_t name);
 
@@ -1472,6 +1475,7 @@ int itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp
 int ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc);
 int fref_hash_partitions_left (fun_ref_node_t * fref, caddr_t * inst);
 int fref_hash_is_first_partition (fun_ref_node_t * fref, caddr_t * inst);
+void hash_source_roj_input (hash_source_t * hs, caddr_t * inst, caddr_t * state);
 
 extern int enable_chash_join;
 extern int enable_chash_gb;
@@ -1486,6 +1490,8 @@ dtp_t cha_dtp (dtp_t dtp, int is_key);
 caddr_t *chash_reader_current_branch (table_source_t * ts, caddr_t * inst, int is_next);
 int64 cha_bytes_est (hash_area_t * ha, int64 * card_ret);
 extern int64 chash_space_avail;
+extern int chash_per_query_pct;
+
 index_tree_t *qst_get_chash (caddr_t * inst, state_slot_t * ssl, state_slot_t * id_ssl, setp_node_t * setp);
 void cha_part_from_ssl (caddr_t * inst, state_slot_t * ssl, int min, int max);
 search_spec_t *sp_copy (search_spec_t * sp);
@@ -1671,6 +1677,16 @@ int lc_exec (srv_stmt_t * lc, caddr_t * row, caddr_t last, int is_exec);
 void lc_reuse (srv_stmt_t * sst);
 caddr_t *lc_t_row (srv_stmt_t * lc);
 
+void ts_sdfg_run (table_source_t * ts, caddr_t * inst);
+void ts_sdfg_init (table_source_t * ts, caddr_t * inst);
+data_source_t *qn_next_qn (data_source_t * ts, qn_input_fn in);
+stage_node_t *qn_next_stn (data_source_t * ts);
+void ts_sliced_reader (table_source_t * ts, caddr_t * inst);
+data_source_t *qf_first_qn (query_frag_t * qf, qn_input_fn in);
+void ts_aq_result (table_source_t * ts, caddr_t * inst);
+
+
+
 int cfg2_getlong (PCONFIG pconfig, PCONFIG pconfig_g, char *sect, char *item, int32 * ret);
 int cfg2_getstring (PCONFIG pconfig, PCONFIG pconfig_g, char *sect, char *item, char **ret);
 
@@ -1691,4 +1707,11 @@ extern int32 enable_vec_reuse;
 #define tlsf_base_alloc(s) dk_alloc(s)
 
 #endif
+
+/*qrc */
+int qrc_free (query_t * qr);
+void qrc_remove (query_t * qr, int is_in_qrc);
+extern caddr_t rdfs_type;
+
+#define TA_QRC_LIT_PARAMS 6000
 #endif /* _SQLFN_H */

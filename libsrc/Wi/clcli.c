@@ -48,6 +48,9 @@ cll_in_box_t *
 clib_allocate ()
 {
   B_NEW_VARZ (cll_in_box_t, clib);
+  clib->clib_req_strses = resource_get (cl_strses_rc);
+  clib->clib_req_strses->dks_cluster_flags = DKS_TO_CLUSTER;
+  SESSION_SCH_DATA (&clib->clib_in_strses) = &clib->clib_in_siod;
   return clib;
 }
 
@@ -59,6 +62,8 @@ clib_clear (cll_in_box_t * clib)
   cl_queue_t clq = clib->clib_in;
   assert (!clq.rb_count);
   rb_ck_cnt (&clq);
+  strses_flush (clib->clib_req_strses);
+  clib->clib_req_strses->dks_cluster_flags = DKS_TO_CLUSTER;
   memzero (clib, (ptrlong) & ((cll_in_box_t *) 0)->clib_in_strses);
   clib->clib_in = clq;
   clib->clib_req_strses = strses;
@@ -72,6 +77,8 @@ clib_clear (cll_in_box_t * clib)
 void
 clib_free (cll_in_box_t * clib)
 {
+  if (clib->clib_req_strses)
+    resource_store (cl_strses_rc, (void *) clib->clib_req_strses);
 #ifdef CL_RBUF
   rbuf_destroy (&clib->clib_in);
 #endif
@@ -84,55 +91,6 @@ clib_rc_init ()
 {
   clib_rc = resource_allocate (200, (rc_constr_t) clib_allocate, (rc_destr_t) clib_free, (rc_destr_t) clib_clear, 0);
 }
-
-dk_mutex_t mctr_mtx;
-dk_hash_64_t *mctr_ht;
-uint32 mctr_ctr;
-
-msg_ctr_t *
-mctr_by_id (uint64 id)
-{
-  ptrlong pmctr;
-  mutex_enter (&mctr_mtx);
-  gethash_64 (pmctr, id, mctr_ht);
-  if (pmctr)
-    {
-      mutex_leave (&mctr_mtx);
-      return (msg_ctr_t *) pmctr;
-    }
-  {
-    NEW_VARZ (msg_ctr_t, mctr);
-    sethash_64 (id, mctr_ht, (ptrlong) mctr);
-    mctr->mctr_conn_id = id;
-    mutex_leave (&mctr_mtx);
-    return mctr;
-  }
-}
-
-
-msg_ctr_t *
-mctr_new_conn (cl_host_t * to)
-{
-  int64 id;
-  NEW_VARZ (msg_ctr_t, mctr);
-  mutex_enter (&mctr_mtx);
-  id = ++mctr_ctr;
-  id |= ((uint64) local_cll.cll_this_host) << 48;
-  id |= ((uint64) to->ch_id) << 32;
-  sethash_64 (id, mctr_ht, (ptrlong) mctr);
-  mutex_leave (&mctr_mtx);
-  mctr->mctr_conn_id = id;
-  return mctr;
-}
-
-
-void
-mctr_init ()
-{
-  mctr_ht = hash_table_allocate_64 (200);
-  dk_mutex_init (&mctr_mtx, MUTEX_TYPE_SHORT);
-}
-
 
 
 
@@ -459,6 +417,56 @@ clo_destroy (cl_op_t * clo)
 
 
 
+void
+cm_set_quota (cl_req_group_t * clrg, cl_message_t * cm, int time)
+{
+  client_connection_t *cli = clrg->clrg_lt->lt_client;
+  if (!time)
+    clrg->clrg_send_time = get_msec_real_time ();
+  if (cli->cli_anytime_started)
+    cm->cm_anytime_quota = cli->cli_anytime_timeout - (clrg->clrg_send_time - cli->cli_anytime_started);
+  else
+    cm->cm_anytime_quota = 0;
+}
+
+
+void
+clib_assign_req_no (cll_in_box_t * clib)
+{
+  uint32 req_no;
+  ASSERT_IN_MTX (local_cll.cll_mtx);
+  do
+    {
+      req_no = local_cll.cll_next_req_id++;
+    }
+  while (req_no == 0 || gethash ((void *) (ptrlong) req_no, local_cll.cll_id_to_clib));
+  sethash ((void *) (ptrlong) req_no, local_cll.cll_id_to_clib, (void *) clib);
+  clib->clib_req_no = req_no;
+}
+
+
+int
+clo_serialize (cll_in_box_t * clib, cl_op_t * clo)
+{
+  int bytes;
+  bytes = strses_out_bytes (clib->clib_req_strses);
+  if (clo->clo_pool)
+    mp_set_push (clo->clo_pool, &clo->clo_clibs, (void *) clib);
+  else
+    dk_set_push (&clo->clo_clibs, (void *) clib);
+  cl_serialize_cl_op_t (clib->clib_req_strses, clo);
+  clib->clib_group->clrg_send_buffered += strses_out_bytes (clib->clib_req_strses) - bytes;
+  return CLE_OK;
+}
+
+
+
+void
+clrg_add_clib (cl_req_group_t * clrg, cll_in_box_t * clib)
+{
+  dk_set_push (&clrg->clrg_clibs, (void *) clib);
+}
+
 int
 clrg_add (cl_req_group_t * clrg, cl_host_t * host, cl_op_t * clop)
 {
@@ -478,6 +486,56 @@ int
 clrg_wait (cl_req_group_t * clrg, int wait_all, caddr_t * qst)
 {
   return CLE_OK;
+}
+
+
+#define CLIB_SER_CK(clib) \
+  if (clib->clib_in_strses.dks_error) \
+    { \
+      clib->clib_first.clo_op = CLO_ERROR;					\
+      log_error (" RARE - Data format error in cluster batch reply"); \
+      clib->clib_first._.error.err = srv_make_new_error ("CLINT", "CLINT", "Bad data format in cluster message.  Corrupted in transmission.  If no other network problems and this predictably repeats, then contact support"); \
+      return; \
+   }
+
+
+
+void
+clib_read_next (cll_in_box_t * clib, caddr_t * inst, dk_set_t out_slots)
+{
+  /* non cluster dfg only variant */
+  dtp_t op;
+  dk_session_t *ses = &clib->clib_in_strses;
+  if (ses->dks_in_read >= ses->dks_in_fill)
+    GPF_T1 ("not supposed to be at end of cl message in single server dfg ");
+
+  clib->clib_prev_read_to = ses->dks_in_read;
+  op = ses->dks_in_buffer[ses->dks_in_read];
+  {
+    cl_ses_t *save = DKS_CL_DATA (ses);
+    CATCH_READ_FAIL (ses)
+    {
+      cl_op_t *new_clo;
+      cl_ses_t clses;
+      clo_destroy (&clib->clib_first);
+      clib->clib_first.clo_op = CLO_NONE;
+      new_clo = cl_deserialize_cl_op_t (ses);
+      DKS_CL_DATA (ses) = save;
+      if (save)
+	save->clses_stat_inst = NULL;
+      clib->clib_first = *new_clo;
+      box_tag_modify (new_clo, DV_CUSTOM);
+      dk_free_box ((caddr_t) new_clo);
+    }
+    FAILED
+    {
+      DKS_CL_DATA (ses) = save;
+      if (save)
+	save->clses_stat_inst = NULL;
+    }
+    END_READ_FAIL (ses);
+    CLIB_SER_CK (clib);
+  }
 }
 
 

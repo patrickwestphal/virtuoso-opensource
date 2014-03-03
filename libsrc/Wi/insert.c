@@ -1507,6 +1507,7 @@ itc_cp_check_node (it_cursor_t * itc, buffer_desc_t * parent, int mode)
       page_leave_outside_map (parent);
       return 0;
     }
+  itc->itc_n_reads = 0;
   pg_check_map (parent);
   /* loop over present and dirty children, find possible sequences to compact. Rough check first. */
 

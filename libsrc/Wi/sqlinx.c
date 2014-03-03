@@ -1055,7 +1055,7 @@ sqlg_make_1_ts (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic, df_elt_t **
   ts->ts_order_cursor = ssl_new_itc (cc);
 
   if (!last)
-    sqlg_non_index_ins (tb_dfe);
+    sqlg_non_index_ins (sc, tb_dfe, ts->ts_order_ks);
 
   ts->ts_is_outer = tb_dfe->_.table.ot->ot_is_outer;
   order_ks = ts->ts_order_ks;
@@ -1080,7 +1080,7 @@ sqlg_make_1_ts (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic, df_elt_t **
   if (last)
     sqlg_get_non_index_ins (tb_dfe, &in_list);
   else
-    sqlg_non_index_ins (tb_dfe);
+    sqlg_non_index_ins (sc, tb_dfe, ts->ts_order_ks);
   ts->src_gen.src_after_test =
       sqlg_pred_body (so, sqlo_and_list_body_from_positions (tb_dfe->dfe_sqlo, ic->ic_after_preds, jt, in_list));
   if (ts->ts_is_unique)

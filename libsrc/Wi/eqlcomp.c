@@ -89,6 +89,7 @@ ssl_free (state_slot_t * ssl)
     }
   else
     {
+      dk_free_tree (ssl->ssl_constant);	/* can be set for a lit param ssl */
       dk_free_box (ssl->ssl_name);
       dk_free ((caddr_t) ssl, sizeof (state_slot_t));
     }
@@ -385,6 +386,24 @@ qr_garbage (query_t * qr, caddr_t garbage)
 
 
 void
+query_frag_free (query_frag_t * qf)
+{
+  clb_free (&qf->clb);
+  dk_set_free (qf->qf_nodes);
+  dk_free_box ((caddr_t) qf->qf_params);
+  dk_free_box ((caddr_t) qf->qf_inner_params);
+  dk_free_box ((caddr_t) qf->qf_inner_out_slots);
+  dk_free_box ((caddr_t) qf->qf_agg_res);
+  dk_free_box ((caddr_t) qf->qf_trigger_args);
+  dk_free_box ((caddr_t) qf->qf_local_save);
+  cl_order_free (qf->qf_order);
+  dk_free_box ((caddr_t) qf->qf_result);
+  dk_free_box ((caddr_t) qf->qf_stages);
+  dk_set_free (qf->qf_out_slots);
+}
+
+
+void
 kpd_free (key_partition_def_t * kpd)
 {
   int inx;
@@ -404,6 +423,8 @@ void
 qr_free (query_t * qr)
 {
   if (!qr)
+    return;
+  if (!qrc_free (qr))
     return;
   if (!qr->qr_qf_id && !qr->qr_super)
     {

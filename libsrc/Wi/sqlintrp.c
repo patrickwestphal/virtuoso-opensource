@@ -869,6 +869,8 @@ qn_init (table_source_t * ts, caddr_t * inst)
     {
       if (ts->ts_aq_qis)
 	qst_set (inst, ts->ts_aq_qis, NULL);
+      if (ts->ts_in_sdfg)
+	QST_INT (inst, ts->ts_in_sdfg) = 0;
       if (ts->ts_order_ks	/* not set if inx op */
 	  && ts->ts_order_ks->ks_key->key_id == KI_TEMP)
 	{
@@ -2956,8 +2958,8 @@ ins_vec_agg_int_sum (instruction_t * ins, caddr_t * inst)
   int sets[ARTM_VEC_LEN];
   int arg_sets[ARTM_VEC_LEN];
   data_col_t *res_dc = QST_BOX (data_col_t *, inst, ins->_.agg.result->ssl_index);
-  data_col_t *sets_dc = QST_BOX (data_col_t *, inst, ins->_.agg.set_no->ssl_index);
-  int64 *sets_v = (int64 *) sets_dc->dc_values;
+  data_col_t *sets_dc = ins->_.agg.set_no ? QST_BOX (data_col_t *, inst, ins->_.agg.set_no->ssl_index) : NULL;
+  int64 *sets_v = sets_dc ? (int64 *) sets_dc->dc_values : NULL;
   int inx;
   int is_const = SSL_CONSTANT == ins->_.agg.arg->ssl_type;
   int64 cnst = is_const ? unbox (ins->_.agg.arg->ssl_constant) : 0;
@@ -2966,16 +2968,23 @@ ins_vec_agg_int_sum (instruction_t * ins, caddr_t * inst)
     {
       int last = MIN (n_sets, inx + ARTM_VEC_LEN);
       int row, max_res_set = 1;
-      sslr_n_consec_ref (inst, (state_slot_ref_t *) ins->_.agg.set_no, sets, inx, last - inx);
-
-      for (row = 0; row < last - inx; row++)
-	if (sets_v[sets[row]] >= max_res_set)
-	  max_res_set = sets_v[sets[row]] + 1;
-      if (max_res_set > res_dc->dc_n_values)
+      if (sets_v)
 	{
-	  DC_CHECK_LEN (res_dc, max_res_set - 1);
-	  memzero (((int64 *) res_dc->dc_values) + res_dc->dc_n_values, sizeof (int64) * (max_res_set - res_dc->dc_n_values));
-	  res_dc->dc_n_values = max_res_set;
+	  sslr_n_consec_ref (inst, (state_slot_ref_t *) ins->_.agg.set_no, sets, inx, last - inx);
+	  for (row = 0; row < last - inx; row++)
+	    if (sets_v[sets[row]] >= max_res_set)
+	      max_res_set = sets_v[sets[row]] + 1;
+	  if (max_res_set > res_dc->dc_n_values)
+	    {
+	      DC_CHECK_LEN (res_dc, max_res_set - 1);
+	      memzero (((int64 *) res_dc->dc_values) + res_dc->dc_n_values, sizeof (int64) * (max_res_set - res_dc->dc_n_values));
+	      res_dc->dc_n_values = max_res_set;
+	    }
+	}
+      else
+	{
+	  DC_CHECK_LEN (res_dc, 0);
+	  res_dc->dc_n_values = 1;
 	}
       resv = (int64 *) res_dc->dc_values;
       if (!is_const)
@@ -2985,7 +2994,7 @@ ins_vec_agg_int_sum (instruction_t * ins, caddr_t * inst)
 	    {
 	      for (row = inx; row < last; row++)
 		{
-		  int set = sets_v[sets[row - inx]];
+		  int set = sets_v ? sets_v[sets[row - inx]] : 0;
 		  CLRNULL (res_dc, set, int64);
 		  resv[set] += argv[row];
 		}
@@ -2995,7 +3004,7 @@ ins_vec_agg_int_sum (instruction_t * ins, caddr_t * inst)
 	      sslr_n_consec_ref (inst, (state_slot_ref_t *) ins->_.agg.arg, arg_sets, inx, last - inx);
 	      for (row = 0; row < last - inx; row++)
 		{
-		  int set = sets_v[sets[row]];
+		  int set = sets_v ? sets_v[sets[row]] : 0;
 		  CLRNULL (res_dc, set, int64);
 		  resv[set] += argv[arg_sets[row]];
 		}
@@ -3003,8 +3012,16 @@ ins_vec_agg_int_sum (instruction_t * ins, caddr_t * inst)
 	}
       else
 	{
-	  for (row = 0; row < last - inx; row++)
-	    resv[sets_v[sets[row]]] += cnst;
+	  if (sets_v)
+	    {
+	      for (row = 0; row < last - inx; row++)
+		resv[sets_v[sets[row]]] += cnst;
+	    }
+	  else
+	    {
+	      for (row = 0; row < last - inx; row++)
+		resv[0] += cnst;
+	    }
 	}
     }
 }
@@ -3103,7 +3120,8 @@ ins_vec_agg (instruction_t * ins, caddr_t * inst)
     }
   SET_LOOP
   {
-    int set_no = qst_vec_get_int64 (inst, ins->_.agg.set_no, set), op;
+    int set_no = ins->_.agg.set_no ? qst_vec_get_int64 (inst, ins->_.agg.set_no, set) : 0;
+    int op;
     caddr_t arg = qst_get (inst, ins->_.agg.arg);
     dtp_t arg_dtp = DV_TYPE_OF (arg);
     if (DV_DB_NULL == arg_dtp)

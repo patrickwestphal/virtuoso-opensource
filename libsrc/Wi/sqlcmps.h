@@ -231,6 +231,7 @@ typedef struct sql_comp_s
   data_source_t *sc_qf_first;	/* the qn that has the loc ts for the first stage of qf/dfg */
   query_frag_t *sc_qf;
   fun_ref_node_t *sc_outer_fref;
+  int sc_chash_in_ctr;
   char sc_in_dfg_subq;
   char sc_fref_nesting;		/* if nested gby/oby, true if colocating the gby */
   char sc_qf_n_temp_trees;	/* how many gb/oby temps in qf.  If many, make shorter batches to save mem */
@@ -243,6 +244,7 @@ typedef struct sql_comp_s
   char sc_re_emit_code;		/* in conditional expressions, repeating code must be generated for each branch even if overlap */
   char sc_is_first_cond;	/* true if doing 1st condition in a conditional exp, i.e. will always execute */
   char sc_delay_colocate;	/* do not do cluster colocating qr by qr, the qrs may be modified and only then located */
+  char sc_is_single_state;	/* always single set of input, can omit set no */
   dk_set_t sc_re_emitted_dfes;
   rdf_inf_slots_t *sc_rdf_inf_slots;
   caddr_t *sc_big_ssl_consts;	/*!< Vector of saved values for SSL consts of unusual types (like vectors) or just too big to fit into SQL text in a plain way */
@@ -267,6 +269,13 @@ typedef struct sql_comp_s
   query_frag_t *sc_in_qf;
   query_t *sc_vec_qr;
   dk_hash_t *sc_qn_to_dfe;	/* if dfes are made into executable plan for sampling of other, map to dfe */
+  dk_hash_t *sc_cn_normalize;
+  int sc_cn_ctr1;
+  int sc_cn_ctr2;
+  dk_set_t sc_dfe_reuses;	/* list of allocd for freeing at end */
+  struct st_lit_state_s *sc_stl;
+  char sc_no_lit_param;		/* a lit in this place will not be a param even if the same lit is so elsewhere */
+  char sc_is_rdf_type_p;
 } sql_comp_t;
 
 
@@ -279,6 +288,9 @@ typedef struct sql_comp_s
 #define TS_ORDER_PLACE 2	/* generate the results in any order but add key cols for subsequent searched upd or del */
 #define TS_ORDER_NONE 3		/* generate the results in any order */
 
+
+#define SC_DELAY_FOR_UNION 1
+#define SC_DELAY_FOR_DT 2
 
 
 #define SC_G_ID(sc) \
@@ -455,10 +467,11 @@ int src_is_local (data_source_t * src, int is_cluster);
 int cv_is_local_1 (code_vec_t cv, int is_cluster);
 #define cv_is_local(cv) cv_is_local_1 (cv, 0)
 
-#define CV_IS_LOCAL_CLUSTER 1	/* check funcs are partitionable and not aggregates */
-#define CV_IS_LOCAL_AGG 2	/* check that funcs are partitionable, allow aggrs */
-#define CV_IS_LOCAL_CN 3	/* when checking code node with subqs.  Accept the subqs but reject non locatable funcs */
-#define CV_NO_INDEX 8		/* functions that access index are out */
+#define CV_IS_LOCAL_CLUSTER 1	/* check funcs are shippable and not user aggregates */
+#define CV_IS_LOCAL_AGG 2	/* check that funcs are shippable, allow user aggrs */
+#define CV_IS_LOCAL_CN 4	/* when checking code node with subqs.  Accept the subqs but reject non locatable funcs */
+#define CV_IS_LOCAL_NO_ENLIST 8	/* do not  allow procs that would propagate enlist, like updates or excl read */
+#define CV_NO_INDEX 16		/* functions that access index are out */
 dk_set_t cv_assigned_slots (code_vec_t cv, int no_subqs);
 void sqlc_ct_generate (sql_comp_t * sc, comp_table_t * ct);
 
@@ -565,6 +578,7 @@ ST **sqlc_selection_names (ST * tree);
 int sqlc_pref_match (char *crr_pref, char *ref_pref);
 int indexable_predicate_p (int p);
 unsigned char bop_to_dvc (int op);
+unsigned char dvc_to_bop (int op);
 void sqlc_select_top (sql_comp_t * sc, select_node_t * sel, ST * tree, dk_set_t * code);
 void sqlc_select_unique_ssls (sql_comp_t * sc, select_node_t * sel, dk_set_t * sel_set);
 data_source_t *sqlc_make_sort_out_node (sql_comp_t * sc, dk_set_t out_cols, dk_set_t out_slots, dk_set_t out_always_null,
@@ -699,5 +713,14 @@ dbe_key_t *sqlg_flood_key ();
 caddr_t sqlo_rdf_obj_const_value (ST * tree, caddr_t * val_ret, caddr_t * lang_ret);
 int rdf_obj_of_sqlval (caddr_t val, caddr_t * data_ret);
 int rdf_obj_of_typed_sqlval (caddr_t val, caddr_t vtype, caddr_t lang, caddr_t * data_ret);
+int setp_is_high_card (setp_node_t * setp);
+void stn_init (sql_comp_t * sc, stage_node_t * stn);
+stage_node_t *qn_next_stn (data_source_t * ts);
+int ssl_is_eq (sql_comp_t * sc, state_slot_t * ssl1, state_slot_t * ssl2);
+void sqlg_process_all_eq (sql_comp_t * sc, code_vec_t cv);
+void sqlg_ks_eqs (sql_comp_t * sc, key_source_t * ks);
+col_partition_t *cp_copy (col_partition_t * cp, int col_id);
+key_partition_def_t *kpd_copy (key_partition_def_t * kpd);
+
 
 #endif /* _SQLCMPS_H */

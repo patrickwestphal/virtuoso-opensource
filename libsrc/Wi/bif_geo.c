@@ -1328,15 +1328,15 @@ geo_pred (geo_t * g1, geo_t * g2, int op, double prec)
 	  }
 	if (GEO_A_RINGS & g2->geo_flags)
 	  {
-	    int hole_may_intersect = 0;
 	    if (0 == g2->_.parts.len)
 	      return 0;
 	    if (!geo_pred (g2->_.parts.items[0], g1, op, prec))
 	      return 0;
 	    for (itemctr = 1; itemctr < g2->_.parts.len; itemctr++)
 	      {
-		if (geo_pred (g2->_.parts.items[itemctr], g1, GSOP_CONTAINS, prec))
-		  return 0;
+		if (!geo_may_intersect_XYbox (g1, &(g2->_.parts.items[itemctr]->XYbox), prec))
+		  continue;
+		goto unsupported_intersects;
 	      }
 	    return 1;
 	  }

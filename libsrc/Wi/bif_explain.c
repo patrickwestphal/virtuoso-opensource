@@ -57,9 +57,8 @@
 #include "http.h"
 #include "mhash.h"
 
-int enable_qrc;			/* generate query plan comments and warnings */
+extern int enable_qrc;			/* generate query plan comments and warnings */
 #define MSG_MAX_LEN 100
-#define TA_STAT_COMM 1219
 
 typedef struct qr_comment_s
 {
@@ -379,6 +378,16 @@ ssl_print (state_slot_t * ssl)
 
 
 void
+stmt_box_print (caddr_t b)
+{
+  state_slot_t cn;
+  memzero (&cn, sizeof (cn));
+  cn.ssl_type = SSL_CONSTANT;
+  cn.ssl_constant = b;
+  ssl_print (&cn);
+}
+
+void
 ssl_array_print (state_slot_t ** ssls)
 {
   int inx, first = 1;
@@ -680,7 +689,8 @@ void
 hrng_print (hash_range_spec_t * hrng, search_spec_t * sp)
 {
   hash_source_t *hs;
-  stmt_printf (("hash partition%s by %d ", (hrng->hrng_flags & HR_RANGE_ONLY) ? "" : "+bloom", hrng->hrng_min));
+  stmt_printf (("%shash partition%s by %d ", sp->sp_is_reverse ? "exclude " : "",
+	  (hrng->hrng_flags & HR_RANGE_ONLY) ? "" : "+bloom", hrng->hrng_min));
   ssl_array_print (hrng->hrng_ssls);
   if ((hs = hrng->hrng_hs))
     {
@@ -1235,7 +1245,7 @@ node_print_0 (data_source_t * node)
       key_source_t *ks = ts->ts_order_ks;
       stmt_printf (("group by read node  \n"));
       ssl_list_print (ks->ks_out_slots);
-      stmt_printf (("\n"));
+      stmt_printf (("%s\n", ts->ts_part_gby_reader ? "in each partition slice" : ""));
     }
   else if (in == (qn_input_fn) select_node_input)
     {
@@ -1486,6 +1496,12 @@ node_print_0 (data_source_t * node)
       stmt_printf ((" -> "));
       ssl_array_print (hs->hs_out_slots);
       stmt_printf (("\n"));
+      if (hs->hs_roj)
+	{
+	  stmt_printf ((" right oj, key out ssls: "));
+	  ssl_array_print (hs->hs_roj_key_out);
+	  stmt_printf (("\n"));
+	}
     }
   else if (in == (qn_input_fn) rdf_inf_pre_input)
     {
@@ -1583,6 +1599,11 @@ node_print_0 (data_source_t * node)
 	      qr_print (tn2->tn_inlined_step);
 	    }
 	}
+    }
+  else if (in == (qn_input_fn) stage_node_input)
+    {
+      QNCAST (stage_node_t, stn, node);
+      stmt_printf (("Stage %d\n", stn->stn_nth));
     }
   else if (in == (qn_input_fn) in_iter_input)
     {
@@ -1834,7 +1855,7 @@ node_print (data_source_t * node)
 	  stmt_printf (("\nset no returned in "));
 	  ssl_print (ks->ks_set_no_col_ssl);
 	}
-      stmt_printf (("\n"));
+      stmt_printf (("%s\n", ts->ts_part_gby_reader ? "in each partition slice" : ""));
     }
   else if (in == (qn_input_fn) select_node_input)
     {
@@ -1959,9 +1980,12 @@ node_print (data_source_t * node)
 	  comm->qrc_is_first = 1;
 	/* milos: detect a new warning and add the warning text: it is a partition hash join, and it did N passes (N = fref->fnr_select->src_stat.srs_n_in)    */
 	ctx_inst = THR_ATTR (THREAD_CURRENT_THREAD, TA_STAT_INST);
-	srs = (src_stat_t *) & ctx_inst[fref->fnr_select->src_stat];
-	if ((fref->fnr_select->src_stat) && (qi != NULL) && (QST_INT (qi, srs->srs_n_in) > 1))
-	  qrc_add_wrn_msg ("Warning: There is a partition hash join which did %d passes.\n", srs->srs_n_in);
+	if (ctx_inst)
+	  {
+	    srs = (src_stat_t *) & ctx_inst[fref->fnr_select->src_stat];
+	    if ((fref->fnr_select->src_stat) && (qi != NULL) && srs->srs_n_in > 1)
+	      qrc_add_wrn_msg ("Warning: There is a partition hash join which did %d passes.\n", srs->srs_n_in);
+	  }
 	node_print (fref->fnr_select);
 	/* milos: set the 'first' flag on */
 	comm = THR_ATTR (self, TA_STAT_COMM);
@@ -2171,6 +2195,12 @@ node_print (data_source_t * node)
 	ks_print_vec_cast (hs->hs_loc_ts->ts_order_ks->ks_vec_cast, hs->hs_loc_ts->ts_order_ks->ks_vec_source);
       if (hs->hs_ks)
 	ks_print_vec_cast (hs->hs_ks->ks_vec_cast, hs->hs_ks->ks_vec_source);
+      if (hs->hs_roj)
+	{
+	  stmt_printf ((" right oj, key out ssls: "));
+	  ssl_array_print (hs->hs_roj_key_out);
+	  stmt_printf (("\n"));
+	}
       if (hs->hs_after_join_test)
 	{
 	  stmt_printf (("  after join test\n"));
@@ -2279,6 +2309,13 @@ node_print (data_source_t * node)
 	      qr_print (tn2->tn_inlined_step);
 	    }
 	}
+    }
+  else if (in == (qn_input_fn) stage_node_input)
+    {
+      QNCAST (stage_node_t, stn, node);
+      stmt_printf (("Stage %d: Params: ", stn->stn_nth));
+      ssl_array_print (stn->stn_params);
+      stmt_printf (("\n"));
     }
   else if (in == (qn_input_fn) in_iter_input)
     {
@@ -2448,8 +2485,33 @@ qr_print_params (query_t * qr)
       {
 	stmt_printf (("<$%d dtp %d (%ld, %d) %s> ", ssl->ssl_index, ssl->ssl_dtp,
 		ssl->ssl_prec, ssl->ssl_scale, ssl->ssl_class ? ssl->ssl_class->scl_name : ""));
+	if (ssl->ssl_qr_global && ssl->ssl_constant)
+	  {
+	    state_slot_t lit;
+	    lit = *ssl;
+	    lit.ssl_type = SSL_CONSTANT;
+	    stmt_printf (("lit %s ", ssl->ssl_name ? ssl->ssl_name : ""));
+	    ssl_print (&lit);
+	  }
       }
       END_DO_SET ();
+      stmt_printf (("\n"));
+    }
+  if (qr->qr_qce)
+    {
+      int inx, inx2;
+      DO_BOX (qce_sample_t *, qces, inx, qr->qr_qce->qce_samples)
+      {
+	caddr_t *sc_key = (caddr_t *) qces->qces_sc_key;
+	sample_cache_key_t *sck = ((caddr_t *) qces->qces_sc_key)[0];
+	dbe_key_t *key = sch_id_to_key (wi_inst.wi_schema, sck->sck_key);
+	stmt_printf (("sample = %s %g", key ? key->key_name : "--", qces->qces_card));
+	for (inx2 = 1; inx2 < BOX_ELEMENTS (sc_key); inx2++)
+	  {
+	    stmt_box_print (sc_key[inx2]);
+	  }
+      }
+      END_DO_BOX;
       stmt_printf (("\n"));
     }
 }

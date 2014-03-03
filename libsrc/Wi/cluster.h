@@ -428,6 +428,7 @@ typedef struct cll_in_box_s
   char clib_local_dfg_advanced;
   char clib_is_top_coord;	/* fake clib without a clrg for getting misc recursive calls on top level coordinator thread */
   char clib_is_local;
+  char clib_roj_outer;		/* set when sending cl more for getting outer rows of right oj */
   slice_id_t clib_slice;
   int clib_skip_target_set;	/* if would ask for more, start the cl_more at clo with this row no or higher */
   int32 clib_row_low_water;	/*when less than this many and last cm is continuable, ask for more */
@@ -437,7 +438,6 @@ typedef struct cll_in_box_s
   int clib_rows_done;		/* how many done from the batch?  Compare with low water mark */
   int clib_n_local_rows;	/* if local exec, no of rows in teh result dcs */
   uint32 clib_req_no;
-  uint32 clib_base_req_no;	/* req no on top coord for top level cl invocation.  Speeds up finding a descendent clib when scheduling recursive cl op */
   int clib_n_selects;
   int clib_n_selects_received;	/* if less recd than requested, send a close when freeing the clrg */
   uint32 clib_keep_alive;	/* for long running, time of last keep alive from server */
@@ -948,7 +948,7 @@ struct cl_message_s
 #define CMR_DFG 16		/* This is a dfg, special treatment if recursive, no more than 1 thread per dfg */
 #define CMR_MARKED_REC 32
 #define CMR_FWD_NO_STACK_TOP 64
-
+#define CMR_ROJ_OUTER 128
 
 #define CL_REC_RUNNING 1	/* or'ed to entry in cll_rec_dfg to indicate a thread presently executing for the rec batch */
 #define CL_REC_CANCEL 2		/* or'ed to entry in cll_rec_dfg to indicate cancellation of running recursive batch */
@@ -960,6 +960,9 @@ struct cl_message_s
 #define CM_RES_CONTINUABLE 3
 #define CM_RES_CANCELLED 4	/* means that the clib is out of the waiting set and can't get results or even timeout */
 
+
+#define CM_IS_ALT(cm) \
+  (enable_cl_alt_queue && cm->cm_main_trx && cm->cm_main_trx != cm->cm_trx)
 
 /* api */
 
@@ -1048,6 +1051,13 @@ int itc_rd_cluster_blobs (it_cursor_t * itc, row_delta_t * rd, mem_pool_t * ins_
 
 
 /**add vec */
+void cl_chash_filled (fun_ref_node_t * fref, caddr_t * inst, int is_first, uint32 bf_size);
+caddr_t qf_agg_id (query_frag_t * qf, caddr_t * inst);
+void cl_dfg_roj_outer (query_frag_t * qf, caddr_t * inst);
+void cl_qf_roj_outer (query_frag_t * qf, caddr_t * inst);
+void qf_roj_outer (query_instance_t * qi, query_t * qr, query_frag_t * qf);
+hash_source_t *qf_roj_hs (dk_set_t nodes, stage_node_t ** stn_ret);
+void cl_qf_roj_outer (query_frag_t * qf, caddr_t * inst);
 void ts_ensure_fs_part (table_source_t * ts);
 void clrg_call_flush_if_due (cl_req_group_t * clrg, query_instance_t * qi, int anyway);
 void chash_cl_init ();
@@ -1056,6 +1066,10 @@ caddr_t daq_call_1 (cl_req_group_t * clrg, dbe_key_t * key, caddr_t fn, caddr_t 
 extern dk_mutex_t cl_chash_mtx;
 extern dk_hash_t cl_id_to_chash;
 extern int enable_itc_dfg_ck;
+
+
+#define CL_ONLY(a)
+
 
 
 void ks_set_dfg_queue_f (key_source_t * ks, caddr_t * inst, it_cursor_t * itc);
@@ -1175,7 +1189,7 @@ void clib_dfg_coord_req (cll_in_box_t * clib);
 #define ASSERT_IN_CLL \
   ASSERT_IN_MTX (local_cll.cll_mtx);
 
-void cl_dfg_run_local (stage_node_t * stn, caddr_t * inst);
+int cl_dfg_run_local (stage_node_t * stn, caddr_t * inst, caddr_t * err_ret);
 caddr_t *stn_add_slice_inst (state_slot_t * slice_qis, query_frag_t * qf, caddr_t * inst, int coordinator, slice_id_t slice,
     int is_in_cll);
 caddr_t *stn_find_slice (state_slot_t * slice_qis, caddr_t * inst, slice_id_t slice);

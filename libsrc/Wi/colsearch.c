@@ -72,11 +72,15 @@ itc_new_cr (it_cursor_t * itc)
 }
 
 
+void itc_set_col_rng_spec (it_cursor_t * itc);
+
+
 void
 itc_set_sp_stat (it_cursor_t * itc)
 {
   search_spec_t *sp;
   int n = 0;
+  itc_set_col_rng_spec (itc);
   for (sp = itc->itc_row_specs; sp; sp = sp->sp_next)
     n++;
   itc->itc_n_row_specs = n;
@@ -1799,7 +1803,7 @@ itc_rows_in_seg (it_cursor_t * itc, buffer_desc_t * buf)
     }
   if (!cr->cr_is_valid)
     itc_fetch_col (itc, buf, cl, 0, COL_NO_ROW);
-  return cr_n_rows (cr);
+  return itc->itc_rows_in_seg = cr_n_rows (cr);
 }
 
 
@@ -2550,6 +2554,117 @@ itc_filter_sets_reconcile (it_cursor_t * itc, int from_set, int from_match)
 }
 
 
+void
+itc_cp_pre_negate (it_cursor_t * itc, int rows_in_seg, int nth, int *prev_matches_ret)
+{
+  int matches_max = itc->itc_match_sz, match_fill = itc->itc_n_matches;
+  int more = !itc->itc_n_matches ? rows_in_seg : itc->itc_n_matches * 2;
+  row_no_t *matches = itc->itc_matches;
+  CHECK_MATCHES (more);
+  if (itc->itc_n_matches)
+    {
+      memcpy_16 (&itc->itc_matches[itc->itc_n_matches], itc->itc_matches, itc->itc_n_matches * sizeof (row_no_t));
+      *prev_matches_ret = itc->itc_n_matches;
+    }
+  else
+    *prev_matches_ret = 0;
+}
+
+
+void
+itc_cp_negate (it_cursor_t * itc, int nth, int rows_in_seg, int prev_matches, col_pos_t * cpo)
+{
+  int matches_max = itc->itc_match_sz, match_fill = itc->itc_n_matches;
+  int more = !nth ? rows_in_seg - itc->itc_n_matches : prev_matches + itc->itc_n_matches;
+  int checked = 0;
+  row_no_t *matches = itc->itc_matches;
+  row_no_t row;
+  CHECK_MATCHES (more);
+  if (!itc->itc_n_matches)
+    {
+      int fill = itc->itc_match_out;
+      int end = MIN (rows_in_seg, cpo->cpo_range->r_end);
+      for (row = cpo->cpo_range->r_first; row < end; row++)
+	{
+	  if (checked < itc->itc_match_out && row == itc->itc_matches[checked])
+	    checked++;
+	  else
+	    itc->itc_matches[fill++] = row;
+	}
+      memmove_16 (itc->itc_matches, &itc->itc_matches[itc->itc_match_out], sizeof (row_no_t) * (fill - itc->itc_match_out));
+      itc->itc_match_out = fill - itc->itc_match_out;
+    }
+  else
+    {
+      row_no_t *prev = &itc->itc_matches[prev_matches];
+      int fill = 0;
+      int point;
+      for (point = 0; point < prev_matches; point++)
+	{
+	  row = prev[point];
+	  if (checked < itc->itc_match_out && row == itc->itc_matches[checked])
+	    checked++;
+	  else
+	    prev[fill++] = row;
+	}
+      memmove_16 (itc->itc_matches, prev, sizeof (row_no_t) * fill);
+      itc->itc_match_out = fill;
+    }
+}
+
+
+void
+itc_set_col_rng_spec (it_cursor_t * itc)
+{
+  search_spec_t *sp;
+  itc->itc_col_range_spec = NULL;
+  itc->itc_range_opt = 0;
+  if (itc->itc_n_sets > 1)
+    return;
+  for (sp = itc->itc_key_spec.ksp_spec_array; sp; sp = sp->sp_next)
+    if (CMP_EQ != sp->sp_min_op)
+      break;
+  if (!sp)
+    return;
+  itc->itc_col_range_spec = sp;
+  itc->itc_range_opt = 1;
+}
+
+
+#define ITC_RNG_INIT_CK(itc) \
+  {if (itc->itc_col_range_spec && 1 == itc->itc_range_opt) itc->itc_range_opt = 2;}
+
+
+int
+itc_cp_range_opt (it_cursor_t * itc, buffer_desc_t * buf, col_pos_t * cpo, int nth_sp)
+{
+  db_buf_t next_row;
+  search_spec_t *sp;
+  int rc, n_rows;
+  if (itc->itc_range_opt < 2 || itc->itc_n_sets > 1)
+    return 0;
+  sp = itc->itc_col_range_spec;
+  if (CMP_NONE == sp->sp_max_op)
+    goto passed;
+  if (itc->itc_map_pos == buf->bd_content_map->pm_count - 1)
+    return 0;
+  next_row = BUF_ROW (buf, itc->itc_map_pos + 1);
+  rc = page_col_cmp (buf, next_row, &sp->sp_cl, cpo->cpo_cmp_max);
+  if ((rc & sp->sp_max_op))
+    goto passed;
+  return 0;
+passed:
+  if (itc->itc_match_in)
+    n_rows = itc->itc_match_out = itc->itc_match_in;
+  else
+    n_rows = 4000;
+  itc->itc_sp_stat[nth_sp].spst_in += n_rows;
+  itc->itc_sp_stat[nth_sp].spst_out += n_rows;
+  itc->itc_sp_stat[nth_sp].spst_time += 100;
+  return 1;
+}
+
+
 int allow_non_unq_range = 0;
 int non_unq_printed = 0;
 
@@ -2648,8 +2763,9 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
   for (nth_sp = 0; nth_sp < itc->itc_n_row_specs; nth_sp++)
     {
       int row = 0;
+      int prev_matches = 0;
       sp = itc->itc_sp_stat[nth_sp].spst_sp;
-      itc->itc_is_last_col_spec = nth_sp == itc->itc_n_row_specs - 1;
+      itc->itc_is_last_col_spec = nth_sp == itc->itc_n_row_specs - 1 && !sp->sp_is_reverse;
       if (!itc->itc_n_matches)
 	target = cpo.cpo_range->r_first;
       else
@@ -2699,12 +2815,15 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
 	}
       if (cpo.cpo_max_op != CMP_NONE)
 	cpo.cpo_cmp_max = itc->itc_search_params[sp->sp_max];
+      if (itc->itc_range_opt > 1 && itc->itc_col_spec->sp_cl.cl_col_id == itc->itc_col_range_spec->sp_cl.cl_col_id
+	  && itc_cp_range_opt (itc, buf, &cpo, nth_sp))
+	continue;
       cr = itc->itc_col_refs[sp->sp_cl.cl_nth - n_keys];
       if (!cr->cr_is_valid)
 	itc_fetch_col (itc, buf, &sp->sp_cl, 0, COL_NO_ROW);
       if (-1 == rows_in_seg)
 	{
-	  rows_in_seg = cr_n_rows (cr);
+	  rows_in_seg = itc->itc_rows_in_seg = cr_n_rows (cr);
 	  if (!is_singles)
 	    {
 	      itc->itc_rows_selected += MIN (rows_in_seg, cpo.cpo_range->r_end) - cpo.cpo_range->r_first - 1;
@@ -2723,6 +2842,8 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
 	  itc->itc_match_sz = rows_in_seg + 400;
 	  itc->itc_matches = (row_no_t *) itc_alloc_box (itc, sizeof (row_no_t) * itc->itc_match_sz, DV_BIN);
 	}
+      if (sp->sp_is_reverse && CMP_LIKE != sp->sp_min_op)
+	itc_cp_pre_negate (itc, rows_in_seg, nth_sp, &prev_matches);
       if (do_sp_stat)
 	{
 	  check_start_ts = rdtsc ();
@@ -2762,6 +2883,8 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
 	next_page:;
 	}
     next_spec:
+      if (sp->sp_is_reverse && CMP_LIKE != sp->sp_min_op)
+	itc_cp_negate (itc, nth_sp, rows_in_seg, prev_matches, &cpo);
       if (do_sp_stat)
 	{
 	  itc->itc_sp_stat[nth_sp].spst_out += itc->itc_match_out;
@@ -2778,6 +2901,7 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
       itc->itc_match_in = 0;
     }
   itc->itc_is_last_col_spec = 0;
+  ITC_RNG_INIT_CK (itc);
   if (do_sp_stat && itc->itc_sp_stat[0].spst_in > 10000)
     itc_sp_stat_check (itc);
   if (RANDOM_SEARCH_COND == itc->itc_random_search)
@@ -3142,6 +3266,7 @@ itc_col_row_check (it_cursor_t * itc, buffer_desc_t ** buf_ret, dp_addr_t * leaf
   db_buf_t row;
   key_ver_t kv;
   buffer_desc_t *buf;
+  row_no_t start_row;
   CHECK_TRX_DEAD (itc, buf_ret, ITC_BUST_CONTINUABLE);
   ITC_DFG_CK (itc);
   itc->itc_col_need_preimage = 0;
@@ -3177,6 +3302,7 @@ start:
       itc_col_search (itc, buf);
       itc->itc_n_sets = n_save;
     }
+  start_row = itc->itc_ranges[0].r_first;
   if (ISO_SERIALIZABLE == itc->itc_isolation)
     {
       wait = itc_col_serializable (itc, buf_ret);
@@ -3218,6 +3344,11 @@ start:
       rc = itc_col_seg (itc, buf, 0, 0);
       if (DVC_MATCH == rc)
 	break;
+    }
+  if (itc->itc_count_scan && 0 == start_row)
+    {
+      itc->itc_ltrx->lt_client->cli_activity.da_scan_segs++;
+      itc->itc_ltrx->lt_client->cli_activity.da_scan_rows += itc->itc_rows_in_seg;
     }
   if (DVC_MATCH == rc || COL_NO_ROW == itc->itc_ranges[itc->itc_range_fill - 1].r_end)
     rnd_inc = itc->itc_set - first_set ? itc->itc_set - first_set - 1 : 0;

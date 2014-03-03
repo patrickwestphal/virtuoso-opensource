@@ -836,7 +836,6 @@ inx_op_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile sta
 	  if (IOP_AT_END == rc)
 	    {
 	      qn_record_in_state ((data_source_t *) ts, inst, NULL);
-	      ts_outer_output (ts, inst);
 	      return;
 	    }
 	  qn_record_in_state ((data_source_t *) ts, inst, state);
@@ -850,8 +849,6 @@ inx_op_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile sta
 	    }
 	  else
 	    {
-	      if (!any_passed)
-		ts_outer_output (ts, state);
 	      return;
 	    }
 	}

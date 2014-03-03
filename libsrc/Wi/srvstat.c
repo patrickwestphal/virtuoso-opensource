@@ -210,6 +210,14 @@ extern long tc_dc_extend_values;
 extern int32 em_ra_window;
 extern int32 em_ra_threshold;
 extern int enable_mem_hash_join;
+extern int32 enable_qrc;
+extern int32 qrc_tolerance;
+extern long tc_qrc_hit;
+extern long tc_qrc_miss;
+extern long tc_qrc_recompile;
+extern long tc_qrc_plan_miss;
+
+
 #ifdef CACHE_MALLOC
 extern int enable_no_free;
 #endif
@@ -218,6 +226,8 @@ extern int enable_subscore;
 extern int cl_no_init;
 extern int enable_dfg;
 extern int enable_feed_other_dfg;
+extern int enable_cl_alt_queue;
+
 extern long tc_cll_undelivered;
 extern long tc_over_max_undelivered;
 extern int enable_rec_qf;
@@ -225,6 +235,8 @@ extern int enable_cm_trace;
 extern int enable_listener_prio;
 extern int enable_cll_nb_read;
 extern int enable_high_card_part;
+extern int enable_dt_hash;
+extern int enable_hash_fill_reuse;
 extern int enable_nb_clrg;
 extern long tc_compress_clocks;
 extern long tc_uncompress_clocks;
@@ -327,6 +339,9 @@ extern int dbf_ce_del_mask;
 extern int dbf_col_ins_dbg_log;
 extern int dbf_col_del_leaf;
 extern int enable_pogs_check;
+extern int col_seg_max_bytes;
+extern int col_seg_max_rows;
+
 int key_seg_check[10];
 int dbf_fast_cpt = 0;
 extern int enable_flush_all;
@@ -1201,6 +1216,7 @@ get_total_sys_mem ()
 
 extern int process_is_swapping;
 extern double curr_cpu_pct;
+void qrc_status ();
 
 extern int64 dk_n_allocs;
 extern int64 dk_n_free;
@@ -1241,7 +1257,12 @@ status_report (const char *mode, query_instance_t * qi)
       bif_exec_status ();
       return;
     }
-  else if (!stricmp (mode, "cluster_d"))
+  if (!stricmp (mode, "qrc"))
+    {
+      qrc_status ();
+      return;
+    }
+  if (!stricmp (mode, "cluster_d"))
     {
       gen_info = 0;
       cl_mode = CLST_DETAILS;
@@ -1737,6 +1758,16 @@ stat_desc_t dbf_descs[] = {
   {"enable_hash_merge", (long *) &enable_hash_merge, SD_INT32},
   {"enable_hash_fill_join", (long *) &enable_hash_fill_join, SD_INT32},
   {"enable_subscore", (long *) &enable_subscore, SD_INT32},
+  {"enable_dt_hash", &enable_dt_hash, SD_INT32},
+  {"enable_hash_fill_reuse", &enable_hash_fill_reuse, SD_INT32},
+  {"enable_high_card_part", (long *) &enable_high_card_part, SD_INT32},
+  {"enable_stream_gb", (long *) &enable_stream_gb, SD_INT32},
+  {"enable_qrc", &enable_qrc, SD_INT32},
+  {"qrc_tolerance", &qrc_tolerance, SD_INT32},
+  {"tc_qrc_hit", &tc_qrc_hit, NULL},
+  {"tc_qrc_miss", &tc_qrc_miss, NULL},
+  {"tc_qrc_recompile", &tc_qrc_recompile, NULL},
+  {"tc_qrc_plan_miss", &tc_qrc_plan_miss, NULL},
   {"enable_at_print", (long *) &enable_at_print, SD_INT32},
   {"enable_min_card", (long *) &enable_min_card},
   {"enable_distinct_sas", (long *) &enable_distinct_sas, SD_INT32},
@@ -1829,6 +1860,8 @@ stat_desc_t dbf_descs[] = {
   {"enable_no_free", &enable_no_free, SD_INT32},
 #endif
   {"enable_rdf_box_const", &enable_rdf_box_const, SD_INT32},
+  {"col_seg_max_rows", &col_seg_max_rows, SD_INT32},
+
   {NULL, NULL, NULL}
 };
 
@@ -4258,6 +4291,8 @@ da_add (db_activity_t * a1, db_activity_t * a2)
   S_ADD (da_same_seg);
   S_ADD (da_same_page);
   S_ADD (da_same_parent);
+  S_ADD (da_scan_rows);
+  S_ADD (da_scan_segs);
   S_ADD (da_thread_time);
   S_ADD (da_thread_disk_wait);
   S_ADD (da_thread_cl_wait);
@@ -4704,6 +4739,38 @@ bif_stat_import (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return NULL;
 }
 
+caddr_t
+bif_key_em_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  query_instance_t *qi = (query_instance_t *) qst;
+  dbe_key_t *key = bif_key_arg (qst, args, 0, "key_em_check");
+  int type = bif_long_arg (qst, args, 2, "key_em_check");
+  int flag = bif_long_arg (qst, args, 3, "key_em_check");
+  int n = 0;
+  dk_set_t l = NULL;
+  extent_map_t *em = key->key_fragments[0]->kf_it->it_extent_map;
+
+  DO_EXT (ext, em)
+  {
+    if (type == EXT_TYPE (ext))
+      {
+	dp_addr_t dp;
+	for (dp = ext->ext_dp; dp < ext->ext_dp + EXTENT_SZ; dp++)
+	  {
+	    int32 word = ext->ext_pages[(dp - ext->ext_dp) / 32];
+	    int bit = (dp - ext->ext_dp) % 32;
+	    if ((word & (1 << bit)))
+	      {
+		if (dbs_is_free_page (em->em_dbs, dp) || flag)
+		  dk_set_push (&l, (void *) box_num (dp));
+		n++;
+	      }
+	  }
+      }
+  }
+  END_DO_EXT;
+  return list_to_array (dk_set_nreverse (l));
+}
 
 void
 bif_status_init (void)
@@ -4745,4 +4812,5 @@ bif_status_init (void)
 #ifndef NDEBUG
   bif_define ("_sys_real_cv_size", bif_real_cv_size);
 #endif
+  bif_define ("key_em_check", bif_key_em_check);
 }

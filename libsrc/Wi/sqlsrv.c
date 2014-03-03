@@ -483,12 +483,20 @@ cli_scrap_cached_statements (client_connection_t * cli)
       srv_stmt_t *sst = *stmt;
       if (sst->sst_query)
 	{
-	  IN_CLL;
-	  if (!sst->sst_query->qr_ref_count)
-	    log_error ("Suspect to have query assigned to stmt but 0 ref count on query");
+	  if (sst->sst_query->qr_qce)
+	    {
+	      qr_free (sst->sst_query);
+	      sst->sst_query = NULL;
+	    }
 	  else
-	    sst->sst_query->qr_ref_count--;
-	  LEAVE_CLL;
+	    {
+	      IN_CLL;
+	      if (!sst->sst_query->qr_ref_count)
+		log_error ("Suspect to have query assigned to stmt but 0 ref count on query");
+	      else
+		sst->sst_query->qr_ref_count--;
+	      LEAVE_CLL;
+	    }
 	}
       if (client_trace_flag)
 	{
@@ -1284,6 +1292,14 @@ cli_drop_old_query (client_connection_t * cli)
     }
 }
 
+void
+qr_unref (query_t * qr)
+{
+  if (qr->qr_qce)
+    qr_free (qr);
+  else
+    qr->qr_ref_count--;
+}
 
 #define CORRECT_QUAL(qr, cli) \
   ((qr)->qr_qualifier && \
@@ -1354,24 +1370,29 @@ stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text, stmt
 	  dk_free_tree (err);
 	  return (caddr_t) SQL_ERROR;
 	}
-      if (!qr->qr_is_ddl)
-	id_hash_set (cli->cli_text_to_query, (caddr_t) & qr->qr_text, (caddr_t) & qr);
-      cli_drop_old_query (cli);
-      L2_PUSH (cli->cli_first_query, cli->cli_last_query, qr, qr_);
+      if (!qr->qr_qce)
+	{
+	  if (!qr->qr_is_ddl)
+	    id_hash_set (cli->cli_text_to_query, (caddr_t) & qr->qr_text, (caddr_t) & qr);
+	  cli_drop_old_query (cli);
+	  L2_PUSH (cli->cli_first_query, cli->cli_last_query, qr, qr_);
+	}
     }
   dk_free_box (text);
 
   if (stmt->sst_query)
-    stmt->sst_query->qr_ref_count--;
+    qr_unref (stmt->sst_query);
   stmt->sst_query = qr;
-  qr->qr_ref_count++;
-  if (qr != cli->cli_first_query)
+  if (!qr->qr_qce)
     {
-      /* set to first place in LRU queue */
-      L2_DELETE (cli->cli_first_query, cli->cli_last_query, qr, qr_);
-      L2_PUSH (cli->cli_first_query, cli->cli_last_query, qr, qr_);
+      qr->qr_ref_count++;
+      if (qr != cli->cli_first_query)
+	{
+	  /* set to first place in LRU queue */
+	  L2_DELETE (cli->cli_first_query, cli->cli_last_query, qr, qr_);
+	  L2_PUSH (cli->cli_first_query, cli->cli_last_query, qr, qr_);
+	}
     }
-
   if (!cli->cli_http_ses && !cli->cli_is_log)
     {
       CATCH (CATCH_LISP_ERROR)
@@ -1390,7 +1411,6 @@ stmt_set_query (srv_stmt_t * stmt, client_connection_t * cli, caddr_t text, stmt
     }
 
   return ((caddr_t) SQL_SUCCESS);
-
 }
 
 int32 cli_max_cached_stmts = 10000;
@@ -1556,7 +1576,7 @@ CLI_WRAPPER (sf_stmt_prepare, (caddr_t stmt_id, char *text, long explain, stmt_o
 caddr_t
 stmt_check_recompile (srv_stmt_t * stmt)
 {
-  if (stmt->sst_query && stmt->sst_query->qr_to_recompile)
+  if (stmt->sst_query && stmt->sst_query->qr_to_recompile && !stmt->sst_query->qr_qce)
     {
       query_t *qr;
       caddr_t err = NULL;
@@ -2389,7 +2409,7 @@ CLI_WRAPPER (sf_sql_fetch, (caddr_t stmt_id, long cond_no), (stmt_id, cond_no))
 
       mutex_enter (cli->cli_mtx);
       if (stmt->sst_query)
-	stmt->sst_query->qr_ref_count--;
+	qr_unref (stmt->sst_query);
       id_hash_remove (cli->cli_statements, (caddr_t) & stmt->sst_id);
       mutex_leave (cli->cli_mtx);
       dk_free_box (stmt->sst_id);
@@ -3466,6 +3486,8 @@ sql_code_arfw_global_init ()
   ddl_scheduler_arfw_init ();
 */
   sqls_arfw_define_sys ();
+  if (cl_no_init)
+    return;
   sqls_arfw_define_sparql ();
   sqls_arfw_define ();
   sqls_arfw_define_1 ();
@@ -3685,7 +3707,9 @@ srv_session_disconnect_action (dk_session_t * ses)
     }
 }
 
+void chash_in_init ();
 void rdf_key_comp_init ();
+void qrc_init ();
 extern int enable_col_by_default, c_col_by_default;
 long get_total_sys_mem ();
 
@@ -3842,6 +3866,7 @@ srv_global_init (char *mode)
     }
   if (!f_read_from_rebuilt_database)
     {
+      cluster_schema ();
       srv_calculate_sqlo_unit_msec (NULL);
     }
   the_main_thread = current_process;	/* Used by the_grim_lock_reaper */
@@ -3919,6 +3944,7 @@ srv_global_init (char *mode)
   rdf_core_init ();
   sparql_init ();
 #endif
+  chash_in_init ();
   http_init_part_one ();
   sqlbif_sequence_init ();
   ddl_init_plugin ();
@@ -4043,6 +4069,7 @@ srv_global_init (char *mode)
   st_sys_ram = get_total_sys_mem ();
   sqlc_set_client (NULL);
   enable_col_by_default = c_col_by_default;
+  qrc_init ();
 }
 
 

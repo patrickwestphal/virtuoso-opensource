@@ -39,6 +39,12 @@
 #include "remote.h"
 
 
+#define NO_LIT_PARS \
+  { st_lit_state_t * __save_stl = so->so_stl; so->so_stl = NULL;
+
+#define RESTORE_LIT_PARS \
+  so->so_stl = __save_stl; }
+
 #define CHECK_OBSERVER(tree_ptr) \
    if (ST_P (*(tree_ptr), COL_DOTTED)) \
      { \
@@ -551,6 +557,7 @@ sco_add_table (sql_scope_t * sco, op_table_t * ot)
   }
   END_DO_SET ();
   so->so_this_dt->ot_from_ots = dk_set_conc (so->so_this_dt->ot_from_ots, t_cons ((void *) ot, NULL));
+  ot->ot_super = so->so_this_dt;
   sco->sco_tables = dk_set_conc (sco->sco_tables, t_cons (ot, NULL));
 }
 
@@ -865,6 +872,7 @@ sqlo_add_table_ref (sqlo_t * so, ST ** tree_ret, dk_set_t * res)
 	    ot->ot_prefix = tree->_.table.prefix;
 	    snprintf (tmp, sizeof (tmp), "t%d", so->so_name_ctr++);
 	    ot->ot_new_prefix = t_box_string (tmp);
+	    ot->ot_inside_outer = so->so_inside_outer;
 	    tree->_.table.prefix = ot->ot_new_prefix;
 	    ot->ot_table = tb;
 	    ot->ot_rds = rt ? rt->rt_rds : NULL;
@@ -927,6 +935,7 @@ sqlo_add_table_ref (sqlo_t * so, ST ** tree_ret, dk_set_t * res)
       }
     case JOINED_TABLE:
       {
+	char old_outer;
 	sql_scope_t *old_sco = so->so_scope;
 	TNEW (sql_scope_t, sco);
 	op_table_t *right_ot, *left_ot;
@@ -966,7 +975,10 @@ sqlo_add_table_ref (sqlo_t * so, ST ** tree_ret, dk_set_t * res)
 	sqlo_add_table_ref (so, &tree->_.join.left, sco->sco_has_jt ? &res_jt : res);
 	left_ot = (op_table_t *) so->so_tables->data;
 	ptr = dk_set_last (so->so_this_dt->ot_from_ots);
+	old_outer = so->so_inside_outer;
+	so->so_inside_outer = OJ_LEFT == tree->_.join.type;
 	sqlo_add_table_ref (so, &tree->_.join.right, sco->sco_has_jt ? &res_jt : res);
+	so->so_inside_outer = old_outer;
 	right_ot = (op_table_t *) so->so_tables->data;
 	sqlo_natural_join_cond (so, left_ot, right_ot, tree);
 	sqlo_scope (so, &(tree->_.join.cond));
@@ -1000,6 +1012,8 @@ sqlo_add_table_ref (sqlo_t * so, ST ** tree_ret, dk_set_t * res)
 	  {
 	    ot = (op_table_t *) so->so_tables->data;
 	    ot->ot_prefix = tree->_.table_ref.range;
+	    if (BOX_ELEMENTS (tree) > 3)
+	      ot->ot_dt_opts = tree->_.dt_ref.opts;
 	    tree->_.table_ref.range = ot->ot_new_prefix;
 /*	    t_set_push (res, (void *) ot);*/
 	    sco_add_table (so->so_scope, ot);
@@ -2613,6 +2627,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
     }
   if (top_exp)
     {
+      NO_LIT_PARS;
       ot->ot_is_top = 1;
       if (top_exp->_.top.ties)
 	ot->ot_is_top_ties = 1;
@@ -2628,6 +2643,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	      t_list (2, t_list (2, QUOTE, t_listst (2, (ptrlong) DV_LONG_INT, (ptrlong) 0)), top_exp->_.top.skip_exp));
 	}
       sqlo_scope (so, &(top_exp->_.top.skip_exp));
+      RESTORE_LIT_PARS;
     }
 
   if (texp)
@@ -2932,7 +2948,66 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
       }
 
 
-      void sqlo_count_unq_preserving (ST * tree)
+      int sqlo_exp_nullable (sqlo_t * so, ST * tree)
+      {
+	int inx;
+	dtp_t dtp = DV_TYPE_OF (tree);
+	if (DV_DB_NULL == dtp)
+	  return 1;
+	if (DV_ARRAY_OF_POINTER != dtp)
+	  return 0;
+	if (ST_P (tree, COL_DOTTED))
+	  {
+	    if (!tree->_.col_ref.prefix)
+	      return 0;
+	    op_table_t *ot = sqlo_cname_ot (so, tree->_.col_ref.prefix), *ot2;
+	    for (ot2 = ot; ot2; ot2 = ot2->ot_super)
+	      if (ot2->ot_is_outer || ot2->ot_inside_outer)
+		return 1;
+	    if (ot->ot_dt)
+	      {
+		ST *dt = ot->ot_dt;
+		ST *left = sqlp_union_tree_select (dt);
+		if (dt == left && ST_P (left, SELECT_STMT))
+		  {
+		    DO_BOX (ST *, as, inx, left->_.select_stmt.selection)
+		    {
+		      if (0 == CASEMODESTRCMP (as->_.as_exp.name, tree->_.col_ref.name))
+			{
+			  return sqlo_exp_nullable (so, as->_.as_exp.left);
+			}
+		    }
+		    END_DO_BOX;
+		  }
+		else
+		  return 1;
+	      }
+	    if (ot->ot_table)
+	      {
+		dbe_column_t *col = tb_name_to_column (ot->ot_table, tree->_.col_ref.name);
+		return col ? !col->col_sqt.sqt_non_null : 1;
+	      }
+	    else
+	      return 1;
+	  }
+	if (ST_P (tree, FUN_REF))
+	  {
+	    if (AMMSC_COUNT == tree->_.fn_ref.fn_code)
+	      return 0;
+	    else
+	      return sqlo_exp_nullable (so, tree->_.fn_ref.fn_arg);
+	  }
+	DO_BOX (ST *, sub, inx, tree)
+	{
+	  if (sqlo_exp_nullable (so, sub))
+	    return 1;
+	}
+	END_DO_BOX;
+	return 0;
+      }
+
+
+      void sqlo_count_unq_preserving (sqlo_t * so, ST * tree)
       {
 	while ST_P
 	  (tree->_.fn_ref.fn_arg, CALL_STMT && sqlo_is_unq_preserving (tree->_.fn_ref.fn_arg->_.call.name)
@@ -2965,7 +3040,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 
       int32 enable_rdf_box_const = 2;
 
-      int sqlo_check_rdf_lit (ST ** ptree)
+      int sqlo_check_rdf_lit (sqlo_t * so, ST ** ptree)
       {
 	ST *data = *ptree;
 	caddr_t name = NULL, lang = NULL;
@@ -2978,6 +3053,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	      return KS_CAST_UNDEF;
 	    mp_trash (THR_TMP_POOL, iri);
 	    *ptree = (ST *) iri;
+	    sqlo_lit_param (so, ptree);
 	    return KS_CAST_OK;
 	  }
 	if (enable_rdf_box_const && (vtype = sqlo_rdf_obj_const_value (data, &name, &lang)))
@@ -3017,9 +3093,13 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	if (2 == enable_rdf_box_const)
 	  {
 	    *ptree = t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("__rdflit"), t_list (1, data));
+	    sqlo_lit_param (so, &(*ptree)->_.call.params[0]);
 	  }
 	else
-	  *ptree = data;
+	  {
+	    *ptree = data;
+	    sqlo_lit_param (so, ptree);
+	  }
 	return KS_CAST_OK;
       }
 
@@ -3042,11 +3122,18 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	  return;
 	tree = *ptree;
 	if (SYMBOLP (tree))
-	  return;
+	  {
+	    if (':' == ((char *) tree)[0] && so->so_stl)
+	      so->so_stl->stl_explicit_params = 1;	/* if there are explicit params, lits do not become params */
+	    return;
+	  }
 	if (ST_P (tree, QUOTE))
 	  return;
 	if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (tree))
-	  return;
+	  {
+	    sqlo_lit_param (so, ptree);
+	    return;
+	  }
 	if (THR_IS_STACK_OVERFLOW (THREAD_CURRENT_THREAD, &tree, 8000))
 	  sqlc_error (so->so_sc->sc_cc, ".....", "Stack Overflow");
 	if (DK_MEM_RESERVE)
@@ -3071,12 +3158,10 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 		  ST *arg = tree->_.fn_ref.fn_arg;
 		  ptrlong ad = tree->_.fn_ref.all_distinct;
 		  ST *arg_copy = (ST *) t_box_copy_tree ((caddr_t) arg);
-		  ST *new_tree;
-		  if (sizeof (tree->_.bin_exp) > sizeof (tree->_.fn_ref))
-		    GPF_T1 ("the parse tree bin exp variant must fit inside the parse tree fun ref ariant");
-		  BIN_OP (new_tree, BOP_DIV,
-		      t_listst (7, FUN_REF, NULL, AMMSC_SUM, NULL, ad, arg, NULL),
-		      t_listst (7, FUN_REF, NULL, AMMSC_COUNT, NULL, ad, arg_copy, NULL));
+		  ST *new_tree, *left, *right;
+		  FN_REF (left, AMMSC_SUM, ad, arg);
+		  FN_REF (right, AMMSC_COUNT, ad, arg_copy);
+		  BIN_OP (new_tree, BOP_DIV, left, right);
 		  *ptree = new_tree;
 		  tree = new_tree;
 		  sqlp_complete_fun_ref (tree->_.bin_exp.right);
@@ -3085,8 +3170,8 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 		  return;
 		}
 
-	      if (AMMSC_COUNT == tree->_.fn_ref.fn_code)
-		sqlo_count_unq_preserving (tree);
+	      if (AMMSC_COUNT == tree->_.fn_ref.fn_code || AMMSC_COUNTSUM == tree->_.fn_ref.fn_code)
+		sqlo_count_unq_preserving (so, tree);
 	      if (AMMSC_COUNT == tree->_.fn_ref.fn_code
 		  && !tree->_.fn_ref.all_distinct && !sqlo_has_col_ref (tree->_.fn_ref.fn_arg))
 		{
@@ -3103,7 +3188,13 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	      if (so->so_scope)
 		so->so_scope->sco_fun_refs_allowed = 0;
 	      if (NULL != tree->_.fn_ref.fn_arg)
-		sqlo_scope (so, &(tree->_.fn_ref.fn_arg));
+		{
+		  sqlo_scope (so, &(tree->_.fn_ref.fn_arg));
+		  if (!tree->_.fn_ref.all_distinct && AMMSC_COUNTSUM == tree->_.fn_ref.fn_code
+		      && st_is_call (tree->_.fn_ref.fn_arg, "isnotnull", 1)
+		      && !sqlo_exp_nullable (so, tree->_.fn_ref.fn_arg->_.call.params[0]))
+		    tree->_.fn_ref.fn_arg = (ST *) 1;
+		}
 	      else
 		{
 		  int arginx;
@@ -3113,7 +3204,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 		  }
 		  END_DO_BOX_FAST;
 		}
-	      t_set_push (&so->so_this_dt->ot_fun_refs, (void *) tree);
+	      t_NCONCF1 (so->so_this_dt->ot_fun_refs, (void *) tree);
 	      if (so->so_scope)
 		so->so_scope->sco_fun_refs_allowed = old_fun_refs_allowed;
 	      break;
@@ -3133,7 +3224,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	      else
 		{
 		  CHECK_METHOD_CALL (ptree);
-		  if (KS_CAST_OK == sqlo_check_rdf_lit (ptree))
+		  if (KS_CAST_OK == sqlo_check_rdf_lit (so, ptree))
 		    return;
 		}
 	      /* mark qr to do lock if it is for SPARQL insert/delete triples */
@@ -3214,15 +3305,15 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 		ST *res;
 		so->so_bin_op_is_negate = tree->type == BOP_NOT ? 1 : 0;
 		sqlo_scope (so, &(tree->_.bin_exp.left));
-		sqlo_scope (so, &(tree->_.bin_exp.right));
+		sqlo_check_rhs_lit (so, tree);
 		so->so_bin_op_is_negate = 0;
 		res = sinv_check_exp (so, tree);
 		if (res != tree)
 		  {
 		    *ptree = res;
 		    tree = res;
-		    sqlo_check_rdf_lit (&tree->_.bin_exp.left);
-		    sqlo_check_rdf_lit (&tree->_.bin_exp.right);
+		    sqlo_check_rdf_lit (so, &tree->_.bin_exp.left);
+		    sqlo_check_rdf_lit (so, &tree->_.bin_exp.right);
 		  }
 		if (ST_P (tree, BOP_OR))
 		  sqlo_bop_expand_or (so, tree);
@@ -3237,4 +3328,93 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	      }
 
 	  }
+      }
+
+
+      int sqlo_refd_col_cb (ST * tree, void *cd)
+      {
+	if (ST_P (tree, TABLE_REF))
+	  return 1;
+	if (ST_P (tree, COL_DOTTED))
+	  {
+	    t_id_hash_set ((id_hash_t *) cd, (caddr_t) & tree, NULL);
+	    return 1;
+	  }
+	return 0;
+      }
+
+
+      void sqlo_map_st (ST * tree, tree_cb_t cb, void *cd)
+      {
+	int inx;
+	dtp_t dtp = DV_TYPE_OF (tree);
+	if (DV_ARRAY_OF_POINTER != dtp)
+	  return;
+	if (ST_P (tree, QUOTE))
+	  return;
+	if (cb (tree, cd))
+	  return;
+	DO_BOX (ST *, sub, inx, tree)
+	{
+	  sqlo_map_st (sub, cb, cd);
+	}
+	END_DO_BOX;
+      }
+
+
+
+
+      void sqlo_unused_cols (sqlo_t * so, ST * tree)
+      {
+	/* intermediate, for removing unrefd cols of derived tables */
+	id_hash_t *ht = t_id_hash_allocate (31, sizeof (caddr_t), 0, treehash, treehashcmp);
+	ST *texp = tree->_.select_stmt.table_exp;
+	sqlo_map_st ((ST *) tree->_.select_stmt.selection, sqlo_refd_col_cb, ht);
+	if (texp)
+	  {
+	    sqlo_map_st (texp->_.table_exp.where, sqlo_refd_col_cb, ht);
+	    sqlo_map_st (texp->_.table_exp.having, sqlo_refd_col_cb, ht);
+	    sqlo_map_st (texp->_.table_exp.order_by, sqlo_refd_col_cb, ht);
+	  }
+      }
+
+
+      void sqlo_replace_tree (ST ** ptree, caddr_t old_tree, caddr_t new_tree)
+      {
+	ST *tree = *ptree;
+	int inx;
+	if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (tree))
+	  return;
+	if (box_equal (tree, old_tree))
+	  {
+	    *ptree = t_box_copy_tree (new_tree);
+	    return;
+	  }
+	DO_BOX (ST *, exp, inx, ((caddr_t *) tree))
+	{
+	  sqlo_replace_tree (&((ST **) tree)[inx], old_tree, new_tree);
+	}
+	END_DO_BOX;
+      }
+
+
+      uint32 sqlo_subq_hash_cb (ST * tree, void *cd)
+      {
+	uint32 *hp = (uint32 *) cd;
+	if (ST_P (tree, TABLE_DOTTED))
+	  {
+	    *hp = ((*hp) << 1) ^ box_hash (tree->_.table.name);
+	    if (1 == *hp)
+	      *hp = 2;
+	    return 1;
+	  }
+	return 0;
+      }
+
+
+      uint32 sqlo_subq_id_hash (ST * tree)
+      {
+	uint32 hno = 1;
+	sqlo_map_st (tree, sqlo_subq_hash_cb, &hno);
+	return hno;
       }

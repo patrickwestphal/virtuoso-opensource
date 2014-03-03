@@ -703,6 +703,34 @@ bop_to_dvc (int op)
 }
 
 
+
+unsigned char
+dvc_to_bop (int op)
+{
+  switch (op)
+    {
+    case CMP_LTE:
+      return BOP_LTE;
+    case CMP_LT:
+      return BOP_LT;
+    case CMP_GTE:
+      return BOP_GTE;
+    case CMP_GT:
+      return BOP_GT;
+    case CMP_EQ:
+      return BOP_EQ;
+    case CMP_NEQ:
+      return BOP_NEQ;
+    case CMP_LIKE:
+      return BOP_LIKE;
+    case CMP_NULL:
+      return BOP_NULL;
+    default:
+      SQL_GPF_T (NULL);		/* Bad BOP predicate */
+    }
+  return 0;
+}
+
 void
 sql_node_append (data_source_t ** head, data_source_t * node)
 {

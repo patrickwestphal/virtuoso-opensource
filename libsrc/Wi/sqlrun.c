@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2014 OpenLink Software
+ *  Copyright (C) 1998-2013 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -805,7 +805,7 @@ cli_terminate_in_itc_fail (client_connection_t * cli, it_cursor_t * itc, buffer_
 }
 
 
-int32 enable_vec_reuse = 0;
+int32 enable_vec_reuse = 1;
 
 void
 qn_vec_reuse (data_source_t * qn, caddr_t * inst)
@@ -1555,6 +1555,8 @@ ks_start_search (key_source_t * ks, caddr_t * inst, caddr_t * state,
 	  return 0;		/* can be if from multistate  temp   and none of the sets has a temp tree or all param casts failed in quietcast */
 	ks_set_dfg_queue (ks, inst, itc);
 	buf = ts_initial_itc (ts, inst, itc);
+	if (!buf && ts->ts_in_sdfg)
+	  return 2;		/* sdfg run to completion, return from the ts input */
 	itc->itc_n_results = 0;
 	ks_vec_new_results (ks, inst, itc);
 	res = itc_vec_next (itc, &buf);
@@ -1763,41 +1765,28 @@ ts_always_null (table_source_t * ts, caddr_t * inst)
 
 
 void
-ts_outer_output (table_source_t * ts, caddr_t * qst)
+ts_at_end (table_source_t * ts, caddr_t * inst)
 {
-  if (!ts->ts_is_outer)
-    return;
-  if (ts->ts_inx_op)
+  if (ts->ts_stream_setp)
     {
-      int inx;
-      inx_op_t *iop = ts->ts_inx_op;
-      DO_BOX (inx_op_t *, term, inx, iop->iop_terms)
-      {
-	DO_SET (state_slot_t *, sl, &term->iop_ks->ks_out_slots)
-	{
-	  qst_set_bin_string (qst, sl, (db_buf_t) "", 0, DV_DB_NULL);
-	}
-	END_DO_SET ();
-      }
-      END_DO_BOX;
+      SRC_IN_STATE (ts, inst) = inst;
+      QST_INT (inst, ts->ts_stream_flush_only) = 1;
     }
   else
+    SRC_IN_STATE (ts, inst) = NULL;
+}
+
+int
+ts_stream_flush_ck (table_source_t * ts, caddr_t * inst)
+{
+  if (ts->ts_stream_flush_only && QST_INT (inst, ts->ts_stream_flush_only))
     {
-      DO_SET (state_slot_t *, sl, &ts->ts_order_ks->ks_out_slots)
-      {
-	qst_set_bin_string (qst, sl, (db_buf_t) "", 0, DV_DB_NULL);
-      }
-      END_DO_SET ();
+      QST_INT (inst, ts->ts_stream_flush_only) = 0;
+      SRC_IN_STATE (ts, inst) = NULL;
+      setp_node_input (ts->ts_stream_setp, inst, NULL);
+      return 1;
     }
-  if (ts->ts_main_ks)
-    {
-      DO_SET (state_slot_t *, sl, &ts->ts_main_ks->ks_out_slots)
-      {
-	qst_set_bin_string (qst, sl, (db_buf_t) "", 0, DV_DB_NULL);
-      }
-      END_DO_SET ();
-    }
-  qn_ts_send_output ((data_source_t *) ts, qst, ts->ts_after_join_test);
+  return 0;
 }
 
 
@@ -1808,6 +1797,8 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
   volatile int any_passed = 1;
   query_instance_t *qi = (query_instance_t *) inst;
   int rc, start;
+  if (!state && ts_stream_flush_ck (ts, inst))
+    return;
   if (ts->ts_alternate_test && ts->ts_alternate_test (ts, inst, state))
     return;
   if (ts->ts_inx_op)
@@ -1890,10 +1881,15 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
 	    order_itc->itc_random_search = RANDOM_SEARCH_OFF;
 	  rc = ks_start_search (ts->ts_order_ks, inst, state,
 	      order_itc, &order_buf, ts, ts->ts_is_unique ? SM_READ_EXACT : SM_READ);
-	  TS_ORDER_ITC (ts, state) = order_itc;
-	  if (!rc)
+	  if (2 == rc)
 	    {
 	      SRC_IN_STATE (ts, inst) = NULL;
+	      return;		/* was a sdfg and ks start search did the work to completion */
+
+	    }
+	  if (!rc)
+	    {
+	      ts_at_end (ts, inst);
 	      if (ts->ts_aq)
 		ts_aq_handle_end (ts, inst);
 	      ts_check_batch_sz (ts, inst, order_itc);
@@ -1901,12 +1897,10 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
 		{
 		  ts_alt_path_ck (ts, inst);
 		  qn_ts_send_output ((data_source_t *) ts, inst, ts->ts_after_join_test);
+		  ts_stream_flush_ck (ts, inst);
 		  ts_aq_final (ts, inst, order_itc);
 		  return;
 		}
-	      if (ts->ts_order_ks->ks_qf_output && order_itc->itc_cl_qf_any_passed)
-		return;		/* looks like e,empty set but stuff sent to qf client */
-	      ts_outer_output (ts, inst);
 	      ts_aq_final (ts, inst, NULL);
 	      return;
 	    }
@@ -1968,18 +1962,16 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
 	    else
 	      {
 		itc_page_leave (order_itc, order_buf);
-		SRC_IN_STATE (ts, inst) = NULL;
+		ts_at_end (ts, inst);
 		if (ts->ts_aq)
 		  ts_aq_handle_end (ts, inst);
 		ts_check_batch_sz (ts, inst, order_itc);
 		if (order_itc->itc_n_results)
 		  {
 		    ts_alt_path_ck (ts, inst);
-
 		    qn_ts_send_output ((data_source_t *) ts, inst, ts->ts_after_join_test);
 		  }
-		if (!any_passed)
-		  ts_outer_output (ts, state);
+		ts_stream_flush_ck (ts, inst);
 		ts_aq_final (ts, inst, NULL);
 		return;
 	      }
@@ -2077,8 +2069,6 @@ table_source_input_unique (table_source_t * ts, caddr_t * inst, caddr_t * state)
 	  ts_alt_path_ck (ts, inst);
 	  qn_ts_send_output ((data_source_t *) ts, inst, ts->ts_after_join_test);
 	}
-      else
-	ts_outer_output (ts, state);
       ts_aq_final (ts, inst, NULL);
       return;
     }
@@ -2099,8 +2089,6 @@ table_source_input_unique (table_source_t * ts, caddr_t * inst, caddr_t * state)
       ts_alt_path_ck (ts, inst);
       qn_ts_send_output ((data_source_t *) ts, state, ts->ts_after_join_test);
     }
-  else
-    ts_outer_output (ts, state);
   ts_aq_final (ts, inst, NULL);
 }
 
@@ -2977,11 +2965,11 @@ skip_node_input (skip_node_t * sk, caddr_t * inst, caddr_t * qst)
       data_col_t *ctr_dc = QST_BOX (data_col_t *, inst, sk->sk_row_ctr->ssl_index);
       int ctr;
       int set, n_sets = QST_INT (inst, sk->src_gen.src_prev->src_out_fill), set_no = 0;
-      data_col_t *set_no_dc = QST_BOX (data_col_t *, inst, sk->sk_set_no->ssl_index);
-      if (1 == set_no_dc->dc_n_values)
+      data_col_t *set_no_dc = sk->sk_set_no ? QST_BOX (data_col_t *, inst, sk->sk_set_no->ssl_index) : NULL;
+      if (!set_no_dc || 1 == set_no_dc->dc_n_values)
 	{
 	  is_single_set = 1;
-	  set_no = ((int64 *) set_no_dc->dc_values)[0];
+	  set_no = set_no_dc ? ((int64 *) set_no_dc->dc_values)[0] : 0;
 	}
       QST_INT (inst, sk->src_gen.src_out_fill) = 0;
       for (set = 0; set < n_sets; set++)
@@ -3274,7 +3262,11 @@ fnr_max_set_no (fun_ref_node_t * fref, caddr_t * inst, state_slot_t ** ssl_ret)
 	}
     }
   else if (!(set_no_ssl = sel->sel_subq_org_set_no))
-    sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq has no select node set no");
+    {
+      if (sel->sel_top_level_single_set)
+	return 0;		/*top level select with no params needs no set no */
+      sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq has no select node set no");
+    }
   if (SSL_REF == set_no_ssl->ssl_type)
     set_no_ssl = ((state_slot_ref_t *) set_no_ssl)->sslr_ssl;
   set_nos = QST_BOX (data_col_t *, inst, set_no_ssl->ssl_index);
@@ -3355,6 +3347,7 @@ void
 fun_ref_node_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
 {
   int first_set = 0, n_sets;
+  int is_gb_build = fref->fnr_cl_qf && fref->fnr_setp && fref->fnr_setp->setp_is_gb_build;
   db_buf_t set_mask = NULL;
   QNCAST (query_instance_t, qi, inst);
   if (fref->fnr_setp && fref->fnr_setp->setp_is_streaming)
@@ -3377,6 +3370,13 @@ fun_ref_node_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
       setp_mem_sort_flush (setp, inst);
       qn_record_in_state ((data_source_t *) fref, inst, NULL);
       return;
+    }
+  if (is_gb_build)
+    {
+      cha_allocate (fref->fnr_setp, inst, 1);
+#ifdef CCL6
+      cl_chash_fill_init (fref, inst);
+#endif
     }
   if (fref->src_gen.src_out_fill)
     QST_INT (inst, fref->src_gen.src_out_fill) = n_sets;
@@ -3989,6 +3989,31 @@ qi_init_sz (query_instance_t * caller, caddr_t * params)
 }
 
 caddr_t
+qr_exec_lit_params (query_instance_t * qi)
+{
+  QNCAST (caddr_t, inst, qi);
+  query_t *qr = qi->qi_query;
+  du_thread_t *self = THREAD_CURRENT_THREAD;
+  caddr_t *pars = THR_ATTR (self, TA_QRC_LIT_PARAMS);
+  int inx = 0, n;
+  if (!pars)
+    return srv_make_new_error ("42000", "LITNP", "query with literal parameters executed  without literals in conetxt");
+  n = BOX_ELEMENTS (pars);
+  SET_THR_ATTR (self, TA_QRC_LIT_PARAMS, NULL);
+  DO_SET (state_slot_t *, ssl, &qr->qr_parms)
+  {
+    if (inx >= n)
+      return srv_make_new_error ("42000", "LITNP", "Wrong number of literal params");
+    qst_set (inst, ssl, pars[inx]);
+    inx++;
+  }
+  END_DO_SET ();
+  dk_free_box ((caddr_t) pars);
+  return NULL;
+}
+
+
+caddr_t
 qr_exec (client_connection_t * cli, query_t * qr,
     query_instance_t * caller, caddr_t cr_name,
     srv_stmt_t * stmt, local_cursor_t ** lc_ret, caddr_t * parms, stmt_options_t * opts, int named_params)
@@ -4122,6 +4147,13 @@ qr_exec (client_connection_t * cli, query_t * qr,
   {
     int found;
     caddr_t val;
+    if (parm->ssl_qr_global)
+      {
+	caddr_t err = qr_exec_lit_params (qi);
+	if (err)
+	  n_actual_params = -1;
+	goto params_done;
+      }
     if (named_params)
       {
 	val = qr_find_parm (parms, parm->ssl_name, &found);
@@ -4157,6 +4189,7 @@ qr_exec (client_connection_t * cli, query_t * qr,
       qst_set (state, parm, val);
   }
   END_DO_SET ();
+params_done:
   qr_free_params (parms);
   if (qr->qr_proc_vectored && !qi->qi_n_sets)
     qi->qi_n_sets = 1;
@@ -4347,6 +4380,13 @@ qr_dml_array_exec (client_connection_t * cli, query_t * qr,
     DO_SET (state_slot_t *, parm, &qr->qr_parms)
     {
       caddr_t val;
+      if (parm->ssl_qr_global)
+	{
+	  caddr_t err = qr_exec_lit_params (qi);
+	  if (err)
+	    n_actual_params = -1;
+	  goto params_done;
+	}
       if (inx >= n_actual_params)
 	{
 	  n_actual_params = -1;	/* checked later */
@@ -4366,6 +4406,7 @@ qr_dml_array_exec (client_connection_t * cli, query_t * qr,
     param_array[param_inx] = NULL;
     if (qr->qr_proc_vectored && param_inx < n_sets - 1)
       continue;
+  params_done:
     QR_RESET_CTX_T (qi->qi_thread)
     {
       if (n_actual_params == -1)

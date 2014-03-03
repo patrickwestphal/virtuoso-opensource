@@ -1912,23 +1912,37 @@ typedef void (*vec_cmp_t) (int64 * l, int64 * r, int n_sets, dtp_t * set_mask, d
 }
 
 
-#define CMPOP(op) (l[set] op r[set])
+
+#define CMP_VEC_FLT(name, dtp, op) \
+  void name  (dtp * l, dtp * r, int n_sets, dtp_t * set_mask, dtp_t * res_bits, char * mix_ret) \
+{ \
+  int set; \
+  char mix = *mix_ret; \
+  if (!set_mask) \
+    { \
+      for (set = 0; set < n_sets; set++) \
+	{ \
+	  if (op) \
+	    { BIT_SET (res_bits, set); mix |= 2;}	\
+	  else mix |= 1; \
+	} \
+    } \
+  else \
+    { \
+      SET_LOOP_FAST  (set, n_sets, set_mask) \
+	{ \
+	  if (op) \
+	    { BIT_SET (res_bits, set); mix |= 2;}	\
+	  else mix |= 1; \
+	} \
+      END_SET_LOOP_FAST; \
+    } \
+  *mix_ret = mix; \
+}
 
 
-CMP_VEC (cmp_vec_int_eq, int64, ==)
-CMP_VEC (cmp_vec_int_lt, int64, <)CMP_VEC (cmp_vec_int_lte, int64, <=)CMP_VEC (cmp_vec_sf_eq, float, ==)
-CMP_VEC (cmp_vec_sf_lt, float, <)
-CMP_VEC (cmp_vec_sf_lte, float, <=)
-CMP_VEC (cmp_vec_dbl_eq, double, ==) CMP_VEC (cmp_vec_dbl_lt, double, <)
-CMP_VEC (cmp_vec_dbl_lte, double, <=)
-     vec_cmp_t int_cmp_ops[] = { NULL, cmp_vec_int_eq, cmp_vec_int_lt, cmp_vec_int_lte };
-vec_cmp_t sf_cmp_ops[] = { NULL, cmp_vec_sf_eq, cmp_vec_sf_lt, cmp_vec_sf_lte };
-vec_cmp_t dbl_cmp_ops[] = { NULL, cmp_vec_dbl_eq, cmp_vec_dbl_lt, cmp_vec_dbl_lte };
 
-
-
-
-
+CMP_VEC (cmp_vec_int_eq, int64, ==) CMP_VEC (cmp_vec_int_lt, int64, <)CMP_VEC (cmp_vec_int_lte, int64, <=)
 #define CMP_VEC_OP(name, dtp, op) \
 void name  (dtp * l, dtp * r, int n_sets, dtp_t * set_mask, dtp_t * res_bits, dtp_t cmp_op, char * mix_ret) \
 { \
@@ -1955,9 +1969,8 @@ void name  (dtp * l, dtp * r, int n_sets, dtp_t * set_mask, dtp_t * res_bits, dt
     } \
   *mix_ret = mix; \
 }
-
-int
-dt_cmp_fl (db_buf_t dt1, db_buf_t dt2)
+     int
+     dt_cmp_fl (db_buf_t dt1, db_buf_t dt2)
 {
   int inx;
   for (inx = 0; inx < DT_COMPARE_LENGTH; inx++)
@@ -1974,10 +1987,30 @@ dt_cmp_fl (db_buf_t dt1, db_buf_t dt2)
 
 CMP_VEC_OP (cmp_vec_dt, dtp_t *, cmp_op & dt_cmp_fl (((db_buf_t) l) + DT_LENGTH * set, ((db_buf_t) r) + DT_LENGTH * set))
 CMP_VEC_OP (cmp_vec_any, dtp_t **, cmp_op & dv_compare (((db_buf_t *) l)[set], ((db_buf_t *) r)[set], NULL, 0))
+#define FLT_CMP_EPSILON
+#ifdef FLT_CMP_EPSILON
+CMP_VEC_FLT (cmp_vec_dbl_eq, double, (DVC_MATCH == cmp_double (l[set], r[set], DBL_EPSILON)))
+CMP_VEC_FLT (cmp_vec_dbl_lt, double, DVC_LESS == cmp_double (l[set], r[set], DBL_EPSILON))
+CMP_VEC_FLT (cmp_vec_dbl_lte, double, ((DVC_MATCH | DVC_LESS) & cmp_double (l[set], r[set], DBL_EPSILON)))
+CMP_VEC_FLT (cmp_vec_sf_eq, float, (DVC_MATCH == cmp_double (l[set], r[set], FLT_EPSILON)))
+CMP_VEC_FLT (cmp_vec_sf_lt, float, DVC_LESS == cmp_double (l[set], r[set], FLT_EPSILON))
+CMP_VEC_FLT (cmp_vec_sf_lte, float, ((DVC_MATCH | DVC_LESS) & cmp_double (l[set], r[set], FLT_EPSILON)))
+#else
+    CMP_VEC (cmp_vec_sf_eq, float, ==) CMP_VEC (cmp_vec_sf_lt, float, <)
+CMP_VEC (cmp_vec_sf_lte, float, <=)
+CMP_VEC (cmp_vec_dbl_eq, double, ==) CMP_VEC (cmp_vec_dbl_lt, double, <)
+CMP_VEC (cmp_vec_dbl_lte, double, <=)
+#endif
 #define SWAP(t, l, r) { t tmp; tmp = r; r = l; l = tmp;}
 #define CMP_REV(new_op) \
   { cmp_op = new_op; SWAP (dtp_t, l_dtp, r_dtp); SWAP (state_slot_t *, l, r);}
-     int cmp_vec (caddr_t * inst, instruction_t * ins, dtp_t * set_mask, dtp_t * res_bits)
+     vec_cmp_t int_cmp_ops[] = { NULL, cmp_vec_int_eq, cmp_vec_int_lt, cmp_vec_int_lte };
+vec_cmp_t sf_cmp_ops[] = { NULL, cmp_vec_sf_eq, cmp_vec_sf_lt, cmp_vec_sf_lte };
+vec_cmp_t dbl_cmp_ops[] = { NULL, cmp_vec_dbl_eq, cmp_vec_dbl_lt, cmp_vec_dbl_lte };
+
+
+int
+cmp_vec (caddr_t * inst, instruction_t * ins, dtp_t * set_mask, dtp_t * res_bits)
 {
   state_slot_t *l = ins->_.cmp.left;
   state_slot_t *r = ins->_.cmp.right;

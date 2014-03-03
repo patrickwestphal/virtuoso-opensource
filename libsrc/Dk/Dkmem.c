@@ -144,3 +144,75 @@ rdtsc()
   return 0;
 #endif
 }
+
+
+char *
+strstr_len (char * val, int len, char * pattern, int pattern_len)
+{
+  uint64 mask, head;
+  int inx;
+  if (pattern_len > len)
+    return 0;
+  len -= pattern_len;
+  if (pattern_len < 8)
+    {
+      mask = ((uint64)-1) >> (8 * (8 - pattern_len));
+      head = mask & *(int64*)pattern;
+    }
+  else
+    {
+      mask = (uint64)-1;
+      head = *(int64*)pattern;
+    }
+  for (inx = 0; inx <= len; inx++)
+    {
+      if ((mask & *(int64*)(val + inx)) == head)
+	{
+	  if (pattern_len <= 8)
+	    return val + inx;
+	  memcmp_8 ((val + inx + 8), (pattern + 8), (pattern_len - 8), neq1);
+	  return val + inx;
+	neq1: ;
+	}
+    }
+
+ neq:
+  return NULL;
+}
+
+
+char *
+strstr_sse42 (char * str, int str_len, char * substr, int substr_len)
+{
+#ifdef SSE42
+  int last = str_len - substr_len;
+  v16qi_t subs = (v16qi_t)__builtin_ia32_loadups ((float*)substr);
+  int len1 = MIN (substr_len, 16), start;
+  if (last < 0)
+    return NULL;
+  for (start = 0; start <= last; start += 16)
+    {
+      int len2, rc;
+    again:
+      len2 = str_len - start;
+      rc = __builtin_ia32_pcmpestri128 (subs, len1, (v16qi_t)__builtin_ia32_loadups ((float*)(str + start)), len2, PSTR_EQUAL_ORDERED);
+      if (rc < 16)
+	{
+	  char * s1 = str + start + 16, * s2;
+	  int s2_len = substr_len - (16 - rc);
+	  if (s2_len <= 0)
+	    return str + start + rc;
+	  s2 = substr + (16 - rc);
+	  memcmp_8 (s1, s2, s2_len, neq);
+	  return str + start + rc;
+	neq:
+	  start += rc + 1;
+	  goto again;
+	}
+    }
+  return NULL;
+#else
+  return strstr_len (str, str_len, substr, substr_len);
+#endif
+}
+
