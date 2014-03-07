@@ -1246,11 +1246,13 @@ bif_ft_file_table (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 
+static const char *ft_tbl = "create table SYS_FILE_TABLE (FST_TABLE varchar primary key, FST_FILE varchar, FST_OPTIONS any)\n";
 
 
 void
 file_init ()
 {
+  ddl_ensure_table ("DB.DBA.SYS_FILE_TABLE", ft_tbl);
   bif_define ("ft_file_table", bif_ft_file_table);
 
 }

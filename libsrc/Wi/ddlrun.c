@@ -2013,6 +2013,7 @@ const char *dropt_text =
     "  delete from DB.DBA.SYS_CONSTRAINTS where C_TABLE = tb; "
     "  delete from DB.DBA.SYS_RLS_POLICY where RLSP_TABLE = tb; "
     "  delete from DB.DBA.SYS_PARTITION where PART_TABLE = tb;\n"
+    "  delete from DB.DBA.SYS_FILE_TABLE where FST_TABLE = tb; "
     "  for select \"COLUMN\" as col, COL_CHECK as c_check from DB.DBA.SYS_COLS where \"TABLE\" = tb do {"
     "     if (isstring (c_check)) { if (strstr (c_check, 'I') is not null) { SET_IDENTITY_COLUMN (tb, col, 0); } };"
     "  }"

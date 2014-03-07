@@ -32,7 +32,7 @@
 #define _WI_H
 
 #define VAJRA
-#define VOS
+//#define VOS
 #ifndef VOS
 #endif
 #define NO_CL GPF_T1 ("not available without cluster support")

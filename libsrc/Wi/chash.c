@@ -2156,6 +2156,9 @@ no:
   if (setp->setp_is_gb_build)
     sqlr_new_error ("42000", "GBJON",
 	"Hash join build side group by not suitable for chash, cannot executed, set enable_dt_hash in [Flags] in ini to 0 to disable using group by's as hash join builds");
+  if (setp->setp_is_streaming)
+    sqlr_new_error ("42000", "GBORDD",
+	"Ordered  group by has unsupported data types, set enable_streaming_gb in [Flags] in ini to 0 to disable ordered group by's as hash join builds");
   if (cha)
     setp_group_to_memcache (setp, inst, tree, cha);
   return 0;

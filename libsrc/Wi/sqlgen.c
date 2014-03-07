@@ -235,7 +235,7 @@ sp_set_like_flags (search_spec_t * sp)
     {
       caddr_t pattern = sp->sp_min_ssl->ssl_constant;
       int pattern_len = box_length (pattern) - 1;
-      if (strchr (pattern, '_') || strchr (pattern, '[') || strchr (pattern, '*'))
+      if (strchr (pattern, '_') || strchr (pattern, '[') || strchr (pattern, '*') || strchr (pattern, '\\'))
 	return;
       pct = strchr (pattern, '%');
       if (!pct)

@@ -3898,6 +3898,9 @@ srv_global_init (char *mode)
   /* crashdump log_init (on the command line NEW) */
   if (f_read_from_rebuilt_database)
     {
+      sec_users = id_str_hash_create (101);
+      sec_user_by_id = hash_table_allocate (101);
+      sec_new_user (NULL, "dba", "dba");
       if (!db_exists)
 	{
 	  srv_global_init_clear_table ("delete from DB.DBA.SYS_KEYS");
@@ -3911,9 +3914,6 @@ srv_global_init (char *mode)
 	  srv_global_init_drop ();
 	  local_commit (bootstrap_cli);
 	}
-      sec_users = id_str_hash_create (101);
-      sec_user_by_id = hash_table_allocate (101);
-      sec_new_user (NULL, "dba", "dba");
       if (strchr (mode, 'b'))
 	db_replay_registry_sequences ();
       else
