@@ -2135,6 +2135,11 @@ table_source_input_unique (table_source_t * ts, caddr_t * inst, caddr_t * state)
   buffer_desc_t *order_buf = NULL;
   it_cursor_t order_itc_auto;
   it_cursor_t *order_itc = &order_itc_auto;
+  if (ts->ts_in_sdfg)
+    {
+      table_source_input (ts, inst, state);
+      return;
+    }
   if (ts->ts_fs)
     {
       file_source_input (ts, inst, state);
@@ -2149,6 +2154,11 @@ table_source_input_unique (table_source_t * ts, caddr_t * inst, caddr_t * state)
 
   ITC_INIT (order_itc, qi->qi_space, qi->qi_trx);
   rc = ks_start_search (ts->ts_order_ks, inst, state, order_itc, &order_buf, ts, ts->ts_is_unique ? SM_READ_EXACT : SM_READ);
+  if (2 == rc)
+    {
+      SRC_IN_STATE (ts, inst) = NULL;
+      return;			/* was a sdfg and ks start search did the work to completion */
+    }
   itc_assert_no_reg (order_itc);
   ts_check_batch_sz (ts, inst, order_itc);	/* before sneding output, in subq output may never return */
   if (!rc)

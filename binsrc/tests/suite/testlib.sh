@@ -505,7 +505,15 @@ GENERATE_PORTS()
   virtuoso_port_range_end=${3-1999}
   http_port_range_start=${4-2000}
   http_port_range_end=${5-2200}
-  run_tests_in_parallel=0
+  #run_tests_in_parallel=0
+
+parallel 2> /dev/null
+if [ $? -ne 0 ]
+then
+    run_tests_in_parallel=0
+else
+    run_tests_in_parallel=1
+fi
 
 if [ $run_tests_in_parallel -ne 0 ]
 then
