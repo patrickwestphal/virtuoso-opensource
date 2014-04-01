@@ -148,6 +148,8 @@ sqlo_select_top_cnt (sqlo_t * so, ST * top_exp)
   return res;
 }
 
+extern int enable_top_pred;
+
 
 void
 sqlo_ot_oby_seq (sqlo_t * so, op_table_t * top_ot)
@@ -160,12 +162,15 @@ sqlo_ot_oby_seq (sqlo_t * so, op_table_t * top_ot)
   int inx;
   df_elt_t *col_dfe;
   ST *top_exp = SEL_TOP (dt);
-
+  op_table_t *gby_ot = NULL;
   if (!ST_P (dt, SELECT_STMT))
     return;
   texp = dt->_.select_stmt.table_exp;
   if (texp->_.table_exp.group_by)
-    sqlo_ot_group (so, top_ot);
+    {
+      sqlo_ot_group (so, top_ot);
+      gby_ot = top_ot->ot_group_ot;
+    }
   oby = texp->_.table_exp.order_by;
   if (!oby)
     return;
@@ -176,6 +181,8 @@ sqlo_ot_oby_seq (sqlo_t * so, op_table_t * top_ot)
   DO_BOX (ST *, spec, inx, texp->_.table_exp.order_by)
   {
     df_elt_t *oby_dfe = sqlo_df (so, spec->_.o_spec.col);
+    if (enable_top_pred && !inx && !dk_set_member (oby_dfe->dfe_tables, gby_ot))
+      top_ot->ot_first_oby = oby_dfe;
     tables = t_set_union (oby_dfe->dfe_tables, tables);
   }
   END_DO_BOX;
@@ -570,7 +577,7 @@ sqlo_gby_min_key (sqlo_t * so, df_elt_t * gby)
 	  df_elt_t *dfe;
 	  if (!spec)
 	    continue;
-	  col = spec->_.o_spec.col;
+	  col = is_dist ? spec : spec->_.o_spec.col;
 	  dfe = sqlo_df (so, col);
 	  if (!dk_set_member (dfe->dfe_tables, ot) || (dfe->dfe_tables && dfe->dfe_tables->next))
 	    continue;
@@ -672,7 +679,7 @@ sqlo_is_pk_placed (sqlo_t * so, op_table_t * ot, int *is_pk_placed)
 void
 sqlo_place_pk (sqlo_t * so, df_elt_t * super, op_table_t * ot)
 {
-  int nth;
+  int nth = 0;
   dbe_key_t *pk = ot->ot_table->tb_primary_key;
   DO_SET (dbe_column_t *, part, &pk->key_parts)
   {
@@ -697,6 +704,21 @@ sqlo_tb_u_count (dk_set_t unplaced, op_table_t * ot)
 }
 
 
+df_elt_t *
+sqlo_lp_dfe (sqlo_t * so, op_table_t * ot)
+{
+  df_elt_t *lp_dfe = sqlo_new_dfe (so, DFE_TABLE, NULL);
+  t_NEW_VARZ (op_table_t, lp_ot);
+  lp_ot->ot_new_prefix = sqlo_new_prefix (so);
+  lp_ot->ot_table = ot->ot_table;
+  lp_dfe->_.table.ot = lp_ot;
+  lp_dfe->_.table.is_oby_order = 1;
+  lp_dfe->_.table.is_late_proj = 1;
+  lp_dfe->_.table.late_proj_of = ot;
+  t_set_push (&so->so_tables, (void *) lp_ot);
+  return lp_dfe;
+}
+
 void
 sqlo_make_lp (sqlo_t * so, op_table_t * top_ot, dk_set_t tbs)
 {
@@ -707,18 +729,20 @@ sqlo_make_lp (sqlo_t * so, op_table_t * top_ot, dk_set_t tbs)
     df_elt_t *lp_dfe;
     if (!ot->ot_lp_cols)
       continue;
-    lp_dfe = sqlo_new_dfe (so, DFE_TABLE, NULL);
+    lp_dfe = sqlo_lp_dfe (so, ot);
     pk = ot->ot_table->tb_primary_key;
     lp_dfe->_.table.key = pk;
-    lp_dfe->_.table.ot = ot;
     lp_dfe->_.table.out_cols = ot->ot_lp_cols;
     DO_SET (dbe_column_t *, part, &pk->key_parts)
     {
       ST *ref = t_listst (3, COL_DOTTED, ot->ot_new_prefix, part->col_name);
+      ST *lp_ref = t_listst (3, COL_DOTTED, lp_dfe->_.table.ot->ot_new_prefix, part->col_name);
       df_elt_t *col = sqlo_df (so, ref);
+      df_elt_t *lp_col = sqlo_df (so, lp_ref);
       df_elt_t *pred = sqlo_new_dfe (so, DFE_BOP_PRED, NULL);
       pred->_.bin.op = BOP_EQ;
-      pred->_.bin.left = pred->_.bin.right = col;
+      pred->_.bin.left = lp_col;
+      pred->_.bin.right = col;
       t_set_push (&lp_dfe->_.table.col_preds, (void *) pred);
       if (++nth == pk->key_n_significant)
 	break;
@@ -729,6 +753,7 @@ sqlo_make_lp (sqlo_t * so, op_table_t * top_ot, dk_set_t tbs)
   END_DO_SET ();
 }
 
+int enable_lp = 0;
 
 void
 sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
@@ -736,6 +761,8 @@ sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
   int inx, n_unplaced;
   dk_set_t unplaced = NULL, tbs = NULL;
   ST **sel = (ST **) top_ot->ot_dt->_.select_stmt.selection;
+  if (!enable_lp)
+    return;
   DO_BOX (ST *, tree, inx, sel)
   {
     upcd_t upcd;
@@ -743,7 +770,7 @@ sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
     upcd.super = so->so_this_dt->ot_work_dfe;
     upcd.res = NULL;
     sqlo_map_st (tree, sqlo_unplaced_col_cb, &upcd);
-    unplaced = upcd.res;
+    unplaced = t_set_union (unplaced, upcd.res);
   }
   END_DO_BOX;
   DO_SET (df_elt_t *, col, &unplaced)
@@ -770,8 +797,9 @@ sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
 	  }
       }
       END_DO_SET ();
+      top_ot->ot_oby_dfe->_.setp.late_proj = top_ot->ot_lp_cols;
     }
-  if (top_ot->ot_group_dfe)
+  else if (top_ot->ot_group_dfe)
     {
       DO_SET (op_table_t *, ot, &tbs)
       {
@@ -779,8 +807,8 @@ sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
       }
       END_DO_SET ();
       top_ot->ot_group_dfe->_.setp.gb_dependent = t_set_diff (top_ot->ot_group_dfe->_.setp.gb_dependent, unplaced);
+      top_ot->ot_group_dfe->_.setp.late_proj = top_ot->ot_lp_cols;
     }
-
   sqlo_make_lp (so, top_ot, tbs);
 }
 
@@ -996,7 +1024,6 @@ sqlo_early_distinct (sqlo_t * so, op_table_t * ot)
 }
 
 int enable_dfe_filter = 1;
-int enable_lp = 0;
 
 void
 sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
@@ -1024,6 +1051,7 @@ sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
       sqlo_place_oby_specs (so, from_ot, from_ot->ot_oby_dfe->_.setp.specs);
       so->so_place_code_forr_cond = 0;
       sqlo_place_dfe_after (so, from_ot->ot_work_dfe->dfe_locus, so->so_gen_pt, from_ot->ot_oby_dfe);
+      sqlo_late_proj (so, from_ot);
       return;
     }
   if (group_dfe)

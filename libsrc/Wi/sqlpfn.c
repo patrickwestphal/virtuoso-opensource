@@ -37,6 +37,7 @@
 #include "srvmultibyte.h"
 #include "util/strfuns.h"
 #include "crsr.h"
+#include "sparql.h"
 #include "sqltype.h"
 #include "sqlbif.h"
 #include "sqlcstate.h"
@@ -972,21 +973,98 @@ sqlp_new_qualifier_name (char *q, size_t max_q)
   return new_q;
 }
 
+int
+sqlp_user_has_raw_rdf_access (oid_t u_id, oid_t g_id)
+{
+  dbe_table_t *tb = sch_name_to_table (isp_schema (NULL), "DB.DBA.RDF_QUAD_SECURITY_LOG");
+  if (NULL == tb)
+    return 1;
+  return sec_tb_check (tb, g_id, u_id, GR_SELECT);
+}
+
+extern const char *spar_unsafe_sql_names[];
+
 caddr_t
 sqlp_proc_name (char *q, size_t max_q, char *o, size_t max_o, char *mn, char *fn)
 {
-  caddr_t n = NULL;
+  caddr_t res;
 
   if (!mn || !fn)
-    return sqlp_table_name (q, max_q, o, max_o, mn ? mn : fn, 1);
-
-  n = t_alloc_box (strlen (mn) + strlen (fn) + 2, DV_SHORT_STRING);
-  snprintf (n, box_length (n), "%s.%s", mn, fn);
-/*  dk_free_box (mn);
-  dk_free_box (fn);*/
-  return sqlp_table_name (q, max_q, o, max_o, n, 1);
+    res = sqlp_table_name (q, max_q, o, max_o, mn ? mn : fn, 1);
+  else
+    {
+      caddr_t n = t_alloc_box (strlen (mn) + strlen (fn) + 2, DV_SHORT_STRING);
+      snprintf (n, box_length (n), "%s.%s", mn, fn);
+      res = sqlp_table_name (q, max_q, o, max_o, n, 1);
+    }
+#ifdef RDF_RAW_SQL_SECURITY
+  if (!scn3_include_depth)
+    {
+      const char *name_tail = res, *dot;
+      while (NULL != (dot = strchr (name_tail, '.')))
+	name_tail = dot + 1;
+      if (!(CASEMODESTRNCMP (name_tail, "RDF_", 4) &&
+	      CASEMODESTRNCMP (name_tail, "SPARQL", 6) &&
+	      CASEMODESTRNCMP (name_tail, "SPARUL", 6) && CASEMODESTRNCMP (name_tail, "TTLP", 4)))
+	{
+	  char buf[100];
+	  strncpy (buf, name_tail, sizeof (buf) - 1);
+	  buf[sizeof (buf) - 1] = '\0';
+	  strupr (buf);
+	  if (sparp_sql_function_name_is_unsafe (buf))
+	    {
+	      if (scn3_raw_rdf_access_control)
+		{
+		  caddr_t view_u_id = sqlp_view_u_id ();
+		  caddr_t view_g_id = sqlp_view_g_id ();
+		  if (!sqlp_user_has_raw_rdf_access (unbox (view_u_id), unbox (view_g_id)))
+		    yyerror
+			("Raw SQL access to internal RDF functions is not allowed if user does not have SPARQL_SELECT_RAW priviledge");
+		}
+#if 0				/* TBD: add dependency between the query and DB.DBA.RDF_QUAD to recompile if security will change */
+	      else
+		{
+		  dbe_table_t *tb = sch_name_to_table (sc->sc_cc->cc_schema, "DB.DBA.RDF_QUAD");
+		  sqlc_table_used (sc, tb);
+		}
+#endif
+	    }
+	}
+    }
+#endif
+  return res;
 }
 
+
+
+ST *
+sqlp_new_table_dotted (caddr_t table_name, caddr_t id, ST * options)
+{
+  caddr_t view_u_id = sqlp_view_u_id ();
+  caddr_t view_g_id = sqlp_view_g_id ();
+#ifdef RDF_RAW_SQL_SECURITY
+  if (scn3_raw_rdf_access_control && !scn3_include_depth)
+    {
+      const char *name_tail = table_name, *dot;
+      while (NULL != (dot = strchr (name_tail, '.')))
+	name_tail = dot + 1;
+      if (!(CASEMODESTRNCMP (name_tail, "RO_", 3) &&
+	      CASEMODESTRNCMP (name_tail, "RDF_", 4) && CASEMODESTRNCMP (name_tail, "SYS_", 4)))
+	{
+	  char buf[100];
+	  strncpy (buf, name_tail, sizeof (buf) - 1);
+	  buf[sizeof (buf) - 1] = '\0';
+	  strupr (buf);
+	  if (sparp_table_name_is_unsafe (buf))
+	    {
+	      if (!sqlp_user_has_raw_rdf_access (unbox (view_u_id), unbox (view_g_id)))
+		yyerror ("Raw SQL access to an RDF table is not allowed if user does not have SPARQL_SELECT_RAW priviledge");
+	    }
+	}
+    }
+#endif
+  return (ST *) t_listbox (6, TABLE_DOTTED, table_name, id, view_u_id, view_g_id, options);
+}
 
 ST *
 sqlp_union_tree_select (ST * tree)

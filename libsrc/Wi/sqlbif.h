@@ -361,6 +361,8 @@ void strses_write_out_gz (dk_session_t * ses, dk_session_t * out, strses_chunked
 int gz_stream_free (void *s);
 extern int32 cl_non_logged_write_mode;
 caddr_t bif_rollback (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+caddr_t bif_topk (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+void bif_topk_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
 
 int iso_string_to_code (char *i);
 

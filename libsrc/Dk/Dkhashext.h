@@ -72,13 +72,14 @@ struct id_hash_s
     long		ht_deletes;
     long		ht_overflows;		/*!< Number of bucket overflows */
     uint32      	ht_count;
-    int         	ht_rehash_threshold;
+    short         	ht_rehash_threshold;
+    short		ht_tlsf_id;
     int			ht_dict_refctr;		/*!< Number of references to dictionary, if the hastable is used as a box */
     long		ht_dict_version;	/*!< Version of dictionary, to track parallel access */
     size_t 		ht_dict_mem_in_use;	/*!< Approximate size of dictonary in memory. Each stored item adds length of key + lenght of the data + size of hash table entry. That is filled only if \c ht_dict_max_mem_in_use is not zero */
     size_t 		ht_dict_max_entries;	/*!< Maximum number of entries kept in dictonary */
     size_t 		ht_dict_max_mem_in_use;	/*!< Memory size limit to prevent exausting of the physical memory */
-    dk_mutex_t *	ht_mutex;		/*!< Optional mutex, esp. popular when this is a dictionary propagated across threads of async queue. The mutex is NOT owned by the hashtable box! */
+    rwlock_t *		ht_rwlock;		/*!< Optional rwlock, esp. popular when this is a dictionary propagated across threads of async queue. The rwlock is NOT owned by the hashtable box! */
     id_hash_free_t	ht_free_hook;
 #ifdef RH_TRACE
     int64		ht_rem_k;
@@ -176,7 +177,7 @@ id_hash_t *dbg_id_tree_hash_create (const char *file, int line, id_hashed_key_t 
 #define id_hash_rehash(HT,NS)			dbg_id_hash_rehash (__FILE__, __LINE__, (HT),(NS))
 #define id_hash_remove(HT,KEY)			dbg_id_hash_remove (__FILE__, __LINE__, (HT),(KEY))
 #define id_hash_get_and_remove(HT,KEY,FKEY,FDATA)	dbg_id_hash_get_and_remove (__FILE__, __LINE__, (HT),(KEY),(FKEY),(FDATA))
-#define id_hash_remove_rnd(HT,inx, KEY, data)			dbg_id_hash_remove_rnd (__FILE__, __LINE__, (HT),(inx), (KEY), (data))
+#define id_hash_remove_rnd(HT,inx, KEY, data)	dbg_id_hash_remove_rnd (__FILE__, __LINE__, (HT),(inx), (KEY), (data))
 #define id_str_hash_create(BS)			dbg_id_str_hash_create (__FILE__, __LINE__, (BS))
 #define id_strcase_hash_create(BS)		dbg_id_strcase_hash_create (__FILE__, __LINE__, (BS))
 #define id_hash_copy(TO,FROM)			dbg_id_hash_copy (__FILE__, __LINE__, (TO), (FROM))

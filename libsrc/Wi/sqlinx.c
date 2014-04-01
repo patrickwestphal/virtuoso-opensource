@@ -1014,6 +1014,8 @@ sqlg_make_1_ts (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic, df_elt_t **
   tb_dfe->_.table.col_preds = ic->ic_col_preds;
   if (HR_FILL == tb_dfe->_.table.hash_role)
     so->so_sc->sc_order = TS_ORDER_NONE;
+  if (sc->sc_is_update && 1 == OT_NO (tb_dfe->_.table.ot->ot_new_prefix))
+    ts->ts_is_dml = 1;
   DO_SET (op_virt_col_t *, vc, &ot->ot_virtual_cols)
   {
     df_elt_t *vc_dfe = sqlo_df_virt_col (so, vc);

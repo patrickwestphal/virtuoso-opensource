@@ -35,6 +35,11 @@ typedef struct cl_message_s cl_message_t;
 #define CM_TRACE
 #endif
 
+#ifndef VOS
+#define RDF_SECURITY_CLO
+#endif
+
+
 typedef struct cl_status_s
 {
   int cst_host;
@@ -339,6 +344,24 @@ typedef struct cl_op_s
       int master;
       caddr_t *offline;
     } ctl;
+    struct
+    {
+      uint64 id;
+      int ref_count;
+      caddr_t *values;
+      int fill;
+      int cnt;
+      char is_full;
+      char is_coord;
+      char cmp;
+      dk_mutex_t mtx;
+    } top;
+    struct
+    {
+      int u_id;
+      int req_perms;
+      dk_hash_64_t *ht;
+    } rdf_graph_user_perms;
   } _;
 } cl_op_t;
 
@@ -809,6 +832,7 @@ typedef struct cl_self_message_s
 #define CL_DISCONNECT_QUERY 33	/* request that the master check availability of node and eventually disable it */
 #define CL_ADMIN 34		/* internal admin action like resync or disable of failed */
 #define CL_SET_BLOOM 35		/* shipping bloom filter for partitioned hash table */
+#define CL_SET_TOP 36
 
    /* enlist flag for CL_ATATOMIC */
 #define  CL_AC_SYNC 3
@@ -820,34 +844,38 @@ typedef struct cl_self_message_s
 
 /* Opcodes in batches */
 
-#define CLO_NONE 0		/* in a static clo, this means there is no data.  Mist be 0 */
-#define CLO_SELECT  22
-#define CLO_INSERT 1
-#define CLO_INSERT_SOFT 2
-#define CLO_INSERT_REPL 3
-#define CLO_DELETE 4
-#define CLO_DELETE_PLACE 5
-#define CLO_INXOP 6
-#define CLO_CALL 9
-#define CLO_BLOB  10
-#define CLO_ROW 11		/* result set row */
-#define CLO_BATCH_END 12	/* ask for more to get next batch of results */
-#define CLO_SET_END 13		/* end of result set for present cl op */
-#define CLO_DDL 14		/* shared schema info changed */
-#define CLO_ERROR 15
-#define CLO_ITCL 16		/* not a message.  A container for a local itc_cluster_t */
-#define CLO_SELECT_SAME 18	/* like first CLO_SELECT, except for params.  So only params are given.  */
-#define CLO_NON_UNQ 20		/* reply to non unq insert soft */
-#define CLO_QF_PREPARE 21	/* sending a compilation frag */
-#define CLO_QF_EXEC 23		/* exec a query frag */
-#define CLO_AGG_SET_END 24	/* ret val when aggregating qf done, means that the qf must be left registered even though this is not an end of batch */
-#define CLO_AGG_END 25		/* end of a full batch of aggregate inputs.  Send when the whole batch is processed, no set-by-set results */
-#define CLO_STATUS 26
-#define CLO_DFG_STATE 28	/* record with counts of processed and forwarded sets in a distributed frag */
-#define CLO_STN_IN 29		/* input string and state for a dist frag */
-#define CLO_DFG_ARRAY 30
-#define CLO_DFG_AGG 31		/* request for simple aggregate result from dist frag */
-#define CLO_CONTROL 32
+#define CLO_NONE			0	/*!< in a static clo, this means there is no data.  Must be 0 */
+#define CLO_INSERT			1
+#define CLO_INSERT_SOFT			2
+#define CLO_INSERT_REPL			3
+#define CLO_DELETE			4
+#define CLO_DELETE_PLACE		5
+#define CLO_INXOP			6
+#define CLO_CALL			9
+#define CLO_BLOB			10
+#define CLO_ROW				11	/*!< result set row */
+#define CLO_BATCH_END			12	/*!< ask for more to get next batch of results */
+#define CLO_SET_END			13	/*!< end of result set for present cl op */
+#define CLO_DDL				14	/*!< shared schema info changed */
+#define CLO_ERROR			15
+#define CLO_ITCL			16	/*!< not a message.  A container for a local itc_cluster_t */
+#define CLO_SELECT_SAME			18	/*!< like first CLO_SELECT, except for params.  So only params are given.  */
+#define CLO_NON_UNQ			20	/*!< reply to non unq insert soft */
+#define CLO_QF_PREPARE			21	/*!< sending a compilation frag */
+#define CLO_SELECT			22
+#define CLO_QF_EXEC			23	/*!< exec a query frag */
+#define CLO_AGG_SET_END			24	/*!< ret val when aggregating qf done, means that the qf must be left registered even though this is not an end of batch */
+#define CLO_AGG_END			25	/*!< end of a full batch of aggregate inputs.  Send when the whole batch is processed, no set-by-set results */
+#define CLO_STATUS			26
+#define CLO_DFG_STATE			28	/*!< record with counts of processed and forwarded sets in a distributed frag */
+#define CLO_STN_IN			29	/*!< input string and state for a dist frag */
+#define CLO_DFG_ARRAY			30
+#define CLO_DFG_AGG			31	/*!< request for simple aggregate result from dist frag */
+#define CLO_CONTROL			32
+#define CLO_TOP 33
+#ifdef RDF_SECURITY_CLO
+#define CLO_RDF_GRAPH_USER_PERMS	34	/*!< A hashtable of user permissions for graphs */
+#endif
 
 /* action codes for ddl messages */
 #define CLO_DDL_TABLE 1
@@ -1063,6 +1091,8 @@ void clrg_call_flush_if_due (cl_req_group_t * clrg, query_instance_t * qi, int a
 void chash_cl_init ();
 caddr_t daq_call_1 (cl_req_group_t * clrg, dbe_key_t * key, caddr_t fn, caddr_t * vec, int flags, int *first_seq_ret,
     caddr_t * host_nos);
+int setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy);
+
 extern dk_mutex_t cl_chash_mtx;
 extern dk_hash_t cl_id_to_chash;
 extern int enable_itc_dfg_ck;
@@ -1685,6 +1715,8 @@ int cl_w_timeout_hook (dk_session_t * ses);
 void cl_flt_init ();
 void cl_flt_init_2 ();
 extern cluster_map_t *clm_all;
+int clo_top_free (cl_op_t * clo);
+cl_op_t *setp_get_top (setp_node_t * setp, caddr_t * inst, int create);
 dk_session_t *dks_file (char *name, int flags);
 void clib_row_boxes (cll_in_box_t * clib);
 void clib_prepare_read_rows (cll_in_box_t * clib);

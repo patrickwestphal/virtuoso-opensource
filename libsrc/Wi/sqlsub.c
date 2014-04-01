@@ -1,4 +1,23 @@
-/*  SQL plan subsumption */
+/*  SQL plan subsumption
+ *
+ *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
+ *  project.
+ *
+ *  Copyright (C) 1998-2014 OpenLink Software
+ *
+ *  This project is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the
+ *  Free Software Foundation; only version 2 of the License, dated June 1991.
+ *
+ *  This program is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *  General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ */
 
 
 
@@ -205,8 +224,9 @@ void
 sqlo_find_eqs (sqlo_t * so, op_table_t * ot, pred_score_t * ps, join_plan_t * jp)
 {
   df_elt_t *col = ps->ps_right;
+  df_elt_t *left = col == ps->ps_pred->_.bin.right ? ps->ps_pred->_.bin.left : ps->ps_pred->_.bin.right;
   ST *new_eq;
-  id_hash_t *ht = so->so_top_ot->ot_eq_hash;
+  id_hash_t *ht = so->so_this_dt->ot_eq_hash;
   df_elt_t *new_pred;
   dk_set_t *place = ht ? (dk_set_t *) id_hash_get (ht, (caddr_t) & col->dfe_tree) : NULL;
   int ck;
@@ -215,17 +235,18 @@ sqlo_find_eqs (sqlo_t * so, op_table_t * ot, pred_score_t * ps, join_plan_t * jp
     {
       DO_SET (df_elt_t *, eq_col, place)
       {
-	if (eq_col == col)
+	if (eq_col == col || eq_col == left)
 	  continue;
-	if (box_equal (ps->ps_pred->_.bin.left->dfe_tree, eq_col->dfe_tree))
-	  continue;
-	BIN_OP (new_eq, BOP_EQ, ps->ps_pred->_.bin.left->dfe_tree, eq_col->dfe_tree);
+	BIN_OP (new_eq, BOP_EQ, left->dfe_tree, eq_col->dfe_tree);
 	new_pred = sqlo_df (so, new_eq);
 	if (jp->jp_n_preds >= sizeof (jp->jp_preds) / sizeof (pred_score_t))
 	  break;
 	for (ck = 0; ck < jp->jp_n_preds; ck++)
 	  {
-	    if (new_pred == jp->jp_preds[ck].ps_pred)
+	    df_elt_t *prev = jp->jp_preds[ck].ps_pred;
+	    if (new_pred == prev
+		|| (dfe_is_eq_pred (prev) && new_pred->_.bin.right == prev->_.bin.left
+		    && new_pred->_.bin.left == prev->_.bin.right))
 	      goto next;
 	  }
 	ps = &jp->jp_preds[jp->jp_n_preds++];
@@ -255,7 +276,7 @@ jp_expand_eq_set (sqlo_t * so, join_plan_t * jp)
       pred_score_t *ps = &jp->jp_preds[inx];
       if (dfe_is_eq_pred (ps->ps_pred) && ps->ps_right && DFE_COLUMN == ps->ps_right->dfe_type)
 	{
-	  sqlo_find_eqs (so, so->so_top_ot, ps, jp);
+	  sqlo_find_eqs (so, so->so_this_dt, ps, jp);
 	}
     }
 }

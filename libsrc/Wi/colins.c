@@ -125,8 +125,6 @@ itc_ce_check (it_cursor_t * itc, buffer_desc_t * buf, int leave)
       itc->itc_col_refs = (col_data_ref_t **) itc_alloc_box (itc, itc->itc_insert_key->key_n_parts * sizeof (caddr_t), DV_BIN);
       memset (itc->itc_col_refs, 0, box_length (itc->itc_col_refs));
     }
-  if (pm->pm_count > COL_PAGE_MAX_ROWS)
-    GPF_T1 ("can't have more  than so many segs per leaf page");
   for (nth_col = 0; nth_col < key->key_n_parts - key->key_n_significant; nth_col++)
     {
       int r;
@@ -1154,7 +1152,7 @@ cer_append_ce (ce_ins_ctx_t * ceic, ceic_result_page_t * cer, db_buf_t ce, int i
 
 #define CER_ADD(bytes, ce)				\
 {  \
-  if (cer->cer_pm->pm_bytes_free < bytes || cer->cer_n_ces >= (PM_MAX_ENTRIES - 4) / 2) \
+  if (cer->cer_pm->pm_bytes_free < bytes || cer->cer_n_ces >= PM_MAX_CES) \
     cer = ceic_result_page (ceic); \
   cer->cer_pm->pm_bytes_free -= bytes; \
   cer->cer_n_ces++; \
@@ -2473,7 +2471,7 @@ ceic_feed (ce_ins_ctx_t * ceic, db_buf_t ce, int row)
 {
   int bytes = ce_total_bytes (ce), spacing;
   spacing = (row != -1 && bytes < 4090) ? 50 : 0;
-  if (ceic->ceic_batch_bytes + bytes > PAGE_DATA_SZ - spacing)
+  if (ceic->ceic_batch_bytes + bytes > PAGE_DATA_SZ - spacing || ceic->ceic_last_nth >= PM_MAX_CES - 1)
     {
       /* leave some space at end but only if dealing with ces of the segment itself.  If a ce from before the seg, must fit where it was, thus apply no margin, else the seg before could acquire a new page that would be unrefd from the previous col ref string */
       ceic_feed_flush (ceic);
@@ -4594,6 +4592,8 @@ itc_col_dbg_log (it_cursor_t * itc)
 void
 itc_col_vec_insert (it_cursor_t * itc, insert_node_t * ins)
 {
+  volatile int prev_set;
+  volatile int prev_n_ranges;
   key_ver_t kv;
   buffer_desc_t *buf;
   caddr_t *bounds;
@@ -4736,6 +4736,8 @@ itc_col_vec_insert (it_cursor_t * itc, insert_node_t * ins)
 	  page_leave_outside_map (buf);
 	}
     reset:
+      prev_set = itc->itc_set;
+      prev_n_ranges = n_ranges;
       itc->itc_set += n_ranges;
       itc->itc_range_fill = 0;
       if (itc->itc_set == itc->itc_n_sets)

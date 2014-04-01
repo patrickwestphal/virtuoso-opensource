@@ -1755,6 +1755,11 @@ dfe_defines (df_elt_t * defining, df_elt_t * defd)
 		return 0;	/* a late projection reoccurrence of a table defines only the cols explicitly fetched when making the late proj */
 	      return 1;
 	    }
+	  if (defining->_.table.late_proj_of
+	      && 0 == strcmp (defining->_.table.late_proj_of->ot_new_prefix, defd->dfe_tree->_.col_ref.prefix))
+	    {
+	      return NULL != dk_set_member (defining->_.table.out_cols, defd);
+	    }
 	  if (defining->_.table.inx_op && dfe_inx_op_col_def_table (defining->_.table.inx_op, defd, defining))
 	    return 1;
 	  if (defining->_.table.hash_filler && DFE_DT == defining->_.table.hash_filler->dfe_type
@@ -3791,6 +3796,55 @@ sqlo_tb_place_contains_cols (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * pred)
 }
 
 
+int enable_top_pred = 1;
+
+void
+sqlo_top_pred (sqlo_t * so, op_table_t * ot, df_elt_t * dfe)
+{
+  int inx, nth, cmp_op;
+  ST *call, *tree;
+  df_elt_t *pred;
+  df_elt_t *oby_dfe = ot->ot_oby_dfe;
+  ST *top = SEL_TOP (ot->ot_dt);
+  if (!enable_top_pred || DFE_TABLE != dfe->dfe_type || dfe->_.table.ot->ot_is_outer)
+    return;
+  if (oby_dfe && !ot->ot_top_k_used && ot->ot_first_oby && oby_dfe->_.setp.top_cnt && dfe_reqd_placed (ot->ot_first_oby))
+    {
+      cmp_op = ORDER_ASC == oby_dfe->_.setp.specs[0]->_.o_spec.order ? CMP_LTE : CMP_GTE;
+      nth = 0;
+      if (ot->ot_group_dfe)
+	{
+	  DO_BOX (ST *, g_spec, inx, ot->ot_group_dfe->_.setp.specs)
+	  {
+	    if (box_equal (g_spec->_.o_spec.col, oby_dfe->_.setp.specs[0]->_.o_spec.col))
+	      {
+		nth = inx;
+		goto fnd;
+	      }
+	  }
+	  END_DO_BOX;
+	  nth = BOX_ELEMENTS (ot->ot_group_dfe->_.setp.specs) + dk_set_length (ot->ot_fun_refs);
+	  DO_SET (df_elt_t *, dep, &ot->ot_group_dfe->_.setp.gb_dependent)
+	  {
+	    if (box_equal (dep->dfe_tree, oby_dfe->_.setp.specs[0]->_.o_spec.col))
+	      goto fnd;
+	    nth++;
+	  }
+	  END_DO_SET ();
+	  return;
+	fnd:;
+	}
+      call =
+	  t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("__topk"), t_listst (7, ot->ot_first_oby->dfe_tree, nth, cmp_op,
+	      top->_.top.exp, top->_.top.skip_exp, NULL, NULL));
+      BIN_OP (tree, BOP_EQ, box_num (1), call);
+      pred = sqlo_df (so, tree);
+      dfe->_.table.top_pred = sqlo_and_list_body (so, LOC_LOCAL, dfe, t_cons (pred, NULL));
+      ot->ot_top_k_used = 1;
+    }
+}
+
+
 int
 is_call_only_dep_on (df_elt_t * dfe, op_table_t * ot, int skip_first_n)
 {
@@ -4299,6 +4353,7 @@ sqlo_tb_col_preds (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t preds, dk_set_t nj_p
   sqlo_choose_index (so, tb_dfe, &merged_col_preds, &after_preds);
   sqlo_in_place_in_pred (so, tb_dfe, &merged_col_preds, &after_preds);
   sqlo_tb_order (so, tb_dfe, merged_col_preds);
+  sqlo_top_pred (so, tb_dfe->_.table.ot->ot_super, tb_dfe);
   if (after_preds)
     {
       tb_dfe->_.table.join_test = sqlo_and_list_body (so, tb_dfe->dfe_locus, tb_dfe, after_preds);
@@ -5777,6 +5832,7 @@ sqlo_try_in_loop (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, df_elt_t ** s
 	      }
 	    sqlo_scope (so, &copy);
 	    subq_dfe = sqlo_df (so, copy);
+	    sqlo_dt_eqs (so, subq_dfe);
 	    subq_prefix = subq_dfe->_.sub.ot->ot_new_prefix;
 	    so->so_gen_pt = tb_dfe->dfe_prev;
 	    sqlo_dt_unplace (so, tb_dfe);
@@ -5995,6 +6051,12 @@ sqlo_dfe_unplace (sqlo_t * so, df_elt_t * dfe)
 	  sqlo_dfe_unplace (so, pred);
 	}
 	END_DO_SET ();
+	if (dfe->_.table.top_pred)
+	  {
+	    sqlo_dfe_unplace (so, (df_elt_t *) dfe->_.table.top_pred);
+	    dfe->_.table.ot->ot_super->ot_top_k_used = 0;
+	    dfe->_.table.top_pred = NULL;
+	  }
 	if (dfe->_.table.hash_filler && !dfe->_.table.reuses_hash_filler)
 	  {
 	    t_set_delete (&so->so_top_ot->ot_hash_fillers, (void *) dfe->_.table.hash_filler);
@@ -6366,7 +6428,10 @@ df_pred_score_key (dk_set_t first)
 int32
 df_leaf_score_key (df_elt_t * dfe)
 {
-  return *((int32 *) & dfe->dfe_arity);
+  float a = dfe->dfe_arity;
+  if (dfe->_.table.top_pred)
+    a /= 10;
+  return *((int32 *) & a);
 }
 
 
@@ -6453,8 +6518,12 @@ sqlo_leaves (sqlo_t * so, op_table_t * ot, dk_set_t * all_leaves, dk_set_t * new
 	sqlo_place_table (so, leaf);
 	this_score = sqlo_score (ot->ot_work_dfe, ot->ot_work_dfe->_.sub.in_arity);
 	sqlo_try_hash (so, leaf, ot, &this_score);
-	leaf->_.table.is_leaf = 1;
-	leaf->dfe_is_joined = 1;
+	if (!(leaf->_.table.hash_filler && DFE_DT == leaf->_.table.hash_filler->dfe_type))
+	  {
+	    /* if the hash build imports other tables, the leaf simplification is not valid, a leaf must be a self-contained dfe for placing/unplacing to work */
+	    leaf->_.table.is_leaf = 1;
+	    leaf->dfe_is_joined = 1;
+	  }
 	so->so_gen_pt = leaf->dfe_prev;
 	sqlo_dt_unplace (so, leaf);
       }
@@ -6465,7 +6534,8 @@ sqlo_leaves (sqlo_t * so, op_table_t * ot, dk_set_t * all_leaves, dk_set_t * new
   res = NULL;
   DO_BOX (df_elt_t *, dfe, inx, arr)
   {
-    t_set_push (&res, (void *) dfe);
+    if (dfe->_.table.is_leaf)
+      t_set_push (&res, (void *) dfe);
   }
   END_DO_BOX;
   dk_free_box ((caddr_t) arr);
@@ -6798,7 +6868,6 @@ sqlo_try (sqlo_t * so, op_table_t * ot, dk_set_t dfes, df_elt_t ** in_loop_ret, 
       continue;
     sqlo_place_table (so, dfe);
     dfe_ref_check (ot->ot_work_dfe);
-
     if (DFE_TABLE != dfe->dfe_type || !dfe->_.table.is_leaf)
       {
 	this_score = sqlo_score (ot->ot_work_dfe, ot->ot_work_dfe->_.sub.in_arity);
@@ -7286,6 +7355,7 @@ sqlo_layout (sqlo_t * so, op_table_t * ot, int is_top, df_elt_t * super)
   so->so_cache_subqs = enable_subq_cache && dk_set_length (ot->ot_from_dfes) > 2;
   so->so_gen_pt = ot->ot_work_dfe->_.sub.first;
   so->so_subscore = NULL;
+  ot->ot_top_k_used = 0;
   ot->ot_work_dfe->_.sub.ot = ot;
   while (containing_dt)
     {
@@ -7310,7 +7380,6 @@ sqlo_layout (sqlo_t * so, op_table_t * ot, int is_top, df_elt_t * super)
     }
   else
     ot->ot_work_dfe->dfe_locus = sqlo_dt_locus (so, ot, super ? super->dfe_locus : LOC_LOCAL);
-  ot->ot_eq_hash = NULL;
   sqlo_init_eqs (so, ot, NULL);
   if (SQLO_LAY_TOP == is_top)
     so->so_vdb_top = dfe_container (so, DFE_DT, NULL);
@@ -7657,6 +7726,7 @@ sqlo_layout_copy_1 (sqlo_t * so, df_elt_t * dfe, df_elt_t * parent)
 	  copy->_.table.text_pred = sqlo_layout_copy_1 (so, dfe->_.table.text_pred, parent);
 	if (dfe->_.table.xpath_pred)
 	  copy->_.table.xpath_pred = sqlo_layout_copy_1 (so, dfe->_.table.xpath_pred, parent);
+	copy->_.table.top_pred = dfe_pred_body_copy (so, dfe->_.table.top_pred, copy);
 	if (dfe->_.table.inx_op)
 	  copy->_.table.inx_op = inx_op_copy (so, copy->_.table.inx_op, dfe, copy);
 	return ((df_elt_t *) copy);
@@ -7681,6 +7751,7 @@ sqlo_layout_copy_1 (sqlo_t * so, df_elt_t * dfe, df_elt_t * parent)
       {
 	df_elt_t *copy = dfe_copy (so, dfe);
 	copy->_.setp.after_test = dfe_pred_body_copy (so, copy->_.setp.after_test, copy);
+	copy->_.setp.late_proj = t_set_copy (dfe->_.setp.late_proj);
 	copy->dfe_super = parent;
 	return copy;
       }

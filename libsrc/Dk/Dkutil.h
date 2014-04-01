@@ -48,7 +48,8 @@ void int_asc_fill (int * ptr, int len, int start);
 void memcpy_16 (void * t, const void * s, size_t len);
 void memcpy_16_nt (void * t, const void * s, size_t len);
 void memmove_16 (void * t, const void * s, size_t len);
-uint64 rdtsc(void);
+unsigned  int64 rdtsc();
+char * strstr_sse42 (char * str, int str_len, char * substr, int substr_len);
 void print_trace (void);
 
 char * dk_cslentry (const char *list, int idx);

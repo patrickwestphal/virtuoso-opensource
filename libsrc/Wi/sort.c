@@ -33,6 +33,396 @@
 #include "sqlintrp.h"
 #include "arith.h"
 
+#include "sqlbif.h"
+
+
+
+
+dk_hash_t cha_id_to_top;
+dk_mutex_t cha_top_mtx;
+uint32 cha_top_id;
+
+
+
+
+int
+clo_top_free (cl_op_t * clo)
+{
+  int refc;
+  mutex_enter (&cha_top_mtx);
+  refc = --clo->_.top.ref_count;
+  if (!refc && clo->_.top.id)
+    remhash ((void *) (ptrlong) clo->_.top.id, &cha_id_to_top);
+  mutex_leave (&cha_top_mtx);
+  if (!refc)
+    {
+      dk_free_tree (clo->_.top.values);
+      dk_mutex_destroy (&clo->_.top.mtx);
+      return 0;
+    }
+  return 1;
+}
+
+cl_op_t *
+setp_get_top (setp_node_t * setp, caddr_t * inst, int create)
+{
+  ptrlong id = unbox (QST_GET_V (inst, setp->setp_top_id));
+  cl_op_t *clo = (cl_op_t *) QST_GET_V (inst, setp->setp_top_clo);
+  if (!clo)
+    {
+      mutex_enter (&cha_top_mtx);
+      clo = (cl_op_t *) gethash ((void *) id, &cha_id_to_top);
+      if (!clo)
+	{
+	  if (!create)
+	    {
+	      mutex_leave (&cha_top_mtx);
+	      return NULL;
+	    }
+	  clo = clo_allocate (CLO_TOP);
+	  dk_mutex_init (&clo->_.top.mtx, MUTEX_TYPE_SHORT);
+	  sethash ((void *) id, &cha_id_to_top, (void *) clo);
+	  clo->_.top.ref_count = 1;
+	  clo->_.top.id = id;
+	  clo->_.top.cnt = unbox (qst_get (inst, setp->setp_top));
+	  if (setp->setp_top_skip)
+	    clo->_.top.cnt += unbox (qst_get (inst, setp->setp_top_skip));
+	}
+      else
+	clo->_.top.ref_count++;
+      mutex_leave (&cha_top_mtx);
+      QST_GET_V (inst, setp->setp_top_clo) = (caddr_t) clo;
+    }
+  return clo;
+}
+
+#define SSL_BASE(ssl) (SSL_REF == ssl->ssl_type ? ((state_slot_ref_t*)ssl)->sslr_ssl : ssl)
+
+void
+setp_top_init (setp_node_t * setp, caddr_t * inst)
+{
+  QNCAST (QI, qi, inst);
+  ptrlong id;
+  cl_op_t *clo = clo_allocate (CLO_TOP);
+  clo->_.top.is_coord = 1;
+  clo->_.top.ref_count = 1;
+  qi->qi_set = 0;
+  clo->_.top.cnt = unbox (qst_get (inst, SSL_BASE (setp->setp_top)));
+  if (setp->setp_top_skip)
+    clo->_.top.cnt += unbox (qst_get (inst, SSL_BASE (setp->setp_top_skip)));
+  dk_mutex_init (&clo->_.top.mtx, MUTEX_TYPE_SHORT);
+  mutex_enter (&cha_top_mtx);
+  do
+    {
+      uint32 id2 = ++cha_top_id;
+      id = DFG_ID (local_cll.cll_this_host, id2);
+    }
+  while (gethash ((void *) id, &cha_id_to_top));
+  sethash ((void *) id, &cha_id_to_top, (void *) clo);
+  clo->_.top.id = id;
+  mutex_leave (&cha_top_mtx);
+  qst_set (inst, setp->setp_top_id, box_num (id));
+  qst_set (inst, setp->setp_top_clo, (caddr_t) clo);
+}
+
+
+int
+top_is_better (caddr_t val1, caddr_t val2, int cmp)
+{
+  int rc = cmp_boxes_safe (val1, val2, NULL, NULL);
+  return rc & (cmp ? DVC_GREATER : DVC_LESS);
+}
+
+
+int
+box_bin_search (caddr_t * values, caddr_t val, int cmp, int at_or_above, int below, int *is_eq)
+{
+  int guess, init_below = below;
+  guess = (below - at_or_above) / 2;
+  for (;;)
+    {
+      int rc = cmp_boxes_safe (values[guess], val, NULL, NULL);
+      if (DVC_MATCH == rc)
+	{
+	  *is_eq = 1;
+	  return guess;
+	}
+      if (ORDER_DESC == cmp)
+	DVC_INVERT_CMP (rc);
+
+      if (below - at_or_above <= 1)
+	{
+	  if (DVC_MATCH == rc || DVC_LESS == rc || (guess < 0) /* safety */ )
+	    {
+	      if (guess >= init_below)
+		return init_below;
+	      guess++;
+	    }
+	  return guess;
+	}
+      if (DVC_LESS == rc || DVC_MATCH == rc)
+	at_or_above = guess;
+      else
+	below = guess;
+      guess = at_or_above + ((below - at_or_above) / 2);
+    }
+}
+
+
+void
+setp_top_change (setp_node_t * setp, caddr_t * inst, cl_op_t * top_clo, dk_session_t * ser)
+{
+}
+
+
+#define MV(to, from) \
+  {if (copy) to = box_copy_tree ((caddr_t)from); else { to = from; from = NULL;}}
+
+
+int
+setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
+{
+  dk_session_t *ser = NULL;
+  int changed = 0;
+  cl_op_t *top_clo;
+  if (setp)
+    {
+      top_clo = setp_get_top (setp, inst, 1);
+    }
+  /* update top clo by clo */
+  mutex_enter (&top_clo->_.top.mtx);
+  if (top_clo->_.top.is_full)
+    {
+      caddr_t last = clo->_.top.is_full ? (caddr_t) clo->_.top.values : clo->_.top.values[clo->_.top.fill - 1];
+      if (top_is_better (last, top_clo->_.top.values, clo->_.top.cmp))
+	{
+	  caddr_t oldv = (caddr_t) top_clo->_.top.values;
+	  top_clo->_.top.values = (caddr_t *) box_copy_tree (last);
+	  changed = 1;
+	  setp_top_change (setp, inst, top_clo, ser);
+	  mutex_leave (&top_clo->_.top.mtx);
+	  dk_free_box (oldv);
+	}
+      mutex_leave (&top_clo->_.top.mtx);
+    }
+  else if (clo->_.top.is_full)
+    {
+      caddr_t oldv = (caddr_t) top_clo->_.top.values;
+      top_clo->_.top.is_full = 1;
+      top_clo->_.top.values = box_copy_tree ((caddr_t) clo->_.top.values);
+      changed = 1;
+      setp_top_change (setp, inst, top_clo, ser);
+      mutex_leave (&top_clo->_.top.mtx);
+      dk_free_tree (oldv);
+    }
+  else
+    {
+      /* neither is full, merge distincts and see if it becomes full */
+      int inx;
+      int at_or_above = 0, below = top_clo->_.top.fill;
+      if (!top_clo->_.top.values || BOX_ELEMENTS (top_clo->_.top.values) < clo->_.top.cnt)
+	{
+	  caddr_t *oldv = top_clo->_.top.values;
+	  top_clo->_.top.values = (caddr_t *) dk_alloc_box_zero (sizeof (caddr_t) * top_clo->_.top.cnt, DV_ARRAY_OF_POINTER);
+	  if (oldv)
+	    {
+	      memcpy (top_clo->_.top.values, oldv, box_length (oldv));
+	      dk_free_box ((caddr_t) oldv);
+	    }
+	}
+      for (inx = 0; inx < clo->_.top.fill; inx++)
+	{
+	  caddr_t val = clo->_.top.values[inx];
+	  int is_eq = 0;
+	  int fill = top_clo->_.top.fill;
+	  int point = box_bin_search (top_clo->_.top.values, val, clo->_.top.cmp, at_or_above, fill, &is_eq);
+	  if (is_eq)
+	    continue;
+	  if (point == top_clo->_.top.cnt)
+	    goto full;
+	  if (point == fill)
+	    {
+	      for (inx = inx; inx < clo->_.top.fill; inx++)
+		{
+		  MV (top_clo->_.top.values[top_clo->_.top.fill], clo->_.top.values[inx]);
+		  top_clo->_.top.fill++;
+		  changed = 1;
+		  if (top_clo->_.top.fill == top_clo->_.top.cnt)
+		    goto full;
+		}
+	      mutex_leave (&top_clo->_.top.mtx);
+	      return 0;
+	    }
+	  memmove_16 (&top_clo->_.top.values[point + 1], &top_clo->_.top.values[point],
+	      (top_clo->_.top.fill - point) * sizeof (caddr_t));
+	  MV (top_clo->_.top.values[point], clo->_.top.values[inx]);
+	  changed = 1;
+	  top_clo->_.top.fill++;
+	full:
+	  if (top_clo->_.top.fill == top_clo->_.top.cnt)
+	    {
+	      caddr_t *oldv = top_clo->_.top.values;
+	      top_clo->_.top.values = top_clo->_.top.values[top_clo->_.top.fill - 1];
+	      top_clo->_.top.is_full = 1;
+	      setp_top_change (setp, inst, top_clo, ser);
+	      mutex_leave (&top_clo->_.top.mtx);
+	      oldv[top_clo->_.top.cnt - 1] = NULL;
+	      dk_free_tree ((caddr_t) oldv);
+	      goto end;
+	    }
+	  at_or_above = point;
+	}
+      if (changed)
+	setp_top_change (setp, inst, top_clo, ser);
+      mutex_leave (&top_clo->_.top.mtx);
+    }
+end:
+  return 0;
+}
+
+#undef MV
+
+void
+setp_top_oby_changed (setp_node_t * setp, caddr_t * inst, int top)
+{
+  int64 id = unbox (qst_get (inst, setp->setp_top_id));
+  cl_op_t clo;
+  QNCAST (QI, qi, inst);
+  data_col_t *arr_dc = QST_BOX (data_col_t *, inst, setp->setp_sorted->ssl_index);
+  caddr_t *values = NULL;
+  caddr_t **arr;
+  int fill, inx;
+  if (!id)
+    return;
+  if (arr_dc->dc_n_values > 1)
+    return;
+  arr = ((caddr_t *) arr_dc->dc_values)[0];
+  memzero (&clo, sizeof (clo));
+  qi->qi_set = 0;
+  fill = unbox (qst_get (inst, setp->setp_row_ctr));
+  clo._.top.id = id;
+  clo._.top.cmp = setp->setp_key_is_desc && ORDER_DESC & (ptrlong) setp->setp_key_is_desc->data;
+  if (fill < top)
+    {
+      values = (caddr_t *) dk_alloc_box (fill * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
+      for (inx = 0; inx < fill; inx++)
+	values[inx] = arr[inx][0];
+      clo._.top.values = values;
+      clo._.top.fill = fill;
+    }
+  else
+    {
+      clo._.top.values = arr[fill - 1][0];
+      clo._.top.is_full = 1;
+    }
+  setp_top_merge (setp, inst, &clo, 1);
+  dk_free_box (values);
+}
+
+
+
+setp_node_t *
+qn_top_setp (data_source_t * qn, setp_node_t ** top)
+{
+  /* find the top limiting setp.  Can be a group by if followed by oby on a grouping col */
+  for (qn = qn; qn; qn = qn_next (qn))
+    {
+      if (IS_QN (qn, setp_node_input))
+	{
+	  QNCAST (setp_node_t, setp, qn);
+	  if (setp->setp_is_streaming)
+	    continue;
+	  if (setp->setp_ha && (HA_GROUP == setp->setp_ha->ha_op || HA_ORDER == setp->setp_ha->ha_op))
+	    {
+	      DO_SET (setp_node_t *, oby, &qn->src_query->qr_nodes)
+	      {
+		if (IS_QN (oby, setp_node_input) && oby->setp_top)
+		  {
+		    *top = oby;
+		    break;
+		  }
+	      }
+	      END_DO_SET ();
+	      return setp;
+	    }
+	}
+    }
+  return NULL;
+}
+
+
+int
+setp_top_k_limit (setp_node_t * setp, caddr_t * inst, caddr_t * ret_box)
+{
+  cl_op_t *top_clo = setp_get_top (setp, inst, 0);
+  if (!top_clo)
+    return 0;
+  mutex_enter (&top_clo->_.top.mtx);
+  if (!top_clo->_.top.is_full)
+    {
+      mutex_leave (&top_clo->_.top.mtx);
+      return 0;
+    }
+  *ret_box = box_copy_tree (top_clo->_.top.values);
+  mutex_leave (&top_clo->_.top.mtx);
+  return 1;
+}
+
+caddr_t
+bif_topk (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  setp_node_t *setp2 = NULL;
+  caddr_t arg;
+  caddr_t lim;
+  int nth = bif_long_arg (qst, args, 1, "__topk");
+  int top = bif_long_arg (qst, args, 3, "__topk");
+  int skip = bif_long_arg (qst, args, 4, "__topk");
+  setp_node_t *setp = (setp_node_t *) bif_long_arg (qst, args, 5, "__topk");
+  int cmp, rc;
+  setp = qn_top_setp ((data_source_t *) setp, &setp2);
+  if (!setp)
+    return (caddr_t) 1;
+  if (!setp_top_k_limit (setp, qst, &lim))
+    return (caddr_t) 1;
+  arg = bif_arg (qst, args, 0, "__topk");
+  cmp = bif_long_arg (qst, args, 2, "__topk");
+  rc = cmp_boxes_safe (arg, lim, NULL, NULL);
+  return (caddr_t) (ptrlong) (0 != (rc & cmp));
+}
+
+
+void
+bif_topk_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret)
+{
+  QNCAST (QI, qi, qst);
+  db_buf_t set_mask = qi->qi_set_mask;
+  int n_sets = qi->qi_n_sets, set, first_set = 0;
+  setp_node_t *setp2 = NULL;
+  caddr_t arg;
+  caddr_t lim;
+  int nth = bif_long_arg (qst, args, 1, "__topk");
+  int top = bif_long_arg (qst, args, 3, "__topk");
+  int skip = bif_long_arg (qst, args, 4, "__topk");
+  setp_node_t *setp = (setp_node_t *) bif_long_arg (qst, args, 5, "__topk");
+  int cmp, rc;
+  setp = qn_top_setp ((data_source_t *) setp, &setp2);
+  if (!setp)
+    goto all_true;
+  if (!setp_top_k_limit (setp, qst, &lim))
+    goto all_true;
+  cmp = bif_long_arg (qst, args, 2, "__topk");
+  SET_LOOP
+  {
+    arg = bif_arg (qst, args, 0, "__topk");
+    rc = cmp_boxes_safe (arg, lim, NULL, NULL);
+    qst_set_long (qst, ret, 0 != (rc & cmp));
+  }
+  END_SET_LOOP dk_free_tree (lim);
+  return;
+all_true:
+  qst_set_all (qst, ret, (caddr_t) 1);
+}
+
 
 int
 setp_comp_array (setp_node_t * setp, caddr_t * qst, caddr_t * left, state_slot_t ** right)
@@ -290,6 +680,8 @@ setp_mem_sort (setp_node_t * setp, caddr_t * qst, int n_sets, int merge_set)
 	}
     next_set:;
     }
+  if (setp->setp_top_id)
+    setp_top_oby_changed (setp, qst, top + skip);
 }
 
 
@@ -379,7 +771,7 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
 	}
       return QST_INT (inst, setp->src_gen.src_out_fill);
     }
-  if (setp->setp_top)
+  if (setp->setp_top && HA_ORDER == setp->setp_ha->ha_op)
     {
       setp_top_pre (setp, state, &is_ties_edge);
       return 0;
@@ -869,6 +1261,80 @@ again:
     qn_send_output (qn, inst);
 }
 
+void
+in_iter_input_fill_members (caddr_t vals, collation_t * out_collation, dk_set_t * members_ptr)
+{
+  switch (DV_TYPE_OF (vals))
+    {
+#ifdef RDF_SECURITY_CLO
+    case DV_CLOP:
+      {
+	cl_op_t *clo = (cl_op_t *) vals;
+	if (CLO_RDF_GRAPH_USER_PERMS == clo->clo_op)
+	  {
+	    dk_hash_64_t *ht = clo->_.rdf_graph_user_perms.ht;
+	    int req_perms = clo->_.rdf_graph_user_perms.req_perms;
+	    dk_hash_64_iterator_t iter;
+	    int64 *g_iid_num_ptr, *g_perms_ptr;
+	    int need_dupe_check = (NULL != members_ptr[0]);
+	    rwlock_rdlock (ht->ht_rwlock);
+	    dk_hash_64_iterator (&iter, ht);
+	    while (dk_hash_64_hit_next (&iter, &g_iid_num_ptr, &g_perms_ptr))
+	      {
+		caddr_t val;
+		if ((g_perms_ptr[0] & req_perms) == req_perms)
+		  {
+		    char val_buf[sizeof (int64) + BOX_AUTO_OVERHEAD];
+		    caddr_t val;
+		    BOX_AUTO (val, val_buf, sizeof (int64), DV_IRI_ID);
+		    ((int64 *) val)[0] = g_iid_num_ptr[0];
+		    if (need_dupe_check)
+		      {
+			DO_SET (caddr_t, member, members_ptr)
+			{
+			  if (DVC_MATCH == cmp_boxes (val, member, out_collation, out_collation))
+			    goto next_in_rgu_clo;
+			}
+			END_DO_SET ();
+		      }
+		    dk_set_push (members_ptr, (void *) box_copy_tree (val));
+		  }
+	      next_in_rgu_clo:;
+	      }
+	    rwlock_unlock (ht->ht_rwlock);
+	  }
+	break;
+      }
+#endif
+    case DV_ARRAY_OF_POINTER:
+      {
+	int nth, n_vals = BOX_ELEMENTS (vals);
+	for (nth = 0; nth < n_vals; nth++)
+	  {
+	    caddr_t val = ((caddr_t *) vals)[nth];
+	    DO_SET (caddr_t, member, members_ptr)
+	    {
+	      if (DVC_MATCH == cmp_boxes (val, member, out_collation, out_collation))
+		goto next_in_array;
+	    }
+	    END_DO_SET ();
+	    dk_set_push (members_ptr, (void *) box_copy_tree (val));
+	  next_in_array:;
+	  }
+	break;
+      }
+    default:
+      DO_SET (caddr_t, member, members_ptr)
+      {
+	if (DVC_MATCH == cmp_boxes (vals, member, out_collation, out_collation))
+	  goto next;
+      }
+      END_DO_SET ();
+      dk_set_push (members_ptr, (void *) box_copy_tree (vals));
+    next:
+      break;
+    }
+}
 
 void
 in_iter_vec_input (in_iter_node_t * ii, caddr_t * inst, caddr_t * state)
@@ -896,24 +1362,10 @@ in_iter_vec_input (in_iter_node_t * ii, caddr_t * inst, caddr_t * state)
 	  inst[ii->ii_nth_value] = (caddr_t) 0;
 	  DO_BOX (state_slot_t *, ssl, inx, ii->ii_values)
 	  {
-	    caddr_t vals = qst_get (inst, ssl), val;
-	    int is_array = DV_ARRAY_OF_POINTER == DV_TYPE_OF (vals);
-	    int nth, n_vals = is_array ? BOX_ELEMENTS (vals) : 1;
+	    caddr_t vals = qst_get (inst, ssl);
 	    if (!qi_sets_identical (inst, ssl))
 	      all_same = 0;
-	    for (nth = 0; nth < n_vals; nth++)
-	      {
-		val = is_array ? ((caddr_t *) vals)[nth] : vals;
-		DO_SET (caddr_t, member, &members)
-		{
-		  if (DVC_MATCH == cmp_boxes (val, member, ii->ii_output->ssl_sqt.sqt_collation,
-			  ii->ii_output->ssl_sqt.sqt_collation))
-		    goto next;
-		}
-		END_DO_SET ();
-		dk_set_push (&members, (void *) box_copy_tree (val));
-	      next:;
-	      }
+	    in_iter_input_fill_members (vals, ii->ii_output->ssl_sqt.sqt_collation, &members);
 	  }
 	  END_DO_BOX;
 	  QST_INT (inst, ii->ii_iter.in_is_const) = all_same;
@@ -960,22 +1412,8 @@ in_iter_input (in_iter_node_t * ii, caddr_t * inst, caddr_t * state)
 	    qst_set (inst, ii->ii_outer_any_passed, NULL);
 	  DO_BOX (state_slot_t *, ssl, inx, ii->ii_values)
 	  {
-	    caddr_t vals = qst_get (inst, ssl), val;
-	    int is_array = DV_ARRAY_OF_POINTER == DV_TYPE_OF (vals);
-	    int nth, n_vals = is_array ? BOX_ELEMENTS (vals) : 1;
-	    for (nth = 0; nth < n_vals; nth++)
-	      {
-		val = is_array ? ((caddr_t *) vals)[nth] : vals;
-		DO_SET (caddr_t, member, &members)
-		{
-		  if (DVC_MATCH == cmp_boxes (val, member, ii->ii_output->ssl_sqt.sqt_collation,
-			  ii->ii_output->ssl_sqt.sqt_collation))
-		    goto next;
-		}
-		END_DO_SET ();
-		dk_set_push (&members, (void *) box_copy_tree (val));
-	      next:;
-	      }
+	    caddr_t vals = qst_get (inst, ssl);
+	    in_iter_input_fill_members (vals, ii->ii_output->ssl_sqt.sqt_collation, &members);
 	  }
 	  END_DO_BOX;
 	  if (!members)
@@ -1339,12 +1777,12 @@ set_ctr_free (set_ctr_node_t * sctr)
 void
 tssp_alt_init (ts_split_node_t * tssp)
 {
-  data_source_t *alt = (data_source_t *) tssp->tssp_alt_ts;
-  data_source_t *main = qn_next ((data_source_t *) tssp);
-  while (qn_next (alt))
-    alt = qn_next (alt);
-  alt->src_continuations = dk_set_cons (qn_next (main), NULL);
-  alt->src_after_code = main->src_after_code;
+  data_source_t *alt_ds = (data_source_t *) tssp->tssp_alt_ts;
+  data_source_t *main_ds = qn_next ((data_source_t *) tssp);
+  while (qn_next (alt_ds))
+    alt_ds = qn_next (alt_ds);
+  alt_ds->src_continuations = dk_set_cons (qn_next (main_ds), NULL);
+  alt_ds->src_after_code = main_ds->src_after_code;
   tssp->tssp_inited = 1;
 }
 

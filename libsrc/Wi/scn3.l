@@ -64,6 +64,7 @@ scn3_line_loc_t scn3_line_locs[SCN3_MAX_PRAGMALINE_DEPTH];
 int scn3_pragmaline_depth = 0;
 scn3_include_fragment_t scn3_include_stack [MAX_INCLUDE_DEPTH];
 int scn3_include_depth = 0;
+int scn3_raw_rdf_access_control = 0;
 int scn3_inside_error_reporter = 0;
 dk_session_t *scn3split_ses = NULL;
 

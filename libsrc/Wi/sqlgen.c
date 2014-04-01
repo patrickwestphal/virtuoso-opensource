@@ -1066,6 +1066,107 @@ sqlg_is_text_only (sqlo_t * so, df_elt_t * tb_dfe, table_source_t * ts)
 }
 
 
+search_spec_t *
+sqlg_top_oby_spec (sqlo_t * so, key_source_t * ks, dbe_column_t * col, df_elt_t * call)
+{
+  sql_comp_t *sc = so->so_sc;
+  dbe_key_t *key = ks->ks_key;
+  NEW_VARZ (search_spec_t, sp);
+  int cmp = unbox ((caddr_t) call->_.call.args[2]->dfe_tree);
+  if (CMP_LTE == cmp)
+    {
+      sp->sp_max_op = CMP_LTE;
+      sp->sp_max_ssl = ssl_new_variable (sc->sc_cc, "topk", col->col_sqt.sqt_col_dtp);
+    }
+  else
+    {
+      sp->sp_min_op = CMP_GTE;
+      sp->sp_min_ssl = ssl_new_variable (sc->sc_cc, "topk", col->col_sqt.sqt_col_dtp);
+    }
+  if (ks->ks_key->key_is_col)
+    sp->sp_cl = *cl_list_find (ks->ks_key->key_row_var, col->col_id);
+  else
+    sp->sp_cl = *key_find_cl (key, col->col_id);
+  sp->sp_col = col;
+  sp->sp_collation = col->col_sqt.sqt_collation;
+  sp->sp_col_filter = col_find_op (CE_ALL_LTGT);
+  return sp;
+}
+
+
+void
+sqlg_top_oby_pre (sqlo_t * so, df_elt_t * dfe, table_source_t * ts, dk_set_t * pre_code)
+{
+  sql_comp_t *sc = so->so_sc;
+  df_elt_t **body, *call_dfe;
+  df_elt_t *col_dfe = NULL;
+  int len, oby_test = 0, inx;
+  if (DFE_TABLE != dfe->dfe_type || !dfe->_.table.top_pred)
+    return;
+  body = dfe->_.table.top_pred;
+  body = (df_elt_t **) body[1];
+  len = BOX_ELEMENTS (body);
+  for (inx = len - 1; inx >= 0; inx--)
+    {
+      call_dfe = body[inx];
+      if (IS_BOX_POINTER (call_dfe) && DFE_CALL == call_dfe->dfe_type && !stricmp ("__topk", call_dfe->_.call.func_name)
+	  && 7 == BOX_ELEMENTS (call_dfe->_.call.args))
+	{
+	  col_dfe = call_dfe->_.call.args[0];
+	  if (st_is_call (col_dfe->dfe_tree, "__ro2sq", 1))
+	    {
+	      col_dfe = col_dfe->_.call.args[0];
+	      oby_test = 1;
+	    }
+	  goto found;
+	}
+    }
+  return;
+found:
+  if (DFE_COLUMN == col_dfe->dfe_type && dk_set_member (dfe->_.table.out_cols, col_dfe))
+    {
+      key_source_t *ks = ts->ts_order_ks;
+      dbe_column_t *col = col_dfe->_.col.col;
+      if (!dk_set_member (ks->ks_key->key_parts, col))
+	ks = ts->ts_main_ks;
+      if (!ks)
+	sqlc_new_error (sc->sc_cc, "37000", "TOPIN", "Cannot place top k restriction, internal");
+      ks->ks_top_oby_col = col;
+      ks->ks_top_oby_nth = unbox ((caddr_t) call_dfe->_.call.args[1]->dfe_tree);
+      ks->ks_top_oby_cnt = scalar_exp_generate (sc, call_dfe->_.call.args[3]->dfe_tree, pre_code);
+      ks->ks_top_oby_skip =
+	  call_dfe->_.call.args[4] ? scalar_exp_generate (sc, call_dfe->_.call.args[4]->dfe_tree, pre_code) : NULL;
+      ks->ks_top_oby_spec = sqlg_top_oby_spec (so, ks, col, call_dfe);
+      ks_set_search_params (sc->sc_cc, NULL, ks);
+    }
+  else
+    oby_test = 1;
+  if (oby_test)
+    {
+      call_dfe->_.call.args[5] = sqlo_df (so, t_box_num ((ptrlong) ts));
+      if (ts->src_gen.src_after_test)
+	{
+	  SQL_NODE_INIT (end_node_t, en, end_node_input, NULL);
+	  ts->src_gen.src_continuations = dk_set_cons ((void *) en, NULL);
+	  en->src_gen.src_after_test = ts->src_gen.src_after_test;
+	  ts->src_gen.src_after_test = NULL;
+	  en->src_gen.src_after_code = ts->src_gen.src_after_code;
+	  ts->src_gen.src_after_code = NULL;
+	}
+      ts->src_gen.src_after_test = sqlg_pred_body (so, dfe->_.table.top_pred);
+      DO_INSTR (ins, 0, ts->src_gen.src_after_test)
+      {
+	if (INS_CALL_BIF == ins->ins_type && (bif_topk == ins->_.bif.bif || bif_topk_vec == ins->_.bif.bif))
+	  {
+	    ins->_.bif.params[5] = ssl_new_constant (sc->sc_cc, t_box_num ((ptrlong) ts));
+	    break;
+	  }
+      }
+      END_DO_INSTR;
+    }
+}
+
+
 void
 fs_ensure_out_col (sql_comp_t * sc, df_elt_t * tb_dfe, table_source_t * ts, oid_t col_id)
 {
@@ -1394,6 +1495,8 @@ sqlg_make_np_ts (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code)
       if (SC_UPD_PLACE == sc->sc_is_update || sc->sc_in_cursor_def)
 	ts->ts_current_of = ssl_new_placeholder (cc, ct_id);
     }
+  if (sc->sc_is_update && 1 == OT_NO (tb_dfe->_.table.ot->ot_new_prefix))
+    ts->ts_is_dml = 1;
   ts->ts_order_cursor = ssl_new_itc (cc);
 
   /* Done? Need the main row? */
@@ -1462,6 +1565,7 @@ sqlg_make_np_ts (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code)
       sqlo_opt_value (ot->ot_opts, OPT_VACUUM);
       ts->ts_order_ks->ks_is_vacuum = 1;
     }
+  sqlg_top_oby_pre (so, tb_dfe, ts, pre_code);
   if (table->tb_ft)
     sqlg_file_source (so, tb_dfe, ts, pre_code);
   if (sqlg_is_vector && ts->ts_main_ks)
@@ -1649,8 +1753,9 @@ sqlg_hash_filler (sqlo_t * so, df_elt_t * tb_dfe, data_source_t * ts_src)
     fref->fnr_select_nodes = sqlg_continue_list (head);
     fref->fnr_setp = setp;
     setp->setp_fref = fref;
-    if (enable_par_fill && enable_par_fill < 3 && enable_chash_join && ha->ha_row_count > chash_min_parallel_fill_rows
-	&& enable_qp > 1)
+    if (setp->setp_cl_partition
+	|| (enable_par_fill && enable_par_fill < 3 && enable_chash_join && ha->ha_row_count > chash_min_parallel_fill_rows
+	    && enable_qp > 1))
       {
 	fref->fnr_parallel_hash_fill = 1;
 	sqlg_fref_qp (sc, fref, tb_dfe);
@@ -2468,6 +2573,12 @@ sqlg_inline_sqs_1 (sql_comp_t * sc, df_elt_t * dfe, subq_source_t * sqs, data_so
 	}
       if (IS_QN (qn, breakup_node_input))
 	{
+	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
+	}
+      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_distinct)
+	{
+	  if (qn_next_qn (qn, (qn_input_fn) skip_node_input))
+	    break;
 	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
 	}
     }
@@ -3572,7 +3683,7 @@ sqlg_is_multistate_gb (sqlo_t * so)
 	/* a derived table with gby/oby is multistate and will have the set no in the setp  if in the enclosing there is a ts or dt before it.  But  a dt w no qr   does not count because this is the immediately enclosing, not a previous one.  On the top qr, ignore anything that is inside a hash filler  */
 	if (dk_set_member (hf_nodes, qn))
 	  continue;
-	if (IS_TS (qn) || (IS_QN (qn, subq_node_input) && ((subq_source_t *) qn)->sqs_query))
+	if (IS_TS (qn) || (IS_QN (qn, subq_node_input) && ((subq_source_t *) qn)->sqs_query) || IS_RTS (qn))
 	  return 1;
       }
       END_DO_SET ();
@@ -3795,6 +3906,7 @@ sqlg_continue_list (data_source_t * qn)
 
 int32 enable_qp = 8;
 int32 enable_mt_txn = 0;
+extern int32 enable_dfg;
 
 int
 sqlg_may_parallelize (sql_comp_t * sc, data_source_t * qn)
@@ -3821,7 +3933,7 @@ sqlg_may_parallelize (sql_comp_t * sc, data_source_t * qn)
 	  if (KI_TEMP == ts->ts_order_ks->ks_key->key_id)
 	    goto no;
 	}
-      if (IS_QN (ts, setp_node_input) && ((setp_node_t *) ts)->setp_distinct)
+      if (IS_QN (ts, setp_node_input) && ((setp_node_t *) ts)->setp_distinct && enable_dfg < 2)
 	goto no;
     }
   if (!enable_mt_txn && select_sc->sc_cc->cc_query->qr_need_enlist)
@@ -3951,7 +4063,7 @@ sqlg_sdfg_group (df_elt_t * dt_dfe, data_source_t * qn)
 	    return 1;
 	  if (setp->setp_is_streaming)
 	    return SDFG_STREAMING;
-	  if (setp->setp_any_user_aggregate_gos)
+	  if (setp->setp_any_user_aggregate_gos || setp->setp_distinct)
 	    return SDFG_HIGH_CARD_GBY;
 	  if (setp->setp_ha && HA_GROUP == setp->setp_ha->ha_op && setp_is_high_card (setp))
 	    return SDFG_HIGH_CARD_GBY;
@@ -3991,6 +4103,8 @@ sqlg_sdfg_part (sql_comp_t * sc, setp_node_t * setp, table_source_t * prev_ts, d
   int is_hs = IS_QN (setp, hash_source_input);
   QNCAST (hash_source_t, hs, setp);
   query_t *qr = sc->sc_cc->cc_query;
+  if (IS_QN (setp, setp_node_input) && setp->setp_ha && HA_ORDER == setp->setp_ha->ha_op)
+    return;
   if (!is_hs)
     {
       table_source_t *reader = setp->setp_reader;
@@ -4212,11 +4326,14 @@ sqlg_parallel_ts_seq (sql_comp_t * sc, df_elt_t * dt_dfe, table_source_t * ts, f
 	  {
 	    stn->stn_bulk_input = first_stn->stn_bulk_input;
 	  }
-	stn_init (sc, stn);
+	if (!stn->clb.clb_itcl)
+	  stn_init (sc, stn);
 	stn->stn_aq = prev_ts->ts_aq;
 	stn->stn_slice_qis = prev_ts->ts_aq_qis;
 	stn->stn_nth = nth++;
 	stn->stn_coordinator_req_no = first_stn->stn_coordinator_req_no;
+	stn->stn_out_bytes = first_stn->stn_out_bytes;
+	stn->stn_qf = first_stn->stn_qf;
       }
       END_DO_SET ();
       if (first_stn->stn_qf->qf_stages)
@@ -4730,6 +4847,26 @@ gby_spec_dependent (df_elt_t * gby, ST * spec)
 }
 
 
+int
+sqlg_top_gby_nth_col (df_elt_t * dt_dfe, setp_node_t * setp)
+{
+  /*  find the position of the top k ordering col  in the gby keys or deps */
+  sqlo_t *so = dt_dfe->dfe_sqlo;
+  int nth;
+  op_table_t *ot = dt_dfe->_.sub.ot;
+  df_elt_t *first = sqlo_df (so, ot->ot_first_oby->dfe_tree);
+  ot->ot_is_top_gby = 1;
+  nth = dk_set_ssl_position (setp->setp_keys, first->dfe_ssl);
+  if (-1 != nth)
+    return nth;
+  nth = dk_set_ssl_position (setp->setp_dependent, first->dfe_ssl);
+  if (-1 != nth)
+    return nth + dk_set_length (setp->setp_keys);
+  SQL_GPF_T1 (so->so_sc->sc_cc, "could not find top k order by col in group by");
+  return 0;
+}
+
+
 void
 sqlg_make_sort_nodes (sqlo_t * so, data_source_t ** head, ST ** order_by,
     state_slot_t ** ssl_out, df_elt_t * tb_dfe, int is_gb, dk_set_t o_code, df_elt_t * oby, ST ** selection)
@@ -5056,7 +5193,27 @@ sqlg_make_sort_nodes (sqlo_t * so, data_source_t ** head, ST ** order_by,
 	    }
 	}
 	END_DO_SET ();
-
+	if (DFE_DT == tb_dfe->dfe_type && tb_dfe->_.sub.ot->ot_first_oby && is_gb && SEL_TOP (dt))
+	  {
+	    if (setp->setp_is_streaming)
+	      setp->setp_is_streaming |= FNR_STREAM_TOP;
+	    else
+	      {
+		char is_desc = ORDER_DESC == tb_dfe->_.sub.ot->ot_oby_dfe->_.setp.specs[0]->_.o_spec.order;
+		ST *top = gs_top ? gs_top : SEL_TOP (dt);
+		setp->setp_top = scalar_exp_generate (sc, top->_.top.exp, &code);
+		if (top->_.top.skip_exp)
+		  setp->setp_top_skip = scalar_exp_generate (sc, top->_.top.skip_exp, &code);
+		setp->setp_top_gby = 1 | (is_desc ? 2 : 0);
+		setp->setp_top_gby_nth_col = sqlg_top_gby_nth_col (tb_dfe, setp);
+		setp->setp_top_id = ssl_new_variable (sc->sc_cc, "top_id", DV_LONG_INT);
+		setp->setp_top_id->ssl_qr_global = 1;
+		setp->setp_top_clo = ssl_new_variable (sc->sc_cc, "top_clo", DV_ARRAY_OF_POINTER);
+		setp->setp_top_clo->ssl_qr_global = 1;
+		setp->setp_top_ser = ssl_new_variable (sc->sc_cc, "top_ser", DV_ARRAY_OF_POINTER);
+		setp->setp_sorted = ssl_new_variable (sc->sc_cc, "gby_top", DV_ARRAY_OF_POINTER);
+	      }
+	  }
 	sc->sc_sort_insert_node = setp;
 	sqlg_setp_keys (so, setp, (is_gb && !setp->setp_gb_ops) ? 1 : 0, (long) tb_dfe->dfe_arity);
 	read_node = sqlc_make_sort_out_node (sc, out_cols, out_slots, always_null, is_gb);
@@ -5075,6 +5232,15 @@ sqlg_make_sort_nodes (sqlo_t * so, data_source_t ** head, ST ** order_by,
 	      }
 	    else
 	      setp->setp_top_skip = NULL;
+	    if (!tb_dfe->_.sub.ot->ot_is_top_gby)
+	      {
+		/* if top k is restricted in a gby where top k key is in grouping cols, not again here */
+		setp->setp_top_id = ssl_new_variable (sc->sc_cc, "top_id", DV_LONG_INT);
+		setp->setp_top_id->ssl_qr_global = 1;
+		setp->setp_top_ser = ssl_new_variable (sc->sc_cc, "top_ser", DV_ARRAY_OF_POINTER);
+		setp->setp_top_clo = ssl_new_variable (sc->sc_cc, "top_clo", DV_ARRAY_OF_POINTER);
+		setp->setp_top_clo->ssl_qr_global = 1;
+	      }
 	    ((table_source_t *) read_node)->ts_order_ks->ks_pos_in_temp = cc_new_instance_slot (sc->sc_cc);
 	    ((table_source_t *) read_node)->ts_order_ks->ks_set_no = sc->sc_is_single_state ? NULL : sc->sc_set_no_ssl;
 	    read_node->src_input = (qn_input_fn) sort_read_input;

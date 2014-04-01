@@ -879,7 +879,10 @@ sqlc_insert (sql_comp_t * sc, ST * tree)
 	sc->sc_no_current_of = 1;
 	sqlo_query_spec (sc, SEL_IS_DISTINCT (sel),
 	    sel->_.select_stmt.selection, sel->_.select_stmt.table_exp, &sc->sc_cc->cc_query->qr_head_node, &slots_ret);
-	sql_node_append (&sc->sc_cc->cc_query->qr_head_node, (data_source_t *) ins);
+	{
+	  sql_node_append (&sc->sc_cc->cc_query->qr_head_node, (data_source_t *) ins);
+	  sqlg_qr_env (sc, sc->sc_cc->cc_query);
+	}
 	DO_BOX (state_slot_t *, sl, inx, slots_ret)
 	{
 	  slots = NCONC (slots, CONS (sl, NULL));
@@ -1497,7 +1500,10 @@ sqlc_update_searched (sql_comp_t * sc, ST * tree)
       if (upd->upd_keyset)
 	upd->upd_keyset_state = ssl_new_variable (sc->sc_cc, "keyset_state", DV_ARRAY_OF_POINTER);
       upd->upd_place = sqlo_co_place (sc);
-      sql_node_append (&sc->sc_cc->cc_query->qr_head_node, (data_source_t *) upd);
+      {
+	sql_node_append (&sc->sc_cc->cc_query->qr_head_node, (data_source_t *) upd);
+	sqlg_qr_env (sc, sc->sc_cc->cc_query);
+      }
       sqlc_upd_param_types (sc, upd);
       upd_optimize (sc, upd);
     }
@@ -1647,7 +1653,10 @@ sqlc_delete_searched (sql_comp_t * sc, ST * tree)
 	{
 	  del->del_key_vals = slot_array;
 	}
-      sql_node_append (&sc->sc_cc->cc_query->qr_head_node, (data_source_t *) del);
+      {
+	sql_node_append (&sc->sc_cc->cc_query->qr_head_node, (data_source_t *) del);
+	sqlg_qr_env (sc, sc->sc_cc->cc_query);
+      }
       tc_free (&tc);
     }
 }

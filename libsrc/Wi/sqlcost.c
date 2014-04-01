@@ -403,6 +403,43 @@ dfe_col_by_id (df_elt_t * dfe, oid_t col_id)
 }
 
 
+float
+dfe_top_sel (df_elt_t * dfe, float card)
+{
+  float min_out;
+  df_elt_t *oby = dfe->_.table.ot->ot_super->ot_oby_dfe;
+  df_elt_t *next;
+  float card_after = 1;
+  float top = 100;
+  if (!oby || !oby->_.setp.top_cnt)
+    return;
+  top = oby->_.setp.top_cnt;
+  if (!dfe->_.table.top_pred)
+    return;
+  for (next = dfe->dfe_next; next; next = next->dfe_next)
+    {
+      if ((DFE_TABLE == next->dfe_type && next->_.table.is_being_placed)
+	  || (DFE_DT == next->dfe_type && next->_.sub.is_being_placed))
+	break;
+      if (next->dfe_arity)
+	card_after *= next->dfe_arity;
+    }
+  if (dfe->_.table.join_test)
+    {
+      float p_cost, p_arity, ov;
+      dfe_pred_body_cost (dfe->_.table.join_test, &p_cost, &p_arity, &ov);;
+      card_after *= p_arity;
+    }
+  card = dfe->_.table.in_arity * card;
+  min_out = enable_qp * dc_batch_sz * card_after;
+  if (min_out > card)
+    {
+      dfe->_.table.top_sel = 1;
+    }
+  dfe->_.table.top_sel = MIN (0.9, min_out / card);
+}
+
+
 int
 dfe_cl_colocated (df_elt_t * prev, df_elt_t * dfe)
 {
@@ -605,6 +642,7 @@ dfe_vec_inx_cost (df_elt_t * dfe, index_choice_t * ic, int64 sample)
   ic->ic_in_order = order;
   IC_SAVE;
   ref_card = dfe_arity_with_supers (dfe->dfe_prev);
+  dfe->_.table.in_arity = ref_card;
   IC_RESTORE;
   if (!order)
     {
@@ -4251,6 +4289,8 @@ dfe_table_cost_ic_1 (df_elt_t * dfe, index_choice_t * ic, int inx_only)
   inx_arity_sc = 2 == p_stat ? inx_arity : arity_scale (inx_arity);
 
   ic->ic_is_unique = dfe->_.table.is_unique = unique;
+  if (dfe->_.table.top_pred)
+    dfe_top_sel (dfe, inx_arity);
   if (key->key_is_bitmap)
     {
       col_cost *= 0.6;		/* cols packed closer together, more per page in bm inx */
@@ -4347,6 +4387,8 @@ dfe_table_cost_ic_1 (df_elt_t * dfe, index_choice_t * ic, int inx_only)
       p_arity *= dfe_hash_fill_cond_card (dfe);
     }
   SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_IC, NULL);
+  if (dfe->_.table.top_pred)
+    total_arity *= dfe->_.table.top_sel;
   total_cost += p_cost * arity_scale (total_arity);
   total_arity *= p_arity;
   if (dfe->_.table.ot->ot_is_outer)

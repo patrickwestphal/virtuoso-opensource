@@ -886,6 +886,7 @@ struct it_cursor_s
   bitf_t itc_hash_row_spec:2;
   bitf_t itc_value_ret_hash_spec:1;	/* set if last hash spec sets result columns.  Must always be last row spec, no reordering */
   bitf_t itc_local_key_spec:1;	/* set if key spec extended to represent range partitioned scan partitions */
+  bitf_t itc_top_row_spec:1;	/* is a top oby condition added to the row spec? */
   bitf_t itc_col_prefetch:1;	/* set if must preread next page's cols.  Off if all so far in memory */
   bitf_t itc_must_kill_trx:1;
   bitf_t itc_col_right_ins:1;	/* set if col key ins should split at right of page, i.e.. asc insert */
@@ -2047,10 +2048,6 @@ extern int64 bdf_is_avail_mask;	/* all bits on except read aside flag which does
 	    itc_bust_this_trx (it, buf, may_ret);		\
 }\
  }								\
-
-#define LT_NEED_WAIT_CPT(lt) \
-  (wi_inst.wi_is_checkpoint_pending  && \
-   wi_inst.wi_cpt_lt != lt && !cpt_is_global_lock (lt))
 
 
 /* reset catch context around itc operations */

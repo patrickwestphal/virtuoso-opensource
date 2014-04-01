@@ -253,7 +253,7 @@ jp_pk_fanout (join_plan_t * jp)
   DO_SET (dbe_column_t *, part, &pk->key_parts)
   {
     pred_score_t *ps = jp_find_ps (jp, part, 0);
-    if (!ps)
+    if (!ps || !ps->ps_pred || !dfe_is_eq_pred (ps->ps_pred))
       return;
     nth++;
     if (nth == n_parts)
@@ -268,10 +268,29 @@ jp_pk_fanout (join_plan_t * jp)
 }
 
 
+int
+jp_already_seen (pred_score_t * ps, oid_t * cols, int *col_fill)
+{
+  int n_cols = *col_fill, inx;
+  if (!dfe_is_eq_pred (ps->ps_pred) || !ps->ps_left_col)
+    return 0;
+  for (inx = 0; inx < n_cols; inx++)
+    if (cols[inx] == ps->ps_left_col->col_id)
+      return 1;
+  if (n_cols >= 10)
+    return 1;
+  cols[*col_fill] = ps->ps_left_col->col_id;
+  (*col_fill)++;
+  return 0;
+}
+
+
 float
 jp_fanout (join_plan_t * jp)
 {
   /* for sql this is the table card over the col pred cards , for rdf this is based on p stat */
+  int col_fill = 0;
+  oid_t cols[10];
   dbe_column_t *o_col = NULL;
   int jinx;
   if (dfe_is_quad (jp->jp_tb_dfe))
@@ -379,13 +398,17 @@ jp_fanout (join_plan_t * jp)
     {
       float card;
     general:
+      col_fill = 0;
       jp_pk_fanout (jp);
       card = dbe_key_count (jp->jp_tb_dfe->_.table.ot->ot_table->tb_primary_key);
       for (jinx = 0; jinx < jp->jp_n_preds; jinx++)
 	{
 	  pred_score_t *ps = &jp->jp_preds[jinx];
 	  if (ps->ps_is_placeable)
-	    card *= ps->ps_card;
+	    {
+	      if (!jp_already_seen (ps, cols, &col_fill))
+		card *= ps->ps_card;
+	    }
 	}
       jp->jp_fanout = card;
     }
@@ -732,8 +755,9 @@ again:
   if (pred_ot != jp->jp_tb_dfe->_.table.ot->ot_super)
     {
       /* if can be that a restricting join is imported into a subq from the enclosing.  So then do the preds in the subq plus the preds in the dt where the restriction comes from */
-      pred_ot = jp->jp_tb_dfe->_.table.ot->ot_super;
-      goto again;
+      pred_ot = pred_ot->ot_super;
+      if (pred_ot)
+	goto again;
     }
   jp->jp_fanout = jp_fanout (jp);
   if (jp->jp_fanout < 0 && jp->jp_fanout != -1)
@@ -1115,7 +1139,7 @@ sqlo_unq_exists (sqlo_t * so, df_elt_t * dt_dfe)
       continue;
     DO_SET (df_elt_t *, dfe, &ot->ot_from_dfes)
     {
-      if (DFE_TABLE == dfe->dfe_type || DFE_DT == dfe->dfe_type && sqlo_opt_value (dfe_ot (dfe)->ot_opts, OPT_NO_EXISTS_JOIN))
+      if ((DFE_TABLE == dfe->dfe_type || DFE_DT == dfe->dfe_type) && sqlo_opt_value (dfe_ot (dfe)->ot_opts, OPT_NO_EXISTS_JOIN))
 	goto not_this;
     }
     END_DO_SET ();
@@ -1244,6 +1268,7 @@ jp_may_restrict (join_plan_t * jp, pred_score_t * ps)
   /* given a predicate, see if the predicate  can be used to join to a table for restricting a hash build side */
   sqlo_t *so = jp->jp_tb_dfe->dfe_sqlo;
   df_elt_t *left;
+  join_plan_t *top_jp = jp->jp_top_jp;
   int rc = 0;
   op_table_t *ot, *left_ot;
   df_elt_t *right = ps->ps_right;
@@ -1273,11 +1298,13 @@ jp_may_restrict (join_plan_t * jp, pred_score_t * ps)
   if (dk_set_member (so->so_hash_probes, (void *) ot))
     {
       if (ot->ot_super == left_ot->ot_super && !(JP_NO_REIMPORT & jp->jp_join_flags))
-	if (!jp->jp_top_jp->jp_is_dt)
-	  return JP_NO_JOIN;
+	{
+	  if (jp->jp_top_jp->jp_is_dt)
+	    return JP_NO_JOIN;
+	}
       rc |= JP_NO_REIMPORT;
     }
-  rc |= ot->ot_super != left_ot->ot_super ? JP_EXISTS : JP_JOIN;
+  rc |= (ot->ot_super != left_ot->ot_super || ot->ot_super != top_jp->jp_tb_dfe->_.table.ot->ot_super) ? JP_EXISTS : JP_JOIN;
   if (ot->ot_dfe->dfe_is_placed)
     rc |= JP_REUSE;
   return rc;

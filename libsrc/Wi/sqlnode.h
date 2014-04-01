@@ -677,7 +677,11 @@ struct key_source_s
   dk_set_t ks_hash_spec;	/* hash fill frefs that cause this ts to filter out rows either as hash filler or as hash probe */
   dbe_column_t *ks_top_oby_col;
   struct setp_node_s *ks_top_oby_setp;
+  struct setp_node_s *ks_top_oby_top_setp;
+  state_slot_t *ks_top_oby_cnt;
+  state_slot_t *ks_top_oby_skip;
   search_spec_t *ks_top_oby_spec;
+  int ks_top_oby_nth;		/* if gby + top oby on top with grouping col, pos of the grouping col in the gby */
   ssl_index_t *ks_hs_partition_spec;
 };
 
@@ -772,6 +776,8 @@ typedef struct table_source_s
   bitf_t ts_part_gby_reader:1;	/* If reader of partitioned gby, to invoke postprocessing of aggregation in each slice */
   bitf_t ts_cl_part_reader:1;
   bitf_t ts_may_count_scan:1;
+  bitf_t ts_top_oby_test;
+  bitf_t ts_is_dml:1;		/* if del/upd with a joined expressed as in subq, mark the ts that is deld/updated */
   caddr_t ts_rnd_pcnt;
   code_vec_t ts_after_join_test;
   struct inx_op_s *ts_inx_op;
@@ -1476,6 +1482,8 @@ typedef struct setp_node_s
   char setp_top_sort_distinct;	/* when merging branches of top k obys, remove duplicates */
   char setp_set_no_in_key;	/* multistate group by with set no as 1st grouping col */
   char setp_multistate_oby;
+  char setp_top_gby;		/* gby followed by top k oby with first order on a grouping col, allow fetching the top k limit from the gby */
+  int setp_top_gby_nth_col;
   state_slot_t *setp_top;
   state_slot_t *setp_top_skip;
   state_slot_t *setp_row_ctr;
@@ -1484,6 +1492,9 @@ typedef struct setp_node_s
   state_slot_t *setp_last;
   int setp_ties;
   state_slot_t **setp_dependent_box;
+  state_slot_t *setp_top_id;
+  state_slot_t *setp_top_clo;
+  state_slot_t *setp_top_ser;
   state_slot_t *setp_sorted;
   state_slot_t *setp_flushing_mem_sort;
   struct fun_ref_node_s *setp_ordered_gb_fref;
@@ -1595,6 +1606,7 @@ typedef struct fun_ref_node_s
 /* fnr_is_streaming */
 #define FNR_STREAM_DUPS 1	/* grouping cols come in order from the table they come from */
 #define FNR_STREAM_UNQ 2	/* grouping cols do not repeat in the table where they come from */
+#define FNR_STREAM_TOP 8
 
 #define IS_FREF(qn) ((qn_input_fn)fun_ref_node_input == ((data_source_t*)qn)->src_input)
 

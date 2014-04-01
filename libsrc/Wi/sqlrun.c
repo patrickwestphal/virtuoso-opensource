@@ -1410,6 +1410,7 @@ ks_cl_local_cast (key_source_t * ks, caddr_t * inst)
     }
 }
 
+void ts_top_oby_limit (table_source_t * ts, caddr_t * inst, it_cursor_t * itc);
 
 int enable_ro_rc = 1;
 extern int qp_even_if_lock;
@@ -1481,6 +1482,8 @@ ks_start_search (key_source_t * ks, caddr_t * inst, caddr_t * state,
 	}
       if (is_nulls)
 	return 0;
+      if (ks->ks_top_oby_spec)
+	ts_top_oby_limit (ts, inst, itc);
       itc->itc_rows_on_leaves = 0;
       itc->itc_rows_selected = 0;
       qr = ts->src_gen.src_query;
@@ -1791,6 +1794,97 @@ ts_stream_flush_ck (table_source_t * ts, caddr_t * inst)
 
 
 void
+sp_list_remove (search_spec_t ** sps, search_spec_t * rem_sp)
+{
+  search_spec_t sp;
+  while (*sps)
+    {
+      search_spec_t *sp = *sps;
+      if (sp->sp_min == rem_sp->sp_min && sp->sp_max == rem_sp->sp_max)
+	{
+	  *sps = sp->sp_next;
+	  dk_free ((caddr_t) sp, sizeof (search_spec_t));
+	  return;
+	}
+      sps = &sp->sp_next;
+    }
+}
+
+void
+ts_top_oby_limit (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
+{
+  cl_op_t *top_clo;
+  caddr_t val;
+  QNCAST (QI, qi, inst);
+  search_spec_t *sp;
+  state_slot_t *ssl;
+  data_col_t *arr_dc;
+  caddr_t **arr;
+  int fill, top, nth;
+  key_source_t *ks = ts->ts_order_ks;
+  setp_node_t *setp = ks->ks_top_oby_setp;
+  setp_node_t *top_setp = NULL, *setp2 = NULL;
+  if (!setp)
+    {
+      setp = qn_top_setp ((data_source_t *) ts, &setp2);
+      if (!setp)
+	setp = (setp_node_t *) - 1;
+      ks->ks_top_oby_setp = setp;
+      ks->ks_top_oby_top_setp = setp2;
+    }
+  if ((setp_node_t *) - 1 == setp)
+    return;
+  top_setp = ks->ks_top_oby_top_setp ? ks->ks_top_oby_top_setp : setp;
+  if (!setp_top_k_limit (setp, inst, &val))
+    return;
+  if (!itc->itc_top_row_spec)
+    {
+      if (RSP_CHANGED != itc->itc_hash_row_spec)
+	itc->itc_row_specs = sp_list_copy (itc->itc_row_specs);
+      sp = sp_copy (ks->ks_top_oby_spec);
+      sp->sp_next = itc->itc_row_specs;
+      itc->itc_row_specs = sp;
+      itc->itc_top_row_spec = 1;
+      if (itc->itc_is_col)
+	itc_set_sp_stat (itc);
+    }
+  sp = ks->ks_top_oby_spec;
+  if (sp->sp_min_ssl)
+    {
+      ssl = sp->sp_min_ssl;
+      nth = sp->sp_min;
+    }
+  else
+    {
+      ssl = sp->sp_max_ssl;
+      nth = sp->sp_max;
+    }
+  if (tb_is_rdf_quad (ks->ks_key->key_table))
+    {
+      if (DV_STRINGP (val))
+	{
+	  /* string cases, i.e. rdf box or iri cannot be pushed as a seldction on the table, need the conversion function */
+	  sp_list_remove (&itc->itc_row_specs, ks->ks_top_oby_spec);
+	  if (itc->itc_is_col)
+	    itc_set_sp_stat (itc);
+	}
+    }
+  if (DV_ANY == sp->sp_cl.cl_sqt.sqt_col_dtp)
+    {
+      caddr_t err = NULL;
+      qst_set (inst, ssl, box_to_any (val, &err));
+      dk_free_tree (val);
+    }
+  else
+    qst_set (inst, ssl, val);
+  itc->itc_search_params[nth] = QST_GET_V (inst, ssl);
+  if (itc->itc_search_par_fill < nth + 1)
+    itc->itc_search_par_fill = nth + 1;
+  ITC_P_VEC (itc, nth) = NULL;
+}
+
+
+void
 table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile state)
 {
   int order_buf_preset = 0;
@@ -2024,6 +2118,8 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
 #endif
 	  ts_alt_path_ck (ts, inst);
 	  qn_ts_send_output ((data_source_t *) ts, state, ts->ts_after_join_test);
+	  if (ts->ts_order_ks->ks_top_oby_col)
+	    ts_top_oby_limit (ts, inst, order_itc);
 	}
       state = NULL;
     }
@@ -3273,7 +3369,7 @@ fnr_max_set_no (fun_ref_node_t * fref, caddr_t * inst, state_slot_t ** ssl_ret)
   if (ssl_ret)
     *ssl_ret = set_no_ssl;
   if (!set_nos->dc_n_values)
-    GPF_T1 ("musta forgotten branch copy of set no ssl for fref");
+    return 0;			/* can be there is no set no copied if single state top level ins/del/upd qr, then it is always 1 set */
   return ((int64 *) set_nos->dc_values)[set_nos->dc_n_values - 1];
 }
 
@@ -3362,6 +3458,8 @@ fun_ref_node_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
       state = inst;
       goto fref_at_finish;
     }
+  if (fref->fnr_setp && fref->fnr_setp->setp_top_id)
+    setp_top_init (fref->fnr_setp, inst);
   if (!state)
     {
       setp_node_t *setp = fref->fnr_setp;
@@ -3675,8 +3773,13 @@ qr_mt_dml_sync (query_t * qr, query_instance_t * qi)
 	    do
 	      {
 		err = NULL;
-		aq_wait_all (aq, &err);
-		dk_free_tree (err);
+		IO_SECT (qi)
+		{
+		  aq_wait_all (aq, &err);
+		  dk_free_tree (err);
+		  err = NULL;
+		}
+		END_IO_SECT (err);
 	      }
 	    while (err);
 	  }
@@ -4147,7 +4250,7 @@ qr_exec (client_connection_t * cli, query_t * qr,
   {
     int found;
     caddr_t val;
-    if (parm->ssl_qr_global)
+    if (parm->ssl_qr_global && parm->ssl_name && 'l' == parm->ssl_name[1])
       {
 	caddr_t err = qr_exec_lit_params (qi);
 	if (err)

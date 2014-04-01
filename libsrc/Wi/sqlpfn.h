@@ -96,6 +96,10 @@ caddr_t sqlp_function_name (char *q, char *o, char *n);
 
 caddr_t sqlp_new_table_name (char *q, size_t max_q, char *o, size_t max_o, char *n);
 caddr_t sqlp_new_qualifier_name (char *q, size_t max_q);
+extern ST *sqlp_new_table_dotted (caddr_t table_name, caddr_t id, ST * options);
+
+extern int sqlp_user_has_raw_rdf_access (oid_t u_id, oid_t g_id);
+
 
 
 ST **asg_col_list (ST ** asg_list);

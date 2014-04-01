@@ -57,7 +57,7 @@
 #include "http.h"
 #include "mhash.h"
 
-extern int enable_qrc;			/* generate query plan comments and warnings */
+int enable_qrc;			/* generate query plan comments and warnings */
 #define MSG_MAX_LEN 100
 
 typedef struct qr_comment_s
@@ -772,6 +772,8 @@ ks_print_0 (key_source_t * ks)
   if (ks->ks_from_temp_tree || !ks->ks_key)
     stmt_printf (("Key from temp "));
   ssl_list_print (ks->ks_out_slots);
+  if (ks->ks_is_deleting)
+    stmt_printf (("deleting"));
   if (ks->ks_v_out_map)
     {
       int inx;
@@ -803,6 +805,8 @@ ks_print_0 (key_source_t * ks)
     }
   if (!any)
     stmt_printf (("\n"));
+  if (ks->ks_top_oby_col)
+    stmt_printf (("top k on %s\n", ks->ks_top_oby_col->col_name));
   if (ks->ks_local_test)
     {
       stmt_printf ((" Local Test\n"));
@@ -903,6 +907,8 @@ ks_print (key_source_t * ks)
       ssl_array_print (ks->ks_cl_local_cast);
       stmt_printf (("\n"));
     }
+  if (ks->ks_top_oby_col)
+    stmt_printf (("top k on %s\n", ks->ks_top_oby_col->col_name));
   if (ks->ks_local_test)
     {
       stmt_printf ((" Local Test\n"));

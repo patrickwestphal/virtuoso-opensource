@@ -1009,7 +1009,12 @@ sqlc_print_count_exp (sql_comp_t * sc, comp_table_t * ct, ST * exp, char *text, 
 		sprintf_more (text, tlen, fill, "*");
 	    }
 	  else
-	    sqlc_exp_print (sc, ct, arg_st, text, tlen, fill);
+	    {
+	      if (st_is_call (arg_st, "isnotnull", 1))
+		sqlc_exp_print (sc, ct, arg_st->_.call.params[0], text, tlen, fill);
+	      else
+		sqlc_exp_print (sc, ct, arg_st, text, tlen, fill);
+	    }
 	  sprintf_more (text, tlen, fill, ")");
 	  sc->sc_exp_sqt.sqt_dtp = DV_LONG_INT;
 	  sc->sc_exp_sqt.sqt_col_dtp = 0;

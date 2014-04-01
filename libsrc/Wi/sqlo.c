@@ -2959,7 +2959,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	if (ST_P (tree, COL_DOTTED))
 	  {
 	    if (!tree->_.col_ref.prefix)
-	      return 0;
+	      return 1;
 	    op_table_t *ot = sqlo_cname_ot (so, tree->_.col_ref.prefix), *ot2;
 	    for (ot2 = ot; ot2; ot2 = ot2->ot_super)
 	      if (ot2->ot_is_outer || ot2->ot_inside_outer)
@@ -2996,6 +2996,12 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 	      return 0;
 	    else
 	      return sqlo_exp_nullable (so, tree->_.fn_ref.fn_arg);
+	  }
+	if (ST_P (tree, CALL_STMT))
+	  {
+	    if (st_is_call (tree, "__ro2sq", 1))
+	      return sqlo_exp_nullable (so, tree->_.call.params[0]);
+	    return 1;
 	  }
 	DO_BOX (ST *, sub, inx, tree)
 	{

@@ -133,10 +133,10 @@ aq_thread_func (aq_thread_t * aqt)
       aqt->aqt_thread->thr_tlsf = aqt->aqt_cli->cli_tlsf;
       if (!aq->aq_no_lt_enter)
 	{
-	  lt_enter_anyway (aqt->aqt_cli->cli_trx);
 	  aqt->aqt_cli->cli_trx->lt_thr = self;
 	  aqt->aqt_cli->cli_trx->lt_main_trx_no = aq->aq_main_trx_no;
 	  aqt->aqt_cli->cli_trx->lt_rc_w_id = aq->aq_rc_w_id;
+	  lt_enter_anyway (aqt->aqt_cli->cli_trx);
 	  memcpy (aqt->aqt_cli->cli_trx->lt_timestamp, aq->aq_lt_timestamp, DT_LENGTH);
 	}
       if (aqt->aqt_cli->cli_trx->lt_vdb_threads)

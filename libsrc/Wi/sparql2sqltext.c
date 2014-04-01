@@ -23,6 +23,7 @@
 
 #include "sparql2sql.h"
 #include "arith.h"
+#include "cluster.h"
 #include "sqlparext.h"
 #include "sqlbif.h"
 #include "sqlcmps.h"
@@ -4646,7 +4647,8 @@ valmode_is_found:
 	return SSG_VALMODE_NUM;
       if (!strcmp (name, "SPECIAL::bif:__rgs_assert_cbk") ||
 	  !strcmp (name, "SPECIAL::bif:__rgs_assert") ||
-	  !strcmp (name, "SPECIAL::bif:__rgs_ack_cbk") || !strcmp (name, "SPECIAL::bif:__rgs_ack"))
+	  !strcmp (name, "SPECIAL::bif:__rgs_ack_cbk") ||
+	  !strcmp (name, "SPECIAL::bif:__rgs_ack") || !strcmp (name, "SPECIAL::bif:__rgs_ack_as_IN_clo"))
 	return SSG_VALMODE_SQLVAL;
       spar_internal_error (sparp, "sparp_" "rettype_of_function(): unsupported SPECIAL");
     }
@@ -4793,7 +4795,8 @@ sparp_argtype_of_function (sparp_t * sparp, caddr_t name, SPART * tree, int arg_
 	return SSG_VALMODE_NUM;
       if (!strcmp (name, "SPECIAL::bif:__rgs_assert_cbk") ||
 	  !strcmp (name, "SPECIAL::bif:__rgs_assert") ||
-	  !strcmp (name, "SPECIAL::bif:__rgs_ack_cbk") || !strcmp (name, "SPECIAL::bif:__rgs_ack"))
+	  !strcmp (name, "SPECIAL::bif:__rgs_ack_cbk") ||
+	  !strcmp (name, "SPECIAL::bif:__rgs_ack") || !strcmp (name, "SPECIAL::bif:__rgs_ack_as_IN_clo"))
 	return ((0 < arg_idx) ? SSG_VALMODE_SQLVAL : SSG_VALMODE_SHORT_OR_LONG);
       spar_internal_error (sparp, "sparp_" "argtype_of_function(): unsupported SPECIAL");
     }
@@ -5454,6 +5457,37 @@ ssg_print_scalar_expn (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t needed, 
 	    ssg_putchar (')');
 	    goto print_asname;
 	  }
+#ifdef RDF_SECURITY_CLO
+	if (!strcmp (tree->_.funcall.qname, "SPECIAL::bif:__rgs_ack_as_IN_clo"))
+	  {
+	    SPART *g_arg = tree->_.funcall.argtrees[0];
+	    SPART *uid_arg = tree->_.funcall.argtrees[1];
+	    SPART *req_perms_arg = tree->_.funcall.argtrees[2];
+	    ssg_puts (" (");
+	    ssg->ssg_indent++;
+	    ssg_print_scalar_expn (ssg, g_arg, SSG_VALMODE_SHORT_OR_LONG, NULL_ASNAME);
+	    ssg_puts (" in (");
+	    ssg->ssg_indent++;
+	    if (unbox ((caddr_t) uid_arg) != U_ID_NOBODY)
+	      {
+		ssg_puts (" __rgs_user_perms_clo (");
+		ssg->ssg_indent++;
+		ssg_print_scalar_expn (ssg, uid_arg, SSG_VALMODE_NUM, NULL_ASNAME);
+		ssg_putchar (',');
+		ssg_print_scalar_expn (ssg, req_perms_arg, SSG_VALMODE_NUM, NULL_ASNAME);
+		ssg->ssg_indent--;
+		ssg_puts ("), ");
+	      }
+	    ssg_puts (" __rgs_user_perms_clo (");
+	    ssg->ssg_indent++;
+	    ssg_print_scalar_expn (ssg, (SPART *) ((ptrlong) (U_ID_NOBODY)), SSG_VALMODE_NUM, NULL_ASNAME);
+	    ssg_putchar (',');
+	    ssg_print_scalar_expn (ssg, req_perms_arg, SSG_VALMODE_NUM, NULL_ASNAME);
+	    ssg_puts (")))");
+	    ssg->ssg_indent -= 3;
+	    goto print_asname;
+	  }
+#endif
 	ssg_putchar (' ');
 	ssg_prin_function_name (ssg, tree->_.funcall.qname);
 	ssg_puts (" (");

@@ -238,31 +238,36 @@ sqlo_is_col_eq (op_table_t * ot, df_elt_t * col, df_elt_t * val)
 void
 sqlo_col_eq (op_table_t * ot, df_elt_t * col, df_elt_t * val)
 {
-  dk_set_t *place, v = NULL;
+  dk_set_t *place, *place2 = NULL, v = NULL;
   if (!ot->ot_eq_hash)
     {
       ot->ot_eq_hash = t_id_hash_allocate (33, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
     }
+  if (DFE_COLUMN == val->dfe_type)
+    {
+      place2 = (dk_set_t *) id_hash_get (ot->ot_eq_hash, (caddr_t) & val->dfe_tree);
+    }
   place = (dk_set_t *) id_hash_get (ot->ot_eq_hash, (caddr_t) & col->dfe_tree);
   if (place)
     v = *place;
+  else
+    v = t_cons (col, NULL);
   t_set_pushnew (&v, (void *) val);
-  if (DFE_COLUMN == val->dfe_type)
-    {
-      dk_set_t *eqs_place = (dk_set_t *) id_hash_get (ot->ot_eq_hash, (caddr_t) & val->dfe_tree);
-      if (eqs_place)
-	{
-	  v = t_set_union (*eqs_place, v);
-	}
-    }
-  t_id_hash_set (ot->ot_eq_hash, (caddr_t) & col->dfe_tree, (caddr_t) & v);
+  if (place2)
+    v = t_set_union (*place2, v);
+  DO_SET (df_elt_t *, member, &v)
+  {
+    if (DFE_COLUMN == member->dfe_type)
+      t_id_hash_set (ot->ot_eq_hash, (caddr_t) & member->dfe_tree, (caddr_t) & v);
+  }
+  END_DO_SET ();
 }
 
 
 void
 sqlo_init_eqs (sqlo_t * so, op_table_t * ot, dk_set_t preds)
 {
-  if (!preds && (!ot->ot_from_dfes || !ot->ot_from_dfes->next))
+  if (!preds && !ot->ot_from_dfes)
     return;
   if (!preds)
     preds = ot->ot_preds;
@@ -275,7 +280,6 @@ sqlo_init_eqs (sqlo_t * so, op_table_t * ot, dk_set_t preds)
 	if (DFE_COLUMN == left->dfe_type && DFE_COLUMN == right->dfe_type && !dfe_col_of_oj (left) && !dfe_col_of_oj (right))
 	  {
 	    sqlo_col_eq (ot, left, right);
-	    sqlo_col_eq (ot, right, left);
 	  }
 	else if (DFE_COLUMN == left->dfe_type)
 	  sqlo_col_eq (ot, left, right);

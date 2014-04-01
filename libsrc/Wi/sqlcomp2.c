@@ -1568,7 +1568,6 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
       int64 sqlc_mem;
       db_activity_t tmp;
       sqlc_cum_memory += sqlc_mem = THR_TMP_POOL->mp_bytes;
-      MP_DONE ();
       CLI_THREAD_TIME (cli);
       tmp = cli->cli_activity;
       da_sub (&tmp, &da_before);
@@ -1579,6 +1578,8 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
       cli->cli_compile_activity.da_memory = sqlc_mem;
     }
   sc_free (&sc);
+  if (!nested_sql_comp)
+    MP_DONE ();
 
   if (qr)
     qr->qr_is_complete = 1;

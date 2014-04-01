@@ -24,6 +24,7 @@
 #include "sparql2sql.h"
 #include "sqlparext.h"
 #include "arith.h"
+#include "cluster.h"
 #include "sqlbif.h"
 #include "sqlcmps.h"
 #ifdef __cplusplus
@@ -7396,6 +7397,7 @@ sparp_gp_trav_add_graph_perm_read_filters (sparp_t * sparp, SPART * curr, sparp_
       dtp_t g_norm_expn_dtp;
       int g_norm_is_var;
       SPART *gp_of_cache;
+      const char *rgs_ack_fname;
       if (SPAR_TRIPLE != memb->type)
 	continue;
       if (NULL != memb->_.triple.sinv_idx_and_qms[0])
@@ -7471,11 +7473,20 @@ sparp_gp_trav_add_graph_perm_read_filters (sparp_t * sparp, SPART * curr, sparp_
 	  g_copy->_.var.tabid = NULL;
 	  g_copy->_.var.equiv_idx = SPART_BAD_EQUIV_IDX;
 	}
+      if (NULL != sparp->sparp_gs_app_callback)
+	rgs_ack_fname = "SPECIAL::bif:__rgs_ack_cbk";
+      else
+#ifdef RDF_SECURITY_CLO
+      if ((NULL == g_fake_arg_for_side_fx) && !spar_world_and_private_perms_differ (sparp, RDF_GRAPH_PERM_READ))
+	rgs_ack_fname = "SPECIAL::bif:__rgs_ack_as_IN_clo";
+      else
+#endif
+	rgs_ack_fname = "SPECIAL::bif:__rgs_ack";
       filter = spar_make_funcall (sparp, 0,
-	  ((NULL != sparp->sparp_gs_app_callback) ? "SPECIAL::bif:__rgs_ack_cbk" : "SPECIAL::bif:__rgs_ack"),
+	  rgs_ack_fname,
 	  (NULL == g_fake_arg_for_side_fx) ?
-	  (SPART **) t_list (3, g_copy, spar_exec_uid_and_gs_cbk (sparp), RDF_GRAPH_PERM_READ) :
-	  (SPART **) t_list (5, g_copy, spar_exec_uid_and_gs_cbk (sparp), RDF_GRAPH_PERM_READ,
+	  (SPART **) t_list (3, g_copy, spar_exec_uid_and_gs_cbk (sparp), t_box_num (RDF_GRAPH_PERM_READ)) :
+	  (SPART **) t_list (5, g_copy, spar_exec_uid_and_gs_cbk (sparp), t_box_num (RDF_GRAPH_PERM_READ),
 	      spartlist (sparp, 4, SPAR_LIT, t_box_dv_short_string ("SPARQL query"), NULL, NULL), g_fake_arg_for_side_fx));
       sparp_gp_attach_filter (sparp, curr, filter, 0, NULL);
       if (!g_norm_is_var ||

@@ -426,7 +426,11 @@ qr_free (query_t * qr)
     return;
   if (!qrc_free (qr))
     return;
-  if (!qr->qr_qf_id && !qr->qr_super)
+  if (!qr->qr_qf_id && !qr->qr_super
+#ifdef MALLOC_DEBUG
+      && !qr->qr_static_source_line
+#endif
+      )
     {
       /* a local qr has parallel branches.  If going, let the last of them free the qr */
       IN_CLL;
@@ -1076,6 +1080,13 @@ ks_set_search_params (comp_context_t * cc, comp_table_t * ct, key_source_t * ks)
 	sp->sp_max = inx++;
       sp = sp->sp_next;
     }
+  if ((sp = ks->ks_top_oby_spec))
+    {
+      if (sp->sp_min_ssl)
+	sp->sp_min = inx++;
+      if (sp->sp_max_ssl)
+	sp->sp_max = inx++;
+    }
   if (cc && inx >= MAX_SEARCH_PARAMS)
     sqlc_error (cc, "42000", "The number of predicates is too high");
 }
@@ -1312,6 +1323,7 @@ ks_free (key_source_t * ks)
     return;
   key_free_trail_specs (ks->ks_spec.ksp_spec_array);
   key_free_trail_specs (ks->ks_row_spec);
+  key_free_trail_specs (ks->ks_top_oby_spec);
   dk_set_free (ks->ks_out_cols);
   dk_set_free (ks->ks_out_slots);
   cv_free (ks->ks_local_test);

@@ -9,6 +9,8 @@
 #include "arith.h"
 
 
+extern long strses_file_wait_msec;
+
 #define FSP_TEXT 0
 #define FSP_AFTER_NL1 1
 #define FSP_AFTER_ESC 2
@@ -83,11 +85,13 @@ int inx = 0; \
 #define NEXTC \
 { \
   if (inx == fill) \
-    {\
+    { uint32 msec;				    \
       dks_prev_recd(ses) = ses->dks_bytes_received; \
       if (!copy && need_copy) \
 	START_COPY; \
+			 msec = get_msec_real_time (); \
       fill = ses->dks_in_fill = service_read (ses, ses->dks_in_buffer, ses->dks_in_length, 0);\
+			 strses_file_wait_msec += get_msec_real_time () - msec; \
       inx = 1;\
       ses->dks_in_read = 0;\
       str = ses->dks_in_buffer;\

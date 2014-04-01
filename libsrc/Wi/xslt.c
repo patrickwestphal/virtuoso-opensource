@@ -3417,7 +3417,7 @@ box_find_mt_unsafe_subtree (caddr_t box)
 	id_hash_iterator_t tmp_hit;
 	if (NULL == hit->hit_hash)
 	  return NULL;
-	if (NULL != hit->hit_hash->ht_mutex)
+	if (NULL != hit->hit_hash->ht_rwlock)
 	  return NULL;
 	id_hash_iterator (&tmp_hit, hit->hit_hash);
 	while (hit_next (&tmp_hit, (char **) (&key_ptr), (char **) (&val_ptr)))
@@ -3477,9 +3477,9 @@ box_make_tree_mt_safe (caddr_t box)
 	id_hash_iterator_t tmp_hit;
 	if (NULL != hit->hit_hash)
 	  {
-	    if (NULL != hit->hit_hash->ht_mutex)
+	    if (NULL != hit->hit_hash->ht_rwlock)
 	      return;
-	    hit->hit_hash->ht_mutex = mutex_allocate ();
+	    hit->hit_hash->ht_rwlock = rwlock_allocate ();
 	  }
 	id_hash_iterator (&tmp_hit, hit->hit_hash);
 	while (hit_next (&tmp_hit, (char **) &key_ptr, (char **) &val_ptr))
@@ -3597,7 +3597,7 @@ bif_dict_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t val = bif_arg (qst, args, 2, "dict_put");
   caddr_t *old_val_ptr;
   long res;
-  if (ht->ht_mutex)
+  if (ht->ht_rwlock)
     {
       caddr_t unsafe_val_subtree;
       unsafe_val_subtree = box_find_mt_unsafe_subtree (val);
@@ -3608,7 +3608,7 @@ bif_dict_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	      "Argument #3 for dict_put() contain data of type %s (%d) that can not be used as a value in a dictionary that is shared between threads",
 	      dv_type_title (dtp), dtp);
 	}
-      mutex_enter (ht->ht_mutex);
+      rwlock_wrlock (ht->ht_rwlock);
     }
   if ((0 < ht->ht_dict_max_entries) && ((ht->ht_inserts - ht->ht_deletes) > ht->ht_dict_max_entries))
     goto skip_insertion;	/* see below */
@@ -3621,20 +3621,20 @@ bif_dict_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	ht->ht_dict_mem_in_use += raw_length (val) - raw_length (old_val_ptr[0]);
       dk_free_tree (old_val_ptr[0]);
       val = box_copy_tree (val);
-      if (ht->ht_mutex)
+      if (ht->ht_rwlock)
 	box_make_tree_mt_safe (val);
       old_val_ptr[0] = val;
     }
   else
     {
-      if (ht->ht_mutex)
+      if (ht->ht_rwlock)
 	{
 	  caddr_t unsafe_key_subtree;
 	  unsafe_key_subtree = box_find_mt_unsafe_subtree (key);
 	  if (NULL != unsafe_key_subtree)
 	    {
 	      dtp_t dtp = DV_TYPE_OF (unsafe_key_subtree);
-	      mutex_leave (ht->ht_mutex);
+	      rwlock_unlock (ht->ht_rwlock);
 	      sqlr_new_error ("42000", "SR566",
 		  "Argument #2 for dict_put() contain data of type %s (%d) that can not be used as a key in a dictionary that is shared between threads",
 		  dv_type_title (dtp), dtp);
@@ -3642,7 +3642,7 @@ bif_dict_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	}
       key = box_copy_tree (key);
       val = box_copy_tree (val);
-      if (ht->ht_mutex)
+      if (ht->ht_rwlock)
 	{
 	  box_make_tree_mt_safe (key);
 	  box_make_tree_mt_safe (val);
@@ -3658,8 +3658,8 @@ bif_dict_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       /* It's incorrect to write hit->hit_dict_version = ht->ht_dict_version because they may be out of sync before the id_hash_put */
       ;
 skip_insertion:
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   res = ht->ht_inserts - ht->ht_deletes;
   return box_num (res);
 }
@@ -3673,8 +3673,8 @@ bif_dict_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t key = bif_arg (qst, args, 1, "dict_get");
   caddr_t *valptr;
   caddr_t res;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_rdlock (ht->ht_rwlock);
   valptr = (caddr_t *) id_hash_get (ht, (caddr_t) (&key));
   if (NULL == valptr)
     {
@@ -3685,8 +3685,8 @@ bif_dict_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   else
     res = box_copy_tree (valptr[0]);
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return res;
 }
 
@@ -3698,11 +3698,11 @@ bif_dict_contains_key (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   id_hash_t *ht = hit->hit_hash;
   caddr_t key = bif_arg (qst, args, 1, "dict_contains_key");
   caddr_t *valptr;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_rdlock (ht->ht_rwlock);
   valptr = (caddr_t *) id_hash_get (ht, (caddr_t) (&key));
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return (caddr_t) ((ptrlong) ((NULL != valptr) ? 1 : 0));
 }
 
@@ -3716,8 +3716,8 @@ bif_dict_remove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t *old_key_ptr, *old_val_ptr;
   caddr_t old_key, old_val;
   int res;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_wrlock (ht->ht_rwlock);
   old_val_ptr = (caddr_t *) id_hash_get (ht, (caddr_t) (&key));
   if (NULL == old_val_ptr)
     res = 0;
@@ -3737,8 +3737,8 @@ bif_dict_remove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	hit->hit_dict_version++;
       res = 1;
     }
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return box_num (res);
 }
 
@@ -3751,8 +3751,8 @@ bif_dict_inc_or_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   boxint inc_val = bif_long_range_arg (qst, args, 2, "dict_inc_or_put", 0, 0xffff);
   boxint res;
   caddr_t *old_val_ptr;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_wrlock (ht->ht_rwlock);
   if ((0 < ht->ht_dict_max_entries) && ((ht->ht_inserts - ht->ht_deletes) > ht->ht_dict_max_entries))
     goto skip_insertion;	/* see below */
   if ((0 < ht->ht_dict_max_mem_in_use) && (ht->ht_dict_mem_in_use > ht->ht_dict_max_mem_in_use))
@@ -3775,7 +3775,7 @@ bif_dict_inc_or_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       caddr_t val = box_num (inc_val);
       key = box_copy_tree (key);
       res = inc_val;
-      if (ht->ht_mutex)
+      if (ht->ht_rwlock)
 	box_make_tree_mt_safe (key);
       id_hash_set (ht, (caddr_t) (&key), (caddr_t) (&val));
       if (0 < ht->ht_dict_max_mem_in_use)
@@ -3788,8 +3788,8 @@ bif_dict_inc_or_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       /* It's incorrect to write hit->hit_dict_version = ht->ht_dict_version because they may be out of sync before the id_hash_put */
       ;
 skip_insertion:
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   res = ht->ht_inserts - ht->ht_deletes;
   return box_num (res);
 }
@@ -3803,8 +3803,8 @@ bif_dict_dec_or_remove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   boxint dec_val = bif_long_range_arg (qst, args, 2, "dict_dec_or_remove", 0, 0xffff);
   caddr_t *old_key_ptr, *old_val_ptr;
   boxint res = 0;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_wrlock (ht->ht_rwlock);
   old_val_ptr = (caddr_t *) id_hash_get (ht, (caddr_t) (&key));
   if (NULL == old_val_ptr)
     res = 0;
@@ -3839,8 +3839,8 @@ bif_dict_dec_or_remove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	hit->hit_dict_version++;
       res = 0;
     }
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return box_num (res);
 }
 
@@ -3853,8 +3853,8 @@ bif_dict_bitor_or_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   boxint bits_to_set = bif_long_arg (qst, args, 2, "dict_bitor_or_put");
   boxint res;
   caddr_t *old_val_ptr;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_wrlock (ht->ht_rwlock);
   if ((0 < ht->ht_dict_max_entries) && ((ht->ht_inserts - ht->ht_deletes) > ht->ht_dict_max_entries))
     goto skip_insertion;	/* see below */
   if ((0 < ht->ht_dict_max_mem_in_use) && (ht->ht_dict_mem_in_use > ht->ht_dict_max_mem_in_use))
@@ -3875,7 +3875,7 @@ bif_dict_bitor_or_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       caddr_t val = box_num (bits_to_set);
       key = box_copy_tree (key);
       res = bits_to_set;
-      if (ht->ht_mutex)
+      if (ht->ht_rwlock)
 	box_make_tree_mt_safe (key);
       id_hash_set (ht, (caddr_t) (&key), (caddr_t) (&val));
       if (0 < ht->ht_dict_max_mem_in_use)
@@ -3888,8 +3888,8 @@ bif_dict_bitor_or_put (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       /* It's incorrect to write hit->hit_dict_version = ht->ht_dict_version because they may be out of sync before the id_hash_put */
       ;
 skip_insertion:
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   res = ht->ht_inserts - ht->ht_deletes;
   return box_num (res);
 }
@@ -3905,14 +3905,14 @@ bif_dict_zap (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (NULL == hit1)
     return box_num (0);
   ht = hit1->hit_hash;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_wrlock (ht->ht_rwlock);
   len = ht->ht_inserts - ht->ht_deletes;
   id_hash_iterator (&hit, ht);
   if ((1 != ht->ht_dict_refctr) && !(destructive &= ~1))
     {
-      if (ht->ht_mutex)
-	mutex_leave (ht->ht_mutex);
+      if (ht->ht_rwlock)
+	rwlock_unlock (ht->ht_rwlock);
       sqlr_new_error ("22023", "SR632",
 	  "dict_zap() can not zap a dictionary that is used in many places, if second parameter is 0 or 1");
     }
@@ -3924,8 +3924,8 @@ bif_dict_zap (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   id_hash_clear (ht);
   ht->ht_dict_version++;
   ht->ht_dict_mem_in_use = 0;
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return (caddr_t) box_num (len);
 }
 
@@ -3952,13 +3952,13 @@ bif_dict_list_keys (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (NULL == hit1)
     return list (0);
   ht = hit1->hit_hash;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_rdlock (ht->ht_rwlock);
   len = ht->ht_inserts - ht->ht_deletes;
   if ((len * sizeof (caddr_t)) & ~0xffffff)
     {
-      if (ht->ht_mutex)
-	mutex_leave (ht->ht_mutex);
+      if (ht->ht_rwlock)
+	rwlock_unlock (ht->ht_rwlock);
       sqlr_new_error ("22023", "SR...", "The result vector is too large");
     }
   res = (caddr_t *) dk_alloc_box (len * sizeof (caddr_t), DV_ARRAY_OF_POINTER);
@@ -3984,8 +3984,8 @@ bif_dict_list_keys (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       ht->ht_dict_version++;
       ht->ht_dict_mem_in_use = 0;
     }
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return (caddr_t) res;
 }
 
@@ -4000,8 +4000,8 @@ bif_dict_destructive_list_rnd_keys (caddr_t * qst, caddr_t * err_ret, state_slot
   if (NULL == hit1)
     return list (0);
   ht = hit1->hit_hash;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_wrlock (ht->ht_rwlock);
   len = ht->ht_inserts - ht->ht_deletes;
   if (len > batch_size)
     len = batch_size;
@@ -4029,8 +4029,8 @@ bif_dict_destructive_list_rnd_keys (caddr_t * qst, caddr_t * err_ret, state_slot
   return NULL;			/* never reached */
 res_done:
   ht->ht_dict_version++;
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return (caddr_t) res;
 }
 
@@ -4045,13 +4045,18 @@ bif_dict_to_vector (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (NULL == hit1)
     return list (0);
   ht = hit1->hit_hash;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    {
+      if (destructive)
+	rwlock_wrlock (ht->ht_rwlock);
+      else
+	rwlock_rdlock (ht->ht_rwlock);
+    }
   box_len = (ht->ht_inserts - ht->ht_deletes) * 2 * sizeof (caddr_t);
   if (box_len >= MAX_BOX_LENGTH)
     {
-      if (ht->ht_mutex)
-	mutex_leave (ht->ht_mutex);
+      if (ht->ht_rwlock)
+	rwlock_unlock (ht->ht_rwlock);
       sqlr_new_error ("22023", ".....", "The result array too large");
     }
   res = (caddr_t *) dk_alloc_box (box_len, DV_ARRAY_OF_POINTER);
@@ -4078,8 +4083,8 @@ bif_dict_to_vector (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       ht->ht_dict_version++;
       ht->ht_dict_mem_in_use = 0;
     }
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return (caddr_t) res;
 }
 
@@ -4091,13 +4096,13 @@ bif_dict_iter_rewind (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (NULL == hit)
     return box_num (0);
   ht = hit->hit_hash;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_rdlock (ht->ht_rwlock);
   hit->hit_bucket = 0;
   hit->hit_chilum = NULL;
   hit->hit_dict_version = ht->ht_dict_version;
-  if (ht->ht_mutex)
-    mutex_leave (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_unlock (ht->ht_rwlock);
   return box_num (ht->ht_inserts - ht->ht_deletes);
 }
 
@@ -4112,8 +4117,8 @@ bif_dict_iter_next (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (NULL == hit)
     return box_num (0);
   ht = hit->hit_hash;
-  if (ht->ht_mutex)
-    mutex_enter (ht->ht_mutex);
+  if (ht->ht_rwlock)
+    rwlock_rdlock (ht->ht_rwlock);
   if (hit->hit_dict_version == ht->ht_dict_version)
     {
       caddr_t *key, *data;
@@ -4128,8 +4133,8 @@ bif_dict_iter_next (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   else
     {
-      if (ht->ht_mutex)
-	mutex_leave (ht->ht_mutex);
+      if (ht->ht_rwlock)
+	rwlock_unlock (ht->ht_rwlock);
       sqlr_new_error ("22023", "SR630",
 	  "Function dict_iter_next() tries to iterate a volatile dictionary changed after last dict_iter_rewind()");
     }

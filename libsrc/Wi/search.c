@@ -424,10 +424,11 @@ itc_clear (it_cursor_t * it)
       it->itc_local_key_spec = 0;
       it->itc_key_spec.ksp_spec_array = NULL;
     }
-  if (RSP_CHANGED == it->itc_hash_row_spec)
+  if (RSP_CHANGED == it->itc_hash_row_spec || it->itc_top_row_spec)
     {
       key_free_trail_specs (it->itc_row_specs);
       it->itc_hash_row_spec = 0;
+      it->itc_top_row_spec = 0;
       it->itc_row_specs = NULL;
     }
   if (it->itc_siblings)

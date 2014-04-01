@@ -247,11 +247,14 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	else
 	  sqlo_print (("  Reached %9.2g unit %9.2g arity %9.2g %s\n",
 		  (double) dfe->_.table.in_arity, (double) dfe->dfe_unit, (double) dfe->dfe_arity, spacing));
-	sqlo_print (("  col preds: "));
 	if (dfe->_.table.index_path)
 	  sqlo_index_path_print (dfe);
+	if (dfe->_.table.top_pred)
+	  {
+	    sqlo_print (("top k sel %9.2g\n", dfe->_.table.top_sel));
+	  }
 	if (dfe->_.table.col_preds)
-	  sqlo_print (("\n"));
+	  sqlo_print (("\ncol preds:"));
 	sqlo_dfe_list_print (dfe->_.table.col_preds, offset + OFS_INCR);
 	if (dfe->_.table.col_pred_merges)
 	  {
@@ -488,6 +491,7 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
       sqlo_print (("after test: "));
       sqlo_dfe_print ((df_elt_t *) dfe->_.filter.body, offset + OFS_INCR);
       sqlo_print (("\n"));
+      break;
     default:
       sqlo_print (("node\n"));
       break;

@@ -2122,6 +2122,8 @@ setp_refd_slots (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res, dk_hash_t
   REF_SSL (res, setp->setp_top_skip);
   if ((HA_ORDER == op && setp->setp_multistate_oby) || (HA_GROUP == op && setp->setp_set_no_in_key))
     REF_SSL (res, setp->setp_ssa.ssa_set_no);
+  REF_SSL (res, setp->setp_top_id);
+  REF_SSL (res, setp->setp_ssa.ssa_set_no);
   DO_SET (gb_op_t *, go, &setp->setp_gb_ops)
   {
     if (go->go_ua_arglist)

@@ -2945,18 +2945,10 @@ new_table_name
 	;
 
 table
-	: q_table_name opt_table_opt
-		{ $$ = t_listbox (6, TABLE_DOTTED, $1, NULL, sqlp_view_u_id (), sqlp_view_g_id (), $2); }
-	| q_table_name AS identifier opt_table_opt
-		{
-		  $$ = t_listbox (6, TABLE_DOTTED, $1, $3, sqlp_view_u_id (), sqlp_view_g_id (), $4);
-		}
-	| q_table_name identifier opt_table_opt
-		{
-		  $$ = t_listbox (6, TABLE_DOTTED, $1, $2, sqlp_view_u_id (), sqlp_view_g_id (), $3);
-		}
+	: q_table_name opt_table_opt			{ $$ = sqlp_new_table_dotted ($1, NULL, $2); }
+	| q_table_name AS identifier opt_table_opt	{ $$ = sqlp_new_table_dotted ($1, $3, $4); }
+	| q_table_name identifier opt_table_opt		{ $$ = sqlp_new_table_dotted ($1, $2, $3); }
 	;
-
 
 column_ref
 	: identifier

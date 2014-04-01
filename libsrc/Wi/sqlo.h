@@ -74,18 +74,21 @@ typedef struct op_table_s
   struct op_table_s *ot_group_ot;
   dk_set_t ot_from_dfes;
   int ot_is_top;
-  int ot_is_top_ties;
+  char ot_is_top_ties;
+  char ot_is_top_gby;
   df_elt_t *ot_dfe;
   df_elt_t *ot_work_dfe;
   struct join_plan_s *ot_jp;
   dk_set_t jp_path;
   char ot_is_contradiction;
   char ot_is_group_dummy;	/*!< Fictive table corresponding to a group by's results. fun refs depend alone on this and this depends on all other tables */
+  char ot_top_k_used;		/* if top oby, set if pred restricting on this is placed */
   dk_set_t ot_oby_ots;		/*!< For a dt, the component ots in the oby order */
   dk_set_t ot_order_cols;	/*!< for a table in an ordered from, the subset of the oby pertaining to this table */
   char ot_order_dir;
   df_elt_t *ot_oby_dfe;		/*!< For a dt, the dfe for the sorted oby */
   df_elt_t *ot_group_dfe;
+  df_elt_t *ot_first_oby;
   locus_t *ot_locus;
 
   dk_set_t ot_virtual_cols;
@@ -254,6 +257,7 @@ struct df_elt_s
       df_elt_t **join_test;
       df_elt_t **after_join_test;
       df_elt_t **vdb_join_test;	/* the part of a remote table's join test that must be done on the vdb */
+      df_elt_t **top_pred;	/* if first ordering exp of top k oby depends on this, may push down restriction */
        dk_set (df_elt_t *) out_cols;
 
       bitf_t is_being_placed:1;	/* true while laying out preds for this */
@@ -291,9 +295,11 @@ struct df_elt_s
       dk_set_t hash_refs;
       df_elt_t **hash_filler_after_code;
       df_elt_t *hash_filler_of;	/* ref from filler to hash source dfe */
+      op_table_t *late_proj_of;
       float in_arity;
       float inx_card;
       float hit_spacing;	/* 1 if consec rows, 2 if every 2nd, 0.5 if each repeats twice before mext */
+      float top_sel;		/* if top k oby col given by this, extra selectivity from pushdown of oby */
     } table;
     struct
     {
@@ -405,6 +411,7 @@ struct df_elt_s
       ptrlong top_cnt;
       dk_set_t gb_dependent;
       df_elt_t *order_col;	/* if ordered distinct/gby, primary ordering col */
+      dk_set_t late_proj;
     } setp;
     struct
     {
@@ -1121,6 +1128,7 @@ void sqlo_dt_cache_add (sqlo_t * so, caddr_t cc_key, df_elt_t * copy);
 
 #define RQ_IS_COL(col, n)  (n == toupper (((dbe_column_t*)col)->col_name[0]))
 int sqlg_is_multistate_gb (sqlo_t * so);
+int dk_set_ssl_position (dk_set_t set, state_slot_t * ssl);
 
 #ifdef DEBUG
 void dbg_qi_print_row (query_instance_t * qi, dk_set_t slots, int nthset);
@@ -1166,5 +1174,6 @@ int dk_set_intersects (dk_set_t s1, dk_set_t s2);
 void jp_ps_init_card (join_plan_t * jp, pred_score_t * ps);
 int dfe_is_cacheable (df_elt_t * dfe);
 uint32 sqlo_subq_id_hash (ST * tree);
+caddr_t sqlo_new_prefix (sqlo_t * so);
 
 #endif /* _SQLO_H */

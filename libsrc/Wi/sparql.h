@@ -38,6 +38,10 @@ extern "C"
 #include "sqlbif.h"
 #include "rdf_mapping_jso.h"
 
+#ifndef VOS
+#define RDF_RAW_SQL_SECURITY
+#endif
+
 #ifdef DEBUG
 #define SPARYYDEBUG
 #endif
@@ -827,6 +831,8 @@ The search for associated macro lib is disabled if the statement contains CREATE
 extern void sparp_configure_storage_and_macro_libs (sparp_t * sparp);
 extern void sparp_compile_smllist (sparp_t * sparp, caddr_t sml_iri_uname,
     void /* actually struct sparql_macro_library_t */ *smlib);
+extern int sparp_table_name_is_unsafe (const char *buf);
+extern int sparp_sql_function_name_is_unsafe (const char *buf);
 
 extern const char *spart_dump_opname (ptrlong opname, int is_op);
 extern void spart_dump (void *tree_arg, dk_session_t * ses, int indent, const char *title, int hint);
@@ -890,6 +896,9 @@ extern caddr_t spar_boxed_exec_uid (sparp_t * sparp);
 extern caddr_t spar_immortal_exec_uname (sparp_t * sparp);
 extern SPART *spar_exec_uid_and_gs_cbk (sparp_t * sparp);
 
+/*!< Returns whether default user perms on world graphs differ from default user perms on private graphs if only \req_perms matter and the rest is fully ignored.
+If they are the same then either there is no need in security checks or the check can be made by FILTER (g IN (__rgs_user_perms_clo (...), __rgs_user_perms_clo (...))) */
+extern int spar_world_and_private_perms_differ (sparp_t * sparp, int req_perms);
 /*!< Returns statically known permissions on \c graph_iri.
 We assume that if permissions on the graph are "interesting" for some reason then the change in these permission may require query re-compilation.
 So if some factor may change some bits set in \c req_perms bitmask then a dependency from the factor is established for

@@ -134,6 +134,8 @@ extern scn3_include_fragment_t scn3_include_stack[MAX_INCLUDE_DEPTH];
 
 /*! Number of fragments that are started but not yet completed. It's zero while the whole text is in SQL */
 extern int scn3_include_depth;
+/*! Nonzero if graph-level security bans the read from graphs by default so raw access to data should be prohibited */
+extern int scn3_raw_rdf_access_control;
 
 /*! Flag that indicates that yylex() is called from yy_new_error() and error during te call should not cause infinite recursion */
 extern int scn3_inside_error_reporter;
@@ -715,6 +717,7 @@ int setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int dele
 void setp_node_input (setp_node_t * setp, caddr_t * inst, caddr_t * state);
 void setp_node_free (setp_node_t * setp);
 int setp_top_pre (setp_node_t * setp, caddr_t * qst, int *is_ties_edge);
+int setp_chash_top (setp_node_t * setp, caddr_t * inst, int nth_col, int top, caddr_t * ret);
 void subq_node_free (subq_source_t * sqs);
 void union_node_free (union_node_t * un);
 void end_node_free (end_node_t * en);
@@ -723,6 +726,9 @@ void setp_temp_clear (setp_node_t * setp, hash_area_t * ha, caddr_t * qst);
 void setp_mem_sort_flush (setp_node_t * setp, caddr_t * qst);
 void setp_mem_sort (setp_node_t * setp, caddr_t * qst, int n_sets, int merge_set);
 void setp_filled (setp_node_t * setp, caddr_t * qst);
+setp_node_t *qn_top_setp (data_source_t * qn, setp_node_t ** top);
+int setp_top_k_limit (setp_node_t * setp, caddr_t * inst, caddr_t * ret_box);
+void setp_top_init (setp_node_t * setp, caddr_t * inst);
 
 void union_node_input (union_node_t * setp, caddr_t * inst, caddr_t * state);
 

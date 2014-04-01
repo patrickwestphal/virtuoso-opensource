@@ -209,6 +209,7 @@ extern long tc_dc_extend_values;
 
 extern int32 em_ra_window;
 extern int32 em_ra_threshold;
+extern int enable_top_pred;
 extern int enable_mem_hash_join;
 extern int32 enable_qrc;
 extern int32 qrc_tolerance;
@@ -1754,6 +1755,7 @@ stat_desc_t dbf_descs[] = {
   {"cl_res_buffer_bytes", (long *) &cl_res_buffer_bytes, SD_INT32},
   {"cl_batches_per_rpc", (long *) &cl_batches_per_rpc, SD_INT32},
   {"cl_rdf_inf_inited", (long *) &cl_rdf_inf_inited, SD_INT32},
+  {"enable_top_pred", &enable_top_pred, SD_INT32},
   {"enable_mem_hash_join", (long *) &enable_mem_hash_join, SD_INT32},
   {"enable_hash_merge", (long *) &enable_hash_merge, SD_INT32},
   {"enable_hash_fill_join", (long *) &enable_hash_fill_join, SD_INT32},

@@ -2377,10 +2377,11 @@ itc_copy (it_cursor_t * itc)
     }
   cp->itc_ks = itc->itc_ks;
   cp->itc_key_spec = itc->itc_key_spec;
-  if (RSP_CHANGED == itc->itc_hash_row_spec)
+  if (RSP_CHANGED == itc->itc_hash_row_spec || itc->itc_top_row_spec)
     {
       cp->itc_row_specs = sp_list_copy (itc->itc_row_specs);
-      cp->itc_hash_row_spec = RSP_CHANGED;
+      cp->itc_hash_row_spec = itc->itc_hash_row_spec;
+      cp->itc_top_row_spec = itc->itc_top_row_spec;
     }
   else
     cp->itc_row_specs = itc->itc_row_specs;
@@ -4030,7 +4031,7 @@ vec_fref_group_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * ins
 	  state_slot_t tmp_ssl[200];
 	  if (HA_DISTINCT == setp->setp_ha->ha_op)
 	    continue;
-	  if (setp->setp_top)
+	  if (setp->setp_top && HA_ORDER == setp->setp_ha->ha_op)
 	    {
 	      vec_top_merge (setp, fref, inst, branch, tmp_ssl, sizeof (tmp_ssl) / sizeof (state_slot_t));
 	      continue;

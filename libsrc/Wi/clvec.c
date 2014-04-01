@@ -1514,4 +1514,5 @@ cli_set_slice (client_connection_t * cli, cluster_map_t * clm, slice_id_t slice,
 {
   if (err_ret)
     *err_ret = NULL;
+  cli->cli_slice = slice;
 }

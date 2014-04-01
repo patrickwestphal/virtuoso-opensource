@@ -281,8 +281,20 @@ lt_wait_checkpoint (void)
 void
 lt_wait_checkpoint_lt (lock_trx_t * lt)
 {
-  if (LT_NEED_WAIT_CPT (lt))
-    lt_wait_checkpoint_1 (0);
+  switch (wi_inst.wi_is_checkpoint_pending)
+    {
+    case CPT_NONE:
+      return;
+    case CPT_CHECKPOINT:
+      if (wi_inst.wi_cpt_lt == lt)
+	return;
+      break;
+    case CPT_ATOMIC_PENDING:
+    case CPT_ATOMIC:
+      if (!cpt_is_global_lock (lt))
+	return;
+    }
+  lt_wait_checkpoint_1 (0);
 }
 
 void
@@ -2299,7 +2311,8 @@ srv_global_lock (query_instance_t * qi, int flag)
       server_lock.sl_ac_save = lt->lt_client->cli_row_autocommit;
       lt->lt_client->cli_row_autocommit = 1;
       server_lock.sl_qp_save = enable_qp;
-      enable_qp = 1;
+      /* qr mt is allowed in global lock, all txn branches share main lt trx no */
+      /*enable_qp = 1; */
       return;
     }
   else
@@ -2314,6 +2327,7 @@ srv_global_lock (query_instance_t * qi, int flag)
 int
 cpt_is_global_lock (lock_trx_t * lt)
 {
+  /* true if lt's thread should stop because other has global lock */
   lock_trx_t *owner_lt;
   if (!server_lock.sl_owner)
     return 0;

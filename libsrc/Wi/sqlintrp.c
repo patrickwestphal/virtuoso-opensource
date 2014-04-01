@@ -39,6 +39,8 @@
 #include "repl.h"
 #include "replsr.h"
 #include "mhash.h"
+#include "sparql.h"
+#include "sqlpfn.h"
 
 static instruction_t dummy_ins_t;
 
@@ -540,9 +542,6 @@ ins_call (instruction_t * ins, caddr_t * qst, code_vec_t code_vec)
 	  sqlr_new_error ("42001", "SR185", "Undefined procedure %s.", complete_proc_name_str);
 	}
     }
-  param_len -= n_ret_param * sizeof (caddr_t);
-  if (proc->qr_to_recompile)
-    proc = qr_recompile (proc, NULL);
   if (!qi->qi_query->qr_proc_name)
     {
       eff_g_id = qi->qi_g_id;
@@ -557,6 +556,36 @@ ins_call (instruction_t * ins, caddr_t * qst, code_vec_t code_vec)
       else
 	eff_g_id = eff_u_id;
     }
+#ifdef RDF_RAW_SQL_SECURITY
+  if (is_computed)
+    {
+      const char *name_tail = proc_name, *dot;
+      while (NULL != (dot = strchr (name_tail, '.')))
+	name_tail = dot + 1;
+      if (!(CASEMODESTRNCMP (name_tail, "RDF_", 4) &&
+	      CASEMODESTRNCMP (name_tail, "SPARQL", 6) &&
+	      CASEMODESTRNCMP (name_tail, "SPARUL", 6) && CASEMODESTRNCMP (name_tail, "TTLP", 4)))
+	{
+	  char buf[100];
+	  strncpy (buf, name_tail, sizeof (buf) - 1);
+	  buf[sizeof (buf) - 1] = '\0';
+	  strupr (buf);
+	  if (sparp_sql_function_name_is_unsafe (buf))
+	    {
+	      if (scn3_raw_rdf_access_control)
+		{
+		  if (!sqlp_user_has_raw_rdf_access (eff_u_id, eff_g_id))
+		    sqlr_new_error ("42000", "SR186",
+			"Raw SQL access to internal RDF function %s is not allowed: user does not have SPARQL_SELECT_RAW priviledge procedure (user ID %d, group ID %d)",
+			proc_name, (int) eff_g_id, (int) eff_u_id);
+		}
+	    }
+	}
+    }
+#endif
+  param_len -= n_ret_param * sizeof (caddr_t);
+  if (proc->qr_to_recompile)
+    proc = qr_recompile (proc, NULL);
   if (!sec_proc_check (proc, eff_g_id, eff_u_id))
     sqlr_new_error ("42000", "SR186", "No permission to execute procedure %s with user ID %d, group ID %d",
 	proc_name, (int) eff_g_id, (int) eff_u_id);

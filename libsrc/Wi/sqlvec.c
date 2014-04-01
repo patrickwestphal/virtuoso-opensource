@@ -851,6 +851,11 @@ sqlg_vec_ssl_ref (sql_comp_t * sc, state_slot_t * ssl, int test_only)
 	def_found = 1;
 	break;
       }
+    if (!sqlg_vec_debug && IS_QN (qn, chash_read_input) && ((table_source_t *) qn)->ts_part_gby_reader)
+      sqlc_new_error (sc->sc_cc, "VEC..", "CLSSA",
+	  "a ssl reference would go past a partitioned group by reader, meaning bad [plan.  Support case.");
+    if (!sqlg_vec_debug && IS_QN (qn, stage_node_input))
+      sqlc_new_error (sc->sc_cc, "VEC..", "CLSTN", "a ssl reference would go past a dfg stage, meaning bad [plan.  Support case.");
     if (qn_ssl_ref_steps (sc, qn, &steps, ssl, &shadow))
       {
 	ssl = shadow;
@@ -1649,6 +1654,7 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
   END_DO_SET ();
   REF_SSL (res, setp->setp_top);
   REF_SSL (res, setp->setp_top_skip);
+  REF_SSL (res, setp->setp_top_id);
   REF_SSL (res, setp->setp_ssa.ssa_set_no);
   if (setp->setp_ha)
     {
@@ -2030,6 +2036,8 @@ sqlg_vec_del (sql_comp_t * sc, delete_node_t * del)
 	  QNCAST (table_source_t, ts, qn);
 	  key_source_t *ks = ts->ts_order_ks;
 	  if (ks->ks_key->key_distinct)
+	    ;
+	  else if (!ts->ts_is_dml)
 	    ;
 	  else if (ks->ks_local_test)
 	    last_no_test = NULL;
@@ -2931,7 +2939,7 @@ sqlg_sqs_qr_pred (sql_comp_t * sc, query_t * qr, data_source_t * prev_with_set_n
     {
       DO_SET (data_source_t *, prev, &sc->sc_vec_pred)
       {
-	if (prev->src_sets)
+	if (prev->src_sets && !IS_QN (prev, hash_fill_node_input))
 	  {
 	    prev_with_set_no = prev;
 	    goto found;
@@ -3196,6 +3204,18 @@ sqlg_hs_realias_key_out (sql_comp_t * sc, hash_source_t * hs)
   hs->hs_out_aliases = NULL;
 }
 
+int
+qn_in_union_subq (data_source_t * qn)
+{
+  if (IS_QN (qn, subq_node_input) && !qn->src_sets)
+    {
+      QNCAST (subq_source_t, sqs, qn);
+      return IS_QN (sqs->sqs_query->qr_head_node, union_node_input);
+    }
+  return 0;
+}
+
+
 int enable_unq_non_unq = 1;
 
 void
@@ -3245,6 +3265,12 @@ sqlg_vec_hs (sql_comp_t * sc, hash_source_t * hs)
 	last_sctr = sctr;
 	if (sctr->sctr_ose || sctr->sctr_not_in_top_and)
 	  no_bloom_in_probe = 1;
+      }
+    if (qn_in_union_subq (pred))
+      {
+	hs->hs_partition_filter_self = 1;
+
+	break;
       }
     DO_BOX (state_slot_t *, ref, inx, hs->hs_ref_slots)
     {
@@ -3624,8 +3650,10 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
     }
   else if ((qn_input_fn) select_node_input == qn->src_input || (qn_input_fn) select_node_input_subq == qn->src_input)
     {
+      int si;
       select_node_t *sel = (select_node_t *) qn;
-      ref_ssls (res, sel->sel_out_slots);
+      for (si = 0; si < sel->sel_n_value_slots; si++)
+	REF_SSL (res, sel->sel_out_slots[si]);
       sel->sel_subq_org_set_no = sel->sel_set_no;
       REF_SSL (res, sel->sel_set_no);
       REF_SSL (res, sel->sel_ext_set_no);
@@ -4796,6 +4824,8 @@ sqlg_vec_qns (sql_comp_t * sc, data_source_t * qn, dk_set_t prev_nodes)
 	      shadow_save = hash_table_allocate (sc->sc_vec_ssl_shadow->ht_actual_size);
 	      dk_hash_copy (shadow_save, sc->sc_vec_ssl_shadow);
 	    }
+	  if (fref->fnr_setp)
+	    ASG_SSL (NULL, NULL, fref->fnr_setp->setp_top_id);
 	  sqlg_vec_qns (sc, fref->fnr_select, prev_nodes);
 	  sc->sc_vec_current = qn;
 	  if ((fref->fnr_cl_qf || fref->fnr_cl_qfs) && fref->fnr_temp_slots)
@@ -4846,7 +4876,7 @@ sqlg_vec_qns (sql_comp_t * sc, data_source_t * qn, dk_set_t prev_nodes)
 	}
       if (sqlg_is_stream_chash_read (sc, qn))
 	prev_nodes = sqlg_streaming_reader_pred (sc);
-      else if (IS_QN (qn, outer_seq_end_input))
+      else if (IS_QN (qn, outer_seq_end_input) || (IS_QN (qn, select_node_input_subq) && ((select_node_t *) qn)->sel_subq_inlined))
 	prev_nodes = sc->sc_vec_pred;
       else if (IS_QN (qn, gs_union_node_input))
 	qn = qn_next (qn);

@@ -91,6 +91,7 @@ extern "C"
 #include "shcompo.h"
 #include "http_client.h"	/* for MD5Init and the like */
 #include "sparql.h"
+#include "cluster.h"
 
 #define box_bool(n) ((caddr_t)((ptrlong)((n) ? 1 : 0)))
 
@@ -8919,6 +8920,50 @@ bif_position (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return (box_num (find_index_to_vector (item, arr, len, vectype, start, every_nth, me)));
 }
 
+int
+bif_one_of_these_match_op (caddr_t * qst, caddr_t item, caddr_t value, caddr_t * err_ret)
+{
+  int they_match;
+  query_instance_t *qi = (query_instance_t *) qst;
+  dtp_t item_dtp = DV_TYPE_OF (item);
+  dtp_t val_dtp = DV_TYPE_OF (value);
+  if (IS_WIDE_STRING_DTP (item_dtp) && IS_STRING_DTP (val_dtp))
+    {
+      caddr_t wide = box_narrow_string_as_wide ((unsigned char *) value, NULL, 0, QST_CHARSET (qst), err_ret, 1);
+      if (*err_ret)
+	return 0;
+      they_match = boxes_match (item, wide);
+      dk_free_box (wide);
+    }
+  else if (IS_STRING_DTP (item_dtp) && IS_WIDE_STRING_DTP (val_dtp))
+    {
+      caddr_t wide = box_narrow_string_as_wide ((unsigned char *) item, NULL, 0, QST_CHARSET (qst), err_ret, 1);
+      if (*err_ret)
+	return 0;
+      they_match = boxes_match (wide, value);
+      dk_free_box (wide);
+    }
+  else if (item_dtp != val_dtp && item_dtp != DV_DB_NULL && val_dtp != DV_DB_NULL)
+    {
+      caddr_t tmp_val = box_cast_to (qst, value, val_dtp, item_dtp, NUMERIC_MAX_PRECISION, NUMERIC_MAX_SCALE, err_ret);
+      if (*err_ret)
+	{
+	  if (qi->qi_no_cast_error)
+	    {
+	      dk_free_tree (*err_ret);
+	      *err_ret = NULL;
+	      return 0;
+	    }
+	  return 0;
+	}
+      else
+	they_match = boxes_match (item, tmp_val);
+      dk_free_tree (tmp_val);
+    }
+  else
+    they_match = boxes_match (item, value);
+  return they_match;
+}
 
 /* one_of_these(item,arg1,arg2,arg3,arg4,arg5,...,argn)
 
@@ -8931,61 +8976,67 @@ caddr_t
 bif_one_of_these (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   char *me = "one_of_these";
-  query_instance_t *qi = (query_instance_t *) qst;
   int n_args = BOX_ELEMENTS (args);
   caddr_t item = bif_arg (qst, args, 0, me);
-  dtp_t item_dtp = DV_TYPE_OF (item);
   int inx;
   caddr_t value;
   dtp_t val_dtp;
   int they_match;
-
   for (inx = 1; inx < n_args; inx++)
     {
       caddr_t values = qst_get (qst, args[inx]);
-      int is_array = DV_ARRAY_OF_POINTER == DV_TYPE_OF (values);
-      int nth, n_values = is_array ? BOX_ELEMENTS (values) : 1;
-      for (nth = 0; nth < n_values; nth++)
+      switch (DV_TYPE_OF (values))
 	{
-	  value = is_array ? ((caddr_t *) values)[nth] : values;
-	  val_dtp = DV_TYPE_OF (value);
-	  if (IS_WIDE_STRING_DTP (item_dtp) && IS_STRING_DTP (val_dtp))
-	    {
-	      caddr_t wide = box_narrow_string_as_wide ((unsigned char *) value, NULL, 0, QST_CHARSET (qst), err_ret, 1);
-	      if (*err_ret)
-		return NULL;
-	      they_match = boxes_match (item, wide);
-	      dk_free_box (wide);
-	    }
-	  else if (IS_STRING_DTP (item_dtp) && IS_WIDE_STRING_DTP (val_dtp))
-	    {
-	      caddr_t wide = box_narrow_string_as_wide ((unsigned char *) item, NULL, 0, QST_CHARSET (qst), err_ret, 1);
-	      if (*err_ret)
-		return NULL;
-	      they_match = boxes_match (wide, value);
-	      dk_free_box (wide);
-	    }
-	  else if (item_dtp != val_dtp && item_dtp != DV_DB_NULL && val_dtp != DV_DB_NULL)
-	    {
-	      caddr_t tmp_val = box_cast_to (qst, value, val_dtp, item_dtp, NUMERIC_MAX_PRECISION, NUMERIC_MAX_SCALE, err_ret);
-	      if (*err_ret)
-		{
-		  if (qi->qi_no_cast_error)
-		    {
-		      dk_free_tree (*err_ret);
-		      *err_ret = NULL;
-		      continue;
-		    }
+#ifdef RDF_SECURITY_CLO
+	case DV_CLOP:
+	  {
+	    cl_op_t *clo = (cl_op_t *) values;
+	    if ((CLO_RDF_GRAPH_USER_PERMS == clo->clo_op) && (DV_IRI_ID == DV_TYPE_OF (item)))
+	      {
+		dk_hash_64_t *ht = clo->_.rdf_graph_user_perms.ht;
+		int req_perms = clo->_.rdf_graph_user_perms.req_perms;
+		int64 unboxed_item = unbox_iri_int64 (item), perms;
+#ifdef DBG_PRINTF
+		dk_hash_64_iterator_t iter;
+		int64 *g_iid_num_ptr, *g_perms_ptr;
+		rwlock_rdlock (ht->ht_rwlock);
+		dbg_printf (("\n\nCheck of %lld <%s> in %p, user %d, req perms %d", unboxed_item, key_id_to_iri (qst, unboxed_item),
+			clo, (int) (clo->_.rdf_graph_user_perms.u_id), req_perms));
+		dk_hash_64_iterator (&iter, ht);
+		while (dk_hash_64_hit_next (&iter, &g_iid_num_ptr, &g_perms_ptr))
+		  dbg_printf (("\n%lld <%s> has %d", g_iid_num_ptr[0], key_id_to_iri (qst, g_iid_num_ptr[0]),
+			  (int) (g_perms_ptr[0])));
+		rwlock_unlock (ht->ht_rwlock);
+#endif
+		rwlock_rdlock (ht->ht_rwlock);
+		gethash_64 (perms, unboxed_item, ht);
+		rwlock_unlock (ht->ht_rwlock);
+		if ((perms & req_perms) == req_perms)
+		  return (box_num (inx));
+	      }
+	    break;
+	  }
+#endif
+	case DV_ARRAY_OF_POINTER:
+	  {
+	    int nth, n_values = BOX_ELEMENTS (values);
+	    for (nth = 0; nth < n_values; nth++)
+	      {
+		they_match = bif_one_of_these_match_op (qst, item, ((caddr_t *) (values))[nth], err_ret);
+		if (*err_ret)
 		  return NULL;
-		}
-	      else
-		they_match = boxes_match (item, tmp_val);
-	      dk_free_tree (tmp_val);
-	    }
-	  else
-	    they_match = boxes_match (item, value);
+		if (they_match)
+		  return (box_num (inx));
+	      }
+	    break;
+	  }
+	default:
+	  they_match = bif_one_of_these_match_op (qst, item, values, err_ret);
+	  if (*err_ret)
+	    return NULL;
 	  if (they_match)
 	    return (box_num (inx));
+	  break;
 	}
     }
   return (box_num (0));
@@ -16040,6 +16091,9 @@ sql_bif_init (void)
   bif_define ("xid_test", test_xid_encode_decode);
 #endif
 
+
+  bif_define_typed ("__topk", bif_topk, &bt_integer);
+  bif_set_vectored (bif_topk, bif_topk_vec);
 
 /* Functions for error & result handling in user created procedures: */
   bif_define ("signal", bif_signal);

@@ -213,7 +213,7 @@ setp_distinct_hash (sql_comp_t * sc, setp_node_t * setp, uint64 n_rows, int op)
       int n_slots = BOX_ELEMENTS (ha->ha_slots);
       ha->ha_ch_len = sizeof (int64) * (1 + n_slots);
       ha->ha_ch_nn_flags = ha->ha_ch_len;
-      ha->ha_ch_len += ALIGN_8 (n_slots) / 8;
+      ha->ha_ch_len += ALIGN_8 ((n_slots + setp->setp_top_gby)) / 8;
       ha->ha_ch_len = ALIGN_8 (ha->ha_ch_len);
     }
 }
