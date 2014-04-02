@@ -2244,13 +2244,19 @@ ewkt_destroy_input (ewkt_input_t * in)
 geo_t *
 ewkt_parse (const char *strg, caddr_t * err_ret)
 {
+  return ewkt_parse_2 (strg, SRID_DEFAULT, err_ret);
+}
+
+geo_t *
+ewkt_parse_2 (const char *strg, int dflt_srid, caddr_t * err_ret)
+{
   geo_t *res;
   ewkt_input_t in;
   int tkn;
   ewkt_token_val_t val;
   memset (&in, 0, sizeof (ewkt_input_t));
-  in.ewkt_srid = SRID_DEFAULT;
-  in.ewkt_srcode = GEO_SRCODE_DEFAULT;
+  in.ewkt_srid = dflt_srid;
+  in.ewkt_srcode = GEO_SRCODE_OF_SRID (dflt_srid);
   in.ewkt_source = in.ewkt_tail = in.ewkt_row_begin = (const unsigned char *) strg;
   if (0 == setjmp (in.ewkt_error_ctx))
     {

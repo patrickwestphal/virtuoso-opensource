@@ -602,16 +602,14 @@ l_make_ro_disp (cucurbit_t * cu, caddr_t * args, value_state_t * vs)
       dk_free_box (allocd_content);
       return NULL;
     }
-  if (DV_UNAME == dtp)
-    return l_iri_id_disp (cu, box, vs);
-  if (DV_STRING == dtp)
+  else if (DV_STRING == dtp)
     len = box_length (box) - 1;
   if (DV_STRING != dtp || (!rdf_no_string_inline && len < RB_MAX_INLINED_CHARS))
     {
       cu_set_value (cu, vs, box_copy_tree (box));
       return NULL;
     }
-  if (BF_IRI & box_flags (box))
+  if (BF_IRI == box_flags (box))
     return l_iri_id_disp (cu, box, vs);
 
   dt_lang = (RDF_BOX_DEFAULT_TYPE << 16) | RDF_BOX_DEFAULT_LANG;
@@ -775,8 +773,8 @@ bif_rl_set_pref_id (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 caddr_t
 bif_rl_dp_ids (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  cl_req_group_t *clrg = bif_clrg_arg (qst, args, 0, "rl_dp_ids");
-  caddr_t g_iid = bif_arg (qst, args, 1, "rl_dp_ids");
+  cl_req_group_t *clrg = bif_clrg_arg (qst, args, 0, "rl_ids");
+  caddr_t g_iid = bif_arg (qst, args, 1, "rl_ids");
   cucurbit_t *cu = clrg->clrg_cu;
   void *save;
   if (!cu)
@@ -803,7 +801,7 @@ void
 bif_rld_init ()
 {
   bif_define_ex ("dc_batch_sz", bif_dc_batch_sz, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rl_dp_ids", bif_rl_dp_ids, BMD_RET_TYPE, &bt_integer, BMD_USES_INDEX, BMD_DONE);
+  bif_define ("rl_dp_ids", bif_rl_dp_ids);
   bif_define ("__rl_set_pref_id", bif_rl_set_pref_id);
   bif_set_vectored (bif_rl_set_pref_id, (bif_vec_t) bif_rl_set_pref_id);
   dpipe_define ("L_IRI_TO_ID", NULL, "", (cu_op_func_t) l_iri_id_disp, CF_1_ARG);

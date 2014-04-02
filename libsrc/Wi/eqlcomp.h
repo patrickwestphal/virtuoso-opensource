@@ -102,15 +102,20 @@ extern query_t *DBG_NAME (sql_proc_to_recompile) (DBG_PARAMS const char *string2
 #define sql_proc_to_recompile(s,c,pn,tic) dbg_sql_proc_to_recompile(__FILE__,__LINE__,(s),(c),(pn),(tic))
 #endif
 
+EXE_EXPORT (query_t *, sql_compile_static, (const char *string2, client_connection_t * cli, caddr_t * err,
+	volatile int store_procs));
 #if defined (MALLOC_DEBUG) || defined (VALGRIND)
 extern query_t *static_qr_dllist;	/*!< Double-linked list of queries that should be freed only at server shutdown. */
 extern query_t *dbg_sql_compile_static (const char *file, int line,
     const char *string2, client_connection_t * cli, caddr_t * err, volatile int store_procs);
+#ifndef _USRDLL
+#ifndef EXPORT_GATE
 #define sql_compile_static(s,c,e,sp) dbg_sql_compile_static(__FILE__,__LINE__,(s),(c),(e),(sp))
+#endif
+#endif
 extern void static_qr_dllist_append (query_t * qr, int gpf_on_dupe);
 extern void static_qr_dllist_remove (query_t * qr);
 #else
-extern query_t *sql_compile_static (const char *string2, client_connection_t * cli, caddr_t * err, volatile int store_procs);
 #define static_qr_dllist_append(qr,g)
 #define static_qr_dllist_remove(qr)
 #endif

@@ -3689,6 +3689,14 @@ void rdf_key_comp_init ();
 extern int enable_col_by_default, c_col_by_default;
 long get_total_sys_mem ();
 
+dk_set_t srv_global_init_postponed_actions = NULL;
+
+dk_set_t *
+get_srv_global_init_postponed_actions_ptr (void)
+{
+  return &srv_global_init_postponed_actions;
+}
+
 void
 srv_global_init (char *mode)
 {
@@ -4021,6 +4029,16 @@ srv_global_init (char *mode)
       sf_shutdown (sf_make_new_log_name (wi_inst.wi_master), bootstrap_cli->cli_trx);
     }
   ddl_redo_undefined_triggers ();
+  if (NULL != srv_global_init_postponed_actions)
+    {
+      srv_global_init_postponed_actions = dk_set_nreverse (srv_global_init_postponed_actions);
+      while (NULL != srv_global_init_postponed_actions)
+	{
+	  srv_global_init_postponed_action_t *f =
+	      (srv_global_init_postponed_action_t *) dk_set_pop (&srv_global_init_postponed_actions);
+	  f (mode);
+	}
+    }
   IN_TXN;
   lt_leave (bootstrap_cli->cli_trx);
   LEAVE_TXN;

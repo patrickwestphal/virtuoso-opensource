@@ -2693,6 +2693,18 @@ sqlg_hs_realias_key_out (sql_comp_t * sc, hash_source_t * hs)
   hs->hs_out_aliases = NULL;
 }
 
+int
+qn_in_union_subq (data_source_t * qn)
+{
+  if (IS_QN (qn, subq_node_input) && !qn->src_sets)
+    {
+      QNCAST (subq_source_t, sqs, qn);
+      return IS_QN (sqs->sqs_query->qr_head_node, union_node_input);
+    }
+  return 0;
+}
+
+
 int enable_unq_non_unq = 1;
 
 void
@@ -2741,6 +2753,12 @@ sqlg_vec_hs (sql_comp_t * sc, hash_source_t * hs)
 	last_sctr = sctr;
 	if (sctr->sctr_ose || sctr->sctr_not_in_top_and)
 	  no_bloom_in_probe = 1;
+      }
+    if (qn_in_union_subq (pred))
+      {
+	hs->hs_partition_filter_self = 1;
+
+	break;
       }
     DO_BOX (state_slot_t *, ref, inx, hs->hs_ref_slots)
     {
@@ -4280,7 +4298,7 @@ sqlg_vec_qns (sql_comp_t * sc, data_source_t * qn, dk_set_t prev_nodes)
 	    sc->sc_vec_current = qn->src_prev;
 	  continue;
 	}
-      if (IS_QN (qn, outer_seq_end_input))
+      else if (IS_QN (qn, outer_seq_end_input) || (IS_QN (qn, select_node_input_subq) && ((select_node_t *) qn)->sel_subq_inlined))
 	prev_nodes = sc->sc_vec_pred;
       if (IS_QN (qn, gs_union_node_input))
 	qn = qn_next (qn);

@@ -923,7 +923,8 @@ spar_change_sign (caddr_t * lit_ptr)
 
 static const char *sparp_known_get_params[] = {
   "get:accept", "get:cartridge", "get:destination", "get:error-recovery", "get:group-destination", "get:login", "get:method",
-      "get:note", "get:private", "get:proxy", "get:query", "get:refresh", "get:soft", "get:strategy", "get:uri", NULL
+      "get:note", "get:private", "get:proxy", "get:query", "get:refresh", "get:soft", "get:strategy", "get:uri", "get:enforce-acls",
+      NULL
 };
 
 static const char *sparp_integer_defines[] = {

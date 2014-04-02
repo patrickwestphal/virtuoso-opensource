@@ -689,6 +689,17 @@ bif_st_srid (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return box_num (GEO_SRID (g->geo_srcode));
 }
 
+void
+geo_set_srcode_trav (geo_t * g, int srcode)
+{
+  g->geo_srcode = srcode;
+  if (g->geo_flags & (GEO_A_COMPOUND | GEO_A_RINGS | GEO_A_MULTI | GEO_A_ARRAY))
+    {
+      int ctr, ct = g->_.parts.len;
+      for (ctr = 0; ctr < ct; ctr++)
+	geo_set_srcode_trav (g->_.parts.items[ctr], srcode);
+    }
+}
 
 caddr_t
 bif_st_setsrid (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
@@ -699,7 +710,7 @@ bif_st_setsrid (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     return NEW_DB_NULL;
   srid = bif_long_arg (qst, args, 1, "st_setsrid");
   cp = (geo_t *) box_copy ((caddr_t) g);
-  cp->geo_srcode = GEO_SRCODE_OF_SRID (srid);
+  geo_set_srcode_trav (cp, GEO_SRCODE_OF_SRID (srid));
   return (caddr_t) cp;
 }
 
@@ -719,8 +730,23 @@ bif_geo_pred (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, char *f, i
   geo_t *g1 = bif_geo_arg (qst, args, 0, f, GEO_ARG_ANY_NULLABLE);
   geo_t *g2 = bif_geo_arg (qst, args, 1, f, GEO_ARG_ANY_NULLABLE);
   double prec = 0;
+  int srid1, srid2;
   if (BOX_ELEMENTS (args) > 2)
     prec = bif_double_arg (qst, args, 2, f);
+  srid1 = GEO_SRID (g1->geo_srcode);
+  srid2 = GEO_SRID (g2->geo_srcode);
+  if (srid2 != srid1)
+    {
+      caddr_t err = NULL;
+      caddr_t res;
+      geo_t *g2_cvt = geo_default_srid_transform_cbk (qst, g2, srid1, &err);
+      if (NULL != err)
+	sqlr_resignal (err);
+      res = box_num (geo_pred (g1, g2_cvt, op, prec));
+      if (g2_cvt != g2)
+	dk_free_box ((caddr_t) g2_cvt);
+      return res;
+    }
   return box_num (geo_pred (g1, g2, op, prec));
 }
 
@@ -797,9 +823,6 @@ geo_point_intersects_line (geo_srcode_t srcode, geoc pX, geoc pY, geoc p1X, geoc
 }
 
 #define GEO_SCALAR_PRODUCT(oX,oY,aX,aY,bX,bY) (((aX)-(oX))*((bY)-(oY)) - ((aY)-(oY))*((bX)-(oX)))
-#define GEOC_SWAP(a,b) do { geoc swap = (a); (a) = (b); (b) = swap; } while (0)
-#define GEOC_MAX(a,b) (((a) > (b)) ? (a) : (b))
-#define GEOC_MIN(a,b) (((a) < (b)) ? (a) : (b))
 int
 geo_line_intersects_XYbox (geo_srcode_t srcode, geoc p1X, geoc p1Y, geoc p2X, geoc p2Y, geo_XYbox_t * b, double prec)
 {
@@ -863,7 +886,7 @@ geo_range_intersects_range (geoc p1c, geoc p2c, geoc q3c, geoc q4c, double prec_
     GEOC_SWAP (p1c, p2c);
   if (q3c > q4c)
     GEOC_SWAP (q3c, q4c);
-  if (GEOC_MAX (p1c, q3c) + prec_norm <= GEOC_MIN (p2c, q4c))
+  if (geoc_max (p1c, q3c) + prec_norm <= geoc_min (p2c, q4c))
     return 1;
   return 0;
 }
@@ -1328,15 +1351,15 @@ geo_pred (geo_t * g1, geo_t * g2, int op, double prec)
 	  }
 	if (GEO_A_RINGS & g2->geo_flags)
 	  {
-	    int hole_may_intersect = 0;
 	    if (0 == g2->_.parts.len)
 	      return 0;
 	    if (!geo_pred (g2->_.parts.items[0], g1, op, prec))
 	      return 0;
 	    for (itemctr = 1; itemctr < g2->_.parts.len; itemctr++)
 	      {
-		if (geo_pred (g2->_.parts.items[itemctr], g1, GSOP_CONTAINS, prec))
-		  return 0;
+		if (!geo_may_intersect_XYbox (g1, &(g2->_.parts.items[itemctr]->XYbox), prec))
+		  continue;
+		goto unsupported_intersects;
 	      }
 	    return 1;
 	  }
@@ -1560,8 +1583,11 @@ bif_st_ewkt_read (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   geo_t *res;
   caddr_t strg = bif_string_arg (qst, args, 0, "st_ewkt_read");
+  int srid = SRID_DEFAULT;
   caddr_t err = NULL;
-  res = ewkt_parse (strg, &err);
+  if (1 < BOX_ELEMENTS (args))
+    srid = bif_long_arg (qst, args, 1, "st_ewkt_read");
+  res = ewkt_parse_2 (strg, srid, &err);
   if (NULL != err)
     sqlr_resignal (err);
   geo_calc_bounding (res, GEO_CALC_BOUNDING_DO_ALL);
@@ -1919,6 +1945,27 @@ bif_st_transform_by_custom_projection (caddr_t * qst, caddr_t * err_ret, state_s
       sqlr_new_error ("22023", "GEOxx", "Custom projection '%.300s' failed: %.500s", proj_name, err);
     }
   return (caddr_t) res;
+}
+
+geo_t *
+geo_dummy_srid_transform_cbk (caddr_t * qst, geo_t * g, int dest_srid, caddr_t * err_ret)
+{
+  int orig_srid = GEO_SRID (g->geo_srcode);
+  if (dest_srid == orig_srid)
+    return g;
+  err_ret[0] =
+      srv_make_new_error ("22023", "GEOxx",
+      "The function requires an implicit call of ST_Transform(), because argument with SRID %d should be transformed to SRID %d; please try plugin \"v7proj4\" or similar",
+      orig_srid, dest_srid);
+  return NULL;
+}
+
+geo_srid_transform_cbk_t *geo_default_srid_transform_cbk = geo_dummy_srid_transform_cbk;
+
+void
+geo_set_default_srid_transform_cbk (geo_srid_transform_cbk_t * cbk)
+{
+  geo_default_srid_transform_cbk = cbk;
 }
 
 void

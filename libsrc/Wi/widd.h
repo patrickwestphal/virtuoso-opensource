@@ -114,6 +114,7 @@ typedef struct file_table_s
   char ft_cast_error;
   char ft_error_if_no_column;
   caddr_t ft_newline;
+  int ft_skip_rows;
 } file_table_t;
 
 

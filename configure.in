@@ -1569,6 +1569,14 @@ AM_CONDITIONAL(WITH_RUBY, test "x$RUBY" != "x" -a "x$with_ruby" != "xno")
 AC_SUBST(RUBY_CFLAGS)
 AC_SUBST(RUBY_LDFLAGS)
 
+##########################################################################
+##									##
+##  PROJ.4								##
+##									##
+##########################################################################
+
+AC_CHECK_LIB(proj, pj_transform, [with_proj4=yes], [with_proj=no])
+AM_CONDITIONAL(WITH_PROJ, test "x$with_proj" != "xno" )
 
 ##########################################################################
 ##									##

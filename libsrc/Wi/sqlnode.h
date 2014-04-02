@@ -1072,6 +1072,7 @@ typedef struct file_source_s
   char fs_escape;
   char fs_null_empty_string;
   char fs_error_if_no_file;
+  int fs_skip_rows;
 } file_source_t;
 
 #define IS_TS(n) \

@@ -3162,7 +3162,7 @@ bif_id_to_iri (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     case DV_UNAME:
       return box_copy (iid_box);
     case DV_STRING:
-      if (BF_IRI & box_flags (iid_box))
+      if (BF_IRI == box_flags (iid_box))
 	return box_copy (iid_box);
       break;
     }
@@ -3199,13 +3199,9 @@ bif_id_to_canonicalized_iri (caddr_t * qst, caddr_t * err_ret, state_slot_t ** a
 	return iri;
       }
     case DV_UNAME:
-      {
-	caddr_t iri = box_dv_short_nchars (iid_box, box_length (iid_box) - 1);
-	box_flags (iri) = BF_IRI;
-	return iri;
-      }
+      return box_copy (iid_box);
     case DV_STRING:
-      if (BF_IRI & box_flags (iid_box))
+      if (BF_IRI == box_flags (iid_box))
 	return box_copy (iid_box);
       break;
     }
@@ -3242,7 +3238,7 @@ bif_id_to_iri_nosignal (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     case DV_UNAME:
       return box_copy (iid_box);
     case DV_STRING:
-      if (BF_IRI & box_flags (iid_box))
+      if (BF_IRI == box_flags (iid_box))
 	return box_copy (iid_box);
       break;
     }

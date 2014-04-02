@@ -954,6 +954,7 @@ sqlg_file_source (sqlo_t * so, df_elt_t * tb_dfe, table_source_t * ts, dk_set_t 
   fs->fs_newline = ft->ft_newline;
   fs->fs_null_empty_string = ft->ft_null_empty_string;
   fs->fs_error_if_no_file = fs->fs_error_if_no_file;
+  fs->fs_skip_rows = ft->ft_skip_rows;
   fs->fs_nth_slice = ssl_new_variable (sc->sc_cc, "nth_slice", DV_LONG_INT);
   fs->fs_n_slices = ssl_new_variable (sc->sc_cc, "n_slices", DV_LONG_INT);
   for (sp = ts->ts_order_ks->ks_spec.ksp_spec_array; sp; sp = sp->sp_next)

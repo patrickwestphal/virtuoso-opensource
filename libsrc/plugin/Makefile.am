@@ -19,7 +19,12 @@
 #  
 #  
 
+GEN=$(SHELL) ${top_srcdir}/bin/generate
+
 noinst_LTLIBRARIES = libplugin.la hosting_sample.la plugin_sample.la
+if WITH_PROJ
+hosting_LTLIBRARIES = v7proj4.la
+endif
 
 
 ##########################################
@@ -82,6 +87,28 @@ plugin_sample_la_SOURCES = \
 
 plugin_sample_la_CFLAGS  = $(base_plugin_cflags)
 plugin_sample_la_LDFLAGS = $(base_plugin_ldflags)
+
+
+##########################################
+# v7proj4
+##########################################
+v7proj4_la_SOURCES = \
+	v7proj4_plugin.c \
+	sql_v7proj4.c \
+	import_gate_virtuoso.c
+
+v7proj4_la_CFLAGS  = $(base_plugin_cflags)
+v7proj4_la_LDFLAGS = -module -avoid-version -export-dynamic -export-symbols v7proj4.exp -lproj
+
+sql_v7proj4.c: v7proj4.sql Makefile.am
+	@${GEN} ${GAWK} \
+		-o sql_v7proj4.c \
+                -f ../Wi/sql_to_c.awk \
+		-v init_name=_v7proj4 \
+		-v extra_include=import_gate_virtuoso.h \
+                -v pl_stats=$(PLSTATS) \
+                v7proj4.sql
+
 
 
 #########################################

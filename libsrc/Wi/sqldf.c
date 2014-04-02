@@ -3519,7 +3519,7 @@ sqlo_choose_index (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * col_preds, dk_set_
 	    tb_dfe->_.table.key = key;
 	    tb_dfe->dfe_unit = 0;
 	    dfe_table_cost_ic (tb_dfe, &ic, 0);
-	    if (ic.ic_not_applicable)
+	    if (ic.ic_not_applicable && !opt_inx_name)
 	      continue;
 	    if (tb_dfe->_.table.is_unique)
 	      true_arity = ic.ic_arity;	/* reliable if unique but if many key parts with many distinct vals arity can be reported as less than 1. */
