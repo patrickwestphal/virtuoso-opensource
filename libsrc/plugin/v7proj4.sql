@@ -11,14 +11,8 @@ create table DB.DBA.SYS_V7PROJ4_SRIDS (
   SR_COMMENT varchar,
   SR_PROJ4_XML any,
   primary key (SR_ID, SR_FAMILY) )
-;
-
 alter index SYS_V7PROJ4_SRIDS on DB.DBA.SYS_V7PROJ4_SRIDS partition cluster REPLICATED
-;
-
 create unique index SYS_V7PROJ4_SRIDS_TAG_FAMILY on DB.DBA.SYS_V7PROJ4_SRIDS (SR_TAG, SR_FAMILY)
-;
-
 alter index SYS_V7PROJ4_SRIDS_TAG_FAMILY on DB.DBA.SYS_V7PROJ4_SRIDS partition cluster REPLICATED
 ;
 

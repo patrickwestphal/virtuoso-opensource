@@ -29,6 +29,31 @@
 
 query_t *srid_to_proj4_string_qr = NULL;
 
+void
+v7proj4_compile_statics (void)
+{
+  caddr_t err = NULL;
+#define PRINT_ERR(err) \
+  do { if (err) \
+    { \
+      log_error ("  Error compiling a v7proj4 plugin init statement : %s: %s -- %s:%d", \
+        ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING], \
+        __FILE__, __LINE__ ); \
+      dk_free_tree (err); \
+      err = NULL; \
+    } } while (0)
+  srid_to_proj4_string_qr = sql_compile_static (
+  "select coalesce ("
+     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='PG'), "
+     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='EPSG'), "
+     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='ESRI'), "
+     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='NAD83'), "
+     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='NAD27') ) ",
+  get_bootstrap_cli(), &err, 0);
+  PRINT_ERR(err);
+}
+
+
 id_hash_t *proj4_string_to_pj_htable = NULL;
 id_hash_t *srid_to_pj_htable = NULL;
 
@@ -40,6 +65,8 @@ v7proj4_find_pj_by_srid_or_string (caddr_t * qst, caddr_t *err_ret, int srid, ca
   local_cursor_t *lc;
   caddr_t boxed_srid, sys_strg;
   caddr_t *parms;
+  if (NULL == srid_to_proj4_string_qr)
+    v7proj4_compile_statics ();
   if (NULL != strg_or_null)
     {
       mutex_enter (proj4_string_to_pj_htable->ht_mutex);
@@ -109,10 +136,17 @@ v7proj4_find_pj_by_srid_or_string (caddr_t * qst, caddr_t *err_ret, int srid, ca
       dk_free_tree (boxed_srid);
       return NULL;
     }
+  if (DV_STRING != DV_TYPE_OF (sys_strg))
+    {
+      err_ret[0] = srv_make_new_error ("22023", "PR403", "Table DB.DBA.SYS_V7PROJ_SRIDS contains no data about %s SRID %d in %s()", argname, srid, bifname);
+      dk_free_tree (sys_strg);
+      dk_free_tree (boxed_srid);
+      return NULL;
+    }
   res_pj = pj_init_plus (sys_strg);
   if (NULL == res_pj)
     {
-      err_ret[0] = srv_make_new_error ("22023", "PR403", "Table DB.DBA.SYS_V7PROJ_SRIDS contains invalid or unsupported projection string \"%.500s\" for SRID %d in %s()", argname, sys_strg, srid);
+      err_ret[0] = srv_make_new_error ("22023", "PR403", "Table DB.DBA.SYS_V7PROJ_SRIDS contains invalid or unsupported %s projection string \"%.500s\" for SRID %d in %s()", argname, sys_strg, srid, bifname);
       dk_free_tree (sys_strg);
       dk_free_tree (boxed_srid);
       return NULL;
@@ -366,29 +400,20 @@ extern void sqls_define_v7proj4 (void);
 extern void sqls_arfw_define_v7proj4 (void);
 
 void
+v7proj4_pre_log_action (char *mode)
+{
+  bif_define_ex ("ST_Transform", bif_st_transform, BMD_ALIAS, "st_transform", BMD_ALIAS, "Proj4 ST_Transform", BMD_IS_PURE, BMD_USES_INDEX, BMD_DONE);
+  /* bif_define_ex ("Proj4 find_string_by_srid", bif_proj4_find_string_by_srid, BMD_DONE); */
+  bif_define_ex ("Proj4 cache_reset", bif_proj4_cache_reset, BMD_DONE);
+  bif_define_ex ("postgis_proj_version", bif_postgis_proj_version, BMD_ALIAS, "Proj4 version", BMD_IS_PURE, BMD_DONE);
+}
+
+void
 v7proj4_postponed_action (char *mode)
 {
-  caddr_t err = NULL;
   sqls_define_v7proj4 ();
   sqls_arfw_define_v7proj4 ();
-#define PRINT_ERR(err) \
-  do { if (err) \
-    { \
-      log_error ("  Error compiling a v7proj4 plugin init statement : %s: %s -- %s:%d", \
-        ((caddr_t *) err)[QC_ERRNO], ((caddr_t *) err)[QC_ERROR_STRING], \
-        __FILE__, __LINE__ ); \
-      dk_free_tree (err); \
-      err = NULL; \
-    } } while (0)
-  srid_to_proj4_string_qr = sql_compile_static (
-  "select coalesce ("
-     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='PG'), "
-     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='EPSG'), "
-     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='ESRI'), "
-     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='NAD83'), "
-     "(select SR_PROJ4_STRING from DB.DBA.SYS_V7PROJ4_SRIDS where SR_ID=:0 and SR_FAMILY='NAD27') ) ",
-  get_bootstrap_cli(), &err, 0);
-  PRINT_ERR(err);
+  v7proj4_compile_statics ();
 }
 
 static void
@@ -402,10 +427,7 @@ v7proj4_plugin_connect ()
   srid_to_pj_htable = (id_hash_t *)box_dv_dict_hashtable (31);
   srid_to_pj_htable->ht_rehash_threshold = 120;
   srid_to_pj_htable->ht_mutex = mutex_allocate ();
-  bif_define_ex ("ST_Transform", bif_st_transform, BMD_ALIAS, "st_transform", BMD_ALIAS, "Proj4 ST_Transform", BMD_IS_PURE, BMD_USES_INDEX, BMD_DONE);
-  /* bif_define_ex ("Proj4 find_string_by_srid", bif_proj4_find_string_by_srid, BMD_DONE); */
-  bif_define_ex ("Proj4 cache_reset", bif_proj4_cache_reset, BMD_DONE);
-  bif_define_ex ("postgis_proj_version", bif_postgis_proj_version, BMD_ALIAS, "Proj4 version", BMD_IS_PURE, BMD_DONE);
+  dk_set_push (get_srv_global_init_pre_log_actions_ptr(), v7proj4_pre_log_action);
   dk_set_push (get_srv_global_init_postponed_actions_ptr(), v7proj4_postponed_action);
   geo_set_default_srid_transform_cbk (v7proj4_srid_transform_cbk);
 }
