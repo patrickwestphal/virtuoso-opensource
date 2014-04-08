@@ -355,44 +355,50 @@ create procedure DB.DBA.XML_LOAD_ALL_NS_DECLS ()
     {
       __xml_set_ns_decl (NS_PREFIX, NS_URL, 2);
     }
-  DB.DBA.XML_SET_NS_DECL (	'bif'	, 'bif:'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dawgt'	, 'http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dbpedia'	, 'http://dbpedia.org/resource/'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dbpprop'	, 'http://dbpedia.org/property/'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dc'	, 'http://purl.org/dc/elements/1.1/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'go'	, 'http://purl.org/obo/owl/GO#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'geo'	, 'http://www.w3.org/2003/01/geo/wgs84_pos#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'fn'	, 'http://www.w3.org/2005/xpath-functions/#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'foaf'	, 'http://xmlns.com/foaf/0.1/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'obo'	, 'http://www.geneontology.org/formats/oboInOwl#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'owl'	, 'http://www.w3.org/2002/07/owl#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'mesh'	, 'http://purl.org/commons/record/mesh/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'math'	, 'http://www.w3.org/2000/10/swap/math#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'mf'	, 'http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'nci'	, 'http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'product'	, 'http://www.buy.com/rss/module/productV2/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'protseq'	, 'http://purl.org/science/protein/bysequence/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdf'	, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdfa'	, 'http://www.w3.org/ns/rdfa#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdfdf'	, 'http://www.openlinksw.com/virtrdf-data-formats#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdfs'	, 'http://www.w3.org/2000/01/rdf-schema#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sc'	, 'http://purl.org/science/owl/sciencecommons/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sd'	, 'http://www.w3.org/ns/sparql-service-description#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sioc'	, 'http://rdfs.org/sioc/ns#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'skos'	, 'http://www.w3.org/2004/02/skos/core#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sql'	, 'sql:'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'vcard'	, 'http://www.w3.org/2001/vcard-rdf/3.0#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'vcard2006'	, 'http://www.w3.org/2006/vcard/ns#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'virtrdf'	, 'http://www.openlinksw.com/schemas/virtrdf#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'virtcxml'	, 'http://www.openlinksw.com/schemas/virtcxml#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'void'	, 'http://rdfs.org/ns/void#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xf'	, 'http://www.w3.org/2004/07/xpath-functions'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xml'	, 'http://www.w3.org/XML/1998/namespace'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xsd'	, 'http://www.w3.org/2001/XMLSchema#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xsl10'	, 'http://www.w3.org/XSL/Transform/1.0'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xsl1999'	, 'http://www.w3.org/1999/XSL/Transform'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xslwd'	, 'http://www.w3.org/TR/WD-xsl'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'yago'	, 'http://dbpedia.org/class/yago/'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'bif'		, 'bif:'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dawgt'		, 'http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dbpedia'	, 'http://dbpedia.org/resource/'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dbpprop'	, 'http://dbpedia.org/property/'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dc'		, 'http://purl.org/dc/elements/1.1/'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'go'		, 'http://purl.org/obo/owl/GO#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'geo'		, 'http://www.w3.org/2003/01/geo/wgs84_pos#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'fn'		, 'http://www.w3.org/2005/xpath-functions/#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'foaf'		, 'http://xmlns.com/foaf/0.1/'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'obo'		, 'http://www.geneontology.org/formats/oboInOwl#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogc'		, 'http://www.opengis.net/'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgml'	, 'http://www.opengis.net/ont/gml#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgs'		, 'http://www.opengis.net/ont/geosparql#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgsf'	, 'http://www.opengis.net/def/function/geosparql/'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgsr'	, 'http://www.opengis.net/def/rule/geosparql/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcsf'		, 'http://www.opengis.net/ont/sf#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'owl'		, 'http://www.w3.org/2002/07/owl#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'mesh'		, 'http://purl.org/commons/record/mesh/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'math'		, 'http://www.w3.org/2000/10/swap/math#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'mf'		, 'http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'nci'		, 'http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'product'	, 'http://www.buy.com/rss/module/productV2/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'protseq'	, 'http://purl.org/science/protein/bysequence/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdf'		, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdfa'		, 'http://www.w3.org/ns/rdfa#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdfdf'		, 'http://www.openlinksw.com/virtrdf-data-formats#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdfs'		, 'http://www.w3.org/2000/01/rdf-schema#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sc'		, 'http://purl.org/science/owl/sciencecommons/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sd'		, 'http://www.w3.org/ns/sparql-service-description#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sioc'		, 'http://rdfs.org/sioc/ns#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'skos'		, 'http://www.w3.org/2004/02/skos/core#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sql'		, 'sql:'							, 2);
+  DB.DBA.XML_SET_NS_DECL (	'vcard'		, 'http://www.w3.org/2001/vcard-rdf/3.0#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'vcard2006'	, 'http://www.w3.org/2006/vcard/ns#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'virtrdf'	, 'http://www.openlinksw.com/schemas/virtrdf#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'virtcxml'	, 'http://www.openlinksw.com/schemas/virtcxml#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'void'		, 'http://rdfs.org/ns/void#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xf'		, 'http://www.w3.org/2004/07/xpath-functions'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xml'		, 'http://www.w3.org/XML/1998/namespace'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xsd'		, 'http://www.w3.org/2001/XMLSchema#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xsl10'		, 'http://www.w3.org/XSL/Transform/1.0'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xsl1999'	, 'http://www.w3.org/1999/XSL/Transform'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xslwd'		, 'http://www.w3.org/TR/WD-xsl'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'yago'		, 'http://dbpedia.org/class/yago/'				, 2);
 }
 ;
 
@@ -8088,7 +8094,7 @@ create function DB.DBA.SPARQL_DELETE_QUAD_DICT_CONTENT (in dflt_graph_iri any, i
   declare exit handler for sqlstate '*' { log_enable (old_log_enable, 1); resignal; };
   if (__tag of vector = __tag (dflt_graph_iri))
     {
-      del_count := dflt_graph_iri[2]; -- 2, not 1
+      del_count := dflt_graph_iri[1]; -- 1 for del count
       dflt_graph_iri := dflt_graph_iri[0]; -- the last op.
     }
   while (dict_size (quads_dict) > 0)
@@ -16402,7 +16408,7 @@ create procedure DB.DBA.SPARQL_RELOAD_QM_GRAPH ()
 {
   declare ver varchar;
   declare inx int;
-  ver := '2013-12-05 0002v7';
+  ver := '2014-02-20 0001v7';
   if (USER <> 'dba')
     signal ('RDFXX', 'Only DBA can reload quad map metadata');
   if (not exists (sparql define input:storage "" ask where {

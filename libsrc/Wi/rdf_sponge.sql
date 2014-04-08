@@ -1706,13 +1706,13 @@ retry_after_deadlock:
       if (xpath_eval ('[ xmlns:dv="http://www.w3.org/2003/g/data-view#" ] /*[1]/@dv:transformation', xt) is not null)
         goto load_grddl;
       DB.DBA.RDF_LOAD_RDFXML (ret_body, base, coalesce (dest, graph_iri));
-      if (extra <> '0')
+      if (get_soft <> 'no-sponge')
         DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, coalesce (dest, graph_iri), ret_content_type);
       rdf_fmt := 1;
       if (groupdest is not null)
         {
           DB.DBA.RDF_LOAD_RDFXML (ret_body, base, groupdest);
-          if (extra <> '0')
+	  if (get_soft <> 'no-sponge')
             DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, groupdest, ret_content_type);
         }
         goto load_grddl;
@@ -1757,14 +1757,14 @@ retry_after_deadlock:
       --  DB.DBA.SPARUL_CLEAR (coalesce (dest, graph_iri), 1);
 
       DB.DBA.TTLP (ret_body, base, coalesce (dest, graph_iri), ttl_mode);
-      if(extra<>'0')
+      if (get_soft <> 'no-sponge')
         DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, coalesce (dest, graph_iri), ret_content_type);
       rdf_fmt := 1;
 
       if (groupdest is not null)
         {
           DB.DBA.TTLP (ret_body, base, groupdest);
-          if(extra<>'0')
+	  if (get_soft <> 'no-sponge')
             DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, groupdest, ret_content_type);
         }
       if (exists (select 1 from DB.DBA.SYS_RDF_MAPPERS where RM_TYPE = 'URL' and regexp_match (RM_PATTERN, new_origin_uri) and RM_ENABLED = 1))
@@ -2027,16 +2027,18 @@ create procedure DB.DBA.CHECK_CONNECTION_PERMISSIONS (in resource varchar, in sc
 create procedure DB.DBA.SPONGING_ALLOWED ()
 {
   declare r any;
-  if (registry_get ('__sponger_access_mode__') = 'acl') {
-    r := DB.DBA.CHECK_CONNECTION_PERMISSIONS ('urn:virtuoso:sponger', 'urn:virtuoso:val:scope:sponger');
+
+  r := DB.DBA.CHECK_CONNECTION_PERMISSIONS (resource=>'urn:virtuoso:access:sparql', scope=>'urn:virtuoso:val:scopes:sql');
+
+  -- No ACL system installed -> allow access
+  if (r is null)
+    return 1;
+
     if (position ('http://www.openlinksw.com/ontology/acl#Sponge', r) > 0)
       return 1;
+
     return 0;
   }
-  else {
-    return 1;
-  }
-}
 ;
 
 create function DB.DBA.RDF_SPONGE_UP (in graph_iri varchar, in options any, in uid integer := -1)
@@ -2075,13 +2077,14 @@ create function DB.DBA.RDF_SPONGE_UP (in graph_iri varchar, in options any, in u
 
 create function DB.DBA.RDF_SPONGE_UP_1 (in graph_iri varchar, in options any, in uid integer := -1)
 {
-  declare dest, get_soft, local_iri, immg, res_graph_iri, cookie, get_private varchar;
+  declare dest, get_soft, local_iri, immg, res_graph_iri, cookie, get_private, get_enforce_acls varchar;
   declare perms, log_mode integer;
   -- dbg_obj_princ ('DB.DBA.RDF_SPONGE_UP_1 (', graph_iri, options, ')');
   graph_iri := cast (graph_iri as varchar);
   --set_user_id ('dba', 1);
 
-  if (DB.DBA.SPONGING_ALLOWED() = 0)
+  get_enforce_acls := get_keyword_ucase ('get:enforce-acls', options);
+  if (get_enforce_acls = 'yes' and DB.DBA.SPONGING_ALLOWED() = 0)
   {
     if (get_keyword_ucase ('get:error-recovery', options, 'signal') = 'signal')
       signal ('RDFZZ', 'RDF_SPONGE_UP_1: Use of the Sponger is denied for the current user');

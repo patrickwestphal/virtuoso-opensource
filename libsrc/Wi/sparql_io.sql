@@ -2545,6 +2545,9 @@ create procedure WS.WS.SPARQL_ENDPOINT_CXML_OPTION (in can_pivot integer, in par
       opts := vector (
 	  vector ('',			'No link out'),
 	  vector ('121',		'External resource link'),
+	  vector ('DESCRIBE',		'External description link'),
+	  vector ('ABOUT_RDF',		'External sponged data link (RDF)'),
+	  vector ('ABOUT_HTML',		'External sponged data link (HTML)'),
 	  vector ('LOCAL_TTL', 		'External description resource (TTL)'),
 	  vector ('LOCAL_NTRIPLES', 	'External description resource (NTRIPLES)'),
 	  vector ('LOCAL_JSON', 	'External description resource (JSON)'),
@@ -2558,6 +2561,9 @@ create procedure WS.WS.SPARQL_ENDPOINT_CXML_OPTION (in can_pivot integer, in par
 	  vector ('',			'Local faceted navigation link'),
 	  vector ('121',		'External resource link'),
 	  vector ('LOCAL_PIVOT',	'External faceted navigation link'),
+	  vector ('DESCRIBE',		'External description link'),
+	  vector ('ABOUT_RDF',		'External sponged data link (RDF)'),
+	  vector ('ABOUT_HTML',		'External sponged data link (HTML)'),
 	  vector ('LOCAL_TTL', 		'External description resource (TTL)'),
 	  vector ('LOCAL_CXML',		'External description resource (CXML)'),
 	  vector ('LOCAL_NTRIPLES', 	'External description resource (NTRIPLES)'),
@@ -2910,6 +2916,13 @@ create procedure WS.WS."/!sparql/" (inout path varchar, inout params any, inout 
   if ('' <> def_qry)
     qtxt := 1;
   def_max := atoi (coalesce (virtuoso_ini_item_value ('SPARQL', 'ResultSetMaxRows'), '-1'));
+
+  -- Get the max values as specified by the client but always stick to the system-wide max if there is any
+  if (not connection_get ('SPARQL/MaxQueryExecutionTime') is null)
+    hard_timeout := __min (cast (connection_get ('SPARQL/MaxQueryExecutionTime') as int) * 1000, hard_timeout);
+  if (not connection_get ('SPARQL/ResultSetMaxRows') is null)
+    def_max := __min (cast (connection_get ('SPARQL/ResultSetMaxRows') as int), def_max);
+
   -- if timeout specified and it's over 1 second
 
   save_dir := trim (get_keyword ('dname', params, ''));
@@ -3235,7 +3248,7 @@ create procedure WS.WS."/!sparql/" (inout path varchar, inout params any, inout 
   if (format <> '')
     accept := format;
   else
-    accept := http_request_header (lines, 'Accept', null, '');
+    accept := DB.DBA.HTTP_RDF_GET_ACCEPT_BY_Q (http_request_header_full (lines, 'Accept', '*/*'));
   if (sp_ini)
     {
       SPARQL_INI_PARAMS (metas, rset);

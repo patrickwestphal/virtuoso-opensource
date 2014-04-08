@@ -435,19 +435,143 @@ http_acl_match (caddr_t * alist, caddr_t name, ccaddr_t dst, int obj_id, int rw_
   return -1;			/* not found */
 }
 
+static int64
+unbox_number (caddr_t n)
+{
+  dtp_t tag = DV_TYPE_OF (n);
+  int64 r;
+  switch (tag)
+    {
+    case DV_SINGLE_FLOAT:
+      r = unbox_float (n);
+      break;
+    case DV_DOUBLE_FLOAT:
+      r = unbox_double (n);
+      break;
+    case DV_NUMERIC:
+      numeric_to_int64 ((numeric_t) n, &r);
+      break;
+    default:
+      r = unbox (n);
+    }
+  return r;
+}
+
 int32 enable_http_acl_restrictions = 1;
+int32 http_acl_restrictions_timeout = 600;
+id_hash_t *acl_rstr_cache;
+static long prev_acl_clear;
+
+void
+ws_acl_rstr_cache_clear ()
+{
+  id_hash_iterator_t hit;
+  caddr_t *k, *r;
+  long now = approx_msec_real_time ();
+
+  if (!acl_rstr_cache)
+    return;
+  if (prev_acl_clear && (now - prev_acl_clear) < (http_acl_restrictions_timeout * 1000))
+    return;
+  prev_acl_clear = now;
+  mutex_enter (http_acl_mtx);
+  id_hash_iterator (&hit, acl_rstr_cache);
+  while (hit_next (&hit, (char **) &k, (char **) &r))
+    {
+      dk_free_box (*k);
+      dk_free_tree (*r);
+    }
+  id_hash_clear (acl_rstr_cache);
+  mutex_leave (http_acl_mtx);
+}
+
+static caddr_t *
+ws_acl_rstr_cache_ck (ws_connection_t * ws)
+{
+  char *pck = "DB.DBA.HTTP_RESTRICTIONS_KEYS_GET";
+  static query_t *qr = NULL;
+  client_connection_t *cli = ws->ws_cli;
+  query_t *proc;
+  caddr_t err = NULL;
+  local_cursor_t *lc = NULL;
+  caddr_t *ret = NULL;
+
+  if (!(proc = (query_t *) sch_name_to_object (wi_inst.wi_schema, sc_to_proc, pck, NULL, "dba", 0)))
+    {
+      err = srv_make_new_error ("42000", "HT058", "The stored procedure %s does not exist", pck);
+      goto error_end;
+    }
+  if (!sec_user_has_group (G_ID_DBA, proc->qr_proc_owner))
+    {
+      err = srv_make_new_error ("42000", "HT059", "The stored procedure %s is not property of DBA group", pck);
+      goto error_end;
+    }
+  if (proc->qr_to_recompile)
+    {
+      proc = qr_recompile (proc, &err);
+      if (err)
+	goto error_end;
+    }
+  if (!qr)
+    qr = sql_compile_static ("DB.DBA.HTTP_RESTRICTIONS_KEYS_GET()", bootstrap_cli, &err, SQLC_DEFAULT);
+  if (!acl_rstr_cache)
+    {
+      acl_rstr_cache = id_str_hash_create (1001);
+      id_hash_set_rehash_pct (acl_rstr_cache, 200);
+    }
+  ws->ws_cli->cli_http_ses = ws->ws_strses;
+  ws->ws_cli->cli_ws = ws;
+  IN_TXN;
+  lt_wait_checkpoint ();
+  lt_threads_set_inner (cli->cli_trx, 1);
+  LEAVE_TXN;
+  err = qr_quick_exec (qr, cli, NULL, &lc, 0);
+  IN_TXN;
+  if (err && (err != (caddr_t) SQL_NO_DATA_FOUND))
+    lt_rollback (cli->cli_trx, TRX_CONT);
+  else
+    lt_commit (cli->cli_trx, TRX_CONT);
+  CLI_NEXT_USER (cli);
+  lt_threads_set_inner (cli->cli_trx, 0);
+  LEAVE_TXN;
+  if (!err && lc && DV_ARRAY_OF_POINTER == DV_TYPE_OF (lc->lc_proc_ret) && BOX_ELEMENTS ((caddr_t *) lc->lc_proc_ret) > 1)
+    {
+      int inx;
+      mutex_enter (http_acl_mtx);
+      DO_BOX (caddr_t, v, inx, ((caddr_t **) (lc->lc_proc_ret))[1])
+      {
+	caddr_t **pv = (caddr_t **) id_hash_get (acl_rstr_cache, (caddr_t) & v);
+	if (pv && *pv)
+	  {
+	    ret = *pv;
+	    break;
+	  }
+      }
+      END_DO_BOX;
+      mutex_leave (http_acl_mtx);
+    }
+error_end:
+  if (err)
+    dk_free_tree (err);
+  if (lc)
+    lc_free (lc);
+  return ret;
+}
 
 static int
 ws_check_acl_restrictions (ws_connection_t * ws, acl_hit_t ** hit)
 {
   static query_t *qr = NULL;
+  static id_hash_t *hits = NULL;
   client_connection_t *cli = ws->ws_cli;
   query_t *proc;
   caddr_t err = NULL;
   int rc = 1;
   local_cursor_t *lc = NULL;
+  caddr_t *ret = NULL;
 
-  if (!enable_http_acl_restrictions)
+  if (!enable_http_acl_restrictions
+      || !sch_name_to_object (wi_inst.wi_schema, sc_to_proc, "DB.DBA.DBEV_RESTRICTIONS", NULL, "dba", 0))
     return 1;
 
   if (!(proc = (query_t *) sch_name_to_object (wi_inst.wi_schema, sc_to_proc, "DB.DBA.HTTP_RESTRICTIONS_GET", NULL, "dba", 0)))
@@ -468,6 +592,8 @@ ws_check_acl_restrictions (ws_connection_t * ws, acl_hit_t ** hit)
     }
   if (!qr)
     qr = sql_compile_static ("DB.DBA.HTTP_RESTRICTIONS_GET ()", bootstrap_cli, &err, SQLC_DEFAULT);
+  if (NULL != (ret = ws_acl_rstr_cache_ck (ws)))
+    goto ckacl;
   ws->ws_cli->cli_http_ses = ws->ws_strses;
   ws->ws_cli->cli_ws = ws;
   IN_TXN;
@@ -487,14 +613,34 @@ ws_check_acl_restrictions (ws_connection_t * ws, acl_hit_t ** hit)
   if (!err && lc && DV_ARRAY_OF_POINTER == DV_TYPE_OF (lc->lc_proc_ret) && BOX_ELEMENTS ((caddr_t *) lc->lc_proc_ret) > 1 &&
       ARRAYP (((caddr_t *) lc->lc_proc_ret)[1]) && BOX_ELEMENTS (((caddr_t *) lc->lc_proc_ret)[1]) > 3)
     {
-      caddr_t *ret = (caddr_t *) (((caddr_t *) lc->lc_proc_ret)[1]);
+      caddr_t k;
+      ret = (caddr_t *) (((caddr_t *) lc->lc_proc_ret)[1]);
+      k = DV_STRINGP (ret[1]) ? ret[1] : ws->ws_client_ip;
+      mutex_enter (http_acl_mtx);
+      if (!id_hash_get (acl_rstr_cache, (caddr_t) & k))
+	{
+	  k = box_copy (k);
+	  id_hash_set (acl_rstr_cache, (caddr_t) & k, (caddr_t) & ret);
+	  ((caddr_t *) lc->lc_proc_ret)[1] = NULL;
+	}
+      mutex_leave (http_acl_mtx);
+    }
+ckacl:
+  if (ret)
+    {
       ws_acl_t acl;
       caddr_t name = DV_STRINGP (ret[1]) ? ret[1] : ws->ws_client_ip;
 
       memset (&acl, 0, sizeof (ws_acl_t));
-      acl.ha_rate = unbox (ret[0]);
-      acl.ha_flag = (acl.ha_rate > 0);
-      acl.ha_limit = unbox (ret[2]);
+      acl.ha_rate = unbox_number (ret[0]);
+      acl.ha_flag = 0;		/* allow if rate under limit */
+      acl.ha_limit = unbox_number (ret[2]);
+      if (!hits)
+	{
+	  hits = id_str_hash_create (101);
+	  id_hash_set_rehash_pct (hits, 200);
+	}
+      acl.ha_hits = hits;
       ws->ws_body_limit = acl.ha_limit;
       if (http_acl_check_rate (&acl, name, ACL_CHECK_HITS, -1, hit))
 	rc = 0;
@@ -513,9 +659,6 @@ ws_check_acl (ws_connection_t * ws, acl_hit_t ** hit)
   static char *szHttpAclName = "HTTP";
   caddr_t *list, **plist;
   int rc = 1;			/* all enabled by default */
-
-  if (!ws_check_acl_restrictions (ws, hit))
-    return 0;
 
   plist = (caddr_t **) id_hash_get (http_acls, (caddr_t) & szHttpAclName);
   list = plist ? *plist : NULL;
@@ -3949,11 +4092,18 @@ do_file:
 	      ws_clear (ws, 1);
 
 	      dk_free_box (ws->ws_path_string);
-	      ws->ws_path_string = dk_alloc_box (strlen (text) + lpath_len + 2, DV_SHORT_STRING);
-	      if (lpath_len > 0 && lpath[lpath_len - 1] == '/')
-		snprintf (ws->ws_path_string, box_length (ws->ws_path_string), "%s%s", lpath, text);
+	      if (text[0] != '/')
+		{
+		  ws->ws_path_string = dk_alloc_box (strlen (text) + lpath_len + 2, DV_SHORT_STRING);
+		  if (lpath_len > 0 && lpath[lpath_len - 1] == '/')
+		    snprintf (ws->ws_path_string, box_length (ws->ws_path_string), "%s%s", lpath, text);
+		  else
+		    snprintf (ws->ws_path_string, box_length (ws->ws_path_string), "%s/%s", lpath, text);
+		}
 	      else
-		snprintf (ws->ws_path_string, box_length (ws->ws_path_string), "%s/%s", lpath, text);
+		{
+		  ws->ws_path_string = box_copy (text);
+		}
 	      dk_free_box (ws->ws_p_path_string);
 	      ws->ws_p_path_string = NULL;
 	      dk_free_tree ((box_t) ws->ws_p_path);
@@ -4161,6 +4311,12 @@ ws_read_req (ws_connection_t * ws)
 	  }
 	if (ws_path_and_params (ws))
 	  goto end_req;
+	if (0 == ws_check_acl_restrictions (ws, &hit))
+	  {
+	    ws->ws_try_pipeline = 0;
+	    ws_strses_reply (ws, hit ? "HTTP/1.1 509 Bandwidth Limit Exceeded" : "HTTP/1.1 403 Forbidden");
+	    goto end_req;
+	  }
 #ifdef _IMSG
       }
 #endif
@@ -4182,7 +4338,7 @@ ws_read_req (ws_connection_t * ws)
   }
   END_READ_FAIL (ws->ws_session);
 end_req:
-  /*empty */ ;
+  ws_connection_vars_clear (ws->ws_cli);	/* can have connection vars set from authentication hook */
 }
 
 
@@ -4698,6 +4854,7 @@ http_reaper (void)
     return;			/* not initialized */
   http_timeout_keep_alives (0);
   remove_old_cached_sessions ();
+  ws_acl_rstr_cache_clear ();
 }
 
 
