@@ -40,6 +40,8 @@
 #include "sqlofn.h"
 
 
+extern int enable_lin_hash;
+
 
 int dtp_is_fixed (dtp_t dtp);
 int dtp_is_var (dtp_t dtp);
@@ -150,6 +152,62 @@ key_cl_count (dbe_col_loc_t * cls)
   return inx;
 }
 
+int
+ha_non_null (hash_area_t * ha)
+{
+  /* if distinct or gby ssls are all non null, no need for null flag bytes in the gby hash entry */
+  int inx;
+  DO_BOX (state_slot_t *, ssl, inx, ha->ha_slots) if (!ssl->ssl_sqt.sqt_non_null)
+    return 0;
+  END_DO_BOX;
+  return 1;
+}
+
+void
+setp_set_ahash (setp_node_t * setp)
+{
+  ha_key_range_t kr[2];
+  uint64 scale = 1;
+  int inx;
+  hash_area_t *ha = setp->setp_ha;
+  memzero (&kr, sizeof (kr));
+  if (ha->ha_n_keys > 2)
+    return;
+  for (inx = 0; inx < ha->ha_n_keys; inx++)
+    {
+      state_slot_t *ssl = ha->ha_slots[inx];
+      uint32 prec = ssl->ssl_sqt.sqt_precision;
+      if (DV_STRING == ssl->ssl_sqt.sqt_col_dtp && prec < 3)
+	{
+	  kr[inx].kr_scale = scale;
+	  kr[inx].kr_max = 256 << 8 * (prec - 1);
+	  scale *= 256 << 8 * (prec - 1);
+	  kr[inx].kr_dtp = DV_STRING;
+	}
+      else if (DV_LONG_INT == ssl->ssl_sqt.sqt_col_dtp || DV_SHORT_INT == ssl->ssl_sqt.sqt_dtp)
+	{
+	  int n, mx = 1;
+	  if (DV_SHORT_INT == ssl->ssl_sqt.sqt_dtp && 10 == prec)
+	    prec = 5;
+	  if (prec > 5)
+	    return;
+	  kr[inx].kr_scale = scale;
+	  for (n = 0; n < prec; n++)
+	    mx *= 10;
+	  kr[inx].kr_max = mx;
+	  scale *= mx;
+	  kr[inx].kr_dtp = DV_LONG_INT;
+	}
+      else
+	return;
+    }
+  if (scale > 100000)
+    return;
+  setp->setp_ahash_kr = dk_alloc_box (sizeof (ha_key_range_t) * inx, DV_BIN);
+  memcpy (setp->setp_ahash_kr, &kr, box_length (setp->setp_ahash_kr));
+}
+
+
 
 void
 setp_distinct_hash (sql_comp_t * sc, setp_node_t * setp, uint64 n_rows, int op)
@@ -207,13 +265,22 @@ setp_distinct_hash (sql_comp_t * sc, setp_node_t * setp, uint64 n_rows, int op)
   ha->ha_op = op;
   if (setp->setp_any_user_aggregate_gos)
     ha->ha_memcache_only = 1;
+  if (HA_GROUP == op && !setp->setp_ahash_kr)
+    setp_set_ahash (setp);
   if ((HA_GROUP == op && sqlg_is_vector && !setp->setp_any_user_aggregate_gos
 	  && ha->ha_n_keys <= CHASH_GB_MAX_KEYS) || setp->setp_distinct)
     {
       int n_slots = BOX_ELEMENTS (ha->ha_slots);
-      ha->ha_ch_len = sizeof (int64) * (1 + n_slots);
-      ha->ha_ch_nn_flags = ha->ha_ch_len;
-      ha->ha_ch_len += ALIGN_8 ((n_slots + setp->setp_top_gby)) / 8;
+      ha->ha_ch_len = sizeof (int64) * (enable_lin_hash ? n_slots : 1 + n_slots);
+      if (enable_lin_hash && !setp->setp_top_gby && ha_non_null (ha))
+	{
+	  ha->ha_ch_nn_flags = 0;
+	}
+      else
+	{
+	  ha->ha_ch_nn_flags = ha->ha_ch_len;
+	  ha->ha_ch_len += ALIGN_8 ((n_slots + setp->setp_top_gby)) / 8;
+	}
       ha->ha_ch_len = ALIGN_8 (ha->ha_ch_len);
     }
 }

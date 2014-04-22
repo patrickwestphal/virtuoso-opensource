@@ -2214,7 +2214,7 @@ itc_col_page_search (it_cursor_t * itc, buffer_desc_t ** buf_ret, dp_addr_t * le
   if (itc->itc_page != itc->itc_last_checked_page && itc->itc_ks && itc->itc_ks->ks_check)
     {
       itc->itc_last_checked_page = itc->itc_page;
-      itc_ce_check (itc, buf, 1);
+      itc_ce_check (itc, buf, 1 | CE_CHECK_ANYWAY);
     }
 new_row:
   txn_clear = PS_LOCKS;

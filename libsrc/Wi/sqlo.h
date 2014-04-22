@@ -129,6 +129,7 @@ typedef struct op_table_s
   float ot_initial_cost;	/* cost of initial plan with this ot in first position */
   char ot_any_plan;		/* true if there is at least one full plan with this ot in first position */
   char ot_is_right_oj;		/* for a dt ot, set if trying a right hash oj plan.  Only hash join is considered */
+  char ot_has_top_test;
 } op_table_t;
 #define OT_RIGHT_OJ_REJECTED 2
 
@@ -400,6 +401,7 @@ struct df_elt_s
       bitf_t is_being_placed:1;
       bitf_t is_partitioned:1;
       bitf_t is_grouping_sets:1;
+      bitf_t is_late_proj:1;
       float gb_card;
       ST **specs;
       ST **org_specs;
@@ -557,6 +559,7 @@ struct sqlo_s
   dk_set_t so_hash_fillers;
   dk_set_t so_hash_probes;	/* when making a join in build, do not include these tables these are directly on the probe side either directly or on the probe side of a containing hash filler */
   dk_set_t so_inside_subq;	/* list of exists/scalar subq being made.   Contains rename-insensitive hash no.  Used to avoid importing a subq pred as restriction inside itself */
+  dk_set_t so_const_subqs;	/* list of dfes corresponding to scalar subqs independent of rest of the containing query */
   char so_bin_op_is_negate;
   char so_is_select;
   caddr_t so_vdb_dml_prefix;
@@ -572,6 +575,7 @@ struct sqlo_s
   dk_set_t so_crossed_setps;
   df_elt_t *so_context_dt;
   dk_set_t so_lp_cols;		/* generating an exp for late proj, the col/defining dfe pairs for the refd cols that are not fetched */
+  dk_set_t so_lp_deps;
   uint32 so_last_sample_time;	/* used for stopping compilation if longer is elapsed since last sample than the best plan's time */
   int32 so_max_layouts;
   int32 so_max_memory;
@@ -1175,5 +1179,6 @@ void jp_ps_init_card (join_plan_t * jp, pred_score_t * ps);
 int dfe_is_cacheable (df_elt_t * dfe);
 uint32 sqlo_subq_id_hash (ST * tree);
 caddr_t sqlo_new_prefix (sqlo_t * so);
+void dfe_pred_body_cost (df_elt_t ** body, float *unit_ret, float *arity_ret, float *overhead_ret);
 
 #endif /* _SQLO_H */

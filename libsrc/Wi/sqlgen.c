@@ -85,7 +85,9 @@ sqlg_ks_out_cols (sqlo_t * so, df_elt_t * tb_dfe, key_source_t * ks)
     if (DFE_GEN != out->dfe_is_placed)
       {
 	if (dk_set_member (ks->ks_key->key_parts, (void *) out->_.col.col)
-	    && 0 == strcmp (out->dfe_tree->_.col_ref.prefix, tb_dfe->_.table.ot->ot_new_prefix))
+	    && (0 == strcmp (out->dfe_tree->_.col_ref.prefix, tb_dfe->_.table.ot->ot_new_prefix)
+		|| (tb_dfe->_.table.late_proj_of
+		    && 0 == strcmp (out->dfe_tree->_.col_ref.prefix, tb_dfe->_.table.late_proj_of->ot_new_prefix))))
 	  {
 	    /* test also that the out col is actually from this table since out cols can be overlapped in case of inxop between tables, all mentioned on the top table */
 	    out->dfe_is_placed = DFE_GEN;
@@ -1094,9 +1096,23 @@ sqlg_top_oby_spec (sqlo_t * so, key_source_t * ks, dbe_column_t * col, df_elt_t 
 }
 
 
+int
+sqlg_is_top_first (df_elt_t * col_dfe)
+{
+  if (DFE_CALL == col_dfe->dfe_type)
+    {
+      if (st_is_call (col_dfe->dfe_tree, "__ro2sq", 1) || st_is_call (col_dfe->dfe_tree, "__i2idn", 1))
+	return 1;
+      return 0;
+    }
+  return DFE_COLUMN == col_dfe->dfe_type;
+  return 0;
+}
+
 void
 sqlg_top_oby_pre (sqlo_t * so, df_elt_t * dfe, table_source_t * ts, dk_set_t * pre_code)
 {
+  code_vec_t top_test_cv;
   sql_comp_t *sc = so->so_sc;
   df_elt_t **body, *call_dfe;
   df_elt_t *col_dfe = NULL;
@@ -1123,7 +1139,9 @@ sqlg_top_oby_pre (sqlo_t * so, df_elt_t * dfe, table_source_t * ts, dk_set_t * p
     }
   return;
 found:
-  if (DFE_COLUMN == col_dfe->dfe_type && dk_set_member (dfe->_.table.out_cols, col_dfe))
+  if (dfe->dfe_super && DFE_DT == dfe->dfe_super->dfe_type)
+    dfe->dfe_super->_.sub.ot->ot_has_top_test = 1;
+  if (DFE_COLUMN == col_dfe->dfe_type && dk_set_member (dfe->_.table.out_cols, col_dfe) && HR_NONE == dfe->_.table.hash_role)
     {
       key_source_t *ks = ts->ts_order_ks;
       dbe_column_t *col = col_dfe->_.col.col;
@@ -1148,13 +1166,26 @@ found:
 	{
 	  SQL_NODE_INIT (end_node_t, en, end_node_input, NULL);
 	  ts->src_gen.src_continuations = dk_set_cons ((void *) en, NULL);
-	  en->src_gen.src_after_test = ts->src_gen.src_after_test;
-	  ts->src_gen.src_after_test = NULL;
-	  en->src_gen.src_after_code = ts->src_gen.src_after_code;
-	  ts->src_gen.src_after_code = NULL;
+	  if (sqlg_is_top_first (col_dfe))
+	    {
+	      en->src_gen.src_after_test = ts->src_gen.src_after_test;
+	      ts->src_gen.src_after_test = NULL;
+	      en->src_gen.src_after_code = ts->src_gen.src_after_code;
+	      ts->src_gen.src_after_code = NULL;
+	      ts->src_gen.src_after_test = sqlg_pred_body (so, dfe->_.table.top_pred);
+	      top_test_cv = ts->src_gen.src_after_test;
+	    }
+	  else
+	    {
+	      top_test_cv = en->src_gen.src_after_test = sqlg_pred_body (so, dfe->_.table.top_pred);
+	    }
 	}
-      ts->src_gen.src_after_test = sqlg_pred_body (so, dfe->_.table.top_pred);
-      DO_INSTR (ins, 0, ts->src_gen.src_after_test)
+      else
+	{
+	  ts->src_gen.src_after_test = sqlg_pred_body (so, dfe->_.table.top_pred);
+	  top_test_cv = ts->src_gen.src_after_test;
+	}
+      DO_INSTR (ins, 0, top_test_cv)
       {
 	if (INS_CALL_BIF == ins->ins_type && (bif_topk == ins->_.bif.bif || bif_topk_vec == ins->_.bif.bif))
 	  {
@@ -2154,6 +2185,7 @@ sqlg_hash_source (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code)
     }
   hs->hs_is_outer = tb_dfe->_.table.ot->ot_is_outer;
   hs->hs_after_join_test = sqlg_pred_body (so, tb_dfe->_.table.after_join_test);
+  sqlg_top_oby_pre (so, tb_dfe, (table_source_t *) hs, pre_code);
   return ((data_source_t *) hs);
 }
 
@@ -3742,7 +3774,8 @@ sqlg_distinct_fun_ref_col (sql_comp_t * sc, state_slot_t * data, dk_set_t prev_k
   setp.setp_ssa.ssa_set_no = set_no;
   setp.setp_distinct = 1;
   setp.setp_keys = dk_set_copy (prev_keys);
-  if (dk_set_position (setp.setp_keys, (void *) data) < 0)
+  /* below  if always true since even if a top gby key in count distinct the distinct hash is expected to have an extra key part for the chash implementation, whether redundant or not */
+  if (1 || dk_set_position (setp.setp_keys, (void *) data) < 0)
     setp.setp_keys = dk_set_conc (setp.setp_keys, dk_set_cons ((void *) data, NULL));
   setp_distinct_hash (sc, &setp, n_rows, HA_DISTINCT);
   setp.setp_ha->ha_tree->ssl_qr_global = 1;
@@ -3875,6 +3908,7 @@ setp_copy_if_constant (sql_comp_t * sc, setp_node_t * setp, state_slot_t * ssl)
   if (SSL_CONSTANT == ssl->ssl_type)
     {
       state_slot_t *ssl2 = ssl_new_variable (sc->sc_cc, "inc", ssl->ssl_sqt.sqt_dtp);
+      ssl2->ssl_sqt.sqt_non_null = ssl->ssl_sqt.sqt_non_null;
       dk_set_push (&setp->setp_const_gb_args, (void *) ssl2);
       dk_set_push (&setp->setp_const_gb_values, (void *) ssl);
       return ssl2;
@@ -5193,7 +5227,8 @@ sqlg_make_sort_nodes (sqlo_t * so, data_source_t ** head, ST ** order_by,
 	    }
 	}
 	END_DO_SET ();
-	if (DFE_DT == tb_dfe->dfe_type && tb_dfe->_.sub.ot->ot_first_oby && is_gb && SEL_TOP (dt))
+	if (DFE_DT == tb_dfe->dfe_type && tb_dfe->_.sub.ot->ot_first_oby && tb_dfe->_.sub.ot->ot_has_top_test && is_gb
+	    && SEL_TOP (dt))
 	  {
 	    if (setp->setp_is_streaming)
 	      setp->setp_is_streaming |= FNR_STREAM_TOP;
@@ -5232,7 +5267,7 @@ sqlg_make_sort_nodes (sqlo_t * so, data_source_t ** head, ST ** order_by,
 	      }
 	    else
 	      setp->setp_top_skip = NULL;
-	    if (!tb_dfe->_.sub.ot->ot_is_top_gby)
+	    if (!tb_dfe->_.sub.ot->ot_is_top_gby && tb_dfe->_.sub.ot->ot_has_top_test)
 	      {
 		/* if top k is restricted in a gby where top k key is in grouping cols, not again here */
 		setp->setp_top_id = ssl_new_variable (sc->sc_cc, "top_id", DV_LONG_INT);
@@ -5506,22 +5541,36 @@ sqlg_oby_node (sqlo_t * so, data_source_t ** head, df_elt_t * oby, df_elt_t * dt
 {
   sql_comp_t *sc = so->so_sc;
   ST *tree = dt_dfe->dfe_tree;
-  state_slot_t **ssl_out = (state_slot_t **) t_box_copy ((caddr_t) tree->_.select_stmt.selection);
+  state_slot_t **ssl_out;
   int inx;
-  memset (ssl_out, 0, box_length ((caddr_t) ssl_out));
-  DO_BOX (ST *, exp, inx, tree->_.select_stmt.selection)
-  {
-    if (dt_dfe->_.sub.dt_out && dt_dfe->_.sub.dt_out[inx])
+  if (oby->_.setp.is_late_proj)
+    {
+      dk_set_t dep = NULL;
+      ssl_out = (state_slot_t **) t_list_to_array (oby->_.setp.late_proj);
+      DO_BOX (df_elt_t *, exp, inx, ssl_out)
       {
-	if (oby->_.setp.oby_dep_cols && oby->_.setp.oby_dep_cols[inx])
-	  ;
-	else
-	  ssl_out[inx] = scalar_exp_generate (sc, exp, &pre_code);
+	ssl_out[inx] = scalar_exp_generate (sc, exp->dfe_tree, &pre_code);
       }
-    else
-      ssl_out[inx] = NULL;
-  }
-  END_DO_BOX;
+      END_DO_BOX;
+    }
+  else
+    {
+      ssl_out = (state_slot_t **) t_box_copy ((caddr_t) tree->_.select_stmt.selection);
+      memset (ssl_out, 0, box_length ((caddr_t) ssl_out));
+      DO_BOX (ST *, exp, inx, tree->_.select_stmt.selection)
+      {
+	if (dt_dfe->_.sub.dt_out && dt_dfe->_.sub.dt_out[inx])
+	  {
+	    if (oby->_.setp.oby_dep_cols && oby->_.setp.oby_dep_cols[inx])
+	      ;
+	    else
+	      ssl_out[inx] = scalar_exp_generate (sc, exp, &pre_code);
+	  }
+	else
+	  ssl_out[inx] = NULL;
+      }
+      END_DO_BOX;
+    }
   sqlg_make_sort_nodes (so, head, tree->_.select_stmt.table_exp->_.table_exp.order_by, ssl_out, dt_dfe, 0, pre_code, oby, NULL);
   sqlg_cl_multistate_group (sc);
   sc->sc_fref->fnr_setp->setp_multistate_oby = sqlg_is_multistate_gb (so);

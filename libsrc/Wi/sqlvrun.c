@@ -2371,6 +2371,7 @@ itc_copy (it_cursor_t * itc)
       caddr_t c = NULL;
       if (!itc->itc_n_sets || !ITC_P_VEC (itc, inx))
 	c = box_mt_copy_tree (itc->itc_search_params[inx]);
+      ITC_P_VEC (cp, inx) = NULL;
       ITC_SEARCH_PARAM (cp, c);
       if (c)
 	ITC_OWNS_PARAM (cp, c);
@@ -3289,6 +3290,22 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
 }
 
 
+int
+ts_must_split_sdfg (table_source_t * ts)
+{
+  /* true if ts must split in branch qi's even if no natural splitting because stn follows */
+  data_source_t *qn;
+  for (qn = qn_next ((data_source_t *) ts); qn; qn = qn_next (qn))
+    {
+      if (IS_STN (qn))
+	return 1;
+      if (IS_TS (qn))
+	return 0;
+    }
+  return 1;
+}
+
+
 #define ITC_COL_SPLITTABLE(itc) \
   (!itc->itc_insert_key->key_is_col || itc->itc_n_sets > 2 \
   || ( ts->ts_inx_cardinality > 2 * itc->itc_insert_key->key_rows_in_sampled_segs / (1 + itc->itc_insert_key->key_segs_sampled)))
@@ -3358,9 +3375,13 @@ ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
     itc_may_count_scan (itc);
   if (!ts->ts_in_sdfg || QST_INT (inst, ts->ts_in_sdfg))
     return ts_initial_itc_1 (ts, inst, itc);
+  if (!qi->qi_is_branch && !qi->qi_root_id)
+    qi_assign_root_id (qi);
   ts_sdfg_init (ts, inst);
   buf = ts_initial_itc_1 (ts, inst, itc);
   qis = QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index);
+  if (!qis && !ts_must_split_sdfg (ts))
+    return buf;
   DO_BOX (caddr_t *, slice_qi, inx, qis) if (slice_qi)
     last = inx;
   END_DO_BOX;

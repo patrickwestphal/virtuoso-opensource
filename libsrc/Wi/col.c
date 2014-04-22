@@ -4052,6 +4052,8 @@ cs_array_add (compress_state_t * cs, caddr_t any, int64 n)
   cs->cs_values[cs->cs_n_values++] = any;
 }
 
+dtp_t dtp_no_dict[256];
+
 
 void
 cs_compress (compress_state_t * cs, caddr_t any)
@@ -4061,7 +4063,7 @@ cs_compress (compress_state_t * cs, caddr_t any)
   int64 hash = 1;
   int box_len = box_length (any) - 1;
   cs->cs_non_comp_len += box_len;
-  if (DV_COL_BLOB_SERIAL == dtp)
+  if (dtp_no_dict[dtp])
     cs->cs_no_dict = 1;
   if (cs->cs_no_dict)
     cs_array_add (cs, any, n);
@@ -5864,6 +5866,48 @@ bif_string_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 int
+f_clz (int64 arg)
+{
+  return __builtin_clz (arg);
+}
+
+caddr_t
+bif_hash_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  uint64 h1 = bif_long_arg (qst, args, 0, "hash_test");
+  uint64 h2 = bif_long_arg (qst, args, 1, "hash_test");
+  int mode = bif_long_arg (qst, args, 2, "hash_test");
+  uint64 res;
+  switch (mode)
+    {
+    case 0:
+      MHASH_STEP_1 (res, h2);
+      break;
+    case 1:
+      MHASH_STEP (h1, h2);
+      res = h1;
+      break;
+#ifdef SSE42
+    case 2:
+      res = __builtin_ia32_crc32di (h1, h2);
+      break;
+    case 3:
+      res = MHASH_M * __builtin_ia32_crc32di (h1, h2);
+      break;
+#endif
+    }
+  return box_num (res);
+}
+
+
+caddr_t
+bif_next_prime (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  int n = bif_long_arg (qst, args, 0, "__next_prime");
+  return box_num (hash_nextprime (n));
+}
+
+int
 is_prime (int n)
 {
   int try, sq = (int) sqrt ((float) n);
@@ -6132,6 +6176,8 @@ bif_ddl_table_col_update (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
   return NULL;
 }
 
+
+
 void
 col_init ()
 {
@@ -6145,7 +6191,17 @@ col_init ()
   bif_define ("col_count_test", bif_col_count_test);
   bif_define ("rnd_string", bif_rnd_string);
   bif_define ("__dcv_test", bif_dcvt);
+  bif_define_typed ("__hash", bif_hash_test, &bt_integer);
+  bif_define_typed ("__next_prime", bif_next_prime, &bt_integer);
   bif_define ("__string_test", bif_string_test);
   bif_define ("__ddl_table_col_drop_update", bif_ddl_table_col_update);
+  dtp_no_dict[DV_COL_BLOB_SERIAL] = 1;
+  dtp_no_dict[DV_ARRAY_OF_POINTER] = 1;
+  dtp_no_dict[DV_ARRAY_OF_LONG] = 1;
+  dtp_no_dict[DV_ARRAY_OF_FLOAT] = 1;
+  dtp_no_dict[DV_ARRAY_OF_DOUBLE] = 1;
+  dtp_no_dict[DV_GEO] = 1;
+  dtp_no_dict[DV_XML_ENTITY] = 1;
+  dtp_no_dict[DV_OBJECT] = 1;
   colin_init ();
 }

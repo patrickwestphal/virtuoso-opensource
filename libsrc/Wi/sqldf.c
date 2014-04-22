@@ -654,6 +654,8 @@ sqlo_df (sqlo_t * so, ST * tree)
 	dfe->_.sub.first = head;
 	dfe->_.sub.last = head;
 	sqlo_select_deps (so, dfe);
+	if (!dfe->dfe_tables)
+	  t_set_push (&so->so_const_subqs, (void *) dfe);
 	return dfe;
       }
     case SCALAR_SUBQ:
@@ -1500,7 +1502,7 @@ sqlo_record_lp (sqlo_t * so, df_elt_t * def, df_elt_t * col)
     t_NEW_VARZ (lp_col_t, lpc);
     lpc->lpc_col = col;
     lpc->lpc_def = def;
-    t_set_push (&so->so_lp_cols, (void *) col);
+    t_set_push (&so->so_lp_cols, (void *) lpc);
   }
 }
 
@@ -3814,6 +3816,12 @@ sqlo_top_pred (sqlo_t * so, op_table_t * ot, df_elt_t * dfe)
       nth = 0;
       if (ot->ot_group_dfe)
 	{
+	  DO_SET (df_elt_t *, pred, &ot->ot_preds)
+	  {
+	    if (dk_set_member (pred->dfe_tables, ot->ot_group_ot))
+	      return;		/* if there is a pred depending on the aggregations the top k cannot be resolved on the go with the setp */
+	  }
+	  END_DO_SET ();
 	  DO_BOX (ST *, g_spec, inx, ot->ot_group_dfe->_.setp.specs)
 	  {
 	    if (box_equal (g_spec->_.o_spec.col, oby_dfe->_.setp.specs[0]->_.o_spec.col))
@@ -5612,6 +5620,7 @@ sqlo_try_hash (sqlo_t * so, df_elt_t * dfe, op_table_t * super_ot, float *score_
   else
     {
       fill_dfe = (df_elt_t *) t_box_copy ((caddr_t) dfe);
+      fill_dfe->_.table.top_pred = NULL;
       fill_dfe->_.table.inx_op = NULL;
       fill_dfe->_.table.hash_role = HR_FILL;
       fill_dfe->_.table.is_hash_filler_unique = dfe->_.table.is_unique;

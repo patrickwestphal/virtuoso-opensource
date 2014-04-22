@@ -2588,6 +2588,21 @@ sqlo_distinct_redundant (ST * sel, ST * gb)
   return 1;
 }
 
+int
+sqlo_is_const_subq (sqlo_t * so, ST * tree)
+{
+  /* if a query contains uncorrelated scalar subqueries, these may get placed multiple times when generating variations on hash fill side joins etc.  To avoid this, once the
+   * uncorrelated subq is seen once and scoe-renamed, it is not renamed again so that it stays equal to itself across rescoping */
+  DO_SET (df_elt_t *, dfe, &so->so_const_subqs)
+  {
+    if (box_equal (tree, dfe->dfe_tree))
+      return 1;
+  }
+  END_DO_SET ();
+  return 0;
+}
+
+
 void
 sqlo_select_scope (sqlo_t * so, ST ** ptree)
 {
@@ -2605,6 +2620,8 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
   memset (sco, 0, sizeof (sql_scope_t));
   memset (ot, 0, sizeof (op_table_t));
 
+  if (sqlo_is_const_subq (so, tree))
+    return;
   if (texp && sqlo_opt_value (ST_OPT (texp, caddr_t *, _.table_exp.opts), OPT_SPARQL))
     so->so_identity_joins = 1;
 

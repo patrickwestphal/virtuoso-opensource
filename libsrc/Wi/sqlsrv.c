@@ -76,6 +76,7 @@
 #include <dirent.h>
 #define FS_DIR_MODE	 (S_IRWXU | S_IRWXG)
 #endif
+#include "strlike.h"
 
 int mode_pass_change;
 
@@ -1028,6 +1029,8 @@ make_login_answer (client_connection_t * cli)
 int virtuoso_server_initialized = 0;	/* DBMS online */
 int prpc_forced_fixed_thread = 0;
 
+#define CHECK_ACL(client,v)
+
 caddr_t *
 sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t * info)
 {
@@ -1125,6 +1128,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t * info)
   dk_free_box (password);
 
   CHANGE_THREAD_USER (user);
+  CHECK_ACL (client, 0);
 
   if (to_shutdown)
     {
@@ -1687,12 +1691,14 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name, caddr_t * params
   srv_stmt_t *stmt;
 
   CHANGE_THREAD_USER (cli->cli_user);
+  CHECK_ACL (client, /* no return value */ );
 
   if (!sf_sql_execute_check_params (stmt_id, text, cursor_name, params, current_ofs, options))
     {
       err = srv_make_new_error ("41000", "SR344", "Malformed RPC");
       goto report_rpc_format_error;
     }
+
 
   stmt = cli_get_stmt_access (cli, stmt_id, GET_EXCLUSIVE, &err);
   if (err)
@@ -2317,6 +2323,7 @@ CLI_WRAPPER (sf_sql_tp_transact, (short op, char *xid_str), (op, xid_str))
   srv_stmt_t *stmt = cli_get_stmt_access (cli, stmt_id, GET_EXCLUSIVE, NULL);
 
   CHANGE_THREAD_USER (cli->cli_user);
+  CHECK_ACL (client, /* no return value */ );
 
   if (!stmt || !stmt->sst_inst)
     {
@@ -3713,6 +3720,32 @@ void qrc_init ();
 extern int enable_col_by_default, c_col_by_default;
 long get_total_sys_mem ();
 
+dk_set_t srv_global_init_pre_log_actions = NULL;
+dk_set_t srv_global_init_postponed_actions = NULL;
+
+dk_set_t *
+get_srv_global_init_pre_log_actions_ptr (void)
+{
+  return &srv_global_init_pre_log_actions;
+}
+
+dk_set_t *
+get_srv_global_init_postponed_actions_ptr (void)
+{
+  return &srv_global_init_postponed_actions;
+}
+
+void
+srv_global_init_plugin_actions (dk_set_t * set_ptr, char *mode)
+{
+  set_ptr[0] = dk_set_nreverse (set_ptr[0]);
+  while (NULL != set_ptr[0])
+    {
+      srv_global_init_plugin_action_t *f = (srv_global_init_plugin_action_t *) dk_set_pop (set_ptr);
+      f (mode);
+    }
+}
+
 void
 srv_global_init (char *mode)
 {
@@ -3918,6 +3951,7 @@ srv_global_init (char *mode)
 	db_replay_registry_sequences ();
       else
 	id_hash_clear (registry);
+      srv_global_init_plugin_actions (&srv_global_init_pre_log_actions, mode);
       log_init (wi_inst.wi_master);
       local_commit (bootstrap_cli);
       c_checkpoint_interval = 0;
@@ -3989,6 +4023,7 @@ srv_global_init (char *mode)
     }
   if (!f_read_from_rebuilt_database)
     {
+      srv_global_init_plugin_actions (&srv_global_init_pre_log_actions, mode);
       log_init (wi_inst.wi_master);
     }
   if (strchr (mode, 'r'))
@@ -4047,6 +4082,7 @@ srv_global_init (char *mode)
       sf_shutdown (sf_make_new_log_name (wi_inst.wi_master), bootstrap_cli->cli_trx);
     }
   ddl_redo_undefined_triggers ();
+  srv_global_init_plugin_actions (&srv_global_init_postponed_actions, mode);
   IN_TXN;
   lt_leave (bootstrap_cli->cli_trx);
   LEAVE_TXN;

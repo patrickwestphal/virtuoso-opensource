@@ -37,6 +37,8 @@
 #include "strlike.h"
 
 dk_set_t dfe_tables (df_elt_t * dfe);
+int jp_may_restrict (join_plan_t * jp, pred_score_t * ps);
+
 
 df_elt_t *
 dfe_left_col (df_elt_t * tb_dfe, df_elt_t * pred)
@@ -525,6 +527,17 @@ dfe_extract_or (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * pred)
 
 int dfe_ot_is_subset (dk_set_t super_dfes, dk_set_t sub_ots);
 
+int
+jp_is_on_path (join_plan_t * jp, op_table_t * ot)
+{
+  for (jp = jp; jp; jp = jp->jp_prev)
+    {
+      if (ot == jp->jp_tb_dfe->_.table.ot)
+	return 1;
+    }
+  return 0;
+}
+
 
 int
 jp_reqd_placed (join_plan_t * jp, df_elt_t * dfe, df_elt_t * placing)
@@ -540,6 +553,8 @@ jp_reqd_placed (join_plan_t * jp, df_elt_t * dfe, df_elt_t * placing)
 	if (placing && ot == placing->_.table.ot)
 	  continue;
 	if (dk_set_member (top_jp->jp_path, (void *) ot->ot_jp))
+	  continue;
+	if (jp_is_on_path (jp, ot))
 	  continue;
 	if (!dk_set_member (top_jp->jp_hash_fill_dfes, (void *) ot->ot_dfe))
 	  return 0;
@@ -712,7 +727,7 @@ jp_add (join_plan_t * jp, df_elt_t * tb_dfe, df_elt_t * pred, int is_join)
 	ps->ps_card = 1.0 / ps->ps_left_col->col_n_distinct;
     }
   if (!ps->ps_card)
-    ps->ps_card = 0, 5;
+    ps->ps_card = 0.5;
 }
 
 
@@ -762,6 +777,31 @@ again:
   jp->jp_fanout = jp_fanout (jp);
   if (jp->jp_fanout < 0 && jp->jp_fanout != -1)
     bing ();
+}
+
+
+int
+jp_is_unplaceable_oj (df_elt_t * tb_dfe)
+{
+  op_table_t *ot = DFE_TABLE == tb_dfe->dfe_type ? tb_dfe->_.table.ot : tb_dfe->_.sub.ot;
+  if (DFE_TEXT_PRED == tb_dfe->dfe_type)
+    return 0;
+  if (ot->ot_is_outer)
+    {
+      int save = tb_dfe->dfe_is_placed;
+      tb_dfe->dfe_is_placed = 1;
+      DO_SET (df_elt_t *, pred, &ot->ot_join_preds)
+      {
+	if (!dfe_reqd_placed (pred))
+	  {
+	    tb_dfe->dfe_is_placed = save;
+	    return 1;
+	  }
+      }
+      END_DO_SET ();
+      tb_dfe->dfe_is_placed = save;
+    }
+  return 0;
 }
 
 
@@ -844,6 +884,8 @@ dfe_join_score_jp (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, dk_set_t * r
 	root_jp->jp_reached += (float) jp.jp_n_joined / level;
       for (jinx = 0; jinx < jp.jp_n_joined; jinx++)
 	{
+	  if (jp_is_unplaceable_oj (jp.jp_joined[jinx]))
+	    continue;
 	  dfe_join_score_jp (so, ot, jp.jp_joined[jinx], res, &jp);
 	  any_tried = 1;
 	}
@@ -877,6 +919,8 @@ jp_print (join_plan_t * jp)
       jp_print (jp->jp_prev);
       printf ("---\n");
     }
+  printf ("jp %s %s f %d\n", DFE_TABLE == jp->jp_tb_dfe->dfe_type ? jp->jp_tb_dfe->_.table.ot->ot_table->tb_name : "dt",
+      jp->jp_tb_dfe->_.table.ot->ot_new_prefix, jp->jp_join_flags);
   for (inx = 0; inx < jp->jp_n_preds; inx++)
     {
       pred_score_t *ps = &jp->jp_preds[inx];
@@ -1041,8 +1085,7 @@ dfe_join_unique (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, dk_set_t * res
 {
   int jinx;
   join_plan_t jp;
-  float score = 0;
-  int level = 0, any_tried = 0;
+  int level = 0;
   join_plan_t *root_jp = NULL;
   float path_fanout = 1, root_fanout = 1;
   char prev_placed = tb_dfe->dfe_is_placed;
@@ -1272,6 +1315,9 @@ jp_may_restrict (join_plan_t * jp, pred_score_t * ps)
   int rc = 0;
   op_table_t *ot, *left_ot;
   df_elt_t *right = ps->ps_right;
+  if (ps->ps_pred->dfe_tables && !ps->ps_pred->dfe_tables->next
+      && ps->ps_pred->dfe_tables->data == (void *) jp->jp_tb_dfe->_.table.ot)
+    return 0;
   if (sqlo_in_list (ps->ps_pred, NULL, NULL))
     return JP_NO_JOIN;
   if (!right || DFE_COLUMN != right->dfe_type)
@@ -1424,10 +1470,10 @@ sqlo_jp_path_card (join_plan_t * top_jp)
 int
 sqlo_jp_add_path (sqlo_t * so, join_plan_t * jp)
 {
-  int rc;
   float path_card;
   dk_hash_t *visited = hash_table_allocate (11);
   join_plan_t *top_jp = jp->jp_top_jp;
+  sethash (jp->jp_tb_dfe, visited, (void *) 1);
   top_jp->jp_path = NULL;
   sqlo_jp_find_path (so, jp, NULL, visited);
   hash_table_free (visited);
@@ -1465,12 +1511,13 @@ sqlo_jp_expand (sqlo_t * so, dk_set_t initial)
 {
   dk_hash_t *visited = hash_table_allocate (11);
   dk_set_t border = initial;
-  dk_set_t new_border = initial;
+  dk_set_t new_border = NULL;
   while (border)
     {
       DO_SET (join_plan_t *, start_jp, &border)
       {
 	join_plan_t *top_jp = start_jp->jp_top_jp;
+	sethash ((void *) start_jp, visited, (void *) 1);
 	int jinx;
 	for (jinx = 0; jinx < start_jp->jp_n_joined; jinx++)
 	  {
@@ -1483,7 +1530,9 @@ sqlo_jp_expand (sqlo_t * so, dk_set_t initial)
 	      continue;
 	    if (gethash ((void *) jp, visited))
 	      continue;
+	    jp->jp_prev = start_jp;
 	    jp_placeable_fanout (jp);
+	    jp->jp_prev = NULL;
 	    if (jp->jp_fanout > 1.1)
 	      continue;
 	    if (jp->jp_fanout < 0.8)
@@ -1493,8 +1542,15 @@ sqlo_jp_expand (sqlo_t * so, dk_set_t initial)
 		if (!sqlo_jp_add_path (so, jp))
 		  continue;
 		if (ex == top_jp->jp_hash_fill_exists)
-		  t_set_push (&new_border, (void *) jp->jp_tb_dfe);
-
+		  {
+		    jp->jp_prev = start_jp;
+		    t_set_push (&new_border, (void *) jp->jp_tb_dfe);
+		  }
+	      }
+	    else
+	      {
+		jp->jp_prev = start_jp;
+		t_set_push (&new_border, (void *) jp);
 	      }
 	    sethash ((void *) jp, visited, (void *) 1);
 	  }

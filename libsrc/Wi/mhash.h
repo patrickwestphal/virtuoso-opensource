@@ -29,15 +29,23 @@
 #endif
 
 
+#ifdef SSE42
+#define MHASH_STEP_1(h, data) \
+do { \
+  uint64 __k = data; \
+  __k = __builtin_ia32_crc32di (1, __k); \
+      __k *= MHASH_M;  \
+      h = __k; \
+ } while (0)
 
+#else
 #define MHASH_STEP_1(h, data) \
 do { \
   uint64 __k = data; \
       __k *= MHASH_M;  \
-      __k ^= __k >> MHASH_R;  \
-      h = __k * MHASH_M;   \
+      h = __k; \
  } while (0)
-
+#endif
 
 #ifndef MHASH_STEP
 #define MHASH_STEP(h, data) \

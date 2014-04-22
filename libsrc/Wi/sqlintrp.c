@@ -3013,6 +3013,8 @@ ins_vec_agg_int_sum (instruction_t * ins, caddr_t * inst)
       else
 	{
 	  DC_CHECK_LEN (res_dc, 0);
+	  if (0 == res_dc->dc_n_values)
+	    ((int64 *) res_dc->dc_values)[0] = 0;
 	  res_dc->dc_n_values = 1;
 	}
       resv = (int64 *) res_dc->dc_values;

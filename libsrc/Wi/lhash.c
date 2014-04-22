@@ -36,7 +36,7 @@
 #include "sqlpar.h"
 #include "rdf_core.h"
 
-int enable_lin_hash = 0;
+int enable_lin_hash = 1;
 int chash_max_count = 20000000;
 int chash_init_gb_size = 10000;
 int chash_max_key_len = (PAGE_DATA_SZ - 5);
@@ -45,6 +45,7 @@ int chash_part_size = 7011;
 int chash_part_max_fill = 4000;
 int enable_chash_bloom = 1;
 float chash_bloom_bits = 8;
+int cha_gb_load_pct = 70;
 int chash_look_levels = 10;
 int enable_chash_join = 1;
 int enable_chash_in = 0;
@@ -65,6 +66,34 @@ dk_mutex_t cha_bloom_init_mtx;
 #define CHA_PARTITION(cha, h) (cha->cha_n_partitions ? &cha->cha_partitions[h % cha->cha_n_partitions] : cha)
 #define CHA_POS_1(cha, hno) ((((uint32)hno)) % cha->cha_size)
 #define CHA_POS_2(cha, hno) ((((uint64)hno) >> 32) % cha->cha_size)
+#define CHA_LIN_POS(cha, hno) ((((uint32)hno)) % chash_part_size)
+
+
+
+
+#define HIGH_16(w) ((uint64)(w) & 0xffff000000000000)
+#define LOW_48(w) ((uint64)(w) & 0x0000ffffffffffff)
+#define LOW_3(w) ((w) & 7)
+#define CLR_LOW_3(w) ((w) & (uint32)0xfffffff8)
+#define INC_LOW_3(n) (n = (CLR_LOW_3 (n) + LOW_3 (n + 1)))
+#define CONC(a, b) a##b
+
+
+#define CHA_ARRAY(cha, cha_p, h) cha_p->cha_array
+
+#define L_BIT_SET(flags, n, bool) flags |= (bool) << n
+
+#define L_BIT_CLR(flags, n) (flags &= ~(1 << bit)
+
+#define L_IS_SET(flags, n) (flags & (1 << n))
+
+
+#define HASH_FROM_NOS(var_n, set_n) \
+  hash_##var_n = hash_nos[SET_NO (set_n)];
+#define HASH_FROM_INT(var_n, set_n)				\
+  MHASH_STEP_1 (hash_##n, values[SET_NO (set_n)])
+
+
 
 /*#define CKE(ent) if (0 == memcmp (((char**)ent)[1] + 2, "Supplier#000002039", 18)) bing();*/
 #define CKE(ent)
@@ -81,14 +110,14 @@ void hash_source_chash_input_1i_n (hash_source_t * hs, caddr_t * inst, caddr_t *
 
 
 #define GB_HAS_VALUE(ha, row, nth) \
-  ((db_buf_t)row)[ ha->ha_ch_nn_flags + (nth / 8)] |= 1 << (nth & 7);
+  if (ha->ha_ch_nn_flags) {((db_buf_t)row)[ ha->ha_ch_nn_flags + (nth / 8)] |= 1 << (nth & 7);}
 
 #define GB_NO_VALUE(ha, row, nth) \
-  ((db_buf_t)row)[ ha->ha_ch_nn_flags + (nth / 8)] &= ~(1 << (nth & 7));
+  if (ha->ha_ch_nn_flags) {((db_buf_t)row)[ ha->ha_ch_nn_flags + (nth / 8)] &= ~(1 << (nth & 7));}
 
 
 #define GB_IS_NULL(ha, row, nth) \
-  (!(((db_buf_t)row)[ ha->ha_ch_nn_flags + (nth / 8)] & (1 << (nth & 7))))
+  ha->ha_ch_nn_flags && (!(((db_buf_t)row)[ ha->ha_ch_nn_flags + (nth / 8)] & (1 << (nth & 7))))
 
 
 uint64
@@ -177,32 +206,32 @@ gb_aggregate (setp_node_t * setp, caddr_t * inst, chash_t * cha, int64 ** groups
 	      case AGG_C (DV_LONG_INT, AMMSC_COUNTSUM):
 		for (inx = 0; 0 && inx <= n_sets - 4; inx += 4)
 		  {
-		    ((int64 **) groups)[inx][1 + dep_inx] += ((int64 *) values)[inx + base_set];
-		    ((int64 **) groups)[inx + 1][1 + dep_inx] += ((int64 *) values)[inx + 1 + base_set];
-		    ((int64 **) groups)[inx + 2][1 + dep_inx] += ((int64 *) values)[inx + 2 + base_set];
-		    ((int64 **) groups)[inx + 3][1 + dep_inx] += ((int64 *) values)[inx + 3 + base_set];
+		    ((int64 **) groups)[inx][dep_inx] += ((int64 *) values)[inx + base_set];
+		    ((int64 **) groups)[inx + 1][dep_inx] += ((int64 *) values)[inx + 1 + base_set];
+		    ((int64 **) groups)[inx + 2][dep_inx] += ((int64 *) values)[inx + 2 + base_set];
+		    ((int64 **) groups)[inx + 3][dep_inx] += ((int64 *) values)[inx + 3 + base_set];
 		  }
 		for (inx = inx; inx < n_sets; inx++)
-		  ((int64 **) groups)[inx][1 + dep_inx] += ((int64 *) values)[inx + base_set];
+		  ((int64 **) groups)[inx][dep_inx] += ((int64 *) values)[inx + base_set];
 		break;
 	      case AGG_C (DV_SINGLE_FLOAT, AMMSC_SUM):
 		GB_CLR_NULL;
 	      case AGG_C (DV_SINGLE_FLOAT, AMMSC_COUNTSUM):
 		for (inx = 0; inx < n_sets; inx++)
-		  *(float *) &((double **) groups)[inx][1 + dep_inx] += ((float *) dc->dc_values)[inx + base_set];
+		  *(float *) &((double **) groups)[inx][dep_inx] += ((float *) dc->dc_values)[inx + base_set];
 		break;
 	      case AGG_C (DV_DOUBLE_FLOAT, AMMSC_SUM):
 		GB_CLR_NULL;
 	      case AGG_C (DV_DOUBLE_FLOAT, AMMSC_COUNTSUM):
 		for (inx = 0; 0 && inx <= n_sets - 4; inx += 4)
 		  {
-		    ((double **) groups)[inx][1 + dep_inx] += ((double *) values)[inx + base_set];
-		    ((double **) groups)[inx + 1][1 + dep_inx] += ((double *) values)[inx + 1 + base_set];
-		    ((double **) groups)[inx + 2][1 + dep_inx] += ((double *) values)[inx + 2 + base_set];
-		    ((double **) groups)[inx + 3][1 + dep_inx] += ((double *) dc->dc_values)[inx + 3 + base_set];
+		    ((double **) groups)[inx][dep_inx] += ((double *) values)[inx + base_set];
+		    ((double **) groups)[inx + 1][dep_inx] += ((double *) values)[inx + 1 + base_set];
+		    ((double **) groups)[inx + 2][dep_inx] += ((double *) values)[inx + 2 + base_set];
+		    ((double **) groups)[inx + 3][dep_inx] += ((double *) dc->dc_values)[inx + 3 + base_set];
 		  }
 		for (inx = inx; inx < n_sets; inx++)
-		  ((double **) groups)[inx][1 + dep_inx] += ((double *) values)[inx + base_set];
+		  ((double **) groups)[inx][dep_inx] += ((double *) values)[inx + base_set];
 		break;
 	      default:
 		goto general;
@@ -215,7 +244,7 @@ gb_aggregate (setp_node_t * setp, caddr_t * inst, chash_t * cha, int64 ** groups
       {
 	/* constant corresponds to count * */
 	for (inx = 0; inx < last_set - first_set; inx++)
-	  ((int64 **) groups)[inx][1 + dep_inx]++;
+	  ((int64 **) groups)[inx][dep_inx]++;
 	dep_inx++;
 	continue;
       }
@@ -227,13 +256,13 @@ gb_aggregate (setp_node_t * setp, caddr_t * inst, chash_t * cha, int64 ** groups
       case AGG_C (DV_LONG_INT, AMMSC_COUNTSUM):
       case AGG_C (DV_LONG_INT, AMMSC_COUNT):
 	for (inx = 0; inx < n_sets; inx++)
-	  ((int64 **) groups)[inx][1 + dep_inx] += ((int64 *) dc->dc_values)[sets[inx] + base_set];
+	  ((int64 **) groups)[inx][dep_inx] += ((int64 *) dc->dc_values)[sets[inx] + base_set];
 	break;
       case AGG_C (DV_SINGLE_FLOAT, AMMSC_SUM):
 	GB_CLR_NULL;
       case AGG_C (DV_SINGLE_FLOAT, AMMSC_COUNTSUM):
 	for (inx = 0; inx < n_sets; inx++)
-	  *(float *) &((double **) groups)[inx][1 + dep_inx] += ((float *) dc->dc_values)[sets[inx] + base_set];
+	  *(float *) &((double **) groups)[inx][dep_inx] += ((float *) dc->dc_values)[sets[inx] + base_set];
 	break;
       case AGG_C (DV_DOUBLE_FLOAT, AMMSC_SUM):
 	GB_CLR_NULL;
@@ -241,14 +270,14 @@ gb_aggregate (setp_node_t * setp, caddr_t * inst, chash_t * cha, int64 ** groups
 #if 0
 	for (inx = 0; inx <= n_sets - 4; inx += 4)
 	  {
-	    ((double **) groups)[inx][1 + dep_inx] += ((double *) dc->dc_values)[sets[inx] + base_set];
-	    ((double **) groups)[inx + 1][1 + dep_inx] += ((double *) dc->dc_values)[sets[inx + 1] + base_set];
-	    ((double **) groups)[inx + 2][1 + dep_inx] += ((double *) dc->dc_values)[sets[inx + 2] + base_set];
-	    ((double **) groups)[inx + 3][1 + dep_inx] += ((double *) dc->dc_values)[sets[inx + 3] + base_set];
+	    ((double **) groups)[inx][dep_inx] += ((double *) dc->dc_values)[sets[inx] + base_set];
+	    ((double **) groups)[inx + 1][ep_inx] += ((double *) dc->dc_values)[sets[inx + 1] + base_set];
+	    ((double **) groups)[inx + 2][dep_inx] += ((double *) dc->dc_values)[sets[inx + 2] + base_set];
+	    ((double **) groups)[inx + 3][dep_inx] += ((double *) dc->dc_values)[sets[inx + 3] + base_set];
 	  }
 #endif
 	for (inx = 0; inx < n_sets; inx++)
-	  ((double **) groups)[inx][1 + dep_inx] += ((double *) dc->dc_values)[sets[inx] + base_set];
+	  ((double **) groups)[inx][dep_inx] += ((double *) dc->dc_values)[sets[inx] + base_set];
 	break;
       case AGG_C (DV_LONG_INT, AMMSC_MIN):
 
@@ -258,11 +287,11 @@ gb_aggregate (setp_node_t * setp, caddr_t * inst, chash_t * cha, int64 ** groups
 	      int64 * ent = groups[inx]; \
 	      if (GB_IS_NULL (ha, ent, dep_inx)) \
 		{ \
-		  *(dtp*)&ent[dep_inx + 1] = ((dtp*)dc->dc_values)[sets[inx] + base_set]; \
+		  *(dtp*)&ent[dep_inx] = ((dtp*)dc->dc_values)[sets[inx] + base_set]; \
 		  GB_HAS_VALUE (ha, ent, dep_inx); \
 		} \
-	      else if (*(dtp*)&ent[dep_inx + 1] cmp ((dtp*)dc->dc_values)[sets[inx] + base_set]) \
-		*(dtp*)&ent[dep_inx + 1] = ((dtp*)dc->dc_values)[sets[inx] + base_set]; \
+	      else if (*(dtp*)&ent[dep_inx] cmp ((dtp*)dc->dc_values)[sets[inx] + base_set]) \
+		*(dtp*)&ent[dep_inx] = ((dtp*)dc->dc_values)[sets[inx] + base_set]; \
 	    } \
 	  break;
 
@@ -300,6 +329,8 @@ gb_arr_to_any (int64 * arr, int n, db_buf_t any_temp, int *any_temp_fill)
 {
   GPF_T1 ("gb col cast to any not done");
 }
+
+int ahash_array (int64 * arr, uint64 * hash_no, dtp_t chdtp, int first_set, int last_set, int elt_sz, ha_key_range_t * kr);
 
 void
 chash_array_0 (int64 * arr, uint64 * hash_no, dtp_t chdtp, int first_set, int last_set, int elt_sz)
@@ -424,6 +455,58 @@ chash_array (int64 * arr, uint64 * hash_no, dtp_t chdtp, int first_set, int last
 	}
     }
 }
+
+
+uint64
+chash_row (chash_t * cha, int64 * row)
+{
+  uint64 hash_no = 1;
+  int inx, n_keys = cha->cha_n_keys;
+  for (inx = 0; inx < n_keys; inx++)
+    {
+      dtp_t chdtp = cha->cha_sqt[inx].sqt_dtp;
+      switch (chdtp)
+	{
+	case DV_ANY:
+	  {
+	    db_buf_t any = (db_buf_t) row[inx];
+	    int l1;
+	    DB_BUF_TLEN (l1, any[0], any);
+	    MHASH_VAR (hash_no, any, l1);
+	    break;
+	  }
+	case DV_SINGLE_FLOAT:
+	  {
+	    uint32 i = row[inx];
+	    if (0 == inx)
+	      MHASH_STEP_1 (hash_no, (uint64) i);
+	    else
+	      MHASH_STEP (hash_no, (uint64) i);
+	    break;
+	  }
+	case DV_DATETIME:
+	  {
+	    uint64 d = ((uint64 **) row)[inx][0];
+	    if (0 == inx)
+	      MHASH_STEP_1 (hash_no, d);
+	    else
+	      MHASH_STEP (hash_no, (uint64) d);
+	    break;
+	  }
+	default:
+	  {
+	    uint64 d = (uint64) row[inx];
+	    if (0 == inx)
+	      MHASH_STEP_1 (hash_no, d);
+	    else
+	      MHASH_STEP (hash_no, d);
+	    break;
+	  }
+	}
+    }
+  return hash_no;
+}
+
 
 void
 dc_boxes_to_anies (data_col_t * dc, caddr_t * boxes, int n)
@@ -557,7 +640,7 @@ gv_any_to_typed (int64 * temp, dtp_t chdtp, int fill, dtp_t * nulls)
 
 int64 *
 gb_values (chash_t * cha, uint64 * hash_no, caddr_t * inst, state_slot_t * ssl, int nth, int first_set, int last_set,
-    db_buf_t temp_space, db_buf_t any_temp, int *any_temp_fill, dtp_t * nulls, int clear_nulls)
+    db_buf_t temp_space, db_buf_t any_temp, int *any_temp_fill, dtp_t * nulls, int clear_nulls, ha_key_range_t * kr)
 {
   /* accumulate hash nos and optionally change col to anies */
   int dc_temp_anies = 0;
@@ -677,7 +760,16 @@ gb_values (chash_t * cha, uint64 * hash_no, caddr_t * inst, state_slot_t * ssl, 
       dc_boxes_to_anies (dc, (caddr_t *) arr, last_set - first_set);
       dc_temp_anies = 1;
     }
-  if (0 == nth)
+  if (kr)
+    {
+      if (-1 == ahash_array (arr, hash_no, chdtp, first_set, last_set, elt_sz, kr))
+	{
+	  if (dc_temp_anies)
+	    dc_reset_alloc (dc);
+	  return NULL;
+	}
+    }
+  else if (0 == nth)
     chash_array_0 (arr, hash_no, chdtp, first_set, last_set, elt_sz);
   else
     chash_array (arr, hash_no, chdtp, first_set, last_set, elt_sz);
@@ -715,6 +807,49 @@ cha_new_row (hash_area_t * ha, chash_t * cha, int is_next)
   return cha_new_row (ha, cha, is_next);
 }
 
+
+int64 *
+cha_new_word (chash_t * cha)
+{
+  chash_page_t *chp = cha->cha_current, *chp2;
+  int off = chp->h.h.chp_fill;
+  int len = sizeof (int64);
+  if (off + len < PAGE_DATA_SZ)
+    {
+      chp->h.h.chp_fill += len;
+      cha->cha_count++;
+      return (int64 *) & chp->chp_data[off];
+    }
+  if (chp->h.h.chp_next && 0 == chp->h.h.chp_next->h.h.chp_fill)
+    {
+      cha->cha_current = chp->h.h.chp_next;
+      return cha_new_word (cha);
+    }
+  if (cha->cha_is_parallel)
+    mutex_enter (&cha_alloc_mtx);
+  chp2 = (chash_page_t *) mp_alloc_box_ni (cha->cha_pool, PAGE_SZ, DV_NON_BOX);
+  if (cha->cha_is_parallel)
+    mutex_leave (&cha_alloc_mtx);
+  memset (chp2, 0, DP_DATA);
+  chp->h.h.chp_next = chp2;
+  cha->cha_current = chp2;
+  return cha_new_word (cha);
+}
+
+
+chash_t *
+cha_alloc_fill_cha (chash_t * cha)
+{
+  chash_t *fill_cha;
+  mem_pool_t *mp = mem_pool_alloc ();
+  mp->mp_block_size = chash_block_size;
+  fill_cha = (chash_t *) mp_alloc_box_ni (mp, sizeof (chash_t), DV_NON_BOX);
+  memzero (fill_cha, sizeof (chash_t));
+  fill_cha->cha_pool = mp;
+  fill_cha->cha_current = fill_cha->cha_init_page = (chash_page_t *) mp_alloc_box_ni (fill_cha->cha_pool, PAGE_SZ, DV_NON_BOX);
+  memset (fill_cha->cha_current, 0, DP_DATA);
+  return cha->cha_fill_cha = fill_cha;
+}
 
 db_buf_t
 cha_any (chash_t * cha, db_buf_t dv)
@@ -869,24 +1004,23 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
   hash_area_t *ha = setp->setp_ha;
   int nth_col, n_cols;
   int64 *row = cha_new_row (ha, cha, 0);
-  row[0] = hash_no;
   for (nth_col = 0; nth_col < ha->ha_n_keys; nth_col++)
     {
       if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
 	{
 	  db_buf_t dv = ((db_buf_t **) key_vecs)[nth_col][row_no];
-	  row[nth_col + 1] = (ptrlong) cha_any (cha, dv);
+	  row[nth_col] = (ptrlong) cha_any (cha, dv);
 	}
       else if (DV_DATETIME == cha->cha_sqt[nth_col].sqt_dtp)
 	{
 	  db_buf_t dt = &((db_buf_t *) key_vecs)[nth_col][row_no * DT_LENGTH];
 	  GB_HAS_VALUE (ha, row, nth_col);
-	  row[nth_col + 1] = (ptrlong) cha_dt (cha, dt);
+	  row[nth_col] = (ptrlong) cha_dt (cha, dt);
 	}
       else
 	{
 	  GB_HAS_VALUE (ha, row, nth_col);
-	  row[nth_col + 1] = ((int64 **) key_vecs)[nth_col][row_no];
+	  row[nth_col] = ((int64 **) key_vecs)[nth_col][row_no];
 	}
       if (!cha->cha_sqt[nth_col].sqt_non_null && nulls && nulls[nth_col * ARTM_VEC_LEN + row_no])
 	GB_NO_VALUE (ha, row, nth_col);
@@ -895,21 +1029,21 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
   {
     if (AMMSC_COUNTSUM == go->go_op || AMMSC_COUNT == go->go_op)
       {
-	row[nth_col + 1] = 0;
+	row[nth_col] = 0;
 	GB_HAS_VALUE (ha, row, nth_col);
       }
-    if (AMMSC_MAX == go->go_op || AMMSC_MIN == go->go_op)
+    else if (AMMSC_MAX == go->go_op || AMMSC_MIN == go->go_op)
       {
 	GB_NO_VALUE (ha, row, nth_col);
       }
     else if (AMMSC_SUM == go->go_op && !cha->cha_sqt[nth_col].sqt_non_null && cha_is_null (setp, inst, nth_col, row_no + base))
       {
-	row[nth_col + 1] = 0;
+	row[nth_col] = 0;
 	GB_NO_VALUE (ha, row, nth_col);
       }
     else
       {
-	row[nth_col + 1] = 0;
+	row[nth_col] = 0;
 	GB_HAS_VALUE (ha, row, nth_col);
       }
     nth_col++;
@@ -926,29 +1060,29 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
 	  if (!(is_null & 1))
 	    GB_HAS_VALUE (ha, row, nth_col);
 	  if (!cha->cha_is_parallel)
-	    row[nth_col + 1] = (int64) mp_box_to_any_1 ((caddr_t) val, &err, cha->cha_pool, DKS_TO_DC);
+	    row[nth_col] = (int64) mp_box_to_any_1 ((caddr_t) val, &err, cha->cha_pool, DKS_TO_DC);
 	  else
 	    {
 	      caddr_t box = box_to_any_1 ((caddr_t) val, &err, NULL, DKS_TO_DC);
-	      row[nth_col + 1] = (int64) cha_any (cha, (db_buf_t) box);
+	      row[nth_col] = (int64) cha_any (cha, (db_buf_t) box);
 	      dk_free_box (box);
 	    }
 	}
       else if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
 	{
-	  row[nth_col + 1] = (ptrlong) cha_any (cha, (db_buf_t) (ptrlong) val);
+	  row[nth_col] = (ptrlong) cha_any (cha, (db_buf_t) (ptrlong) val);
 	}
       else if (DV_DATETIME == cha->cha_sqt[nth_col].sqt_dtp)
 	{
 	  if (!is_null)
 	    GB_HAS_VALUE (ha, row, nth_col);
-	  row[nth_col + 1] = (ptrlong) cha_dt (cha, (db_buf_t) val);
+	  row[nth_col] = (ptrlong) cha_dt (cha, (db_buf_t) val);
 	}
       else
 	{
 	  if (!is_null)
 	    GB_HAS_VALUE (ha, row, nth_col);
-	  row[nth_col + 1] = val;
+	  row[nth_col] = val;
 	}
     }
   if (setp->setp_top_gby)
@@ -957,7 +1091,7 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
 }
 
 #define CHA_IS_NULL(cha, is_cont, row, inx)				\
-  (((db_buf_t)row)[(int)cha->cha_null_flags - (is_cont ? (cha->cha_n_keys + !cha->cha_is_1_int_key) * sizeof (int64) : 0) + ((inx) >> 3)] & (1 << ((inx) & 0x7)))
+  (((db_buf_t)row)[(int)cha->cha_null_flags - (is_cont ? (cha->cha_n_keys) * sizeof (int64) : 0) + ((inx) >> 3)] & (1 << ((inx) & 0x7)))
 
 #define CHA_SET_NULL(cha, is_cont, row, inx)				\
   (((db_buf_t)row)[(int)cha->cha_null_flags - (is_cont ? cha->cha_n_keys * sizeof (int64) : 0) + ((inx) >> 3)] |= (1 << ((inx) & 0x7)))
@@ -975,12 +1109,10 @@ cha_new_hj_row (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_
     {
       if (prev)
 	nn -= cha->cha_first_len - cha->cha_next_len;
-      memset ((db_buf_t) row + nn, 0, ALIGN_8 (ha->ha_n_deps) / 8);
+      memzero ((db_buf_t) row + nn, ALIGN_8 (ha->ha_n_deps) / 8);
     }
   if (!prev)
     {
-      if (!cha->cha_is_1_int_key)
-	row[fill++] = hash_no;
       for (nth_col = 0; nth_col < ha->ha_n_keys; nth_col++)
 	{
 	  dtp_t chdtp = cha->cha_sqt[nth_col].sqt_dtp;
@@ -1059,10 +1191,10 @@ cha_col_copy (chash_t * new_cha, chash_t * cha, int64 ent, int inx, int64 * new_
 	dv_from_iri (tmp, ent);
       else
 	dv_from_int (tmp, ent);
-      new_row[inx + 1] = (uptrlong) cha_any (new_cha, tmp);
+      new_row[inx] = (uptrlong) cha_any (new_cha, tmp);
     }
   else
-    new_row[inx + 1] = ent;
+    new_row[inx] = ent;
 }
 
 int cha_relocate (chash_t * cha, uint64 hash_no, int64 * ent);
@@ -1208,44 +1340,62 @@ cha_ent_h (chash_t * cha, int64 ent)
 }
 
 
-int enable_rehash_prefetch = 1;
+void cha_insert_vec_1_unq (chash_t * cha, int64 *** ep1, int64 ** rows, uint64 * hash_no, int *nps, int fill);
 
 
 void
 cha_rehash_ents (chash_t * new_cha, int64 ** ents, int fill)
 {
+  uint64 hash_no[ARTM_VEC_LEN];
+  int np[ARTM_VEC_LEN];
+  int64 **ep1[ARTM_VEC_LEN];
   int inx;
-  if (enable_rehash_prefetch)
-    {
-      for (inx = 0; inx < fill; inx++)
-	{
-	  int64 *ent = ents[inx];
-	  uint64 h = ent[0];
-	  chash_t *cha_p = CHA_PARTITION (new_cha, h);
-	  int pos1 = CHA_POS_1 (cha_p, h);
-	  __builtin_prefetch ((int64 *) cha_p->cha_array[pos1]);
-	}
-    }
   for (inx = 0; inx < fill; inx++)
     {
       int64 *ent = ents[inx];
-      uint64 h = ent[0];
-      cha_rehash_add (new_cha, h, (int64) ent);
+      uint64 h = chash_row (new_cha, ent);
+      hash_no[inx] = h;
+      np[inx] = h % new_cha->cha_n_partitions;
+      chash_t *cha_p = CHA_PARTITION (new_cha, h);
+      int pos1 = CHA_LIN_POS (cha_p, h);
+      ep1[inx] = &cha_p->cha_array[pos1];
+      __builtin_prefetch ((int64 *) cha_p->cha_array[pos1]);
     }
+  cha_insert_vec_1_unq (new_cha, ep1, ents, hash_no, np, fill);
+}
+
+
+size_t
+cha_part_adjust (setp_node_t * setp, chash_t * cha, size_t prev_sz, size_t new_sz)
+{
+  int n_part = 1;
+  float card = setp->setp_card;
+  if (setp->setp_partitioned)
+    {
+      if (CL_RUN_LOCAL == cl_run_local_only)
+	n_part = clm_all->clm_distinct_slices;
+    }
+  card /= n_part;
+  if (card / n_part > 1e9);
+  return new_sz;
+  if (prev_sz > card / 3 && new_sz < card * 1.1)
+    new_sz = card * 1.1;
+  return new_sz;
 }
 
 
 void
 cha_resize (chash_t * cha, setp_node_t * setp, caddr_t * inst, int first_set, int n_sets)
 {
-  int n_part, inx;
   int prev_sz = cha->cha_n_partitions ? cha->cha_partitions[0].cha_size * cha->cha_n_partitions : cha->cha_size;
   int last_set = MIN (n_sets, (first_set + ARTM_VEC_LEN));
   float sets_per_group = (float) (cha->cha_n_in + last_set) / cha->cha_distinct_count;
   int64 new_sz = 2 * prev_sz;
+  int n_cols = BOX_ELEMENTS (setp->setp_ha->ha_slots);
+
   int to_go = n_sets - last_set;
   int64 *ents[ARTM_VEC_LEN];
-  int ent_fill = 0;
+  int ent_fill = 0, part;
   chash_t *new_cha = (chash_t *) mp_alloc_box_ni (cha->cha_pool, sizeof (chash_t), DV_BIN);
   if (setp->setp_sorted && inst)
     {
@@ -1257,37 +1407,36 @@ cha_resize (chash_t * cha, setp_node_t * setp, caddr_t * inst, int first_set, in
   if ((to_go / sets_per_group) > new_sz)
     new_sz += 2 * (to_go / sets_per_group);
   new_sz = MAX (2 * chash_part_max_fill, new_sz);
+  new_sz = cha_part_adjust (setp, cha, prev_sz, new_sz);
+  if (CHA_AHASH == cha->cha_ahash)
+    {
+      new_sz = cha->cha_n_partitions * chash_part_max_fill;
+      cha->cha_ahash = CHA_NO_AHASH;
+    }
   *new_cha = *cha;
   new_cha->cha_size = new_sz;
   cha_alloc_int (new_cha, setp, cha->cha_new_sqt, cha);
-
-  for (n_part = 0; n_part < MAX (1, cha->cha_n_partitions); n_part++)
+  for (part = 0; part < MAX (1, cha->cha_n_partitions); part++)
     {
-      chash_t *cha_p = CHA_PARTITION (cha, n_part);
-      int64 empty = cha->cha_is_1_int ? CHA_EMPTY : 0;
-      for (inx = 0; inx < cha_p->cha_size; inx++)
+      chash_t *cha_p = CHA_PARTITION (cha, part);
+      chash_page_t *chp = cha_p->cha_init_page;
+      int row;
+      for (chp = chp; chp; chp = chp->h.h.chp_next)
 	{
-	  int64 ent = ((int64 *) cha_p->cha_array)[inx];
-	  if (empty == ent)
-	    continue;
-	  CKE (ent);
-	  ents[ent_fill++] = (int64 *) ent;
-	  if (ARTM_VEC_LEN == ent_fill)
+	  for (row = 0; row < chp->h.h.chp_fill; row += cha->cha_first_len)
 	    {
-	      cha_rehash_ents (new_cha, ents, ent_fill);
-	      ent_fill = 0;
+	      int64 *ent = (int64 *) & chp->chp_data[row];
+	      if (setp->setp_top_gby && GB_IS_NULL (setp->setp_ha, ent, n_cols))
+		continue;
+	      CKE (ent);
+	      ents[ent_fill++] = (int64 *) LOW_48 ((int64) ent);
+	      if (ARTM_VEC_LEN == ent_fill)
+		{
+		  cha_rehash_ents (new_cha, ents, ent_fill);
+		  ent_fill = 0;
+		}
 	    }
-	}
-      for (inx = 0; inx < cha_p->cha_exception_fill; inx++)
-	{
-	  int64 *ent = ((int64 **) cha_p->cha_exceptions)[inx];
-	  if (ent)
-	    ents[ent_fill++] = ent;
-	  if (ARTM_VEC_LEN == ent_fill)
-	    {
-	      cha_rehash_ents (new_cha, ents, ent_fill);
-	      ent_fill = 0;
-	    }
+	  row = 0;
 	}
     }
   cha_rehash_ents (new_cha, ents, ent_fill);
@@ -1390,11 +1539,11 @@ cha_add_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
   CKE (ent);
   if (-1 != inx)
     {
-      cha->cha_array[inx] = ent;
+      cha->cha_array[inx] = (int64 *) (HIGH_16 (hash_no) | (int64) ent);
       return ent;
     }
-  if (!cha_relocate (cha, hash_no, ent))
-    mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill, (caddr_t) ent);
+  mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill,
+      (caddr_t) (HIGH_16 (hash_no) | (int64) ent));
   return ent;
 }
 
@@ -1419,35 +1568,161 @@ cha_add_ent (chash_t * cha, int64 * ent, uint64 hash_no)
 }
 
 
+
 void
-cha_add_row (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * cha, uint64 hash_no, int inx, int row_no,
-    int64 * prev)
+cha_add_except (chash_t * cha, int64 * ent)
 {
-  int64 *ent = cha_new_hj_row (setp, inst, key_vecs, cha, hash_no, row_no, prev);
-  if (prev)
+  if (!cha->cha_is_parallel || (cha->cha_exceptions && BOX_ELEMENTS (cha->cha_exceptions) > cha->cha_exception_fill))
     {
-      cha->cha_unique = CHA_NON_UNQ;
-      return;
+      mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill, (caddr_t) ent);
     }
-  if (-1 != inx)
+  else
     {
-      cha->cha_array[inx] = ent;
-      return;
-    }
-  if (!cha_relocate (cha, hash_no, ent))
-    {
-      if (!cha->cha_is_parallel || (cha->cha_exceptions && BOX_ELEMENTS (cha->cha_exceptions) > cha->cha_exception_fill))
-	{
-	  mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill, (caddr_t) ent);
-	}
-      else
-	{
-	  mutex_enter (&cha_alloc_mtx);
-	  mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill, (caddr_t) ent);
-	  mutex_leave (&cha_alloc_mtx);
-	}
+      mutex_enter (&cha_alloc_mtx);
+      mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill, (caddr_t) ent);
+      mutex_leave (&cha_alloc_mtx);
     }
 }
+
+
+
+void
+cha_no_ahash (setp_node_t * setp, chash_t * cha)
+{
+  /* array based hash gets values out of range, revert to regular */
+  cha_resize (cha, setp, NULL, 0, 1);
+}
+
+int
+cha_may_ahash (setp_node_t * setp, caddr_t * inst, chash_t * cha)
+{
+  int inx;
+  ha_key_range_t kr[2];
+  hash_area_t *ha = setp->setp_ha;
+  if (setp->setp_partitioned || setp->setp_card > 10000 || ha->ha_n_keys > 2)
+    return CHA_NO_AHASH;
+  memzero (&kr, sizeof (kr));
+  for (inx = 0; inx < ha->ha_n_keys; inx++)
+    {
+    }
+  return 0;
+}
+
+
+#define DV_STR1 (DV_SHORT_STRING_SERIAL + 256)
+#define DV_STR2 (DV_SHORT_STRING_SERIAL + 512)
+
+int
+ahash_array (int64 * arr, uint64 * hash_no, dtp_t chdtp, int first_set, int last_set, int elt_sz, ha_key_range_t * kr)
+{
+  int inx, limit = last_set - first_set;
+  int scale = kr->kr_scale;
+  int max = kr->kr_max;
+  if (DV_STRING == kr->kr_dtp)
+    {
+      if (DV_ANY == chdtp)
+	{
+	  db_buf_t *any_arr = (db_buf_t *) arr;
+	  if (256 == kr->kr_max)
+	    {
+	      for (inx = 0; inx < limit; inx++)
+		{
+		  db_buf_t any = any_arr[inx];
+		  if (DV_STR1 != *(short *) any)
+		    return -1;
+		  hash_no[inx] += any[2] * scale;
+		}
+	      return 1;
+	    }
+	  else
+	    {
+	      for (inx = 0; inx < limit; inx++)
+		{
+		  db_buf_t any = any_arr[inx];
+		  ushort first = *(ushort *) any;
+		  ushort n;
+		  if (DV_STR2 == first)
+		    n = *(ushort *) (any + 2);
+		  else if (DV_STR1 == first)
+		    n = any[2];
+		  else
+		    return -1;
+		  hash_no[inx] = n;
+		}
+	      return 1;
+	    }
+	}
+      else
+	return -1;
+    }
+  else
+    {
+      if (DV_LONG_INT != chdtp)
+	return -1;
+      int min = kr->kr_min;
+      for (inx = first_set; inx < limit; inx++)
+	{
+	  int64 d = ((uint64 *) arr)[inx];
+	  if (d < min || d > max)
+	    return -1;
+	  hash_no += d * scale;
+	}
+    }
+  return 1;
+}
+
+
+int
+setp_ahash_run (setp_node_t * setp, caddr_t * inst, chash_t * cha)
+{
+  QNCAST (query_instance_t, qi, inst);
+  hash_area_t *ha = setp->setp_ha;
+  int part_sz = chash_part_size;
+  int n_part = cha->cha_n_partitions;
+  int n_sets = setp->src_gen.src_prev ? QST_INT (inst, setp->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
+  uint64 hash_no[ARTM_VEC_LEN];
+  int64 *groups[ARTM_VEC_LEN];
+  db_buf_t *key_vecs[CHASH_GB_MAX_KEYS];
+  dtp_t temp[CHASH_GB_MAX_KEYS * DT_LENGTH * ARTM_VEC_LEN];
+  dtp_t temp_any[9 * CHASH_GB_MAX_KEYS * ARTM_VEC_LEN];
+  dtp_t nulls[CHASH_GB_MAX_KEYS][ARTM_VEC_LEN];
+  int first_set, limit;
+  /*dcckz (ha, inst, n_sets); */
+  for (first_set = 0; first_set < n_sets; first_set += ARTM_VEC_LEN)
+    {
+      int any_temp_fill = 0;
+      int key, inx;
+      int last_set = MIN (first_set + ARTM_VEC_LEN, n_sets);
+      limit = last_set - first_set;
+      memzero (hash_no, sizeof (int64) * limit);
+      for (key = 0; key < ha->ha_n_keys; key++)
+	{
+	  key_vecs[key] =
+	      (db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp,
+	      (db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1, &setp->setp_ahash_kr[key]);
+	  if (!key_vecs[key])
+	    return -1;
+	}
+      for (inx = first_set; inx < limit; inx++)
+	{
+	  uint32 h = hash_no[inx];
+	  chash_t *cha_p = &cha->cha_partitions[h % n_part];
+	  int pos1 = h % part_sz;
+	  int64 *ent = cha_p->cha_array[pos1];
+	  if (!ent)
+	    {
+	      cha->cha_distinct_count++;
+	      groups[inx] = cha_add_gb (setp, inst, key_vecs, cha_p, 0, pos1, inx, first_set, (dtp_t *) nulls);
+	    }
+	  else
+	    groups[inx] = ent;
+	}
+      gb_aggregate (setp, inst, cha, groups, first_set, last_set);
+    }
+  cha->cha_n_in += n_sets;
+  return 1;
+}
+
 
 
 int
@@ -1499,7 +1774,7 @@ cha_cmp (chash_t * cha, int64 * ent, db_buf_t ** key_vecs, int row_no, dtp_t * n
   int inx;
   for (inx = 0; inx < cha->cha_n_keys; inx++)
     {
-      db_buf_t k1 = ((db_buf_t *) ent)[inx + 1];
+      db_buf_t k1 = ((db_buf_t *) ent)[inx];
       db_buf_t k2 = ((db_buf_t **) key_vecs)[inx][row_no];
       if (DV_ANY == cha->cha_sqt[inx].sqt_dtp)
 	{
@@ -1556,8 +1831,8 @@ cha_ent_cmp (chash_t * cha, int64 * ent1, int64 * ent2)
   int inx;
   for (inx = 0; inx < cha->cha_n_keys; inx++)
     {
-      db_buf_t k1 = ((db_buf_t *) ent1)[inx + 1];
-      db_buf_t k2 = ((db_buf_t *) ent2)[inx + 1];
+      db_buf_t k1 = ((db_buf_t *) ent1)[inx];
+      db_buf_t k2 = ((db_buf_t *) ent2)[inx];
       if (DV_ANY == cha->cha_sqt[inx].sqt_dtp)
 	{
 #if 1
@@ -1616,9 +1891,9 @@ int
 cha_cmp_2a (chash_t * cha, int64 * ent, db_buf_t ** key_vecs, int row_no, dtp_t * nulls)
 {
   int l1, l2, l3, l4;
-  db_buf_t k1 = ((db_buf_t *) ent)[1];
+  db_buf_t k1 = ((db_buf_t *) ent)[0];
   db_buf_t k2 = ((db_buf_t **) key_vecs)[0][row_no];
-  db_buf_t k3 = ((db_buf_t *) ent)[2];
+  db_buf_t k3 = ((db_buf_t *) ent)[1];
   db_buf_t k4 = ((db_buf_t **) key_vecs)[1][row_no];
   DV_EQ (k1, k2, neq);
   DV_EQ (k1, k2, neq);
@@ -1640,7 +1915,7 @@ neq:
 int
 cha_cmp_1i (chash_t * cha, int64 * ent, db_buf_t ** key_vecs, int row_no, dtp_t * nulls)
 {
-  return ent[1] == (int64) key_vecs[0][row_no];
+  return ent[0] == (int64) key_vecs[0][row_no];
 }
 
 cha_cmp_t
@@ -1689,7 +1964,7 @@ setp_chash_run (setp_node_t * setp, caddr_t * inst, chash_t * cha)
   dtp_t temp[CHASH_GB_MAX_KEYS * DT_LENGTH * ARTM_VEC_LEN];
   dtp_t temp_any[9 * CHASH_GB_MAX_KEYS * ARTM_VEC_LEN];
   dtp_t nulls[CHASH_GB_MAX_KEYS][ARTM_VEC_LEN];
-  int first_set, set;
+  int first_set, set, limit;
   /*dcckz (ha, inst, n_sets); */
   if (!ha->ha_n_keys)
     memzero (hash_no, sizeof (hash_no));
@@ -1698,95 +1973,53 @@ setp_chash_run (setp_node_t * setp, caddr_t * inst, chash_t * cha)
       int any_temp_fill = 0;
       int key;
       int last_set = MIN (first_set + ARTM_VEC_LEN, n_sets);
+      limit = last_set - first_set;
       for (key = 0; key < ha->ha_n_keys; key++)
 	{
 	  key_vecs[key] =
 	      (db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp,
-	      (db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1);
+	      (db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1, NULL);
 	}
-      for (set = first_set; set + 4 <= last_set; set += 4)
-	{
-	  int inx = set - first_set, e;
-	  int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-	  chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-	  uint64 h_1, h_2, h_3, h_4;
-	  int64 **array_1, **array_2, **array_3, **array_4;
-	  int64 *ent;
 
-#define GB_PRE(n) \
-	  h_##n = hash_no[inx + n - 1];\
-	  cha_p_##n = CHA_PARTITION (cha, h_##n); \
-	  array_##n = cha_p_##n->cha_array; \
-	  pos1_##n = CHA_POS_1(cha_p_##n, h_##n);  \
-	  pos2_##n = CHA_POS_2(cha_p_##n, h_##n);	\
-	  __builtin_prefetch (array_##n[pos1_##n]);
+#define HIT_N(n, e) \
+      cmp (cha, (int64*)LOW_48 (e), key_vecs, set + n, (dtp_t*)nulls)
 
-#define GB_CK(n, f)		     \
-	  ent = array_##n[pos1_##n]; \
-	  if (!ent) \
-	    { \
-	        cha->cha_distinct_count++;				\
-		groups[inx + n - 1] = cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos1_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
-	      goto done_##n##f; \
-	    } \
-	  if (h_##n == *ent && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
-	  { \
-	    groups[inx + n - 1] = ent; \
-	    goto done_##n##f; \
-	  } \
-	  ent = array_##n[pos2_##n]; \
-	  if (!ent) \
-	    { \
-	      cha->cha_distinct_count++;				\
-	      groups[inx + n - 1] = cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos2_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
-	      goto done_##n##f; \
-	    } \
-	  if (h_##n == *ent && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
-	    { \
-	      groups[inx + n - 1] = ent; \
-	      goto done_##n##f; \
-	    } \
-	  for (e = 0; e < cha_p_##n->cha_exception_fill; e++) \
-	    { \
-	      int64 * ent = ((int64**)cha_p_##n->cha_exceptions)[e]; \
-	      if (ent && h_##n == ent[0] && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
-		{ \
-		  groups[inx + n - 1] = ent; \
-		  goto done_##n##f; \
-		} \
-	    } \
-	  cha->cha_distinct_count++;					\
-	  groups[inx + n - 1] = cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, -1, inx + n - 1, first_set, (dtp_t*)nulls); \
-	done_##n##f: ;
+#define HIT_N_E(n, e) HIT_N (n, e)
+#define SET_NO_I(i) (i)
+#define SET_NO(n) set_##n
+#define HASH(n) \
+  hash_##n = hash_no[SET_NO (n)]
 
-	  GB_PRE (1);
-	  GB_PRE (2);
-	  GB_PRE (3);
-	  GB_PRE (4);
+#define FIRST 0
+#define LAST limit
 
-	  GB_CK (1, f);
-	  GB_CK (2, f);
-	  GB_CK (3, f);
-	  GB_CK (4, f);
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      {				 \
+      groups[set + n] = (int64*) LOW_48 ((int64)w_##n); \
+    }
 
-	}
-      for (set = set; set < last_set; set++)
-	{
-	  int inx = set - first_set, e;
-	  int pos1_1, pos2_1;
-	  chash_t *cha_p_1;
-	  uint64 h_1;
-	  int64 **array_1;
-	  int64 *ent;
-	  GB_PRE (1);
-	  GB_CK (1, ff);
-	}
+#define L_INSERT(n) \
+      { \
+	cha->cha_distinct_count++; \
+	groups[set + n] = cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, pos1_##n, set + n, first_set, (dtp_t*)nulls);  \
+      }
+
+#define L_E_INSERT(n) \
+      { \
+	cha->cha_distinct_count++;					\
+	groups[set + n] = cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, -1, set + n, first_set, (dtp_t*)nulls); \
+    }
+
+
+#include "linh_i.c"
+
       if (setp->setp_any_distinct_gos)
 	setp_chash_distinct_gby (setp, inst, hash_no, key_vecs, first_set, last_set,
 	    temp, temp_any, any_temp_fill, (dtp_t *) nulls, n_sets);
 
       gb_aggregate (setp, inst, cha, groups, first_set, last_set);
-      if (cha->cha_distinct_count > cha->cha_size * 9 / 16)
+      if (cha->cha_distinct_count > cha->cha_n_partitions * chash_part_size * (cha_gb_load_pct / 100.0))
 	cha_resize (cha, setp, inst, first_set, n_sets);
     }
   cha->cha_n_in += n_sets;
@@ -1820,6 +2053,19 @@ ha_null_flags (hash_area_t * ha)
 }
 
 
+int
+cha_ahash_n_part (setp_node_t * setp, chash_t * cha)
+{
+  int n;
+  int64 scale = 1;
+  ha_key_range_t *kr = setp->setp_ahash_kr;
+  for (n = 0; n < setp->setp_ha->ha_n_keys; n++)
+    scale *= kr[n].kr_max - kr[n].kr_min;
+  scale = _RNDUP (scale, chash_part_size);
+  return scale / chash_part_size;
+}
+
+
 void
 cha_alloc_int (chash_t * cha, setp_node_t * setp, sql_type_t * new_sqt, chash_t * old_cha)
 {
@@ -1846,7 +2092,7 @@ cha_alloc_int (chash_t * cha, setp_node_t * setp, sql_type_t * new_sqt, chash_t 
 	    cha->cha_is_1_int_key = 1;
 	}
       else
-	first_len = 1;
+	first_len = 0;
       first_len += ha->ha_n_keys;
       next_len = first_len;
       first_len += ha->ha_n_deps;
@@ -1872,7 +2118,13 @@ cha_alloc_int (chash_t * cha, setp_node_t * setp, sql_type_t * new_sqt, chash_t 
   if (n_rows <= 0)
     n_rows = 10000;
   n_part = _RNDUP (n_rows, chash_part_max_fill) / chash_part_max_fill;
-  n_part = hash_nextprime (n_part);
+  if (setp->setp_ahash_kr && !cha->cha_ahash)
+    {
+      cha->cha_ahash = CHA_AHASH;
+      n_part = cha_ahash_n_part (setp, cha);
+    }
+  else
+    n_part = hash_nextprime (n_part);
   n_part = MIN (n_part, chash_max_partitions);
   if (n_part)
     {
@@ -1883,8 +2135,17 @@ cha_alloc_int (chash_t * cha, setp_node_t * setp, sql_type_t * new_sqt, chash_t 
 	  chash_t *cha_p = &cha->cha_partitions[inx];
 	  *cha_p = *cha;
 	  cha_p->cha_size = chash_part_size;
-	  cha_p->cha_array = (int64 **) mp_alloc_box_ni (cha->cha_pool, sizeof (int64) * cha_p->cha_size, DV_NON_BOX);
-	  int64_fill_nt ((int64 *) cha_p->cha_array, cha->cha_is_1_int ? CHA_EMPTY : 0, cha_p->cha_size);
+	  if (inx < old_n_part)
+	    {
+	      chash_t *oldp = CHA_PARTITION (old_cha, inx);
+	      cha_p->cha_array = oldp->cha_array;
+	    }
+	  else
+	    {
+	      cha_p->cha_array = (int64 **) mp_alloc_box_ni (cha->cha_pool, sizeof (int64) * cha_p->cha_size + 128, DV_NON_BOX);
+	      cha_p->cha_array = (int64 **) _RNDUP ((uint64) cha_p->cha_array, 64);
+	    }
+	  int64_fill_nt ((int64 *) cha_p->cha_array, cha->cha_is_1_int ? CHA_EMPTY : 0, _RNDUP (cha_p->cha_size, 8));
 	  if (!cha->cha_is_1_int)
 	    {
 	      if (inx < old_n_part)
@@ -1905,9 +2166,10 @@ cha_alloc_int (chash_t * cha, setp_node_t * setp, sql_type_t * new_sqt, chash_t 
     }
   else
     {
-      cha->cha_size = n_rows * 2;
-      cha->cha_array = (int64 **) mp_alloc_box_ni (cha->cha_pool, sizeof (int64) * cha->cha_size, DV_NON_BOX);
-      int64_fill_nt ((int64 *) cha->cha_array, cha->cha_is_1_int ? CHA_EMPTY : 0, cha->cha_size);
+      cha->cha_size = chash_part_size;
+      cha->cha_array = (int64 **) mp_alloc_box_ni (cha->cha_pool, sizeof (int64) * cha->cha_size + 128, DV_NON_BOX);
+      cha->cha_array = (int64 **) _RNDUP ((int64) cha->cha_array, 64);
+      int64_fill_nt ((int64 *) cha->cha_array, cha->cha_is_1_int ? CHA_EMPTY : 0, _RNDUP (cha->cha_size, 64));
       if (!cha->cha_is_1_int)
 	{
 	  cha->cha_current = cha->cha_init_page = (chash_page_t *) mp_alloc_box_ni (cha->cha_pool, PAGE_SZ, DV_NON_BOX);
@@ -2055,6 +2317,8 @@ cha_free (chash_t * cha)
   mutex_enter (&chash_rc_mtx);
   chash_space_avail += cha->cha_reserved;
   mutex_leave (&chash_rc_mtx);
+  if (cha->cha_fill_cha)
+    mp_free (cha->cha_fill_cha->cha_pool);
   mp_free (cha->cha_pool);
 }
 
@@ -2194,7 +2458,16 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
       cha = tree->it_hi->hi_chash;
     }
   prev_cnt = cha->cha_distinct_count;
-  setp_chash_run (setp, inst, cha);
+  if (setp->setp_ahash_kr && CHA_AHASH == cha->cha_ahash)
+    {
+      if (-1 == setp_ahash_run (setp, inst, cha))
+	{
+	  cha_no_ahash (setp, cha);
+	  setp_chash_run (setp, inst, cha);
+	}
+    }
+  else
+    setp_chash_run (setp, inst, cha);
   if (setp->setp_is_streaming)
     {
       int breakable = setp_stream_breakable (setp, inst);
@@ -2236,10 +2509,10 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
 {
   QNCAST (query_instance_t, qi, inst);
   int *out_sets;
-  cha_cmp_t cmp = cha_cmp;
+  hash_area_t *ha = setp->setp_ha;
+  cha_cmp_t cmp;
   char is_intersect = INTERSECT_ST == setp->setp_set_op || INTERSECT_ALL_ST == setp->setp_set_op;
   hash_index_t *hi = it->it_hi;
-  hash_area_t *ha = setp->setp_ha;
   chash_t *cha = hi->hi_chash;
   int n_sets = setp->src_gen.src_prev ? QST_INT (inst, setp->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
   uint64 hash_no[ARTM_VEC_LEN];
@@ -2248,6 +2521,7 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
   dtp_t temp_any[9 * CHASH_GB_MAX_KEYS * ARTM_VEC_LEN];
   dtp_t nulls[CHASH_GB_MAX_KEYS][ARTM_VEC_LEN];
   int first_set, set;
+  cmp = cha_gby_cmp (cha, ha);
   QN_CHECK_SETS (setp, inst, n_sets);
   out_sets = QST_BOX (int *, inst, setp->src_gen.src_sets);
   for (first_set = 0; first_set < n_sets; first_set += ARTM_VEC_LEN)
@@ -2255,101 +2529,56 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
       int any_temp_fill = 0;
       int key;
       int last_set = MIN (first_set + ARTM_VEC_LEN, n_sets);
+      int limit = last_set - first_set;
       for (key = 0; key < ha->ha_n_keys; key++)
 	{
 	  key_vecs[key] =
 	      (db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp, temp_any,
-	      &any_temp_fill, (dtp_t *) nulls, 1);
+	      &any_temp_fill, (dtp_t *) nulls, 1, NULL);
 	}
-      if (2 == ha->ha_n_keys && DV_ANY == cha->cha_sqt[0].sqt_dtp && DV_ANY == cha->cha_sqt[1].sqt_dtp)
-	cmp = cha_cmp_2a;
-      for (set = first_set; set + 4 <= last_set; set += 4)
-	{
-	  int inx = set - first_set, e;
-	  int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-	  chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-	  uint64 h_1, h_2, h_3, h_4;
-	  int64 **array_1, **array_2, **array_3, **array_4;
-	  int64 *ent;
 
-#define dis_result(n) \
+#define DIS_RESULT(n) \
 	  { if (!is_intersect) {int nth = QST_INT (inst, setp->src_gen.src_out_fill)++; \
-	    out_sets[nth] = set + n - 1; } }
+	    out_sets[nth] = first_set + set + n; } }
 
-#define dis_dup(n) \
+#define DIS_DUP(n) \
 	  { if (is_intersect) {int nth = QST_INT (inst, setp->src_gen.src_out_fill)++; \
-	    out_sets[nth] = set + n - 1; } }
+	    out_sets[nth] = first_set + set + n; } }
 
+#define HIT_N(n, e) \
+      cmp (cha, (int64*)LOW_48 (e), key_vecs, set + n, (dtp_t*)nulls)
 
-#define DIS_PRE(n) \
-	  h_##n = hash_no[inx + n - 1];\
-	  cha_p_##n = CHA_PARTITION (cha, h_##n); \
-	  array_##n = cha_p_##n->cha_array; \
-	  pos1_##n = CHA_POS_1(cha_p_##n, h_##n);  \
-	  pos2_##n = CHA_POS_2(cha_p_##n, h_##n);	\
-	  __builtin_prefetch (array_##n[pos1_##n]);
+#define HIT_N_E(n, e) HIT_N (n, e)
+#define SET_NO_I(i) (i)
+#define SET_NO(n) set_##n
+#define HASH(n) \
+  hash_##n = hash_no[SET_NO (n)]
 
-#define DIS_CK(n, f)		     \
-	  ent = array_##n[pos1_##n]; \
-	  if (!ent) \
-	    { \
-	        cha->cha_distinct_count++;				\
-		cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos1_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
-		dis_result (n); \
-	      goto done_##n##f; \
-	    } \
-	  if (h_##n == *ent && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
-	  { \
-	    dis_dup (n); goto done_##n##f;	\
-	  } \
-	  ent = array_##n[pos2_##n]; \
-	  if (!ent) \
-	    { \
-	      cha->cha_distinct_count++;				\
-	      cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos2_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
-	      dis_result (n); \
-	      goto done_##n##f; \
-	    } \
-	  if (h_##n == *ent && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
-	    { \
-	      dis_dup (n); goto done_##n##f;	\
-	    } \
-	  for (e = 0; e < cha_p_##n->cha_exception_fill; e++) \
-	    { \
-	      int64 * ent = ((int64**)cha_p_##n->cha_exceptions)[e]; \
-	      if (h_##n == ent[0] && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
-		{ \
-		  dis_dup (n); goto done_##n##f;	\
-		} \
-	    } \
-	  cha->cha_distinct_count++;					\
-	  cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, -1, inx + n - 1, first_set, (dtp_t*)nulls); \
-	  dis_result (n); \
-	done_##n##f: ;
+#define FIRST 0
+#define LAST limit
 
-	  DIS_PRE (1);
-	  DIS_PRE (2);
-	  DIS_PRE (3);
-	  DIS_PRE (4);
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      {				 \
+	DIS_DUP (n);		 \
+    }
 
-	  DIS_CK (1, f);
-	  DIS_CK (2, f);
-	  DIS_CK (3, f);
-	  DIS_CK (4, f);
+#define L_INSERT(n) \
+      {				   \
+	cha->cha_distinct_count++;					\
+	cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, pos1_##n, set + n, first_set, (dtp_t*)nulls); \
+	DIS_RESULT (n);							\
+      }
 
-	}
-      for (set = set; set < last_set; set++)
-	{
-	  int inx = set - first_set, e;
-	  int pos1_1, pos2_1;
-	  chash_t *cha_p_1;
-	  uint64 h_1;
-	  int64 **array_1;
-	  int64 *ent;
-	  DIS_PRE (1);
-	  DIS_CK (1, ff);
-	}
-      if (cha->cha_distinct_count > cha->cha_size * 9 / 16)
+#define L_E_INSERT(n) \
+{				   \
+	cha->cha_distinct_count++;					\
+	cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, -1, set + n, first_set, (dtp_t*)nulls); \
+	DIS_RESULT (n);							\
+      }
+
+#include "linh_i.c"
+      if (cha->cha_distinct_count > cha->cha_n_partitions * chash_part_size * (cha_gb_load_pct / 100.0))
 	cha_resize (cha, setp, inst, first_set, n_sets);
     }
   cha->cha_n_in += n_sets;
@@ -2430,6 +2659,7 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
 {
   cha_cmp_t cmp = cha_cmp;
   int flag_fill, first = 1;
+  int limit = last_set - first_set;
   int64 *flags;
   int key = top_setp->setp_ha->ha_n_keys;
   uint64 hash_save[ARTM_VEC_LEN];
@@ -2466,51 +2696,55 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
       memcpy_16 (hash_no, hash_save, (last_set - first_set) * sizeof (int64));
     key_vecs[key] =
 	(db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp,
-	(db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1);
+	(db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1, NULL);
     dc_reset (flag_dc);
     flags = (int64 *) flag_dc->dc_values;
     flag_fill = first_set;
-    for (set = first_set; set + 4 <= last_set; set += 4)
-      {
-	int inx = set - first_set, e;
-	int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-	chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-	uint64 h_1, h_2, h_3, h_4;
-	int64 **array_1, **array_2, **array_3, **array_4;
-	int64 *ent;
 
-#undef dis_result
-#undef dis_dup
-#define dis_result(n)				\
+
+#undef DIS_RESULT
+#undef DIS_DUP
+#define DIS_RESULT(n)				\
 	  flags[flag_fill++] = 1;
 
-#define dis_dup(n)				\
+#define DIS_DUP(n)				\
 	  flags[flag_fill++] = 0;
+#define HIT_N(n, e) \
+      cmp (cha, (int64*)LOW_48 (e), key_vecs, set + n, (dtp_t*)nulls)
 
-	DIS_PRE (1);
-	DIS_PRE (2);
-	DIS_PRE (3);
-	DIS_PRE (4);
+#define HIT_N_E(n, e) HIT_N (n, e)
+#define SET_NO_I(i) (i)
+#define SET_NO(n) set_##n
+#define HASH(n) \
+  hash_##n = hash_no[SET_NO (n)]
 
-	DIS_CK (1, f);
-	DIS_CK (2, f);
-	DIS_CK (3, f);
-	DIS_CK (4, f);
+#define FIRST 0
+#define LAST limit
 
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      {				 \
+	DIS_DUP (n);		 \
+    }
+
+#define L_INSERT(n) \
+      {				   \
+	cha->cha_distinct_count++;					\
+	cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, pos1_##n, set + n, first_set, (dtp_t*)nulls); \
+	DIS_RESULT (n);							\
       }
-    for (set = set; set < last_set; set++)
-      {
-	int inx = set - first_set, e;
-	int pos1_1, pos2_1;
-	chash_t *cha_p_1;
-	uint64 h_1;
-	int64 **array_1;
-	int64 *ent;
-	DIS_PRE (1);
-	DIS_CK (1, ff);
+
+#define L_E_INSERT(n) \
+{				   \
+	cha->cha_distinct_count++;					\
+	cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, -1, set + n, first_set, (dtp_t*)nulls); \
+	DIS_RESULT (n);							\
       }
+
+#include "linh_i.c"
+
     flag_dc->dc_n_values = flag_fill;
-    if (cha->cha_distinct_count > cha->cha_size * 9 / 16)
+    if (cha->cha_distinct_count > cha->cha_n_partitions * chash_part_size * (cha_gb_load_pct / 100.0))
       cha_resize (cha, setp, inst, first_set, n_sets);
     cha->cha_n_in += last_set - first_set;
   }
@@ -2528,21 +2762,21 @@ cha_box_col (chash_t * cha, hash_area_t * ha, db_buf_t row, int inx)
   switch (cha->cha_sqt[inx].sqt_dtp)
     {
     case DV_LONG_INT:
-      return t_box_num (((int64 *) row)[inx + 1]);
+      return t_box_num (((int64 *) row)[inx]);
     case DV_IRI_ID:
-      return t_box_iri_id (((int64 *) row)[inx + 1]);
+      return t_box_iri_id (((int64 *) row)[inx]);
     case DV_SINGLE_FLOAT:
-      return t_box_float (*(float *) &(((int64 *) row)[inx + 1]));
+      return t_box_float (*(float *) &(((int64 *) row)[inx]));
     case DV_DOUBLE_FLOAT:
-      return t_box_double (((double *) row)[inx + 1]);
+      return t_box_double (((double *) row)[inx]);
     case DV_DATETIME:
       {
 	caddr_t dt = t_alloc_box (DT_LENGTH, DV_DATETIME);
-	memcpy_dt (dt, ((caddr_t *) row)[inx + 1]);
+	memcpy_dt (dt, ((caddr_t *) row)[inx]);
 	return dt;
       }
     default:
-      return mp_box_deserialize_string (cha->cha_pool, *(caddr_t *) (row + sizeof (int64) * (inx + 1)), INT32_MAX, 0);
+      return mp_box_deserialize_string (cha->cha_pool, *(caddr_t *) (row + sizeof (int64) * (inx)), INT32_MAX, 0);
     }
 }
 
@@ -2556,21 +2790,21 @@ cha_dk_box_col (chash_t * cha, hash_area_t * ha, db_buf_t row, int inx)
   switch (cha->cha_sqt[inx].sqt_dtp)
     {
     case DV_LONG_INT:
-      return box_num (((int64 *) row)[inx + 1]);
+      return box_num (((int64 *) row)[inx]);
     case DV_IRI_ID:
-      return box_iri_id (((int64 *) row)[inx + 1]);
+      return box_iri_id (((int64 *) row)[inx]);
     case DV_SINGLE_FLOAT:
-      return box_float (*(float *) &(((int64 *) row)[inx + 1]));
+      return box_float (*(float *) &(((int64 *) row)[inx]));
     case DV_DOUBLE_FLOAT:
-      return box_double (((double *) row)[inx + 1]);
+      return box_double (((double *) row)[inx]);
     case DV_DATETIME:
       {
 	caddr_t dt = dk_alloc_box (DT_LENGTH, DV_DATETIME);
-	memcpy_dt (dt, ((caddr_t *) row)[inx + 1]);
+	memcpy_dt (dt, ((caddr_t *) row)[inx]);
 	return dt;
       }
     default:
-      return box_deserialize_string (*(caddr_t *) (row + sizeof (int64) * (inx + 1)), INT32_MAX, 0);
+      return box_deserialize_string (*(caddr_t *) (row + sizeof (int64) * (inx)), INT32_MAX, 0);
     }
 }
 
@@ -2669,7 +2903,7 @@ int n_chts;
 int64 **
 cha_top_sort (chash_t * cha, hash_area_t * ha, int64 *** arr, int64 ** p_ent, int nth_col, int top, int *p_fill, char is_desc)
 {
-  int64 *ent = *p_ent;
+  int64 *ent = (int64 *) LOW_48 (*p_ent);
   int fill = *p_fill, rc;
   dtp_t dtp = cha->cha_sqt[nth_col].sqt_dtp;
   dtp_t non_null = cha->cha_sqt[nth_col].sqt_non_null;
@@ -2678,9 +2912,9 @@ cha_top_sort (chash_t * cha, hash_area_t * ha, int64 *** arr, int64 ** p_ent, in
   int64 *e1;
   if (fill == top)
     {
-      e1 = *arr[top - 1];
-      if (DVC_LESS == cha_ord_cmp ((db_buf_t *) & e1[nth_col + 1], (db_buf_t *) & ent[nth_col + 1], dtp, non_null, GB_IS_NULL (ha,
-		  e1, nth_col), ent_null))
+      e1 = (int64 *) LOW_48 (*arr[top - 1]);
+      if (DVC_LESS == cha_ord_cmp ((db_buf_t *) & e1[nth_col], (db_buf_t *) & ent[nth_col], dtp, non_null, GB_IS_NULL (ha, e1,
+		  nth_col), ent_null))
 	return p_ent;
     }
   guess = fill / 2;
@@ -2693,9 +2927,9 @@ cha_top_sort (chash_t * cha, hash_area_t * ha, int64 *** arr, int64 ** p_ent, in
     }
   for (;;)
     {
-      e1 = *arr[guess];
-      rc = cha_ord_cmp ((db_buf_t *) & e1[nth_col + 1], (db_buf_t *) & ent[nth_col + 1], dtp, non_null, GB_IS_NULL (ha, e1,
-	      nth_col), ent_null);
+      e1 = (int64 *) LOW_48 (*arr[guess]);
+      rc = cha_ord_cmp ((db_buf_t *) & e1[nth_col], (db_buf_t *) & ent[nth_col], dtp, non_null, GB_IS_NULL (ha, e1, nth_col),
+	  ent_null);
       if (is_desc)
 	DVC_INVERT_CMP (rc);
       if (below - at_or_above <= 1)
@@ -2771,8 +3005,7 @@ setp_chash_changed (setp_node_t * setp, caddr_t * inst, chash_t * cha)
 	  drop = cha_top_sort (cha, ha, arr, &cha_p->cha_array[inx], nth_col, top, &fill, is_desc);
 	  if (drop)
 	    {
-	      int i1;
-	      int64 *d_ent = *drop;
+	      int64 *d_ent = (int64 *) LOW_48 (*drop);
 	      *drop = NULL;
 #if 0
 	      for (i1 = 0; i1 < fill; i1++)
@@ -2797,7 +3030,7 @@ setp_chash_changed (setp_node_t * setp, caddr_t * inst, chash_t * cha)
 	  drop = cha_top_sort (cha, ha, arr, &cha_p->cha_exceptions[inx], nth_col, top, &fill, is_desc);
 	  if (drop)
 	    {
-	      int64 *d_ent = *drop;
+	      int64 *d_ent = (int64 *) LOW_48 (*drop);
 	      *drop = NULL;
 	      GB_NO_VALUE (setp->setp_ha, d_ent, n_cols);
 	      n_drop++;
@@ -2810,7 +3043,7 @@ setp_chash_changed (setp_node_t * setp, caddr_t * inst, chash_t * cha)
   clo._.top.cmp = ORDER_DESC & setp->setp_top_gby;
   if (fill == top)
     {
-      ret_ent = *arr[fill - 1];
+      ret_ent = (int64 *) LOW_48 (*arr[fill - 1]);
       clo._.top.values = (caddr_t *) cha_dk_box_col (cha, setp->setp_ha, (db_buf_t) ret_ent, nth_col);
       clo._.top.is_full = 1;
     }
@@ -2818,7 +3051,7 @@ setp_chash_changed (setp_node_t * setp, caddr_t * inst, chash_t * cha)
     {
       top_arr = (caddr_t *) dk_alloc_box (sizeof (caddr_t) * fill, DV_ARRAY_OF_POINTER);
       for (inx = 0; inx < fill; inx++)
-	top_arr[inx] = cha_dk_box_col (cha, setp->setp_ha, (db_buf_t) * arr[inx], nth_col);
+	top_arr[inx] = cha_dk_box_col (cha, setp->setp_ha, (db_buf_t) LOW_48 (*arr[inx]), nth_col);
       clo._.top.values = top_arr;
       clo._.top.fill = fill;
       clo._.top.cnt = top;
@@ -2837,14 +3070,14 @@ cha_mrg_cmp (setp_node_t * setp, chash_t * cha1, int64 * ent1, int64 * ent2)
       switch (cha1->cha_sqt[inx].sqt_dtp)
 	{
 	case DV_ANY:
-	  DV_EQ ((db_buf_t) ent1[inx + 1], (db_buf_t) ent2[inx + 1], neq);
+	  DV_EQ ((db_buf_t) ent1[inx], (db_buf_t) ent2[inx], neq);
 	  break;
 	case DV_DATETIME:
-	  if (*(int64 *) ent1[inx + 1] != *(int64 *) ent2[inx + 1])
+	  if (*(int64 *) ent1[inx] != *(int64 *) ent2[inx])
 	    return 0;
 	  break;
 	default:
-	  if (ent1[inx + 1] != ent2[inx + 1])
+	  if (ent1[inx] != ent2[inx])
 	    return 0;
 	}
     }
@@ -2868,19 +3101,19 @@ cha_ent_merge (setp_node_t * setp, chash_t * cha, int64 * tar, int64 * ent)
       case AGG_C (DV_LONG_INT, AMMSC_COUNT):
       case AGG_C (DV_LONG_INT, AMMSC_COUNTSUM):
       case AGG_C (DV_LONG_INT, AMMSC_SUM):
-	tar[inx + 1] += ent[inx + 1];
+	tar[inx] += ent[inx];
 	GB_HAS_VALUE (ha, tar, inx);
 	break;
       case AGG_C (DV_DOUBLE_FLOAT, AMMSC_COUNT):
       case AGG_C (DV_DOUBLE_FLOAT, AMMSC_COUNTSUM):
       case AGG_C (DV_DOUBLE_FLOAT, AMMSC_SUM):
-	((double *) tar)[inx + 1] += ((double *) ent)[inx + 1];
+	((double *) tar)[inx] += ((double *) ent)[inx];
 	GB_HAS_VALUE (ha, tar, inx);
 	break;
       case AGG_C (DV_SINGLE_FLOAT, AMMSC_COUNT):
       case AGG_C (DV_SINGLE_FLOAT, AMMSC_COUNTSUM):
       case AGG_C (DV_SINGLE_FLOAT, AMMSC_SUM):
-	*(float *) &tar[inx + 1] += *(float *) &ent[inx + 1];
+	*(float *) &tar[inx] += *(float *) &ent[inx];
 	GB_HAS_VALUE (ha, tar, inx);
 	break;
       case AGG_C (DV_LONG_INT, AMMSC_MIN):
@@ -2888,12 +3121,12 @@ cha_ent_merge (setp_node_t * setp, chash_t * cha, int64 * tar, int64 * ent)
 #define CHA_MERGE_MAX(dtp, cmp) \
 	  if (GB_IS_NULL (ha, tar, inx)) \
 	    { \
-	      *(dtp*)&tar[inx + 1] = *(dtp*)&ent[inx + 1];  \
+	      *(dtp*)&tar[inx] = *(dtp*)&ent[inx];  \
 	      GB_HAS_VALUE (ha, tar, inx); \
 	    } \
-	    else if (*(dtp*)&tar[inx + 1] cmp *(dtp*)&ent[inx + 1]) \
+	    else if (*(dtp*)&tar[inx] cmp *(dtp*)&ent[inx]) \
 	    { \
-	      *(dtp*)&tar[inx + 1] = *(dtp*)&ent[inx + 1];  \
+	      *(dtp*)&tar[inx] = *(dtp*)&ent[inx];  \
 	    } \
 	  break;
 
@@ -2919,9 +3152,9 @@ cha_mrg_copy (chash_t * cha, int64 * ent)
   for (inx = 0; inx < n_sqt; inx++)
     {
       if (DV_ANY == cha->cha_sqt[inx].sqt_dtp)
-	cpy[inx + 1] = (ptrlong) cha_any (cha, (db_buf_t) (ptrlong) cpy[inx + 1]);
+	cpy[inx] = (ptrlong) cha_any (cha, (db_buf_t) (ptrlong) cpy[inx]);
       else if (DV_DATETIME == cha->cha_sqt[inx].sqt_dtp)
-	cpy[inx + 1] = (ptrlong) cha_dt (cha, (db_buf_t) (ptrlong) cpy[inx + 1]);
+	cpy[inx] = (ptrlong) cha_dt (cha, (db_buf_t) (ptrlong) cpy[inx]);
     }
   return cpy;
 }
@@ -2930,79 +3163,74 @@ void
 chash_merge (setp_node_t * setp, chash_t * cha, chash_t * delta, int n_to_go)
 {
   /* Merge two group bys.  No need for the fuckwit conversion to memcache and then to pageable in order to merge overlapping partitions of a group by */
-  int part;
+  int part, ctr;
   chash_t *cha_p;
-  int pos1_1, pos2_1, e;
+  int pos1_1, e;
+  if (CHA_AHASH == cha->cha_ahash)
+    cha_no_ahash (setp, cha);
+  if (CHA_AHASH == delta->cha_ahash)
+    cha_no_ahash (setp, delta);
   for (part = 0; part < MAX (1, delta->cha_n_partitions); part++)
     {
       chash_t *de_p = CHA_PARTITION (delta, part);
       chash_page_t *chp = de_p->cha_init_page;
+      uint64 hash_no[PAGE_DATA_SZ / (2 * sizeof (uint64))];
       for (chp = chp; chp; chp = chp->h.h.chp_next)
 	{
 	  int row;
-#if 1
+	  int h_fill = 0;
 	  for (row = 0; row < chp->h.h.chp_fill; row += de_p->cha_first_len)
 	    {
 	      int64 *ent = (int64 *) & chp->chp_data[row], **array;
-	      uint64 h = ent[0];
+	      uint64 h = chash_row (cha, ent);
+	      hash_no[h_fill++] = h;
 	      CKE (ent);
 	      cha_p = CHA_PARTITION (cha, h);
 	      array = cha_p->cha_array;
-	      pos1_1 = CHA_POS_1 (cha_p, h);
-	      /*pos2_1 = CHA_POS_2 (cha_p, h); */
+	      pos1_1 = CHA_LIN_POS (cha_p, h);
 	      __builtin_prefetch (array[pos1_1]);
-	     /*__builtin_prefetch ( array[pos2_1]);*/
 	    }
-#endif
+	  h_fill = 0;
 	  for (row = 0; row < chp->h.h.chp_fill; row += de_p->cha_first_len)
 	    {
 	      int64 *ent = (int64 *) & chp->chp_data[row], **array, *tar;
-	      uint64 h = ent[0];
+	      uint64 h = hash_no[h_fill++];
 	      CKE (ent);
 	      cha_p = CHA_PARTITION (cha, h);
 	      array = cha_p->cha_array;
-	      pos1_1 = CHA_POS_1 (cha_p, h);
-	      pos2_1 = CHA_POS_2 (cha_p, h);
-	      tar = array[pos1_1];
-	      if (!tar)
+	      pos1_1 = CHA_LIN_POS (cha_p, h);
+	      for (ctr = 0; ctr < 8; ctr++)
 		{
-		  array[pos1_1] = cha_mrg_copy (cha_p, ent);
-		  cha->cha_distinct_count++;
-		  continue;
-		}
-	      if (tar[0] == h && cha_mrg_cmp (setp, cha, tar, ent))
-		{
-		  cha_ent_merge (setp, cha, tar, ent);
-		  continue;
-		}
-	      tar = array[pos2_1];
-	      if (!tar)
-		{
-		  array[pos2_1] = cha_mrg_copy (cha_p, ent);
-		  cha->cha_distinct_count++;
-		  continue;
-		}
-	      if (tar[0] == h && cha_mrg_cmp (setp, cha, tar, ent))
-		{
-		  cha_ent_merge (setp, cha, tar, ent);
-		  continue;
+		  tar = array[pos1_1];
+		  if (!tar)
+		    {
+		      array[pos1_1] = (int64 *) ((int64) cha_mrg_copy (cha_p, ent) | HIGH_16 (h));
+		      cha->cha_distinct_count++;
+		      goto next;
+		    }
+		  if (HIGH_16 ((uint64) tar) == HIGH_16 (h) && cha_mrg_cmp (setp, cha, (int64 *) LOW_48 ((int64 *) tar), ent))
+		    {
+		      cha_ent_merge (setp, cha, (int64 *) LOW_48 ((int64 *) tar), ent);
+		      goto next;
+		    }
+		  INC_LOW_3 (pos1_1);
 		}
 	      for (e = 0; e < cha_p->cha_exception_fill; e++)
 		{
 		  tar = cha_p->cha_exceptions[e];
-		  if (h == tar[0] && cha_mrg_cmp (setp, cha, tar, ent))
+		  if (tar && HIGH_16 ((uint64) tar) == HIGH_16 (h)
+		      && cha_mrg_cmp (setp, cha, (int64 *) LOW_48 ((int64 *) tar), ent))
 		    {
-		      cha_ent_merge (setp, cha, tar, ent);
+		      cha_ent_merge (setp, cha, (int64 *) LOW_48 ((int64 *) tar), ent);
 		      goto next;
 		    }
 		}
 	      cha->cha_distinct_count++;
-	      ent = cha_mrg_copy (cha_p, ent);
-	      if (!cha_relocate (cha_p, h, ent))
-		mp_array_add (cha->cha_pool, (caddr_t **) & cha_p->cha_exceptions, &cha_p->cha_exception_fill, (caddr_t) ent);
+	      ent = (int64 *) ((int64) cha_mrg_copy (cha_p, ent) | HIGH_16 (h));
+	      mp_array_add (cha->cha_pool, (caddr_t **) & cha_p->cha_exceptions, &cha_p->cha_exception_fill, (caddr_t) ent);
 	    next:;
 	    }
-	  if (cha->cha_distinct_count > cha->cha_size * 9 / 16)
+	  if (cha->cha_distinct_count > cha->cha_n_partitions * chash_part_size * (cha_gb_load_pct / 100.0))
 	    cha_resize (cha, setp, NULL, 0, delta->cha_distinct_count * n_to_go);
 	}
     }
@@ -3023,29 +3251,29 @@ dc_append_cha (data_col_t * dc, hash_area_t * ha, chash_t * cha, int64 * row, in
       switch (cha->cha_sqt[col].sqt_dtp)
 	{
 	case DV_ANY:
-	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_deserialize_string (((caddr_t *) row)[col + 1], INT32_MAX, 0);
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_deserialize_string (((caddr_t *) row)[col], INT32_MAX, 0);
 	  return;
 	case DV_LONG_INT:
-	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_num (row[col + 1]);
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_num (row[col]);
 	  return;
 	case DV_DOUBLE_FLOAT:
-	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_double (((double *) row)[col + 1]);
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_double (((double *) row)[col]);
 	  return;
 	case DV_IRI_ID:
-	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_iri_id (row[col + 1]);
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_iri_id (row[col]);
 	  return;
 	case DV_SINGLE_FLOAT:
-	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_float (((float *) row)[col + 1]);
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_float (((float *) row)[col]);
 	  return;
 	case DV_DATETIME:
 	  {
 	    caddr_t dt = dk_alloc_box (DT_LENGTH, DV_DATETIME);
-	    memcpy_dt (dt, ((db_buf_t *) row)[col + 1]);
+	    memcpy_dt (dt, ((db_buf_t *) row)[col]);
 	    ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = dt;
 	    return;
 	  }
 	default:
-	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_deserialize_string (((caddr_t *) row)[col + 1], INT32_MAX, 0);
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_deserialize_string (((caddr_t *) row)[col], INT32_MAX, 0);
 	  return;
 	}
       return;
@@ -3055,7 +3283,7 @@ dc_append_cha (data_col_t * dc, hash_area_t * ha, chash_t * cha, int64 * row, in
     case DV_ANY:
       {
 	int len;
-	db_buf_t dv = (db_buf_t) (ptrlong) row[col + 1];
+	db_buf_t dv = (db_buf_t) (ptrlong) row[col];
 	DB_BUF_TLEN (len, dv[0], dv);
 	dc_append_bytes (dc, dv, len, NULL, 0);
 	return;
@@ -3063,19 +3291,18 @@ dc_append_cha (data_col_t * dc, hash_area_t * ha, chash_t * cha, int64 * row, in
     case DV_LONG_INT:
     case DV_DOUBLE_FLOAT:
     case DV_IRI_ID:
-      ((int64 *) dc->dc_values)[dc->dc_n_values++] = row[col + 1];
+      ((int64 *) dc->dc_values)[dc->dc_n_values++] = row[col];
       return;
     case DV_SINGLE_FLOAT:
-      ((int32 *) dc->dc_values)[dc->dc_n_values++] = *(int32 *) & ((int64 *) row)[col + 1];
+      ((int32 *) dc->dc_values)[dc->dc_n_values++] = *(int32 *) & ((int64 *) row)[col];
       return;
     case DV_DATETIME:
-      memcpy_dt (dc->dc_values + DT_LENGTH * dc->dc_n_values, ((db_buf_t *) row)[col + 1]);
+      memcpy_dt (dc->dc_values + DT_LENGTH * dc->dc_n_values, ((db_buf_t *) row)[col]);
       dc->dc_n_values++;
       return;
     }
   GPF_T1 ("dc_append_cha(): unsupported type, non-boxed dc");
 }
-
 
 
 int
@@ -3085,13 +3312,13 @@ cha_check_survival (chash_t * cha, caddr_t * inst, setp_node_t * setp, int64 * e
   dtp_t dtp = cha->cha_sqt[pos].sqt_dtp;
   if (DV_ANY == dtp)
     {
-    DV_EQ (ent[pos + 1], (db_buf_t) surviving, neq)}
+    DV_EQ (ent[pos], (db_buf_t) surviving, neq)}
   else if (DV_DATETIME == dtp)
     {
-      if (*(int64 *) surviving != *(int64 *) ent[pos + 1])
+      if (*(int64 *) surviving != *(int64 *) ent[pos])
 	return 0;
     }
-  else if (surviving != ent[pos + 1])
+  else if (surviving != ent[pos])
     return 0;
   mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_bloom, (int32 *) & cha->cha_n_bloom, (caddr_t) ent);
   if (cha->cha_n_bloom > 2000000)
@@ -3106,17 +3333,21 @@ neq:
 void
 cha_survival (chash_t * cha, caddr_t * inst, setp_node_t * setp)
 {
-  int inx;
+  int inx, batch;
   if (!cha->cha_n_bloom)
     return;
-  for (inx = 0; inx < cha->cha_n_bloom; inx++)
+  for (batch = 0; batch < cha->cha_n_bloom; batch += ARTM_VEC_LEN)
     {
-      int64 *old_row = ((int64 **) cha->cha_bloom)[inx];
-      uint64 h = old_row[0];
-      chash_t *cha_p = CHA_PARTITION (cha, h);
-      ((int64 **) cha->cha_bloom)[inx] = cha_mrg_copy (cha_p, old_row);
+      int last = MIN (cha->cha_n_bloom, batch + ARTM_VEC_LEN);
+      for (inx = batch; inx < last; inx++)
+	{
+	  int64 *old_row = ((int64 **) cha->cha_bloom)[inx];
+	  uint64 h = chash_row (cha, old_row);
+	  chash_t *cha_p = CHA_PARTITION (cha, h);
+	  ((int64 **) cha->cha_bloom)[inx] = cha_mrg_copy (cha_p, old_row);
+	}
+      cha_rehash_ents (cha, (int64 **) & cha->cha_bloom[batch], last - batch);
     }
-  cha_rehash_ents (cha, (int64 **) cha->cha_bloom, cha->cha_n_bloom);
   cha->cha_n_bloom = 0;
   SRC_IN_STATE (setp, inst) = inst;
 }
@@ -3469,7 +3700,7 @@ hs_send_output (hash_source_t * hs, caddr_t * inst, chash_t * cha)
 void
 cha_results (hash_source_t * hs, caddr_t * inst, chash_t * cha, int set, int64 * row, int is_cont)
 {
-  /* put isthe matches in output cols.  If batch full, record continue state and send results.  . */
+  /* put the matches in output cols.  If batch full, record continue state and send results.  . */
   hash_area_t *ha = hs->hs_ha;
   int n_dep = ha->ha_n_deps;
   int n_keys = ha->ha_n_keys;
@@ -3483,7 +3714,7 @@ cha_results (hash_source_t * hs, caddr_t * inst, chash_t * cha, int set, int64 *
       int dep;
       int n_values = 0, inx, out_inx;
       out_inx = 0;
-      dep = ha->ha_n_keys + 1 - cha->cha_is_1_int_key;
+      dep = ha->ha_n_keys;
       for (inx = dep; inx < dep + n_dep; inx++)
 	{
 	  dtp_t ch_dtp = cha->cha_sqt[out_inx + n_keys].sqt_dtp;
@@ -3557,7 +3788,7 @@ cha_results (hash_source_t * hs, caddr_t * inst, chash_t * cha, int set, int64 *
       else
 	{
 	  __builtin_prefetch ((void *) row[cha->cha_next_ptr]);
-	  dep = ha->ha_n_keys + 1 - cha->cha_is_1_int_key;
+	  dep = ha->ha_n_keys;
 	}
       for (inx = dep; inx < dep + n_dep; inx++)
 	{
@@ -3744,22 +3975,21 @@ cha_hs_cmp (hash_source_t * hs, caddr_t * inst, chash_t * cha, int set, int64 * 
     switch (dc->dc_dtp)
       {
       case DV_ANY:
-	DV_EQ (((db_buf_t *) dc->dc_values)[set], (ptrlong) row[inx + 1], neq);
+	DV_EQ (((db_buf_t *) dc->dc_values)[set], (ptrlong) row[inx], neq);
 	break;
       neq:return 0;
       case DV_LONG_INT:
       case DV_IRI_ID:
       case DV_DOUBLE_FLOAT:
-	if (((int64 *) dc->dc_values)[set] != row[inx + 1])
+	if (((int64 *) dc->dc_values)[set] != row[inx])
 	  return 0;
 	break;
       case DV_SINGLE_FLOAT:
-	if (((int32 *) dc->dc_values)[set] != *(int32 *) & row[inx + 1])
+	if (((int32 *) dc->dc_values)[set] != *(int32 *) & row[inx])
 	  return 0;
 	break;
       case DV_DATETIME:
-	memcmp_dt (dc->dc_values + set * DT_LENGTH, (db_buf_t) row[inx + 1], neq);
-	break;
+	memcmp_dt (dc->dc_values + set * DT_LENGTH, (db_buf_t) row[inx], neq);
 	break;
       }
   }
@@ -3801,6 +4031,8 @@ long chash_cum_input;
 
 
 void chash_sp_bloom_sets (hash_source_t * hs, caddr_t * inst, chash_t * cha, uint64 * hash_nos, int *n_sets, int self_partition,
+    uint32 p_min, uint32 p_max, int **sp_sets_ret);
+void chash_sp_bloom_sets_1i (hash_source_t * hs, caddr_t * inst, chash_t * cha, int64 * values, int *n_sets, int self_partition,
     uint32 p_min, uint32 p_max, int **sp_sets_ret);
 
 
@@ -3891,9 +4123,7 @@ hash_source_chash_input (hash_source_t * hs, caddr_t * inst, caddr_t * state)
       }
       END_DO_BOX;
       if (self_partition || cha->cha_bloom)
-	{
-	  chash_sp_bloom_sets (hs, inst, cha, hash_nos, &n_sets, self_partition, p_min, p_max, &sp_sets);
-	}
+	chash_sp_bloom_sets (hs, inst, cha, hash_nos, &n_sets, self_partition, p_min, p_max, &sp_sets);
     }
   else
     {
@@ -3934,158 +4164,74 @@ hash_source_chash_input (hash_source_t * hs, caddr_t * inst, caddr_t * state)
     }
 
 #define CHA_P(cha, h) &cha->cha_partitions[h % cha->cha_n_partitions]
-#define HIT(e) ((elt = e) && elt[0] == h && cha_hs_cmp (hs, inst, cha_p, set, elt))
-
+#undef HIT_N
+#undef HIT_N_E
+#define HIT_N(n, e) (cha_hs_cmp (hs, inst, cha_p_##n, SET_NO(n), (int64*)LOW_48 (e)))
+#define HIT_N_E(n, e) HIT_N(n, e)
 
   if (sp_sets)
     {
-      for (set = set; set + 4 <= n_sets; set += 4)
-	{
-	  int64 *elt, **array_1, **array_2, **array_3, **array_4;
-	  int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-	  chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-	  uint64 h_1, h_2, h_3, h_4;
-	  int set_1 = sp_sets[set], set_2 = sp_sets[set + 1], set_3 = sp_sets[set + 2], set_4 = sp_sets[set + 3];
-#undef CHA_PRE
-#define CHA_PRE(n)					\
-	  h_##n = hash_nos[set_##n];		\
-	  cha_p_##n = CHA_PARTITION(cha, h_##n);	\
-	  array_##n = cha_p_##n->cha_array;		\
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n);	\
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n);	\
+#define SET_NO_I(i) sp_sets[i]
+#define SET_NO(n) set_##n
+#define HASH(n) \
+  hash_##n = hash_nos[SET_NO (n)]
 
-#define HIT_N(n, e) ((elt = e) && elt[0] == h_##n && cha_hs_cmp (hs, inst, cha_p_##n, set_##n, elt))
-#define HIT_N_E(n, e) HIT_N(n, e)
+#define FIRST set
+#define LAST n_sets
 
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); cha_results (hs, inst, cha, set_##n, (int64*)LOW_48 (w_##n), 0); }
 
-#define CHA_PREFETCH(n) (__builtin_prefetch (array_##n[pos1_##n]))
+#define RESULT_E(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); cha_results (hs, inst, cha, set_##n, (int64*)LOW_48 (w_##n), 0); }
 
-#undef CHA_CK
-#define CHA_CK(n)							\
-	  if (HIT_N (n, array_##n[pos1_##n]))				\
-	    {								\
-	      CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); cha_results (hs, inst, cha, set_##n, array_##n[pos1_##n], 0); \
-	    }								\
-	  else if (HIT_N (n, array_##n[pos2_##n]))			\
-	    {								\
-	      CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos2_##n); cha_results (hs, inst, cha, set_##n, array_##n[pos2_##n], 0); \
-	    }								\
-	  else								\
-	    {								\
-	      for (inx = 0; inx < cha_p_##n->cha_exception_fill; inx++) \
-		{							\
-		  if (HIT_N_E (n, cha_p_##n->cha_exceptions[inx]))	\
-		    {							\
-		      CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); cha_results (hs, inst, cha, set_##n, cha_p_##n->cha_exceptions[inx], 0); \
-		      break;						\
-		    }							\
-		}							\
-	    }								\
+#define L_INSERT(n)
+#define L_E_INSERT(n)
 
-
-
-
-	  CHA_PRE (1);
-	  CHA_PRE (2);
-	  CHA_PREFETCH (2);
-	  CHA_PRE (3);
-	  CHA_PREFETCH (3);
-	  CHA_PRE (4);
-	  CHA_PREFETCH (4);
-
-	  CHA_CK (1);
-	  CHA_CK (2);
-	  CHA_CK (3);
-	  CHA_CK (4);
-	}
-
-      for (set = set; set < n_sets; set++)
-	{
-	  int64 **array_1, *elt;
-	  chash_t *cha_p_1;
-	  uint64 h_1;
-	  int pos1_1, pos2_1;
-	  int set_1 = sp_sets[set];
-	  CHA_PRE (1);
-	  CHA_CK (1);
-	}
-
+#include "linh_g.c"
 
     }
   else
     {
-      for (set = set; set + 4 <= n_sets; set += 4)
-	{
-	  int64 *elt, **array_1, **array_2, **array_3, **array_4;
-	  int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-	  chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-	  uint64 h_1, h_2, h_3, h_4;
+#define SET_NO_I(i) (i)
+#define SET_NO(n) set_##n
+#define HASH(n) \
+      hash_##n = hash_nos[SET_NO (n)]
 
-#undef HIT_N
-#undef HIT_N_E
-#define HIT_N(n, e) ((elt = e) && elt[0] == h_##n && cha_hs_cmp (hs, inst, cha_p_##n, set + n - 1, elt))
-#define HIT_N_E(n, e) HIT_N(n, e)
+#define FIRST set
+#define LAST n_sets
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); cha_results (hs, inst, cha, SET_NO(n), (int64*)LOW_48 (w_##n), 0); }
 
+#define RESULT_E(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); cha_results (hs, inst, cha, SET_NO(n), (int64*)LOW_48 (w_##n), 0); }
 
-#undef CHA_PRE
-#define CHA_PRE(n)					\
-	  h_##n = hash_nos[set + n - 1];		\
-	  cha_p_##n = CHA_PARTITION(cha, h_##n);	\
-	  array_##n = cha_p_##n->cha_array;		\
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n);	\
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n);	\
+#define L_INSERT(n)
+#define L_E_INSERT(n)
+#define done_0 done2_0
+#define done_1 done2_1
+#define done_2 done2_2
+#define done_3 done2_3
+#define miss_0 done_e2_0
+#define miss_1 miss_2_1
+#define miss_2 done_e2_2
+#define miss_3 done_e2_3
+#define next_0 next2_0
+#define next_1 next2_1
+#define next_2 next2_2
+#define next_3 next2_3
+#define done_c_0 done_c2_0
+#define done_c_1 done_c2_1
+#define done_c_2 done_c2_2
+#define done_c_3 done_c2_3
+#define exc_0 exc2_0
+#define exc_1 exc2_1
+#define exc_2 exc2_2
+#define exc_3 exc2_3
 
-
-#define CHA_PREFETCH(n) (__builtin_prefetch (array_##n[pos1_##n]))
-
-#undef CHA_CK
-#define CHA_CK(n)							\
-	  if (HIT_N (n, array_##n[pos1_##n]))				\
-	    {								\
-	      CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); cha_results (hs, inst, cha, set + n - 1, array_##n[pos1_##n], 0); \
-	    }								\
-	  else if (HIT_N (n, array_##n[pos2_##n]))			\
-	    {								\
-	      CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos2_##n); cha_results (hs, inst, cha, set + n - 1, array_##n[pos2_##n], 0); \
-	    }								\
-	  else								\
-	    {								\
-	      for (inx = 0; inx < cha_p_##n->cha_exception_fill; inx++) \
-		{							\
-		  if (HIT_N_E (n, cha_p_##n->cha_exceptions[inx]))	\
-		    {							\
-		      CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); cha_results (hs, inst, cha, set + n - 1, cha_p_##n->cha_exceptions[inx], 0); \
-		      break;						\
-		    }							\
-		}							\
-	    }								\
-
-
-
-
-	  CHA_PRE (1);
-	  CHA_PRE (2);
-	  CHA_PREFETCH (2);
-	  CHA_PRE (3);
-	  CHA_PREFETCH (3);
-	  CHA_PRE (4);
-	  CHA_PREFETCH (4);
-
-	  CHA_CK (1);
-	  CHA_CK (2);
-	  CHA_CK (3);
-	  CHA_CK (4);
-	}
-
-      for (set = set; set < n_sets; set++)
-	{
-	  int64 **array_1, *elt;
-	  chash_t *cha_p_1;
-	  uint64 h_1;
-	  int pos1_1, pos2_1;
-	  CHA_PRE (1);
-	  CHA_CK (1);
-	}
+#include "linh_g.c"
     }
   SRC_IN_STATE (hs, inst) = NULL;
   if (QST_INT (inst, hs->src_gen.src_out_fill))
@@ -4224,6 +4370,39 @@ cha_place_row (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t
 
 
 void
+cha_lin_print (chash_t * cha)
+{
+  int part, inx, i1;
+  uint32 dist[9];
+  int32 empty = 0, except = 0;
+  memzero (dist, sizeof (dist));
+  for (part = 0; part < cha->cha_n_partitions; part++)
+    {
+      chash_t *cha_p = CHA_PARTITION (cha, part);
+      except += cha_p->cha_exception_fill;
+      for (inx = 0; inx < cha_p->cha_size; inx += 8)
+	{
+	  int ctr = 0;
+	  for (i1 = inx; i1 < inx + 8; i1++)
+	    {
+	      int64 elt = (int64) cha_p->cha_array[i1];
+	      ctr += !(CHA_EMPTY == elt || 0 == elt);
+	    }
+	  empty += 8 - ctr;
+	  dist[ctr]++;
+	}
+    }
+  printf ("hash with %d partitions, %d elements, %d empty %d exceptions\n", cha->cha_n_partitions,
+      cha->cha_n_partitions * chash_part_size, empty, except);
+  for (i1 = 0; i1 <= 8; i1++)
+    {
+      printf ("%d: %d\n", i1, dist[i1]);
+    }
+}
+
+
+
+void
 cha_print (chash_t * cha)
 {
   int inx, ctr = 0;
@@ -4295,98 +4474,94 @@ cha_check_trap (chash_t * cha, int64 * row, int np)
 
 
 
-
 void
-cha_insert_vec_1_unq (chash_t * cha, int64 *** ep1, int64 *** ep2, int64 ** row, int *nps, int fill)
+cha_insert_vec_1_unq (chash_t * cha, int64 *** ep1, int64 ** rows, uint64 * hash_no, int *nps, int fill)
 {
-  int inx, non_unq = 0;
+  int inx;
   for (inx = 0; inx < fill; inx++)
     {
+      int64 *row = rows[inx];
+      uint64 hh = HIGH_16 (hash_no[inx]);
+      int64 *ent;
+      int64 **array = ep1[inx];
       chash_t *cha_p;
-      uint64 h;
-      int64 *ent = *ep1[inx];
-      if (!ent)
+      int pos1, ctr;
+      pos1 = ((int64) array & 63) >> 3;
+      array = (int64 **) ((long) array & ~63LL);
+      for (ctr = 0; ctr < 8; ctr++)
 	{
-	  *ep1[inx] = row[inx];
-	  goto done;
+	  ent = array[pos1];
+	  if (!ent)
+	    {
+	      ((int64 *) array)[pos1] = ((int64) row) | hh;
+	      goto done;
+	    }
+	  INC_LOW_3 (pos1);
 	}
-      h = row[inx][0];
-      ent = *ep2[inx];
-      if (!ent)
-	{
-	  *ep2[inx] = row[inx];
-	  goto done;
-	}
-      cha_p = cha->cha_n_partitions ? &cha->cha_partitions[nps[inx]] : cha;
-      cha_add_ent (cha_p, row[inx], h);
+      cha_p = CHA_PARTITION (cha, nps[inx]);
+      cha_add_except (cha_p, (int64 *) ((int64) row | hh));
     done:;
+
 #ifdef CHA_TRAP
       if (cha_trap_row)
 	cha_check (cha, cmp, cha_trap_row);
 #endif
     }
-  if (non_unq)
-    cha->cha_unique = CHA_NON_UNQ;
 }
 
 
-void
-cha_insert_vec_1 (chash_t * cha, int64 *** ep1, int64 *** ep2, int64 ** row, int *nps, int fill)
+int
+cha_insert_vec_1 (chash_t * cha, int64 *** ep1, int64 ** rows, uint64 * hash_no, int *nps, int fill)
 {
   int inx, non_unq = 0, e;
+  int n_dist = 0;
   int next_ptr = cha->cha_next_ptr;
   for (inx = 0; inx < fill; inx++)
     {
+      int64 *row = rows[inx];
+      uint64 hh;
+      int64 h = hash_no[inx];
+      int64 *ent;
+      int64 **array = ep1[inx];
       chash_t *cha_p;
-      uint64 h;
-      int64 *ent = *ep1[inx];
-      if (!ent)
+      int pos1, ctr;
+      pos1 = (((int64) array) & 63) >> 3;
+      array = (int64 **) ((long) array & ~63LL);
+      hh = HIGH_16 (h);
+      for (ctr = 0; ctr < 8; ctr++)
 	{
-	  *ep1[inx] = row[inx];
-	  goto done;
+	  ent = array[pos1];
+	  if (!ent)
+	    {
+	      ((int64 *) array)[pos1] = ((int64) row) | hh;
+	      n_dist++;
+	      goto done;
+	    }
+	  if (HIGH_16 (ent) == hh && cha_ent_cmp (cha, ent = (int64 *) LOW_48 ((int64 *) ent), row))
+	    {
+	      row[next_ptr] = ent[next_ptr];
+	      ent[next_ptr] = (int64) (row + cha->cha_n_keys);
+	      non_unq = 1;
+	      goto done;
+	    }
+	  INC_LOW_3 (pos1);
 	}
-      h = row[inx][0];
-      if (h == *ent && cha_ent_cmp (cha, ent, row[inx]))
-	{
-	  if (!next_ptr)
-	    goto done;
-	  row[inx][next_ptr] = ent[next_ptr];
-	  ent[next_ptr] = (int64) (row[inx] + cha->cha_n_keys + 1);
-	  non_unq = 1;
-	  goto done;
-	}
-      ent = *ep2[inx];
-      if (!ent)
-	{
-	  *ep2[inx] = row[inx];
-	  goto done;
-	}
-      if (h == *ent && cha_ent_cmp (cha, ent, row[inx]))
-	{
-	  if (!next_ptr)
-	    goto done;
-	  row[inx][next_ptr] = ent[next_ptr];
-	  ent[next_ptr] = (int64) (row[inx] + cha->cha_n_keys + 1);
-	  non_unq = 1;
-	  goto done;
-	}
-      cha_p = cha->cha_n_partitions ? &cha->cha_partitions[nps[inx]] : cha;
+      cha_p = CHA_PARTITION (cha, nps[inx]);
       for (e = 0; e < cha_p->cha_exception_fill; e++)
 	{
 	  int64 *ent = ((int64 **) cha_p->cha_exceptions)[e];
-	  if (h == ent[0] && cha_ent_cmp (cha, ent, row[inx]))
+	  if (HIGH_16 (ent) == hh && cha_ent_cmp (cha, ent = (int64 *) LOW_48 ((int64 *) ent), row))
 	    {
-	      if (!next_ptr)
-		goto done;
-	      row[inx][next_ptr] = ent[next_ptr];
-	      ent[next_ptr] = (int64) (row[inx] + cha->cha_n_keys + 1);
+	      row[next_ptr] = ent[next_ptr];
+	      ent[next_ptr] = (int64) (row + cha->cha_n_keys);
 	      non_unq = 1;
 	      goto done;
 	    }
 	}
-
-      cha_add_ent (cha_p, row[inx], h);
+      cha_add_except (cha_p, (int64 *) ((int64) row | hh));
+      n_dist++;
     done:;
+
 #ifdef CHA_TRAP
       if (cha_trap_row)
 	cha_check (cha, cmp, cha_trap_row);
@@ -4394,6 +4569,7 @@ cha_insert_vec_1 (chash_t * cha, int64 *** ep1, int64 *** ep2, int64 ** row, int
     }
   if (non_unq)
     cha->cha_unique = CHA_NON_UNQ;
+  return n_dist;
 }
 
 
@@ -4415,7 +4591,11 @@ cha_insert_vec_1 (chash_t * cha, int64 *** ep1, int64 *** ep2, int64 ** row, int
 
 #define BF_BIT_1(h) (63 & (h))
 #define BF_BIT_2(h) (63 & ((h) >> 8))
+#define BF_BIT_3(h) (63 & ((h) >> 14))
+#define BF_BIT_4(h) (63 & ((h) >> 21))
 #define BF_WORD(h, size) ((uint64)h % size)
+#define BF_MASK(h) ((1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h)) | (1L << BF_BIT_3 (h)) | (1L << BF_BIT_4 (h)))
+
 
 
 void
@@ -4430,7 +4610,7 @@ cha_bloom_flush (chash_t * cha, uint64 * hash_no, int fill)
     {
       uint64 h = hash_no[inx];
       uint32 w = BF_WORD (h, size);
-      uint64 mask = (1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h));
+      uint64 mask = BF_MASK (h);
       bf[w] |= mask;
     }
   if (cha->cha_serial_bloom)
@@ -4442,15 +4622,18 @@ cha_bloom_flush (chash_t * cha, uint64 * hash_no, int fill)
 #define CHAI_BATCH 8
 
 void
-cha_insert_vec (chash_t * cha, chash_t * source, int min_part, int max_part, int bloom_min, int bloom_max)
+cha_insert (chash_t * cha, chash_t * source, int min_part, int max_part, int bloom_min, int bloom_max)
 {
+  int n_dist = 0;
   chash_page_t *chp;
+  chash_page_t *h_chp = source->cha_fill_cha->cha_init_page;
+  int h_inx = 0;
   cha_ent_cmp_t cmp = cha_ent_cmp;
   int fill = 0;
   int page_ctr = 0;
   int64 *rows[CHAI_BATCH];
   int64 **ep1[CHAI_BATCH];
-  int64 **ep2[CHAI_BATCH];
+  uint64 hash_no[CHAI_BATCH];
   int nps[CHAI_BATCH];
   H_BLOOM_VARS;
   for (chp = source->cha_init_page; chp; chp = chp->h.h.chp_next)
@@ -4458,14 +4641,15 @@ cha_insert_vec (chash_t * cha, chash_t * source, int min_part, int max_part, int
       int pos;
       if (!chp->h.h.chp_fill)
 	break;
-      for (pos = 0; pos < chp->h.h.chp_fill; pos += cha->cha_first_len)
+#define HCHP_NEXT (h_inx < h_chp->h.h.chp_fill - sizeof (int64)? h_inx+= sizeof (int64) : (h_chp = h_chp->h.h.chp_next, h_inx = 0))
+      for (pos = 0; pos < chp->h.h.chp_fill; (HCHP_NEXT, pos += cha->cha_first_len))
 	{
 	  int64 *row = (int64 *) & chp->chp_data[pos];
-	  uint64 h = row[0];
+	  uint64 h = *(uint64 *) & h_chp->chp_data[h_inx];
 	  int64 **array;
 	  chash_t *cha_p;
-	  int pos1, pos2;
-	  int np = cha->cha_n_partitions ? ((uint64) row[0]) % cha->cha_n_partitions : 0;
+	  int pos1;
+	  int np = cha->cha_n_partitions ? ((uint64) h) % cha->cha_n_partitions : 0;
 	  H_BLOOM (h);
 	  if (np < min_part || np >= max_part)
 	    continue;
@@ -4479,29 +4663,29 @@ cha_insert_vec (chash_t * cha, chash_t * source, int min_part, int max_part, int
 #endif
 	  cha_p = cha->cha_n_partitions ? &cha->cha_partitions[np] : cha;
 	  array = cha_p->cha_array;
-	  pos1 = CHA_POS_1 (cha_p, h);
-	  pos2 = CHA_POS_2 (cha_p, h);
+	  pos1 = CHA_LIN_POS (cha_p, h);
 	  if (cha_ent_cmp_unq_fill == cmp)
 	    {
 	      __builtin_prefetch (&array[pos1]);
-	      __builtin_prefetch (&array[pos2]);
 	    }
 	  else
 	    {
-	      __builtin_prefetch (array[pos1]);
-	      __builtin_prefetch (array[pos2]);
+	      __builtin_prefetch ((void *) LOW_48 (array[pos1]));
 	    }
 	  ep1[fill] = &array[pos1];
-	  ep2[fill] = &array[pos2];
 	  nps[fill] = np;
+	  hash_no[fill] = h;
 	  rows[fill] = row;
 	  fill++;
 	  if (CHAI_BATCH == fill)
 	    {
 	      if (CHA_ALWAYS_UNQ == cha->cha_unique)
-		cha_insert_vec_1_unq (cha, ep1, ep2, rows, nps, fill);
+		{
+		  n_dist += fill;
+		  cha_insert_vec_1_unq (cha, ep1, rows, hash_no, nps, fill);
+		}
 	      else
-		cha_insert_vec_1 (cha, ep1, ep2, rows, nps, fill);
+		n_dist += cha_insert_vec_1 (cha, ep1, rows, hash_no, nps, fill);
 	      fill = 0;
 	    }
 	}
@@ -4511,121 +4695,83 @@ cha_insert_vec (chash_t * cha, chash_t * source, int min_part, int max_part, int
   if (fill)
     {
       if (CHA_ALWAYS_UNQ == cha->cha_unique)
-	cha_insert_vec_1_unq (cha, ep1, ep2, rows, nps, fill);
+	cha_insert_vec_1_unq (cha, ep1, rows, hash_no, nps, fill);
       else
-	cha_insert_vec_1 (cha, ep1, ep2, rows, nps, fill);
+	cha_insert_vec_1 (cha, ep1, rows, hash_no, nps, fill);
     }
+  cha->cha_distinct_count += n_dist;
 }
 
-int enable_cha_insert_vec = 1;
 
-void
-cha_insert (chash_t * cha, chash_t * source, int min_part, int max_part, int bloom_min, int bloom_max)
+int
+cha_insert_vec_1i_1 (chash_t * cha, int64 *** ep1, int64 ** rows, uint64 * hash_no, int *nps, int fill)
 {
-  chash_page_t *chp;
+  int inx, non_unq = 0, e;
+  int n_dist = 0;
   int next_ptr = cha->cha_next_ptr;
-  cha_ent_cmp_t cmp = cha_ent_cmp;
-  int non_unq = 0;
-  int page_ctr = 0;
-  if (enable_cha_insert_vec)
+  for (inx = 0; inx < fill; inx++)
     {
-      cha_insert_vec (cha, source, min_part, max_part, bloom_min, bloom_max);
-      return;
-    }
-  if (CHA_ALWAYS_UNQ == cha->cha_unique)
-    cmp = cha_ent_cmp_unq_fill;
-
-  for (chp = source->cha_init_page; chp; chp = chp->h.h.chp_next)
-    {
-      int pos;
-      if (!chp->h.h.chp_fill)
-	break;
-      for (pos = 0; pos < chp->h.h.chp_fill; pos += cha->cha_first_len)
+      int64 *row = rows[inx];
+      uint64 hh;
+      int64 h = hash_no[inx];
+      int64 *ent;
+      int64 **array = ep1[inx];
+      chash_t *cha_p;
+      int pos1, ctr;
+      pos1 = (((int64) array) & 63) >> 3;
+      array = (int64 **) ((long) array & ~63LL);
+      hh = HIGH_16 (h);
+      for (ctr = 0; ctr < 8; ctr++)
 	{
-	  int64 *row = (int64 *) & chp->chp_data[pos];
-	  uint64 h = row[0];
-	  int64 *ent;
-	  int64 **array;
-	  chash_t *cha_p;
-	  int pos1, pos2, e;
-	  int np = cha->cha_n_partitions ? ((uint64) row[0]) % cha->cha_n_partitions : 0;
-	  if (np < min_part || np >= max_part)
-	    continue;
-#ifdef CHA_TRAP
-	  if (cha_trap_page == page_ctr && cha_trap_pos == pos)
-	    bing ();
-	  if (cha_trap_row && np != cha_trap_part)
-	    break;
-	  if (!cha_trap_row)
-	    cha_check_trap (cha, row, np);
-#endif
-	  cha_p = cha->cha_n_partitions ? &cha->cha_partitions[np] : cha;
-	  array = cha_p->cha_array;
-	  pos1 = CHA_POS_1 (cha_p, h);
-	  pos2 = CHA_POS_2 (cha_p, h);
 	  ent = array[pos1];
 	  if (!ent)
 	    {
-	      array[pos1] = row;
-	      cha->cha_distinct_count++;
+	      ((int64 *) array)[pos1] = ((int64) row) | hh;
+	      n_dist++;
 	      goto done;
 	    }
-	  if (h == *ent && cmp (cha, ent, row))
+	  if (HIGH_16 (ent) == hh && row[0] == (ent = ((int64 *) LOW_48 (ent)))[0])
 	    {
-	      row[next_ptr] = ent[next_ptr];
-	      ent[next_ptr] = (int64) (row + cha->cha_n_keys + 1);
+	      ((int64 **) row)[next_ptr] = ent + 1;
+	      ((int64 *) array)[pos1] = ((int64) row) | hh;
 	      non_unq = 1;
 	      goto done;
 	    }
-	  ent = array[pos2];
-	  if (!ent)
-	    {
-	      array[pos2] = row;
-	      cha->cha_distinct_count++;
-	      goto done;
-	    }
-	  if (h == *ent && cmp (cha, ent, row))
-	    {
-	      row[next_ptr] = ent[next_ptr];
-	      ent[next_ptr] = (int64) (row + cha->cha_n_keys + 1);
-	      non_unq = 1;
-	      goto done;
-	    }
-	  if (cha_ent_cmp_unq_fill != cmp)
-	    {
-	      for (e = 0; e < cha_p->cha_exception_fill; e++)
-		{
-		  int64 *ent = ((int64 **) cha_p->cha_exceptions)[e];
-		  if (h == ent[0] && cmp (cha, ent, row))
-		    {
-		      row[next_ptr] = ent[next_ptr];
-		      ent[next_ptr] = (int64) (row + cha->cha_n_keys + 1);
-		      non_unq = 1;
-		      goto done;
-		    }
-		}
-	    }
-	  cha_add_ent (cha_p, row, h);
-	  cha->cha_distinct_count++;
-	done:;
-#ifdef CHA_TRAP
-	  if (cha_trap_row)
-	    cha_check (cha, cmp, cha_trap_row);
-#endif
+	  INC_LOW_3 (pos1);
 	}
-      page_ctr++;
+      cha_p = CHA_PARTITION (cha, nps[inx]);
+      for (e = 0; e < cha_p->cha_exception_fill; e++)
+	{
+	  int64 *ent = ((int64 **) cha_p->cha_exceptions)[e];
+	  if (HIGH_16 (ent) == hh && row[0] == (ent = (int64 *) LOW_48 (ent))[0])
+	    {
+	      ((int64 **) row)[next_ptr] = ent + 1;
+	      cha_p->cha_exceptions[e] = row;
+	      non_unq = 1;
+	      goto done;
+	    }
+	}
+      cha_add_except (cha_p, (int64 *) ((int64) row | hh));
+      n_dist++;
+    done:;
     }
   if (non_unq)
     cha->cha_unique = CHA_NON_UNQ;
+  return n_dist;
 }
+
 
 int
 cha_insert_1i (chash_t * cha, chash_t * source, int min_part, int max_part, int bloom_min, int bloom_max)
 {
-  int ctr = 0;
   chash_page_t *chp;
-  int next_ptr = cha->cha_next_ptr;
-  int non_unq = 0;
+  int fill = 0;
+  int n_dist = 0, cnt = 0;
+  int page_ctr = 0;
+  int64 *rows[CHAI_BATCH];
+  int64 **ep1[CHAI_BATCH];
+  uint64 hash_no[CHAI_BATCH];
+  int nps[CHAI_BATCH];
   H_BLOOM_VARS;
   for (chp = source->cha_init_page; chp; chp = chp->h.h.chp_next)
     {
@@ -4634,72 +4780,60 @@ cha_insert_1i (chash_t * cha, chash_t * source, int min_part, int max_part, int 
 	break;
       for (pos = 0; pos < chp->h.h.chp_fill; pos += cha->cha_first_len)
 	{
+	  uint64 h;
 	  int64 *row = (int64 *) & chp->chp_data[pos];
-	  uint64 h = 1;
-	  int64 k1 = row[0];
-	  int64 *ent;
+	  MHASH_STEP_1 (h, row[0]);
 	  int64 **array;
 	  chash_t *cha_p;
-	  int pos1, pos2, e, np;
-	  MHASH_STEP_1 (h, k1);
+	  int pos1;
+	  int np = cha->cha_n_partitions ? ((uint64) h) % cha->cha_n_partitions : 0;
 	  H_BLOOM (h);
-	  np = cha->cha_n_partitions ? h % cha->cha_n_partitions : 0;
 	  if (np < min_part || np >= max_part)
 	    continue;
-	  ctr++;
+	  cnt++;
 	  cha_p = cha->cha_n_partitions ? &cha->cha_partitions[np] : cha;
 	  array = cha_p->cha_array;
-	  pos1 = CHA_POS_1 (cha_p, h);
-	  pos2 = CHA_POS_2 (cha_p, h);
-	  ent = array[pos1];
-	  if (!ent)
+	  pos1 = CHA_LIN_POS (cha_p, h);
+	  if (CHA_ALWAYS_UNQ == cha->cha_unique)
 	    {
-	      array[pos1] = row;
-	      cha->cha_distinct_count++;
-	      goto done;
+	      __builtin_prefetch (&array[pos1]);
 	    }
-	  if (k1 == *ent)
+	  else
 	    {
-	      row[next_ptr] = ent[next_ptr];
-	      ent[next_ptr] = (int64) (row + cha->cha_n_keys);
-	      non_unq = 1;
-	      goto done;
+	      __builtin_prefetch ((void *) LOW_48 (array[pos1]));
 	    }
-	  ent = array[pos2];
-	  if (!ent)
+	  ep1[fill] = &array[pos1];
+	  nps[fill] = np;
+	  hash_no[fill] = h;
+	  rows[fill] = row;
+	  fill++;
+	  if (CHAI_BATCH == fill)
 	    {
-	      array[pos2] = row;
-	      cha->cha_distinct_count++;
-	      goto done;
-	    }
-	  if (k1 == *ent)
-	    {
-	      row[next_ptr] = ent[next_ptr];
-	      ent[next_ptr] = (int64) (row + cha->cha_n_keys);
-	      non_unq = 1;
-	      goto done;
-	    }
-	  for (e = 0; e < cha_p->cha_exception_fill; e++)
-	    {
-	      int64 *ent = ((int64 **) cha_p->cha_exceptions)[e];
-	      if (k1 == ent[0])
+	      if (CHA_ALWAYS_UNQ == cha->cha_unique)
 		{
-		  row[next_ptr] = ent[next_ptr];
-		  ent[next_ptr] = (int64) (row + cha->cha_n_keys);
-		  non_unq = 1;
-		  goto done;
+		  n_dist += fill;
+		  cha_insert_vec_1_unq (cha, ep1, rows, hash_no, nps, fill);
 		}
+	      else
+		n_dist += cha_insert_vec_1i_1 (cha, ep1, rows, hash_no, nps, fill);
+	      fill = 0;
 	    }
-	  cha_add_ent (cha_p, row, h);
-	  cha->cha_distinct_count++;
-	done:;
-
 	}
+      page_ctr++;
     }
   H_BLOOM_FLUSH;
-  if (non_unq)
-    cha->cha_unique = CHA_NON_UNQ;
-  return ctr;
+  if (fill)
+    {
+      if (CHA_ALWAYS_UNQ == cha->cha_unique)
+	{
+	  cha_insert_vec_1_unq (cha, ep1, rows, hash_no, nps, fill);
+	  n_dist += fill;
+	}
+      else
+	n_dist += cha_insert_vec_1 (cha, ep1, rows, hash_no, nps, fill);
+    }
+  cha->cha_distinct_count += n_dist;
+  return cnt;
 }
 
 
@@ -4707,9 +4841,11 @@ void
 cha_insert_1i_n (chash_t * cha, chash_t * source, int min_part, int max_part, int bloom_min, int bloom_max)
 {
   chash_page_t *chp;
-  int non_unq = 0;
   int64 ctr = 0;
+  int inx;
   H_BLOOM_VARS;
+  if (source->cha_fill_cha)
+    source = source->cha_fill_cha;
   for (chp = source->cha_init_page; chp; chp = chp->h.h.chp_next)
     {
       int pos;
@@ -4723,7 +4859,7 @@ cha_insert_1i_n (chash_t * cha, chash_t * source, int min_part, int max_part, in
 	  int64 ent;
 	  int64 *array;
 	  chash_t *cha_p;
-	  int pos1, pos2, e, np;
+	  int pos1, e, np;
 	  MHASH_STEP_1 (h, row);
 	  H_BLOOM (h);
 	  np = cha->cha_n_partitions ? h % cha->cha_n_partitions : 0;
@@ -4732,7 +4868,6 @@ cha_insert_1i_n (chash_t * cha, chash_t * source, int min_part, int max_part, in
 	  cha_p = cha->cha_n_partitions ? &cha->cha_partitions[np] : cha;
 	  array = (int64 *) cha_p->cha_array;
 	  pos1 = CHA_POS_1 (cha_p, h);
-	  pos2 = CHA_POS_2 (cha_p, h);
 	  if (CHA_EMPTY == row)
 	    goto except;
 	  ent = array[pos1];
@@ -4742,37 +4877,34 @@ cha_insert_1i_n (chash_t * cha, chash_t * source, int min_part, int max_part, in
 	      goto done;
 	    }
 	  if (row == ent)
+	    goto done;
+	  for (inx = 0; inx < 7; inx++)
 	    {
-	      goto done;
-	    }
-	  ent = array[pos2];
-	  if (CHA_EMPTY == ent)
-	    {
-	      array[pos2] = row;
-	      goto done;
-	    }
-	  if (row == ent)
-	    {
-	      goto done;
+	      INC_LOW_3 (pos1);
+	      ent = array[pos1];
+	      if (CHA_EMPTY == ent)
+		{
+		  array[pos1] = row;
+		  goto done;
+		}
+	      if (ent == row)
+		goto done;
 	    }
 	except:
 	  for (e = 0; e < cha_p->cha_exception_fill; e++)
 	    {
 	      int64 ent = ((int64 *) cha_p->cha_exceptions)[e];
 	      if (row == ent)
-		{
-		  goto done;
-		}
+		goto done;
 	    }
-	  cha_add_ent (cha_p, (int64 *) (ptrlong) row, h);
+	  cha_add_except (cha_p, (int64 *) row);
+
 	done:;
 	  ctr++;
 	}
     }
   H_BLOOM_FLUSH;
   cha->cha_distinct_count = cha->cha_count = ctr;
-  if (non_unq)
-    cha->cha_unique = CHA_NON_UNQ;
 }
 
 
@@ -4824,7 +4956,7 @@ void
 cha_init_roj_1 (chash_t * cha, uint64 * bits)
 {
   cha->cha_roj_flags = *bits;
-  (*bits) += chash_part_size;
+  (*bits) += _RNDUP (chash_part_size, 8);
   cha->cha_except_roj_flags = *bits;
   (*bits) += cha->cha_exception_fill;
 }
@@ -4844,7 +4976,9 @@ cha_init_roj (chash_t * cha)
 	cha_init_roj_1 (&cha->cha_partitions[inx], &bits_used);
     }
   bytes = ALIGN_8 (bits_used) / 8;
+  mutex_enter (&cha_alloc_mtx);
   cha->cha_roj_bits = (db_buf_t) mp_alloc_box (cha->cha_pool, bytes, DV_NON_BOX);
+  mutex_leave (&cha_alloc_mtx);
   memzero (cha->cha_roj_bits, bytes);
 }
 
@@ -4883,6 +5017,21 @@ cha_sliced_ins_aq_func (caddr_t av, caddr_t * err_ret)
 
 
 void
+hi_free_fill_cha (hash_index_t * hi)
+{
+  DO_HT (ptrlong, ign, chash_t *, cha, hi->hi_thread_cha)
+  {
+    if (cha->cha_fill_cha)
+      {
+	mp_free (cha->cha_fill_cha->cha_pool);
+	cha->cha_fill_cha = NULL;
+      }
+  }
+  END_DO_HT;
+}
+
+
+void
 chash_filled_sliced (setp_node_t * setp, hash_index_t * hi, int first_time, int64 n_filled)
 {
   /* a chash is filled so that one chash is made per slice but with a common Bloom filter */
@@ -4900,6 +5049,8 @@ chash_filled_sliced (setp_node_t * setp, hash_index_t * hi, int first_time, int6
     return;			/* the hash is empty, no fill thread made a fill cha */
   DO_HT (ptrlong, slice, chash_t *, cha, hi->hi_thread_cha)
   {
+    if (!cha->cha_count && cha->cha_fill_cha)
+      cha->cha_count = cha->cha_fill_cha->cha_count;
     n_rows += cha->cha_count;
   }
   END_DO_HT;
@@ -4965,6 +5116,7 @@ chash_filled_sliced (setp_node_t * setp, hash_index_t * hi, int first_time, int6
   dk_free_box ((caddr_t) fill_aq);
   if (!top_cha->cha_distinct_count)
     top_cha->cha_distinct_count = n_rows;
+  hi_free_fill_cha (hi);
 }
 
 
@@ -4995,7 +5147,10 @@ chash_filled (setp_node_t * setp, hash_index_t * hi, int first_time, int64 n_fil
 	  sqts[inx].sqt_dtp = DV_ANY;
       }
     is_first = 0;
-    n_rows += cha->cha_count;
+    if (!cha->cha_count && cha->cha_fill_cha)
+      n_rows += cha->cha_fill_cha->cha_count;
+    else
+      n_rows += cha->cha_count;
   }
   END_DO_HT;
   DO_HT (du_thread_t *, ign, chash_t *, cha, hi->hi_thread_cha)
@@ -5028,7 +5183,7 @@ chash_filled (setp_node_t * setp, hash_index_t * hi, int first_time, int64 n_fil
   if (enable_par_fill > 1 && max_part > 10 * enable_qp)
     {
       caddr_t err = NULL;
-      int n_ways = MIN (enable_qp, 1 + (max_part / 100));
+      int n_ways = MIN (enable_qp, 1 + (max_part / 20));
       int n_per_slice = max_part / n_ways, n;
       async_queue_t *fill_aq = aq_allocate (bootstrap_cli, enable_qp);
       fill_aq->aq_do_self_if_would_wait = 1;
@@ -5061,6 +5216,7 @@ chash_filled (setp_node_t * setp, hash_index_t * hi, int first_time, int64 n_fil
       }
       END_DO_HT;
     }
+  hi_free_fill_cha (hi);
   if (setp->setp_fill_right_oj)
     cha_init_roj (top_cha);
   if (!top_cha->cha_distinct_count)
@@ -5096,7 +5252,7 @@ setp_chash_fill_1i_d (setp_node_t * setp, caddr_t * inst, chash_t * cha)
 	{
 	  key_vecs[key] =
 	      (db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp, temp_any,
-	      &any_temp_fill, nulls, 1);
+	      &any_temp_fill, nulls, 1, NULL);
 	}
       data = (int64 *) key_vecs[0];
       qi->qi_set = first_set;
@@ -5133,10 +5289,14 @@ setp_chash_fill_1i_n_d (setp_node_t * setp, caddr_t * inst, chash_t * cha)
   dtp_t temp_any[9 * CHASH_GB_MAX_KEYS * ARTM_VEC_LEN];
   int first_set, set;
   char is_parallel;
+  chash_t *fill_cha;
   SELF_PARTITION_FILL;
   nulls = nulls_auto;
   qi->qi_set = 0;
   is_parallel = cha->cha_is_parallel;
+  if (!cha->cha_fill_cha)
+    cha_alloc_fill_cha (cha);
+  fill_cha = cha->cha_fill_cha;
   for (first_set = 0; first_set < n_sets; first_set += ARTM_VEC_LEN)
     {
       int any_temp_fill = 0;
@@ -5146,7 +5306,7 @@ setp_chash_fill_1i_n_d (setp_node_t * setp, caddr_t * inst, chash_t * cha)
 	{
 	  key_vecs[key] =
 	      (db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp, temp_any,
-	      &any_temp_fill, nulls, 1);
+	      &any_temp_fill, nulls, 1, NULL);
 	}
       data = (int64 *) key_vecs[0];
       qi->qi_set = first_set;
@@ -5155,13 +5315,11 @@ setp_chash_fill_1i_n_d (setp_node_t * setp, caddr_t * inst, chash_t * cha)
 	{
 	  int inx = set - first_set;
 	  uint64 h_1 = hash_no[inx];
-	  int64 *ent;
 	  if (nulls[inx])
 	    continue;
 	  if (self_partition && !(p_min <= H_PART (h_1) && p_max >= H_PART (h_1)))
 	    continue;
-	  ent = cha_new_row (ha, cha, 0);
-	  ent[0] = data[inx];
+	  *cha_new_word (fill_cha) = data[inx];
 	}
     }
 }
@@ -5172,7 +5330,7 @@ setp_chash_fill (setp_node_t * setp, caddr_t * inst)
 {
   index_tree_t *tree;
   hash_area_t *ha = setp->setp_ha;
-  chash_t *cha = NULL;
+  chash_t *cha = NULL, *fill_cha;
   QNCAST (query_instance_t, qi, inst);
   int n_sets = setp->src_gen.src_prev ? QST_INT (inst, setp->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
   uint64 hash_no[ARTM_VEC_LEN];
@@ -5208,6 +5366,9 @@ setp_chash_fill (setp_node_t * setp, caddr_t * inst)
       return;
     }
   is_parallel = cha->cha_is_parallel;
+  if (!cha->cha_fill_cha)
+    cha_alloc_fill_cha (cha);
+  fill_cha = cha->cha_fill_cha;
   for (first_set = 0; first_set < n_sets; first_set += ARTM_VEC_LEN)
     {
       int any_temp_fill = 0;
@@ -5218,7 +5379,7 @@ setp_chash_fill (setp_node_t * setp, caddr_t * inst)
 	{
 	  key_vecs[key] =
 	      (db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp, temp_any,
-	      &any_temp_fill, nulls, 0);
+	      &any_temp_fill, nulls, 0, NULL);
 	}
       qi->qi_set = first_set;
       set = first_set;
@@ -5232,6 +5393,7 @@ setp_chash_fill (setp_node_t * setp, caddr_t * inst)
 	  if (self_partition && !(p_min <= H_PART (h_1) && p_max >= H_PART (h_1)))
 	    continue;
 	  cha_new_hj_row (setp, inst, key_vecs, cha, h_1, inx, NULL);
+	  *cha_new_word (fill_cha) = h_1;
 	}
     }
 }
@@ -5243,8 +5405,8 @@ hash_source_chash_input_1i (hash_source_t * hs, caddr_t * inst, caddr_t * state,
   int set;
   int64 *deps;
   chash_t *cha;
-  int inx;
   hash_index_t *hi;
+  int *sp_sets = NULL;
   QNCAST (QI, qi, inst);
   hash_area_t *ha = hs->hs_ha;
   index_tree_t *it = NULL;
@@ -5260,6 +5422,13 @@ hash_source_chash_input_1i (hash_source_t * hs, caddr_t * inst, caddr_t * state,
     {
       SRC_IN_STATE (hs, inst) = NULL;
       return;
+    }
+  if (self_partition || (hs->hs_partition_filter_self && cha->cha_bloom))
+    {
+      if (state)
+	chash_sp_bloom_sets_1i (hs, inst, cha, data, &n_sets, self_partition, p_min, p_max, &sp_sets);
+      else
+	sp_sets = (int *) QST_BOX (data_col_t *, inst, hs->hs_spb_sets->ssl_index)->dc_values;
     }
   QST_INT (inst, hs->src_gen.src_out_fill) = 0;
   deps = QST_BOX (int64 *, inst, hs->hs_current_inx);
@@ -5272,57 +5441,80 @@ hash_source_chash_input_1i (hash_source_t * hs, caddr_t * inst, caddr_t * state,
 #undef HIT_N
 #undef HIT_N_E
 
-#define HIT_N(n, e) ((elt = e)  && elt[0] == data_##n)
+#define HIT_N(n, e) (*(int64*)(LOW_48 ((int64)e)) == data[SET_NO (n)])
 #define HIT_N_E(n, e) HIT_N(n, e)
 
-
-
-  if (self_partition)
-    goto singles;
-  for (set = set; set + 4 <= n_sets; set += 4)
+  if (sp_sets)
     {
-      int64 data_1, data_2, data_3, data_4;
-      int64 *elt, **array_1, **array_2, **array_3, **array_4;
-      int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-      chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-      uint64 h_1, h_2, h_3, h_4;
+#define SET_NO_I(i) sp_sets[i]
+#define SET_NO(n) set_##n
+#define HASH(n) \
+      MHASH_STEP_1 (hash_##n, data[SET_NO (n)]);
 
-#undef CHA_PRE
-#define CHA_PRE(n) \
-      data_##n = data[set + n - 1]; \
-      MHASH_STEP_1 (h_##n, data_##n); \
-      cha_p_##n = CHA_PARTITION(cha, h_##n);  \
-      array_##n = cha_p_##n->cha_array; \
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n); \
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n); \
+#define FIRST set
+#define LAST n_sets
 
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); cha_results (hs, inst, cha, set_##n, (int64*)LOW_48 (w_##n), 0); }
 
-      CHA_PRE (1);
-      CHA_PRE (2);
-      CHA_PREFETCH (2);
-      CHA_PRE (3);
-      CHA_PREFETCH (3);
-      CHA_PRE (4);
-      CHA_PREFETCH (4);
+#define RESULT_E(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); cha_results (hs, inst, cha, set_##n, (int64*)LOW_48 (w_##n), 0); }
 
-      CHA_CK (1);
-      CHA_CK (2);
-      CHA_CK (3);
-      CHA_CK (4);
+#define L_INSERT(n)
+#define L_E_INSERT(n)
+
+#include "linh_g.c"
+
     }
-
-singles:
-  for (set = set; set < n_sets; set++)
+  else
     {
-      int64 **array_1, *elt;
-      chash_t *cha_p_1;
-      uint64 h_1;
-      int64 data_1;
-      int pos1_1, pos2_1;
-      CHA_PRE (1);
-      if (self_partition && !(p_min <= H_PART (h_1) && p_max >= H_PART (h_1)))
-	continue;
-      CHA_CK (1);
+#define SET_NO_I(i) (i)
+#define SET_NO(n) set_##n
+#define HASH(n) \
+      MHASH_STEP_1 (hash_##n, data[SET_NO (n)]);
+
+#define FIRST set
+#define LAST n_sets
+#define CH_PREFETCH(n) __builtin_prefetch ((void*)LOW_48 (w_##n))
+#define RESULT(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); cha_results (hs, inst, cha, SET_NO(n), (int64*)LOW_48 (w_##n), 0); }
+
+#define RESULT_E(n) \
+      { CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); cha_results (hs, inst, cha, SET_NO(n), (int64*)LOW_48 (w_##n), 0); }
+
+#define L_INSERT(n)
+#define L_E_INSERT(n)
+#define done_0 done2_0
+#define done_1 done2_1
+#define done_2 done2_2
+#define done_3 done2_3
+#define miss_0 done_e2_0
+#define miss_1 miss_2_1
+#define miss_2 done_e2_2
+#define miss_3 done_e2_3
+#define next_0 next2_0
+#define next_1 next2_1
+#define next_2 next2_2
+#define next_3 next2_3
+#define done_c_0 done_c2_0
+#define done_c_1 done_c2_1
+#define done_c_2 done_c2_2
+#define done_c_3 done_c2_3
+#define exc_0 exc2_0
+#define exc_1 exc2_1
+#define exc_2 exc2_2
+#define exc_3 exc2_3
+
+#include "linh_g.c"
+#undef done_0
+#undef done_1
+#undef done_2
+#undef done_3
+#undef miss_0
+#undef miss_1
+#undef miss_2
+#undef miss_3
     }
   SRC_IN_STATE (hs, inst) = NULL;
   if (QST_INT (inst, hs->src_gen.src_out_fill))
@@ -5334,12 +5526,6 @@ singles:
 
 
 
-/* for the single int unq hash, the result just marks the set no in the sets */
-
-#define   cha_results(hs, inst, cha, set, array, ff) \
-  { sets[QST_INT (inst, hs->src_gen.src_out_fill)++] = set; }
-
-
 void
 hash_source_chash_input_1i_n (hash_source_t * hs, caddr_t * inst, caddr_t * state, int n_sets)
 {
@@ -5348,16 +5534,17 @@ hash_source_chash_input_1i_n (hash_source_t * hs, caddr_t * inst, caddr_t * stat
   int inx;
   hash_index_t *hi;
   hash_area_t *ha = hs->hs_ha;
+  int *sp_sets = NULL;
   QNCAST (QI, qi, inst);
   int *sets = QST_BOX (int *, inst, hs->src_gen.src_sets);
   index_tree_t *it = NULL;
-  int64 *data;
+  int64 *values;
   ROJ_VARS;
   SELF_PARTITION;
   it = (index_tree_t *) qst_get_chash (inst, ha->ha_tree, hs->hs_cl_id, NULL);
   hi = it->it_hi;
   HI_CHA (cha, qi, hi);
-  data = (int64 *) QST_BOX (data_col_t *, inst, hs->hs_ref_slots[0]->ssl_index)->dc_values;
+  values = (int64 *) QST_BOX (data_col_t *, inst, hs->hs_ref_slots[0]->ssl_index)->dc_values;
   set = QST_INT (inst, hs->clb.clb_nth_set);
   if (set >= n_sets)
     {
@@ -5365,59 +5552,52 @@ hash_source_chash_input_1i_n (hash_source_t * hs, caddr_t * inst, caddr_t * stat
       return;
     }
   QST_INT (inst, hs->src_gen.src_out_fill) = 0;
-
-#undef HIT_N
-#undef HIT_N_E
-#define HIT_N(n, e) ( (int64)(e) == data_##n && CHA_EMPTY != data_##n)
-#define HIT_N_E(n, e) ( (int64)(ptrlong)e == data_##n)
-
-
-  if (self_partition)
-    goto singles;
-  for (set = set; set + 4 <= n_sets; set += 4)
+  if (self_partition || (hs->hs_partition_filter_self && cha->cha_bloom))
+    chash_sp_bloom_sets_1i (hs, inst, cha, values, &n_sets, self_partition, p_min, p_max, &sp_sets);
+  if (sp_sets)
     {
-      int64 data_1, data_2, data_3, data_4;
-      int64 *array_1, *array_2, *array_3, *array_4;
-      int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-      chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-      uint64 h_1, h_2, h_3, h_4;
+#define SET_NO_I(i) sp_sets[i]
+#define SET_NO(n)  set_##n
+#define HASH(n) \
+  MHASH_STEP_1 (hash_##n, values[set_##n])
 
-#undef CHA_PRE
-#define CHA_PRE(n) \
-      data_##n = data[set + n - 1]; \
-       MHASH_STEP_1 (h_##n, data_##n); \
-      cha_p_##n = CHA_PARTITION(cha, h_##n);  \
-      array_##n = (int64*)cha_p_##n->cha_array;	   \
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n); \
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n); \
+#define FIRST set
+#define LAST n_sets
+
+#define RESULT(n) \
+  { CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); sets[QST_INT (inst, hs->src_gen.src_out_fill)++] = SET_NO (n);}
+
+#define RESULT_E(n) \
+  { CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); sets[QST_INT (inst, hs->src_gen.src_out_fill)++] = SET_NO (n);}
 
 
-      CHA_PRE (1);
-      CHA_PRE (2);
-      __builtin_prefetch (&array_2[pos1_2]);
-      CHA_PRE (3);
-      __builtin_prefetch (&array_3[pos1_3]);
-      CHA_PRE (4);
-      __builtin_prefetch (&array_4[pos1_4]);
-
-      CHA_CK (1);
-      CHA_CK (2);
-      CHA_CK (3);
-      CHA_CK (4);
+#include "linh_1i_n.c"
     }
-
-singles:
-  for (set = set; set < n_sets; set++)
+  else
     {
-      int64 *array_1;
-      chash_t *cha_p_1;
-      uint64 h_1;
-      int64 data_1;
-      int pos1_1, pos2_1;
-      CHA_PRE (1);
-      if (self_partition && !(p_min <= H_PART (h_1) && p_max >= H_PART (h_1)))
-	continue;
-      CHA_CK (1);
+#define SET_NO_I(i) (i)
+#define SET_NO(n)  set_##n
+#define HASH(n) \
+      MHASH_STEP_1 (hash_##n, values[SET_NO (n)])
+#define FIRST set
+#define LAST n_sets
+
+#define RESULT(n) \
+  { CHA_ROJ_R (roj, cha_p_##n->cha_roj_flags + pos1_##n); sets[QST_INT (inst, hs->src_gen.src_out_fill)++] = SET_NO (n);}
+#define RESULT_E(n) \
+  { CHA_ROJ_R (roj, cha_p_##n->cha_except_roj_flags + inx); sets[QST_INT (inst, hs->src_gen.src_out_fill)++] = SET_NO (n);}
+
+#define done_0 done2_0
+#define done_1 done2_1
+#define done_2 done2_2
+#define done_3 done2_3
+#define e_done_0 done_e2_0
+#define e_done_1 miss_2_1
+#define e_done_2 done_e2_2
+#define e_done_3 done_e2_3
+
+#include "linh_1i_n.c"
+
     }
   SRC_IN_STATE (hs, inst) = NULL;
   if (QST_INT (inst, hs->src_gen.src_out_fill))
@@ -5557,6 +5737,7 @@ hash_source_roj_input (hash_source_t * hs, caddr_t * inst, caddr_t * state)
   int64 empty;
   chash_t *cha;
   int inx;
+  int part_bits = _RNDUP (chash_part_size, 8);
   hash_index_t *hi;
   db_buf_t bits;
   hash_area_t *ha = hs->hs_ha;
@@ -5592,19 +5773,19 @@ hash_source_roj_input (hash_source_t * hs, caddr_t * inst, caddr_t * state)
   for (nth_part = nth_part; nth_part < cha->cha_n_partitions; nth_part++)
     {
       chash_t *cha_p = CHA_PARTITION (cha, nth_part);
-      for (nth_bit = nth_bit; nth_bit < chash_part_size; nth_bit++)
+      for (nth_bit = nth_bit; nth_bit < part_bits; nth_bit++)
 	{
 	  if (!BIT_IS_SET (bits, start_bit + nth_bit) && empty != (int64) cha_p->cha_array[nth_bit])
 	    cha_roj_result (hs, inst, cha, cha_p->cha_array[nth_bit], start_bit, nth_part, nth_bit);
 	}
-      for (nth_bit = nth_bit; nth_bit < cha_p->cha_exception_fill + chash_part_size; nth_bit++)
+      for (nth_bit = nth_bit; nth_bit < cha_p->cha_exception_fill + part_bits; nth_bit++)
 	{
-	  inx = nth_bit - chash_part_size;
+	  inx = nth_bit - part_bits;
 	  if (!BIT_IS_SET (bits, start_bit + nth_bit))
 	    cha_roj_result (hs, inst, cha, cha_p->cha_exceptions[inx], start_bit, nth_part, nth_bit);
 	}
       nth_bit = 0;
-      start_bit += chash_part_size + cha_p->cha_exception_fill;
+      start_bit += part_bits + cha_p->cha_exception_fill;
     }
   SRC_IN_STATE (hs, inst) = NULL;
   if (QST_INT (inst, hs->src_gen.src_out_fill))
@@ -5642,7 +5823,7 @@ itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp)
   QNCAST (hash_range_spec_t, hrng, sp->sp_min_ssl);
   caddr_t *inst = itc->itc_out_state;
   hash_source_t *hs = hrng->hrng_hs;
-  uint32 min, max, l;
+  uint32 min, max, l, ctr;
   int pos1_1, pos2_1, e;
   int64 **array, k, *ent;
   chash_t *cha_p;
@@ -5707,17 +5888,20 @@ itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp)
       cha = tree->it_hi->hi_chash;
       cha_p = CHA_PARTITION (cha, h);
       array = cha_p->cha_array;
-      pos1_1 = CHA_POS_1 (cha_p, h);
-      pos2_1 = CHA_POS_2 (cha_p, h);
+      pos1_1 = CHA_LIN_POS (cha_p, h);
       if (cha->cha_is_1_int)
 	{
 	  k = IS_BOX_POINTER (box) ? *(int64 *) box : (ptrlong) box;
 	  if (CHA_EMPTY == k)
 	    goto exc;
-	  if (k == ((int64 *) array)[pos1_1])
-	    goto found;
-	  if (k == ((int64 *) array)[pos2_1])
-	    goto found;
+	  for (ctr = 0; ctr < 8; ctr++)
+	    {
+	      if (CHA_EMPTY == array[pos1_1])
+		goto not_found;
+	      if (k == ((int64 *) array)[pos1_1])
+		goto found;
+	      INC_LOW_3 (pos1_1);
+	    }
 	exc:
 	  for (e = 0; e < cha_p->cha_exception_fill; e++)
 	    {
@@ -5726,19 +5910,23 @@ itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp)
 	    }
 	  goto not_found;
 	}
+      h = HIGH_16 (h);
       if (cha->cha_is_1_int_key)
 	{
 	  k = IS_BOX_POINTER (box) ? *(int64 *) box : (ptrlong) box;
-	  ent = array[pos1_1];
-	  if (ent && k == ent[0])
-	    goto found_e;
-	  ent = array[pos2_1];
-	  if (ent && k == ent[0])
-	    goto found_e;
+	  for (ctr = 0; ctr < 8; ctr++)
+	    {
+	      ent = array[pos1_1];
+	      if (!ent)
+		goto not_found;
+	      if (h == HIGH_16 (ent) && k == (ent = (int64 *) LOW_48 (ent))[0])
+		goto found_e;
+	      INC_LOW_3 (pos1_1);
+	    }
 	  for (e = 0; e < cha_p->cha_exception_fill; e++)
 	    {
 	      ent = cha_p->cha_exceptions[e];
-	      if (k == ent[0])
+	      if (h == HIGH_16 (ent) && k == (ent = (int64 *) LOW_48 (ent))[0])
 		goto found_e;
 	    }
 	  goto not_found;
@@ -5751,16 +5939,19 @@ itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp)
 	{
 	  dtp_t nulls = 0;
 	  db_buf_t *k = box2 ? (db_buf_t *) & box2 : (db_buf_t *) & box;
-	  ent = array[pos1_1];
-	  if (ent && h == ent[0] && cha_cmp (cha, ent, &k, 0, &nulls))
-	    goto found_a;
-	  ent = array[pos2_1];
-	  if (ent && h == ent[0] && cha_cmp (cha, ent, &k, 0, &nulls))
-	    goto found_a;
+	  for (ctr = 0; ctr < 8; ctr++)
+	    {
+	      ent = array[pos1_1];
+	      if (!ent)
+		goto not_found;
+	      if (h == HIGH_16 (ent) && cha_cmp (cha, (ent = (int64 *) LOW_48 (ent)), &k, 0, &nulls))
+		goto found_a;
+	      INC_LOW_3 (pos1_1);
+	    }
 	  for (e = 0; e < cha_p->cha_exception_fill; e++)
 	    {
 	      ent = cha_p->cha_exceptions[e];
-	      if (h == ent[0] && cha_cmp (cha, ent, &k, 0, &nulls))
+	      if (h == HIGH_16 (ent) && cha_cmp (cha, (ent = (int64 *) LOW_48 (ent)), &k, 0, &nulls))
 		goto found_a;
 	    }
 	  goto not_found;
@@ -5785,15 +5976,18 @@ found:
 }
 
 
-
-
 #define CHB_VAR(n) \
   uint64 h##n = hash_no[inx + n]; \
   uint64 w##n = bf[BF_WORD (h##n, sz)]; \
-  uint64 mask##n = (1L << BF_BIT_1 (h##n)) | (1L << BF_BIT_2 (h##n))
+  uint64 mask##n = BF_MASK (h##n); \
 
 #define CHB_TEST(n) \
   if (mask##n == (w##n & mask##n)) { hits[fill++] = inx + n; };
+
+#define CHB_A_TEST(n) \
+      hits[fill] = inx + n; \
+      fill += (w##n & mask##n) == mask##n;
+
 
 
 void
@@ -5814,7 +6008,7 @@ chash_sp_bloom_sets (hash_source_t * hs, caddr_t * inst, chash_t * cha, uint64 *
 	{
 	  uint64 h = hash_no[inx];
 	  uint64 w = bf[BF_WORD (h, sz)];
-	  uint64 mask = (1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h));
+	  uint64 mask = BF_MASK (h);
 	  sp_sets[fill] = inx;
 	  fill += (w & mask) == mask;
 	}
@@ -5827,7 +6021,7 @@ chash_sp_bloom_sets (hash_source_t * hs, caddr_t * inst, chash_t * cha, uint64 *
 	  if (H_PART (h) >= p_min && H_PART (h) <= p_max)
 	    {
 	      uint64 w = bf[BF_WORD (h, sz)];
-	      uint64 mask = (1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h));
+	      uint64 mask = BF_MASK (h);
 	      sp_sets[fill] = inx;
 	      fill += (w & mask) == mask;
 	    }
@@ -5846,12 +6040,99 @@ chash_sp_bloom_sets (hash_source_t * hs, caddr_t * inst, chash_t * cha, uint64 *
   QST_INT (inst, hs->clb.clb_fill) = fill;
 }
 
-int enable_cha_bloom_unroll = 1;
+
+void
+chash_sp_bloom_sets_1i (hash_source_t * hs, caddr_t * inst, chash_t * cha, int64 * values, int *n_sets, int self_partition,
+    uint32 p_min, uint32 p_max, int **sp_sets_ret)
+{
+  int n_in = *n_sets;
+  int fill = 0, inx;
+  uint64 *bf = cha->cha_bloom;
+  uint32 sz = cha->cha_n_bloom;
+  int *sp_sets;
+  data_col_t *dc = QST_BOX (data_col_t *, inst, hs->hs_spb_sets->ssl_index);
+  DC_CHECK_LEN (dc, 1 + (n_in / 2));
+  *sp_sets_ret = sp_sets = (int *) dc->dc_values;
+  if (cha->cha_bloom && !self_partition)
+    {
+      for (inx = 0; inx < n_in; inx++)
+	{
+	  uint64 h;
+	  MHASH_STEP_1 (h, values[inx]);
+	  uint64 w = bf[BF_WORD (h, sz)];
+	  uint64 mask = BF_MASK (h);
+	  sp_sets[fill] = inx;
+	  fill += (w & mask) == mask;
+	}
+    }
+  else if (cha->cha_bloom && self_partition)
+    {
+      for (inx = 0; inx < n_in; inx++)
+	{
+	  uint64 h;
+	  MHASH_STEP (h, values[inx]);
+	  if (H_PART (h) >= p_min && H_PART (h) <= p_max)
+	    {
+	      uint64 w = bf[BF_WORD (h, sz)];
+	      uint64 mask = BF_MASK (h);
+	      sp_sets[fill] = inx;
+	      fill += (w & mask) == mask;
+	    }
+	}
+    }
+  else
+    {
+      for (inx = 0; inx < n_in; inx++)
+	{
+	  uint64 h;
+	  MHASH_STEP_1 (h, values[inx]);
+	  if (H_PART (h) >= p_min && H_PART (h) <= p_max)
+	    sp_sets[fill++] = inx;
+	}
+    }
+  *n_sets = fill;
+  QST_INT (inst, hs->clb.clb_fill) = fill;
+}
+
+long bl_n_in;
+long bl_n_out;
+
+int enable_cha_bloom_unroll = 2;
+
+
+int
+cha_bloom_unroll_a (chash_t * cha, uint64 * hash_no, row_no_t * hits, int n_in, uint64 * bf, uint32 sz)
+{
+  int fill = 0, inx;
+  /*bl_n_in += n_in; */
+  for (inx = 0; inx + 4 <= n_in; inx += 4)
+    {
+      CHB_VAR (0);
+      CHB_VAR (1);
+      CHB_VAR (2);
+      CHB_VAR (3);
+      CHB_A_TEST (0);
+      CHB_A_TEST (1);
+      CHB_A_TEST (2);
+      CHB_A_TEST (3);
+    }
+  for (inx = inx; inx < n_in; inx++)
+    {
+      uint64 h = hash_no[inx];
+      uint64 w = bf[BF_WORD (h, sz)];
+      uint64 mask = BF_MASK (h);
+      hits[fill] = inx;
+      fill += (w & mask) == mask;
+    }
+  /*bl_n_out += fill; */
+  return fill;
+}
 
 int
 cha_bloom_unroll (chash_t * cha, uint64 * hash_no, row_no_t * hits, int n_in, uint64 * bf, uint32 sz)
 {
   int fill = 0, inx;
+  /*bl_n_in += n_in; */
   for (inx = 0; inx + 4 <= n_in; inx += 4)
     {
       CHB_VAR (0);
@@ -5867,10 +6148,11 @@ cha_bloom_unroll (chash_t * cha, uint64 * hash_no, row_no_t * hits, int n_in, ui
     {
       uint64 h = hash_no[inx];
       uint64 w = bf[BF_WORD (h, sz)];
-      uint64 mask = (1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h));
+      uint64 mask = BF_MASK (h);
       hits[fill] = inx;
       fill += (w & mask) == mask;
     }
+  /*bl_n_out += fill; */
   return fill;
 }
 
@@ -5879,13 +6161,15 @@ int
 cha_bloom (chash_t * cha, uint64 * hash_no, row_no_t * hits, int n_in, uint64 * bf, uint32 sz)
 {
   int fill = 0, inx;
-  if (enable_cha_bloom_unroll)
+  if (1 == enable_cha_bloom_unroll)
     return cha_bloom_unroll (cha, hash_no, hits, n_in, bf, sz);
+  if (2 == enable_cha_bloom_unroll)
+    return cha_bloom_unroll_a (cha, hash_no, hits, n_in, bf, sz);
   for (inx = 0; inx < n_in; inx++)
     {
       uint64 h = hash_no[inx];
       uint64 w = bf[BF_WORD (h, sz)];
-      uint64 mask = (1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h));
+      uint64 mask = BF_MASK (h);
       hits[fill] = inx;
       fill += (w & mask) == mask;
     }
@@ -5901,7 +6185,7 @@ cha_bloom_sets (chash_t * cha, uint64 * hash_no, row_no_t * hits, int n_in, uint
       row_no_t nth = hits[inx];
       uint64 h = hash_no[nth];
       uint64 w = bf[BF_WORD (h, sz)];
-      uint64 mask = (1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h));
+      uint64 mask = BF_MASK (h);
       if ((w & mask) != mask)
 	bing ();
       hits[fill] = nth;
@@ -5911,12 +6195,11 @@ cha_bloom_sets (chash_t * cha, uint64 * hash_no, row_no_t * hits, int n_in, uint
 }
 
 
-
 int
 cha_inline_any_cmp (data_col_t * dc, int set, int64 * elt)
 {
   db_buf_t p1 = ((db_buf_t *) dc->dc_values)[set];
-  db_buf_t p2 = ((db_buf_t *) elt)[1];
+  db_buf_t p2 = ((db_buf_t *) elt)[0];
   DV_EQ (p1, p2, neq);
   return 1;
 neq:
@@ -5926,182 +6209,63 @@ neq:
 
 int
 cha_inline_1i_n (hash_source_t * hs, chash_t * cha, it_cursor_t * itc, row_no_t * matches, int n_matches, uint64 * hash_nos,
-    int ce_row, int rl, data_col_t * dc)
+    int ce_row, int rl, int64 * values)
 {
   int set, inx, match_out = 0;
 
 #define CHA_P(cha, h) &cha->cha_partitions[h % cha->cha_n_partitions]
 
-#undef HIT_N
-#undef HIT_N_E
 
-#define HIT_N(n, e) (e != CHA_EMPTY && e == ((int64*)dc->dc_values)[set_##n])
-#define HIT_N_E(n, e) (e == ((int64*)dc->dc_values)[set_##n])
+#define SET_NO(n)  set_##n
+#define SET_NO_I(i) matches[i]
+#define HASH(n) \
+  MHASH_STEP_1 (hash_##n, values[set_##n])
 
+#define FIRST 0
+#define LAST n_matches
 
-  for (set = 0; set + 4 <= n_matches; set += 4)
-    {
-      int64 *array_1, *array_2, *array_3, *array_4;
-      int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-      chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-      uint64 h_1, h_2, h_3, h_4;
-      int set_1 = matches[set], set_2 = matches[set + 1], set_3 = matches[set + 2], set_4 = matches[set + 3];
+#define RESULT(n) \
+  matches[match_out++] = ce_row + set_##n;
+#define RESULT_E(n) RESULT (n)
 
-#undef CHA_PRE
-#define CHA_PRE(n) \
-      h_##n = hash_nos[set_##n];  \
-      cha_p_##n = CHA_PARTITION(cha, h_##n);  \
-      array_##n = (int64*)cha_p_##n->cha_array;	   \
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n); \
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n); \
-
-
-#undef CHA_PREFETCH
-#define CHA_PREFETCH(n) (__builtin_prefetch (&array_##n[pos1_##n]))
-
-#undef CHA_CK
-#define CHA_CK(n) \
-      if (HIT_N (n, array_##n[pos1_##n]))	\
-	    { \
-	      matches[match_out++] = ce_row + set_##n; \
-	    } \
-	  else if (HIT_N (n, array_##n[pos2_##n]))	\
-	    { \
-	      matches[match_out++] = ce_row + set_##n; \
-	    } \
-	  else  \
-	    { \
-	      for (inx = 0; inx < cha_p_##n->cha_exception_fill; inx++) \
-		{ \
-		  if (HIT_N_E (n, (int64)cha_p_##n->cha_exceptions[inx])) \
-		    { \
-		        matches[match_out++] = ce_row + set_##n; \
-		      break; \
-		    } \
-		} \
-	    } \
-
-
-
-
-      CHA_PRE (1);
-      CHA_PRE (2);
-      CHA_PREFETCH (2);
-      CHA_PRE (3);
-      CHA_PREFETCH (3);
-      CHA_PRE (4);
-      CHA_PREFETCH (4);
-
-
-      CHA_CK (1);
-      CHA_CK (2);
-      CHA_CK (3);
-      CHA_CK (4);
-    }
-
-  for (set = set; set < n_matches; set++)
-    {
-      int64 *array_1;
-      chash_t *cha_p_1;
-      uint64 h_1;
-      int pos1_1, pos2_1;
-      int set_1 = matches[set];
-      CHA_PRE (1);
-      CHA_CK (1);
-    }
+#include "linh_1i_n.c"
   return match_out;
 }
 
 
 int
 cha_inline_1i (hash_source_t * hs, chash_t * cha, it_cursor_t * itc, row_no_t * matches, int n_matches, uint64 * hash_nos,
-    int ce_row, int rl, data_col_t * dc)
+    int ce_row, int rl, int64 * values)
 {
-  int set, inx, match_out = 0;
+  int set, match_out = 0;
   int n_res = hs ? hs->hs_ha->ha_n_deps : 0;
   caddr_t *inst = itc->itc_out_state;
 
-#define CHA_P(cha, h) &cha->cha_partitions[h % cha->cha_n_partitions]
 
 #undef HIT_N
 #undef HIT_N_E
+#define HASH(n) \
+  MHASH_STEP_1 (hash_##n, values[set_##n])
 
-#define HIT_N(n, e) ((elt = e) && elt[0] == ((int64*)dc->dc_values)[set_##n])
+
+#define HIT_N(n, e)   (((int64*)e)[0] == values[set_##n])
 #define HIT_N_E(n, e) HIT_N(n, e)
+#define FIRST 0
+#define LAST n_matches
+#define SET_NO_I(i) matches[i]
+#define SET_NO(n) set_##n
+#define CH_PREFETCH(n) __builtin_prefetch ((void*) LOW_48 (w_##n))
 
+#define RESULT(n) \
+  {						       \
+    matches[match_out++] = ce_row + set_##n;				\
+    if (n_res) cha_inline_result (hs, cha, inst, (int64*)LOW_48 ((int64)w_##n), rl); \
+  }
+#define RESULT_E(n) RESULT (n)
+#define L_E_INSERT(n)
+#define L_INSERT(n)
 
-  for (set = 0; set + 4 <= n_matches; set += 4)
-    {
-      int64 *elt, **array_1, **array_2, **array_3, **array_4;
-      int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-      chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-      uint64 h_1, h_2, h_3, h_4;
-      int set_1 = matches[set], set_2 = matches[set + 1], set_3 = matches[set + 2], set_4 = matches[set + 3];
-
-#undef CHA_PRE
-#define CHA_PRE(n) \
-      h_##n = hash_nos[set_##n];  \
-      cha_p_##n = CHA_PARTITION(cha, h_##n);  \
-      array_##n = cha_p_##n->cha_array; \
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n); \
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n); \
-
-
-#undef CHA_PREFETCH
-#define CHA_PREFETCH(n) (__builtin_prefetch (array_##n[pos1_##n]))
-
-#undef CHA_CK
-#define CHA_CK(n) \
-      if (HIT_N (n, array_##n[pos1_##n]))	\
-	    { \
-	      matches[match_out++] = ce_row + set_##n; \
-	      if (n_res) cha_inline_result (hs, cha, inst,  array_##n[pos1_##n], rl); \
-	    } \
-	  else if (HIT_N (n, array_##n[pos2_##n]))	\
-	    { \
-	      matches[match_out++] = ce_row + set_##n; \
-	      if (n_res) cha_inline_result (hs, cha, inst, array_##n[pos2_##n], rl); \
-	    } \
-	  else  \
-	    { \
-	      for (inx = 0; inx < cha_p_##n->cha_exception_fill; inx++) \
-		{ \
-		  if (HIT_N_E (n, cha_p_##n->cha_exceptions[inx])) \
-		    { \
-		        matches[match_out++] = ce_row + set_##n; \
-			if (n_res) cha_inline_result (hs, cha, inst, cha_p_##n->cha_exceptions[inx], rl); \
-		      break; \
-		    } \
-		} \
-	    } \
-
-
-
-
-      CHA_PRE (1);
-      CHA_PRE (2);
-      CHA_PREFETCH (2);
-      CHA_PRE (3);
-      CHA_PREFETCH (3);
-      CHA_PRE (4);
-      CHA_PREFETCH (4);
-
-      CHA_CK (1);
-      CHA_CK (2);
-      CHA_CK (3);
-      CHA_CK (4);
-    }
-
-  for (set = set; set < n_matches; set++)
-    {
-      int64 **array_1, *elt;
-      chash_t *cha_p_1;
-      uint64 h_1;
-      int pos1_1, pos2_1;
-      int set_1 = matches[set];
-      CHA_PRE (1);
-      CHA_CK (1);
-    }
+#include "linh_g.c"
   return match_out;
 }
 
@@ -6110,7 +6274,7 @@ int
 cha_inline_any (hash_source_t * hs, chash_t * cha, it_cursor_t * itc, row_no_t * matches, int n_matches, uint64 * hash_nos,
     int ce_row, int rl, data_col_t * dc)
 {
-  int set, inx, match_out = 0;
+  int set, match_out = 0;
   int n_res = hs ? hs->hs_ha->ha_n_deps : 0;
   caddr_t *inst = itc->itc_out_state;
 
@@ -6119,82 +6283,30 @@ cha_inline_any (hash_source_t * hs, chash_t * cha, it_cursor_t * itc, row_no_t *
 #undef HIT_N
 #undef HIT_N_E
 
-#define HIT_N(n, e) ((elt = e) && elt[0] == h_##n && cha_inline_any_cmp (dc, set_##n, elt))
+#define HIT_N(n, e) (cha_inline_any_cmp (dc, set_##n, (int64*)e))
 #define HIT_N_E(n, e) HIT_N(n, e)
 
 
-  for (set = 0; set + 4 <= n_matches; set += 4)
-    {
-      int64 *elt, **array_1, **array_2, **array_3, **array_4;
-      int pos1_1, pos2_1, pos1_2, pos2_2, pos1_3, pos2_3, pos1_4, pos2_4;
-      chash_t *cha_p_1, *cha_p_2, *cha_p_3, *cha_p_4;
-      uint64 h_1, h_2, h_3, h_4;
-      int set_1 = matches[set], set_2 = matches[set + 1], set_3 = matches[set + 2], set_4 = matches[set + 3];
-
-#undef CHA_PRE
-#define CHA_PRE(n) \
-      h_##n = hash_nos[set_##n];  \
-      cha_p_##n = CHA_PARTITION(cha, h_##n);  \
-      array_##n = cha_p_##n->cha_array; \
-	  pos1_##n = CHA_POS_1 (cha_p_##n, h_##n); \
-	  pos2_##n = CHA_POS_2 (cha_p_##n, h_##n); \
+#define HASH(n) \
+  hash_##n = hash_nos[set_##n]
 
 
-#undef CHA_PREFETCH
-#define CHA_PREFETCH(n) (__builtin_prefetch (array_##n[pos1_##n]))
+#define FIRST 0
+#define LAST n_matches
+#define SET_NO_I(i) matches[i]
+#define SET_NO(n) set_##n
+#define CH_PREFETCH(n) __builtin_prefetch ((void*) LOW_48 (w_##n))
 
-#undef CHA_CK
-#define CHA_CK(n) \
-      if (HIT_N (n, array_##n[pos1_##n]))	\
-	    { \
-	      matches[match_out++] = ce_row + set_##n; \
-	      if (n_res) cha_inline_result (hs, cha, inst,  array_##n[pos1_##n], rl); \
-	    } \
-	  else if (HIT_N (n, array_##n[pos2_##n]))	\
-	    { \
-	      matches[match_out++] = ce_row + set_##n; \
-	      if (n_res) cha_inline_result (hs, cha, inst, array_##n[pos2_##n], rl); \
-	    } \
-	  else  \
-	    { \
-	      for (inx = 0; inx < cha_p_##n->cha_exception_fill; inx++) \
-		{ \
-		  if (HIT_N_E (n, cha_p_##n->cha_exceptions[inx])) \
-		    { \
-		        matches[match_out++] = ce_row + set_##n; \
-			if (n_res) cha_inline_result (hs, cha, inst, cha_p_##n->cha_exceptions[inx], rl); \
-		      break; \
-		    } \
-		} \
-	    } \
+#define RESULT(n) \
+  {						       \
+    matches[match_out++] = ce_row + set_##n;				\
+    if (n_res) cha_inline_result (hs, cha, inst, (int64*)LOW_48 ((int64)w_##n), rl); \
+  }
+#define RESULT_E(n) RESULT (n)
+#define L_E_INSERT(n)
+#define L_INSERT(n)
 
-
-
-
-      CHA_PRE (1);
-      CHA_PRE (2);
-      CHA_PREFETCH (2);
-      CHA_PRE (3);
-      CHA_PREFETCH (3);
-      CHA_PRE (4);
-      CHA_PREFETCH (4);
-
-      CHA_CK (1);
-      CHA_CK (2);
-      CHA_CK (3);
-      CHA_CK (4);
-    }
-
-  for (set = set; set < n_matches; set++)
-    {
-      int64 **array_1, *elt;
-      chash_t *cha_p_1;
-      uint64 h_1;
-      int pos1_1, pos2_1;
-      int set_1 = matches[set];
-      CHA_PRE (1);
-      CHA_CK (1);
-    }
+#include "linh_g.c"
   return match_out;
 }
 
@@ -6227,16 +6339,6 @@ asc_row_nos_l (row_no_t * matches, int n_values)
 
 short ce_hash_out[1000000];
 int ce_hash_out_fill;
-
-int
-ce_ho_cmp (int st1, int st2, int max)
-{
-  int inx;
-  for (inx = 0; inx < max; inx++)
-    if (ce_hash_out[inx + st1] != ce_hash_out[inx + st2])
-      return inx;
-  return -1;
-}
 
 int
 ce_result_typed (col_pos_t * cpo, int row, dtp_t flags, db_buf_t val, int len, int64 offset, int rl)
@@ -6503,9 +6605,11 @@ ce_hash_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_by
   if (dc_off)
     dc->dc_values += sizeof (caddr_t);
   if (cha->cha_is_1_int)
-    n_values = cha_inline_1i_n (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, ce_row + cpo->cpo_skip, rl, dc);
+    n_values =
+	cha_inline_1i_n (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, ce_row + cpo->cpo_skip, rl, (int64 *) dc->dc_values);
   else if (cha->cha_is_1_int_key)
-    n_values = cha_inline_1i (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, ce_row + cpo->cpo_skip, rl, dc);
+    n_values =
+	cha_inline_1i (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, ce_row + cpo->cpo_skip, rl, (int64 *) dc->dc_values);
   else
     n_values = cha_inline_any (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, ce_row + cpo->cpo_skip, rl, dc);
 
@@ -6630,9 +6734,9 @@ ce_hash_sets_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_byt
     goto ret_sets;
   dc->dc_values += dc_off;
   if (cha->cha_is_1_int)
-    n_values = cha_inline_1i_n (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, 0, rl, dc);
+    n_values = cha_inline_1i_n (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, 0, rl, (int64 *) dc->dc_values);
   else if (cha->cha_is_1_int_key)
-    n_values = cha_inline_1i (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, 0, rl, dc);
+    n_values = cha_inline_1i (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, 0, rl, (int64 *) dc->dc_values);
   else
     n_values = cha_inline_any (hrng->hrng_hs, cha, itc, matches, n_values, hash_no, 0, rl, dc);
   dc->dc_values -= dc_off;
@@ -6659,10 +6763,11 @@ int
 ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, int rl)
 {
   caddr_t *inst;
+  int64 *ent;
   hash_source_t *hs;
   uint64 h = 1;
   int64 **array, k;
-  int pos1_1, pos2_1, e;
+  int pos1_1, ctr, e;
   chash_t *cha_p;
   chash_t *cha = cpo->cpo_chash;
   dtp_t cha_dtp = cpo->cpo_chash_dtp;
@@ -6688,46 +6793,78 @@ ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, in
     return 1;
   cha_p = CHA_PARTITION (cha, h);
   array = cha_p->cha_array;
-  pos1_1 = CHA_POS_1 (cha_p, h);
-  pos2_1 = CHA_POS_2 (cha_p, h);
+  pos1_1 = CHA_LIN_POS (cha_p, h);
   if (cha->cha_is_1_int)
     {
       if (CHA_EMPTY == k)
 	goto exc;
-      if (k == ((int64 *) array)[pos1_1])
-	goto found;
-      if (k == ((int64 *) array)[pos2_1])
-	goto found;
+      for (ctr = 0; ctr < 8; ctr++)
+	{
+	  if (CHA_EMPTY == array[pos1_1])
+	    goto not_found;
+	  if (k == ((int64 *) array)[pos1_1])
+	    goto found;
+	  INC_LOW_3 (pos1_1);
+	}
     exc:
       for (e = 0; e < cha_p->cha_exception_fill; e++)
 	{
 	  if (k == ((int64 *) cha_p->cha_exceptions)[e])
 	    goto found;
 	}
-      goto filter_done;
+      goto not_found;
     }
+  h = HIGH_16 (h);
   if (cha->cha_is_1_int_key)
     {
-      int64 *ent = array[pos1_1];
-      if (ent && k == ent[0])
-	goto found_e;
-      ent = array[pos2_1];
-      if (ent && k == ent[0])
-	goto found_e;
+      for (ctr = 0; ctr < 8; ctr++)
+	{
+	  ent = array[pos1_1];
+	  if (!ent)
+	    goto not_found;
+	  if (h == HIGH_16 (ent) && k == (ent = (int64 *) LOW_48 (ent))[0])
+	    goto found_e;
+	  INC_LOW_3 (pos1_1);
+	}
       for (e = 0; e < cha_p->cha_exception_fill; e++)
 	{
 	  ent = cha_p->cha_exceptions[e];
-	  if (k == ent[0])
+	  if (h == HIGH_16 (ent) && k == (ent = (int64 *) LOW_48 (ent))[0])
 	    goto found_e;
 	}
-      goto filter_done;
+      goto not_found;
     found_e:
-      hs = (hash_source_t *) cpo->cpo_cmp_max;
-      inst = cpo->cpo_itc->itc_out_state;
-      if (hs->hs_ha->ha_n_deps)
-	cha_inline_result (hs, cha, inst, ent, rl);
+      if (hs && hs->hs_ha->ha_n_deps)
+	cha_inline_result (hs, cha, inst, ent, 1);
       goto found;
     }
+  else
+    {
+      dtp_t nulls = 0;
+      GPF_T1 ("ce_int_chash_check: not supposed to come here");
+      for (ctr = 0; ctr < 8; ctr++)
+	{
+	  ent = array[pos1_1];
+	  if (!ent)
+	    goto not_found;
+	  if (h == HIGH_16 (ent) && cha_cmp (cha, (ent = (int64 *) LOW_48 (ent)), &k, 0, &nulls))
+	    goto found_a;
+	  INC_LOW_3 (pos1_1);
+	}
+      for (e = 0; e < cha_p->cha_exception_fill; e++)
+	{
+	  ent = cha_p->cha_exceptions[e];
+	  if (h == HIGH_16 (ent) && cha_cmp (cha, (ent = (int64 *) LOW_48 (ent)), &k, 0, &nulls))
+	    goto found_a;
+	}
+      goto not_found;
+    found_a:
+      if (hs && hs->hs_ha->ha_n_deps)
+	cha_inline_result (hs, cha, inst, ent, 1);
+      goto found;
+    }
+
+not_found:;
 filter_done:
   return 0;
 found:

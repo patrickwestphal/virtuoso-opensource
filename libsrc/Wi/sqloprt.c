@@ -701,3 +701,17 @@ ot_list_print (dk_set_t ots)
   END_DO_SET ();
   printf ("\n");
 }
+
+
+void
+dfep (df_elt_t * dfe)
+{
+  sqlo_dfe_print (dfe, 0);
+}
+
+
+void
+dfelp (dk_set_t s)
+{
+  sqlo_dfe_list_print (s, 0);
+}

@@ -412,10 +412,10 @@ dfe_top_sel (df_elt_t * dfe, float card)
   float card_after = 1;
   float top = 100;
   if (!oby || !oby->_.setp.top_cnt)
-    return;
+    return 0;
   top = oby->_.setp.top_cnt;
   if (!dfe->_.table.top_pred)
-    return;
+    return 0;
   for (next = dfe->dfe_next; next; next = next->dfe_next)
     {
       if ((DFE_TABLE == next->dfe_type && next->_.table.is_being_placed)
@@ -437,6 +437,7 @@ dfe_top_sel (df_elt_t * dfe, float card)
       dfe->_.table.top_sel = 1;
     }
   dfe->_.table.top_sel = MIN (0.9, min_out / card);
+  return 0;
 }
 
 

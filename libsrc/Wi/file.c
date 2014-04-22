@@ -128,6 +128,8 @@ fs_field (file_source_t * fs, dk_session_t * ses, char **field_ret, int *len_ret
 	      *len_ret = inx - 1;
 	    }
 	  ses->dks_in_read += inx;
+	  if (eol == c)
+	    ses->dks_in_read--;
 	  return 1;
 	}
       if (esc == c)
@@ -614,7 +616,27 @@ fs_check (file_source_t * fs, caddr_t * inst, search_spec_t * sp, data_col_t * d
       dtp_t op = sp->sp_min_op;
       if (DVC_CMP_MASK & op)
 	{
-	  int res = dc_col_cmp (dc, &sp->sp_cl, params[sp->sp_min]);
+	  int res;
+	  caddr_t param = params[sp->sp_min];
+	  if (DV_TYPE_OF (param) != sp->sp_cl.cl_sqt.sqt_dtp)
+	    {
+	      caddr_t err = NULL;
+	      caddr_t tmp =
+		  box_cast_to (inst, param, DV_TYPE_OF (param), sp->sp_cl.cl_sqt.sqt_dtp, sp->sp_cl.cl_sqt.sqt_precision,
+		  sp->sp_cl.cl_sqt.sqt_scale, &err);
+	      if (NULL == err)
+		{
+		  res = dc_col_cmp (dc, &sp->sp_cl, tmp);
+		  dk_free_tree (tmp);
+		}
+	      else
+		{
+		  dk_free_tree (err);
+		  return DVC_LESS;
+		}
+	    }
+	  else
+	    res = dc_col_cmp (dc, &sp->sp_cl, param);
 	  if (0 == (op & res) || (DVC_NOORDER & res))
 	    return DVC_LESS;
 	}
@@ -626,7 +648,27 @@ fs_check (file_source_t * fs, caddr_t * inst, search_spec_t * sp, data_col_t * d
 	}
       if (sp->sp_max_op != CMP_NONE)
 	{
-	  int res = dc_col_cmp (dc, &sp->sp_cl, params[sp->sp_max]);
+	  int res;
+	  caddr_t param = params[sp->sp_max];
+	  if (DV_TYPE_OF (param) != sp->sp_cl.cl_sqt.sqt_dtp)
+	    {
+	      caddr_t err = NULL;
+	      caddr_t tmp =
+		  box_cast_to (inst, param, DV_TYPE_OF (param), sp->sp_cl.cl_sqt.sqt_dtp, sp->sp_cl.cl_sqt.sqt_precision,
+		  sp->sp_cl.cl_sqt.sqt_scale, &err);
+	      if (NULL == err)
+		{
+		  res = dc_col_cmp (dc, &sp->sp_cl, tmp);
+		  dk_free_tree (tmp);
+		}
+	      else
+		{
+		  dk_free_tree (err);
+		  return DVC_LESS;
+		}
+	    }
+	  else
+	    res = dc_col_cmp (dc, &sp->sp_cl, param);
 	  if (0 == (sp->sp_max_op & res) || (DVC_NOORDER & res))
 	    return DVC_LESS;
 	}

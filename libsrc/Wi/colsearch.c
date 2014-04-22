@@ -2625,7 +2625,7 @@ itc_set_col_rng_spec (it_cursor_t * itc)
     if (CMP_EQ != sp->sp_min_op)
       break;
   if (!sp)
-    return 0;
+    return;
   itc->itc_col_range_spec = sp;
   itc->itc_range_opt = 1;
 }

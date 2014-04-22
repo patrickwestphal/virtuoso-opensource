@@ -477,6 +477,7 @@ typedef struct chash_s
   short cha_first_len;
   short cha_next_len;
   short cha_next_ptr;
+  char cha_ahash;
   int64 cha_size;
   int64 cha_count;
   int64 cha_distinct_count;
@@ -495,8 +496,7 @@ typedef struct chash_s
   chash_page_t *cha_current_data;
   mem_pool_t *cha_pool;
   struct hash_area_s *cha_ha;
-  buffer_desc_t **cha_bufs;
-  int cha_bufs_fill;
+  struct chash_s *cha_fill_cha;
   int64 cha_reserved;
   chash_page_t *cha_init_page;
   chash_page_t *cha_init_data;
@@ -508,14 +508,21 @@ typedef struct chash_s
 #define CHA_NON_UNQ 3
 #define CHA_EMPTY 0xdeadbeefbadefeed
 
-/* cha_rehash_reqd */
-#define CHA_REHASH 1
-#define CHA_RETYPE 2
-
+/* cha_ahash */
+#define CHA_NO_AHASH 1
+#define CHA_AHASH 2
 
 typedef int (*cha_cmp_t) (chash_t * cha, int64 * ent, db_buf_t ** key_vecs, int row_no, dtp_t * nulls);
 typedef int (*cha_ent_cmp_t) (chash_t * cha, int64 * ent1, int64 * ent2);
 
+
+typedef struct ha_key_range_s
+{
+  dtp_t kr_dtp;
+  int32 kr_min;
+  int32 kr_max;
+  int32 kr_scale;
+} ha_key_range_t;
 
 struct hash_index_s
 {
@@ -525,6 +532,7 @@ struct hash_index_s
   chash_t *hi_slice_chash;
   uint64 hi_cl_id;		/* if cluster hash join temp, id for reference */
   dk_hash_t *hi_thread_cha;	/* when filling hash join chash, maps from thread to cha */
+  ha_key_range_t *hi_key_ranges;
   int hi_size;
   char hi_is_unique;
   int64 hi_count;
@@ -2146,6 +2154,7 @@ typedef struct stat_desc_s
 } stat_desc_t;
 
 extern stat_desc_t dbf_descs[];
+extern stat_desc_t rdf_preset_datatypes_descs[];
 
 typedef struct s_time_t
 {

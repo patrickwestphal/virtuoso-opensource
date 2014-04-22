@@ -573,6 +573,7 @@ typedef struct hash_area_s
   dbe_col_loc_t *ha_cols;	/* cols of feeding table, correspond to ha_key_cols */
   state_slot_t **ha_slots;	/* slots where values to feed come from if they do not come from columns direct */
   struct hash_area_s *ha_org_ha;	/* can be a temp ha on stack for merge of gby or such, must ref the originnal allocated ha in the ht */
+  ha_key_range_t *ha_key_ranges;	/* for array group by when hash keys known in small range */
   int ha_n_keys;
   int ha_n_deps;
   char ha_op;
@@ -1511,6 +1512,7 @@ typedef struct setp_node_s
   char setp_ignore_ua;		/* when merging partitioned user aggregates, just copy */
   dk_set_t setp_const_gb_args;
   dk_set_t setp_const_gb_values;
+  ha_key_range_t *setp_ahash_kr;
   table_source_t *setp_reader;	/* node for sending the gby state in vectored cluster */
   setp_save_t setp_ssa;
   table_source_t *setp_loc_ts;
@@ -1895,6 +1897,7 @@ typedef struct _cl_aq_ctx
   char claq_of_parent;		/* if a qf runs on a dfg and a rec dfg comes inside a wait in the qf, there must be a claw in scope to know which clt queue.  So the former claq is left in scope for when the qf or dfg waits.  But this flag is set to mark that this is of the parent and does not determine where the response of a rec qf goes.  The innermost clt determines this */
   char claq_is_allocated;	/* if copy by dfg thread starting another */
 } cl_aq_ctx_t;
+
 
 typedef struct client_connection_s
 {

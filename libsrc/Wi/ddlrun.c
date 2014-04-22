@@ -677,6 +677,12 @@ ddl_table_changed (query_instance_t * qi, char *full_tb_name)
 client_connection_t *bootstrap_cli;
 int ddl_std_procs_inited = 0;
 
+client_connection_t *
+get_bootstrap_cli (void)
+{
+  return bootstrap_cli;
+}
+
 void
 ddl_key_opt (query_instance_t * qi, char *tb_name, key_id_t key_id)
 {
@@ -1679,7 +1685,6 @@ ddl_init_schema (void)
   isp_load_stats_data (bootstrap_cli);
   local_commit (bootstrap_cli);
 }
-
 
 const char *
 err_first_line (const char *text)

@@ -117,8 +117,9 @@ itc_ce_check (it_cursor_t * itc, buffer_desc_t * buf, int leave)
 #ifdef PAGE_DEBUG
   int prev_ck_ts = buf->bd_ck_ts;
 #endif
-  if (!enable_ce_ins_check)
+  if (!enable_ce_ins_check && !(CE_CHECK_ANYWAY & leave))
     return;
+  leave &= ~CE_CHECK_ANYWAY;
   if (leave)
     {
       old_cr = itc->itc_col_refs;

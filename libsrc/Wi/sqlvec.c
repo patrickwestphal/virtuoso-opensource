@@ -1643,6 +1643,11 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
   dk_set_t iter2;
   int nth_go = 0;
   sqlg_vec_ref_ssl_list (sc, setp->setp_keys);
+  if (setp->setp_is_streaming && setp->setp_ahash_kr)
+    {
+      dk_free_box ((caddr_t) setp->setp_ahash_kr);
+      setp->setp_ahash_kr = NULL;
+    }
   if (setp->setp_loc_ts)
     sqlg_vec_setp_loc (sc, setp);
   if (setp->setp_ha && HA_GROUP == setp->setp_ha->ha_op && setp->setp_is_streaming)
@@ -4925,7 +4930,7 @@ ssl_by_index (sql_comp_t * sc, int inx)
 {
   DO_HT (state_slot_t *, ssl, void *, igm, sc->sc_vec_ssl_def)
   {
-    if (inx == ssl->ssl_index)
+    if (ssl && inx == ssl->ssl_index)
       return ssl;
   }
   END_DO_HT;

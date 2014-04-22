@@ -923,7 +923,8 @@ spar_change_sign (caddr_t * lit_ptr)
 
 static const char *sparp_known_get_params[] = {
   "get:accept", "get:cartridge", "get:destination", "get:error-recovery", "get:group-destination", "get:login", "get:method",
-      "get:note", "get:private", "get:proxy", "get:query", "get:refresh", "get:soft", "get:strategy", "get:uri", NULL
+      "get:note", "get:private", "get:proxy", "get:query", "get:refresh", "get:soft", "get:strategy", "get:uri", "get:enforce-acls",
+      NULL
 };
 
 static const char *sparp_integer_defines[] = {
@@ -3987,9 +3988,9 @@ spar_make_typed_literal (sparp_t * sparp, caddr_t strg, caddr_t type, caddr_t la
 /* Fast casts for xsd types taht match to SQL types without additional checks */
   if (uname_xmlschema_ns_uri_hash_boolean == type)
     {
-      if (!strcmp ("true", strg))
+      if (!strcmp ("true", strg) || !strcmp ("1", strg))
 	return spartlist (sparp, 4, SPAR_LIT, (ptrlong) 1, type, NULL);
-      if (!strcmp ("false", strg))
+      if (!strcmp ("false", strg) || !strcmp ("0", strg))
 	return spartlist (sparp, 4, SPAR_LIT, t_box_num_nonull (0), type, NULL);
       goto cannot_cast;
     }

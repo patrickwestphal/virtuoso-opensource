@@ -721,6 +721,7 @@ int blob_col_inlined (caddr_t * val_ret, dtp_t col_dtp, mem_pool_t * mp);
 #define COL_MAX_STR_LEN ((PAGE_DATA_SZ / 2) - 14)	/* 2 single value ces with max len string per page */
 
 void itc_ce_check (it_cursor_t * itc, buffer_desc_t * buf, int leave);
+#define CE_CHECK_ANYWAY 16
 void buf_ce_check (buffer_desc_t * buf);
 void ce_del_array (ce_ins_ctx_t * ceic, db_buf_t array, int n_elt, int elt_sz);
 int ce_del_int_delta (ce_ins_ctx_t * ceic, db_buf_t ce, int *len_ret);

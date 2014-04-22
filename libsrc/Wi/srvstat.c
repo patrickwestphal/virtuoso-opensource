@@ -238,6 +238,7 @@ extern int enable_cll_nb_read;
 extern int enable_high_card_part;
 extern int enable_dt_hash;
 extern int enable_hash_fill_reuse;
+extern int enable_lp;
 extern int enable_nb_clrg;
 extern long tc_compress_clocks;
 extern long tc_uncompress_clocks;
@@ -1761,6 +1762,7 @@ stat_desc_t dbf_descs[] = {
   {"enable_hash_fill_join", (long *) &enable_hash_fill_join, SD_INT32},
   {"enable_subscore", (long *) &enable_subscore, SD_INT32},
   {"enable_dt_hash", &enable_dt_hash, SD_INT32},
+  {"enable_lp", &enable_lp, SD_INT32},
   {"enable_hash_fill_reuse", &enable_hash_fill_reuse, SD_INT32},
   {"enable_high_card_part", (long *) &enable_high_card_part, SD_INT32},
   {"enable_stream_gb", (long *) &enable_stream_gb, SD_INT32},
@@ -1867,7 +1869,6 @@ stat_desc_t dbf_descs[] = {
   {NULL, NULL, NULL}
 };
 
-
 caddr_t
 dbs_list ()
 {
@@ -1928,7 +1929,7 @@ id_hash_t *sd_hash;
 caddr_t
 sys_stat_impl (const char *name)
 {
-  stat_desc_t *sd_arrays[] = { stat_descs, dbf_descs, NULL };
+  stat_desc_t *sd_arrays[] = { stat_descs, dbf_descs, rdf_preset_datatypes_descs, NULL };
   stat_desc_t **sd_arrays_tail;
   stat_desc_t **place;
 

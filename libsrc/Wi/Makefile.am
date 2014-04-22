@@ -1006,6 +1006,42 @@ rdf_mapping_jso.ttl-sample: $(JSO_FILES) $(JSO_AWK) Makefile.am
 		-v "init_name=rdf_mapping" \
 		$(JSO_FILES)
 
+linh_1i_n_l_0.c: linh_1i_n_l.c
+	sed "s/NN/0/g" < linh_1i_n_l.c > linh_1i_n_l_0.c
+linh_1i_n_l_1.c: linh_1i_n_l.c
+	sed "s/NN/1/g" < linh_1i_n_l.c > linh_1i_n_l_1.c
+linh_1i_n_l_2.c: linh_1i_n_l.c
+	sed "s/NN/2/g" < linh_1i_n_l.c > linh_1i_n_l_2.c
+linh_1i_n_l_3.c: linh_1i_n_l.c
+	sed "s/NN/3/g" < linh_1i_n_l.c > linh_1i_n_l_3.c
+
+linh_g_l_0.c: linh_g_l.c
+	sed "s/NN/0/g" < linh_g_l.c > linh_g_l_0.c
+linh_g_l_1.c: linh_g_l.c
+	sed "s/NN/1/g" < linh_g_l.c > linh_g_l_1.c
+linh_g_l_2.c: linh_g_l.c
+	sed "s/NN/2/g" < linh_g_l.c > linh_g_l_2.c
+linh_g_l_3.c: linh_g_l.c
+	sed "s/NN/3/g" < linh_g_l.c > linh_g_l_3.c
+
+linh_i_l_0.c: linh_i_l.c
+	sed "s/NN/0/g" < linh_i_l.c > linh_i_l_0.c
+linh_i_l_1.c: linh_i_l.c
+	sed "s/NN/1/g" < linh_i_l.c > linh_i_l_1.c
+linh_i_l_2.c: linh_i_l.c
+	sed "s/NN/2/g" < linh_i_l.c > linh_i_l_2.c
+linh_i_l_3.c: linh_i_l.c
+	sed "s/NN/3/g" < linh_i_l.c > linh_i_l_3.c
+
+linh_g_c_0.c: linh_g_c.c
+	sed "s/NN/0/g" < linh_g_c.c > linh_g_c_0.c
+linh_g_c_1.c: linh_g_c.c
+	sed "s/NN/1/g" < linh_g_c.c > linh_g_c_1.c
+linh_g_c_2.c: linh_g_c.c
+	sed "s/NN/2/g" < linh_g_c.c > linh_g_c_2.c
+linh_g_c_3.c: linh_g_c.c
+	sed "s/NN/3/g" < linh_g_c.c > linh_g_c_3.c
+
 .PHONY: generated
 generated: \
 	scn3.c \
@@ -1039,7 +1075,11 @@ generated: \
 	turtle_p.h \
 	xpathp.c \
 	xpathp.h \
-	xpscn.c
+	xpscn.c \
+	linh_1i_n_l_0.c linh_1i_n_l_1.c linh_1i_n_l_2.c linh_1i_n_l_3.c \
+	linh_g_l_0.c linh_g_l_1.c linh_g_l_2.c linh_g_l_3.c \
+	linh_i_l_0.c linh_i_l_1.c linh_i_l_2.c linh_i_l_3.c \
+	linh_g_c_0.c linh_g_c_1.c linh_g_c_2.c linh_g_c_3.c
 
 
 # ----------------------------------------------------------------------

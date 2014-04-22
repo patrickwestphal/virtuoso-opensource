@@ -82,6 +82,7 @@ setp_node_free (setp_node_t * setp)
   dk_set_free (setp->setp_const_gb_values);
   dk_set_free (setp->setp_const_gb_args);
   dk_free_box ((box_t) setp->setp_last_vals);
+  dk_free_box ((box_t) setp->setp_ahash_kr);
 }
 
 
@@ -118,7 +119,7 @@ sqlc_add_distinct_node (sql_comp_t * sc, data_source_t ** head,
   setp->setp_distinct = 1;
   setp_distinct_hash (sc, setp, nrows, HA_DISTINCT);
   set_no = sqlg_set_no_if_needed (sc, head);
-  if (set_no)
+  if (set_no && !sc->sc_is_single_state)
     {
       ssa_init (sc, &setp->setp_ssa, set_no);
     }

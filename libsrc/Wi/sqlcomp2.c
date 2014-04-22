@@ -1938,6 +1938,21 @@ query_t *DBG_NAME (sql_proc_to_recompile) (DBG_PARAMS const char *string2, clien
   return qr;
 }
 
+int
+sql_text_is_inline_sparql (char *text)
+{
+  caddr_t **lexems;
+  int n_lexems;
+  lexems = sql_lex_analyze (text, NULL, 0, 1, SPARQL_L);
+  n_lexems = BOX_ELEMENTS_0 (lexems);
+  if (n_lexems == 1 && BOX_ELEMENTS (lexems[0]) == 3 && lexems[0][2] == SPARQL_L)
+    {
+      dk_free_tree ((box_t) lexems);
+      return 1;
+    }
+  dk_free_tree ((box_t) lexems);
+  return 0;
+}
 
 subq_compilation_t *
 sqlc_subq_compilation_1 (sql_comp_t * sc, ST * tree, char *name, int scrollables)
@@ -2176,5 +2191,14 @@ query_t *
 sql_compile (char *string2, client_connection_t * cli, caddr_t * err, int store_procs)
 {
   return dbg_sql_compile (__FILE__, __LINE__, string2, cli, err, store_procs);
+}
+#endif
+
+#if defined (MALLOC_DEBUG) || defined (VALGRIND)
+#undef sql_compile_static
+query_t *
+sql_compile_static (const char *string2, client_connection_t * cli, caddr_t * err, volatile int store_procs)
+{
+  return dbg_sql_compile_static (__FILE__, __LINE__, string2, cli, err, store_procs);
 }
 #endif
