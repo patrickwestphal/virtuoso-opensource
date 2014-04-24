@@ -1723,4 +1723,5 @@ void qrc_remove (query_t * qr, int is_in_qrc);
 extern caddr_t rdfs_type;
 
 #define TA_QRC_LIT_PARAMS 6000
+extern int chash_block_size;
 #endif /* _SQLFN_H */

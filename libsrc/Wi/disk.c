@@ -4815,7 +4815,7 @@ wi_init_globals (void)
   cp_distinct_any.cp_sqt.sqt_dtp = DV_ANY;
   cp_distinct_any.cp_type = CP_WORD;
   cp_distinct_any.cp_mask = 0xffffffff;
-  ds_rc = resource_allocate (20, (rc_constr_t) ds_allocate, (rc_destr_t) ds_free, NULL, 0);
+  ds_rc = resource_allocate (aq_max_threads + 20, (rc_constr_t) ds_allocate, (rc_destr_t) ds_free, NULL, 0);
   buf_sort_mtx = mutex_allocate_typed (MUTEX_TYPE_LONG);
   time_mtx = mutex_allocate ();
   checkpoint_mtx = mutex_allocate_typed (MUTEX_TYPE_LONG);

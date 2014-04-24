@@ -760,7 +760,7 @@ sqlo_lp_dfe (sqlo_t * so, op_table_t * ot)
 }
 
 void
-sqlo_make_lp (sqlo_t * so, op_table_t * top_ot, dk_set_t tbs)
+sqlo_make_lp (sqlo_t * so, op_table_t * top_ot, dk_set_t tbs, dk_set_t * pk_cols_ret)
 {
   DO_SET (op_table_t *, ot, &tbs)
   {
@@ -780,6 +780,7 @@ sqlo_make_lp (sqlo_t * so, op_table_t * top_ot, dk_set_t tbs)
       df_elt_t *col = sqlo_df (so, ref);
       df_elt_t *lp_col = sqlo_df (so, lp_ref);
       df_elt_t *pred = sqlo_new_dfe (so, DFE_BOP_PRED, NULL);
+      t_set_push (pk_cols_ret, (void *) col);
       pred->_.bin.op = BOP_EQ;
       pred->_.bin.left = lp_col;
       pred->_.bin.right = col;
@@ -808,7 +809,8 @@ int enable_lp = 1;
 void
 sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
 {
-  df_elt_t *oby_dfe;
+  df_elt_t *oby_dfe = NULL;
+  dk_set_t pk_cols = NULL;
   int inx, n_unplaced;
   dk_set_t unplaced = NULL, tbs = NULL;
   ST **sel = (ST **) top_ot->ot_dt->_.select_stmt.selection;
@@ -831,7 +833,7 @@ sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
   DO_SET (df_elt_t *, col, &unplaced)
   {
     op_table_t *c_ot = (op_table_t *) col->dfe_tables->data;
-    if (!c_ot->ot_table || c_ot->ot_table->tb_remote_ds || c_ot->ot_table->tb_file)
+    if (!c_ot->ot_table || c_ot->ot_rds || c_ot->ot_table->tb_file)
       continue;
     t_set_pushnew (&tbs, (void *) c_ot);
   }
@@ -869,8 +871,15 @@ sqlo_late_proj (sqlo_t * so, op_table_t * top_ot)
       END_DO_SET ();
       top_ot->ot_group_dfe->_.setp.gb_dependent = t_set_diff (top_ot->ot_group_dfe->_.setp.gb_dependent, unplaced);
       top_ot->ot_group_dfe->_.setp.late_proj = unplaced;
+      if (oby_dfe = top_ot->ot_oby_dfe)
+	{
+	  oby_dfe->_.setp.is_late_proj = 1;
+	  oby_dfe->_.setp.late_proj = so->so_lp_deps;
+	}
     }
-  sqlo_make_lp (so, top_ot, tbs);
+  sqlo_make_lp (so, top_ot, tbs, &pk_cols);
+  if (oby_dfe)
+    oby_dfe->_.setp.late_proj = t_set_union (oby_dfe->_.setp.late_proj, pk_cols);
 }
 
 
@@ -1127,7 +1136,7 @@ sqlo_fun_ref_epilogue (sqlo_t * so, op_table_t * from_ot)
       int inx;
       all_cols_p = sqlo_oby_exp_cols (so, from_ot->ot_dt, group);
       sqlo_gby_min_key (so, group_dfe);
-      sqlo_place_oby_specs (so, from_ot, group, group_dfe);
+      sqlo_place_oby_specs (so, from_ot, group_dfe->_.setp.specs, group_dfe);
       if (BOX_ELEMENTS (texp->_.table_exp.group_by_full) > 1)
 	{
 	  _DO_BOX (inx, texp->_.table_exp.group_by_full)

@@ -216,15 +216,18 @@ resource_t *cl_str_2;
 resource_t *cl_str_3;
 resource_t *cl_str_4;
 resource_t *cl_str_5;
+resource_t *cl_str_6;
 
 #define CL_MSG_SIZE_1 256
 #define CL_MSG_SIZE_2 (8192 * 2)
 #define CL_MSG_SIZE_3 cl_msg_size_3
 #define CL_MSG_SIZE_4 cl_msg_size_4
 #define CL_MSG_SIZE_5 cl_msg_size_5
+#define CL_MSG_SIZE_6 cl_msg_size_6
 int cl_msg_size_3;
 int cl_msg_size_4;
 int cl_msg_size_5;
+int cl_msg_size_6;
 
 caddr_t
 cl_msg_alloc (void *cd)
@@ -251,6 +254,8 @@ cl_msg_string (int64 bytes)
     return (caddr_t) resource_get (cl_str_4);
   if (bytes < CL_MSG_SIZE_5)
     return (caddr_t) resource_get (cl_str_5);
+  if (bytes < CL_MSG_SIZE_6)
+    return (caddr_t) resource_get (cl_str_6);
   return dk_alloc_box_long (bytes, DV_STRING);
 }
 
@@ -268,6 +273,8 @@ cl_msg_string_free (caddr_t str)
     resource_store (cl_str_4, (void *) str);
   else if (CL_MSG_SIZE_5 == len)
     resource_store (cl_str_5, (void *) str);
+  else if (CL_MSG_SIZE_6 == len)
+    resource_store (cl_str_6, (void *) str);
   else
     dk_free_box (str);
 }
@@ -348,10 +355,14 @@ cluster_init ()
   /* inited whether cluster or single */
   cl_str_1 = resource_allocate (400, (rc_constr_t) cl_msg_alloc, (rc_destr_t) cl_msg_free, NULL, (void *) CL_MSG_SIZE_1);
   cl_str_2 = resource_allocate (400, (rc_constr_t) cl_msg_alloc, (rc_destr_t) cl_msg_free, NULL, (void *) CL_MSG_SIZE_2);
-  cl_msg_size_3 = mm_next_size (240000, &inx) - 8;
-  cl_msg_size_4 = mm_next_size (1100000, &inx) - 8;
+  cl_msg_size_3 = mm_next_size (80000, &inx) - 16;
+  cl_msg_size_4 = mm_next_size (240000, &inx) - 16;
+  cl_msg_size_5 = mm_next_size (1100000, &inx) - 16;
+  cl_msg_size_6 = mm_next_size (1100000, &inx) - 16;
   cl_str_3 = resource_allocate (50, (rc_constr_t) cl_msg_alloc, (rc_destr_t) cl_msg_free, NULL, (void *) (ptrlong) CL_MSG_SIZE_3);
   cl_str_4 = resource_allocate (30, (rc_constr_t) cl_msg_alloc, (rc_destr_t) cl_msg_free, NULL, (void *) (ptrlong) CL_MSG_SIZE_4);
+  cl_str_5 = resource_allocate (30, (rc_constr_t) cl_msg_alloc, (rc_destr_t) cl_msg_free, NULL, (void *) (ptrlong) CL_MSG_SIZE_5);
+  cl_str_6 = resource_allocate (30, (rc_constr_t) cl_msg_alloc, (rc_destr_t) cl_msg_free, NULL, (void *) (ptrlong) CL_MSG_SIZE_6);
   dfg_running_queue = hash_table_allocate (211);
   cll_rbuf_rc = resource_allocate (600, (rc_constr_t) rbuf_allocate, (rc_destr_t) dk_free_box, NULL, 0);
   resource_no_sem (cll_rbuf_rc);

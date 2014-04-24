@@ -1910,7 +1910,7 @@ ceic_merge_insert (ce_ins_ctx_t * ceic, buffer_desc_t * buf, int ice, db_buf_t o
   memset (&dc, 0, sizeof (dc));
   dc.dc_mp = ceic->ceic_mp;
   dc.dc_n_places = n_values;
-  ceic->ceic_mp->mp_block_size = 128 * 1024;
+  ceic->ceic_mp->mp_block_size = chash_block_size;
   if (cs)
     {
       cs->cs_n_values = 0;

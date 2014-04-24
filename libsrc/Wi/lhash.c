@@ -1090,6 +1090,50 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
   return row;
 }
 
+
+int64 *
+cha_new_dist_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * cha, uint64 hash_no, int row_no, int base,
+    dtp_t * nulls, int64 * main_ent)
+{
+  hash_area_t *ha = setp->setp_ha;
+  int nth_col, n_cols;
+  int64 *row = cha_new_row (ha, cha, 0);
+  for (nth_col = 0; nth_col < ha->ha_n_keys - 1; nth_col++)
+    {
+      row[nth_col] = main_ent[nth_col];
+      if (ha->ha_ch_nn_flags)
+	{
+	  if (GB_IS_NULL (ha, main_ent, nth_col))
+	    {
+	      GB_NO_VALUE (ha, row, nth_col);
+	    }
+	  else
+	    GB_HAS_VALUE (ha, row, nth_col);
+	}
+    }
+  {
+    if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
+      {
+	db_buf_t dv = ((db_buf_t **) key_vecs)[nth_col][row_no];
+	row[nth_col] = (ptrlong) cha_any (cha, dv);
+      }
+    else if (DV_DATETIME == cha->cha_sqt[nth_col].sqt_dtp)
+      {
+	db_buf_t dt = &((db_buf_t *) key_vecs)[nth_col][row_no * DT_LENGTH];
+	GB_HAS_VALUE (ha, row, nth_col);
+	row[nth_col] = (ptrlong) cha_dt (cha, dt);
+      }
+    else
+      {
+	GB_HAS_VALUE (ha, row, nth_col);
+	row[nth_col] = ((int64 **) key_vecs)[nth_col][row_no];
+      }
+    if (!cha->cha_sqt[nth_col].sqt_non_null && nulls && nulls[nth_col * ARTM_VEC_LEN + row_no])
+      GB_NO_VALUE (ha, row, nth_col);
+  }
+  return row;
+}
+
 #define CHA_IS_NULL(cha, is_cont, row, inx)				\
   (((db_buf_t)row)[(int)cha->cha_null_flags - (is_cont ? (cha->cha_n_keys) * sizeof (int64) : 0) + ((inx) >> 3)] & (1 << ((inx) & 0x7)))
 
@@ -1548,6 +1592,23 @@ cha_add_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
 }
 
 
+int64 *
+cha_add_dist_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * cha, uint64 hash_no, int inx, int row_no,
+    int base, dtp_t * nulls, int64 ** groups)
+{
+  int64 *ent = cha_new_dist_gb (setp, inst, key_vecs, cha, hash_no, row_no, base, nulls, groups[row_no]);
+  CKE (ent);
+  if (-1 != inx)
+    {
+      cha->cha_array[inx] = (int64 *) (HIGH_16 (hash_no) | (int64) ent);
+      return ent;
+    }
+  mp_array_add (cha->cha_pool, (caddr_t **) & cha->cha_exceptions, &cha->cha_exception_fill,
+      (caddr_t) (HIGH_16 (hash_no) | (int64) ent));
+  return ent;
+}
+
+
 void
 cha_add_ent (chash_t * cha, int64 * ent, uint64 hash_no)
 {
@@ -1947,7 +2008,7 @@ dcckz (hash_area_t * ha, caddr_t * inst, int n_sets)
 
 
 void setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_no, db_buf_t ** key_vecs, int first_set,
-    int last_set, dtp_t * temp, dtp_t * temp_any, int any_temp_fill, db_buf_t nulls, int n_sets);
+    int last_set, dtp_t * temp, dtp_t * temp_any, int any_temp_fill, db_buf_t nulls, int n_sets, int64 ** groups);
 
 
 long chash_gb_cum_input;
@@ -2016,7 +2077,7 @@ setp_chash_run (setp_node_t * setp, caddr_t * inst, chash_t * cha)
 
       if (setp->setp_any_distinct_gos)
 	setp_chash_distinct_gby (setp, inst, hash_no, key_vecs, first_set, last_set,
-	    temp, temp_any, any_temp_fill, (dtp_t *) nulls, n_sets);
+	    temp, temp_any, any_temp_fill, (dtp_t *) nulls, n_sets, groups);
 
       gb_aggregate (setp, inst, cha, groups, first_set, last_set);
       if (cha->cha_distinct_count > cha->cha_n_partitions * chash_part_size * (cha_gb_load_pct / 100.0))
@@ -2655,7 +2716,7 @@ dbg_arr_distinct (int64 * arr, int n)
 
 void
 setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_no, db_buf_t ** key_vecs, int first_set,
-    int last_set, dtp_t * temp, dtp_t * temp_any, int any_temp_fill, db_buf_t nulls, int n_sets)
+    int last_set, dtp_t * temp, dtp_t * temp_any, int any_temp_fill, db_buf_t nulls, int n_sets, int64 ** groups)
 {
   cha_cmp_t cmp = cha_cmp;
   int flag_fill, first = 1;
@@ -2730,14 +2791,14 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
 #define L_INSERT(n) \
       {				   \
 	cha->cha_distinct_count++;					\
-	cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, pos1_##n, set + n, first_set, (dtp_t*)nulls); \
+	cha_add_dist_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, pos1_##n, set + n, first_set, (dtp_t*)nulls, groups); \
 	DIS_RESULT (n);							\
       }
 
 #define L_E_INSERT(n) \
 {				   \
 	cha->cha_distinct_count++;					\
-	cha_add_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, -1, set + n, first_set, (dtp_t*)nulls); \
+	cha_add_dist_gb (setp, inst, key_vecs, cha_p_##n, hash_##n, -1, set + n, first_set, (dtp_t*)nulls, groups); \
 	DIS_RESULT (n);							\
       }
 
