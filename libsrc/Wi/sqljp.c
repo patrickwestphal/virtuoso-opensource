@@ -1768,11 +1768,7 @@ sqlo_hash_fill_join (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t ** fill_ret, 
       fill_copy->_.sub.n_hash_fill_keys = dk_set_length (hash_keys);
       fill_copy->_.sub.hash_fill_org_sel = hf_org_sel;
       if (so->so_cache_subqs)
-	{
-	  caddr_t k = t_box_string (sqk);
-	  df_elt_t *cp = sqlo_layout_copy (so, fill_copy, NULL);
-	  t_id_hash_set (so->so_subq_cache, (caddr_t) & k, (caddr_t) & cp);
-	}
+	sqlo_dt_cache_add (so, t_box_string (sqk), fill_copy);
     }
   if (DFE_TABLE == hash_ref_tb->dfe_type)
     hash_ref_tb->_.table.hash_filler = fill_copy;

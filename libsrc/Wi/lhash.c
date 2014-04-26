@@ -63,30 +63,10 @@ dk_mutex_t cha_bloom_init_mtx;
 #define int64_fill_nt(p, i, n) int64_fill (p, i, n)
 
 
-#define CHA_PARTITION(cha, h) (cha->cha_n_partitions ? &cha->cha_partitions[h % cha->cha_n_partitions] : cha)
-#define CHA_POS_1(cha, hno) ((((uint32)hno)) % cha->cha_size)
-#define CHA_POS_2(cha, hno) ((((uint64)hno) >> 32) % cha->cha_size)
-#define CHA_LIN_POS(cha, hno) ((((uint32)hno)) % chash_part_size)
 
 
 
-
-#define HIGH_16(w) ((uint64)(w) & 0xffff000000000000)
-#define LOW_48(w) ((uint64)(w) & 0x0000ffffffffffff)
-#define LOW_3(w) ((w) & 7)
-#define CLR_LOW_3(w) ((w) & (uint32)0xfffffff8)
-#define INC_LOW_3(n) (n = (CLR_LOW_3 (n) + LOW_3 (n + 1)))
 #define CONC(a, b) a##b
-
-
-#define CHA_ARRAY(cha, cha_p, h) cha_p->cha_array
-
-#define L_BIT_SET(flags, n, bool) flags |= (bool) << n
-
-#define L_BIT_CLR(flags, n) (flags &= ~(1 << bit)
-
-#define L_IS_SET(flags, n) (flags & (1 << n))
-
 
 #define HASH_FROM_NOS(var_n, set_n) \
   hash_##var_n = hash_nos[SET_NO (set_n)];
@@ -101,8 +81,6 @@ dk_mutex_t cha_bloom_init_mtx;
 //#undef MHASH_STEP_1
 //#define MHASH_STEP_1(h, k) do {h = 1; MHASH_ID_STEP (h, k);} while (0)
 
-/* H_PART is extracts the part of the hash no that is used for hash join partitioning */
-#define H_PART(h) (((uint64)(h)) >> 32)
 
 void hash_source_chash_input_1i (hash_source_t * hs, caddr_t * inst, caddr_t * state, int n_sets);
 void hash_source_chash_input_1i_n (hash_source_t * hs, caddr_t * inst, caddr_t * state, int n_sets);
@@ -4650,13 +4628,6 @@ cha_insert_vec_1 (chash_t * cha, int64 *** ep1, int64 ** rows, uint64 * hash_no,
 #define H_BLOOM_FLUSH cha_bloom_flush (cha, h_bloom, h_bloom_fill)
 
 
-#define BF_BIT_1(h) (63 & (h))
-#define BF_BIT_2(h) (63 & ((h) >> 8))
-#define BF_BIT_3(h) (63 & ((h) >> 14))
-#define BF_BIT_4(h) (63 & ((h) >> 21))
-#define BF_WORD(h, size) ((uint64)h % size)
-#define BF_MASK(h) ((1L << BF_BIT_1 (h)) | (1L << BF_BIT_2 (h)) | (1L << BF_BIT_3 (h)) | (1L << BF_BIT_4 (h)))
-
 
 
 void
@@ -4899,11 +4870,51 @@ cha_insert_1i (chash_t * cha, chash_t * source, int min_part, int max_part, int 
 
 
 void
+cha_insert_vec_1i_n (chash_t * cha, int64 *** ep1, int64 * rows, uint64 * hash_no, int *nps, int fill)
+{
+  int inx;
+  for (inx = 0; inx < fill; inx++)
+    {
+      int64 row = rows[inx];
+      uint64 hh = HIGH_16 (hash_no[inx]);
+      int64 ent;
+      int64 *array = ep1[inx];
+      chash_t *cha_p;
+      int pos1, ctr;
+      pos1 = ((int64) array & 63) >> 3;
+      array = (int64 *) ((long) array & ~63LL);
+      if (CHA_EMPTY == row)
+	goto exc;
+      for (ctr = 0; ctr < 8; ctr++)
+	{
+	  ent = array[pos1];
+	  if (CHA_EMPTY == ent)
+	    {
+	      array[pos1] = row;
+	      goto done;
+	    }
+	  INC_LOW_3 (pos1);
+	}
+    exc:
+      cha_p = CHA_PARTITION (cha, nps[inx]);
+      cha_add_except (cha_p, (int64 *) row);
+    done:;
+    }
+}
+
+
+
+int
 cha_insert_1i_n (chash_t * cha, chash_t * source, int min_part, int max_part, int bloom_min, int bloom_max)
 {
   chash_page_t *chp;
-  int64 ctr = 0;
-  int inx;
+  int fill = 0;
+  int n_dist = 0, cnt = 0;
+  int page_ctr = 0;
+  int64 rows[CHAI_BATCH];
+  int64 *ep1[CHAI_BATCH];
+  uint64 hash_no[CHAI_BATCH];
+  int nps[CHAI_BATCH];
   H_BLOOM_VARS;
   if (source->cha_fill_cha)
     source = source->cha_fill_cha;
@@ -4912,62 +4923,46 @@ cha_insert_1i_n (chash_t * cha, chash_t * source, int min_part, int max_part, in
       int pos;
       if (!chp->h.h.chp_fill)
 	break;
-
-      for (pos = 0; pos < chp->h.h.chp_fill; pos += cha->cha_first_len)
+      for (pos = 0; pos < chp->h.h.chp_fill; pos += sizeof (int64))
 	{
+	  uint64 h;
 	  int64 row = *(int64 *) & chp->chp_data[pos];
-	  uint64 h = 1;
-	  int64 ent;
-	  int64 *array;
-	  chash_t *cha_p;
-	  int pos1, e, np;
 	  MHASH_STEP_1 (h, row);
+	  int64 **array;
+	  chash_t *cha_p;
+	  int pos1;
+	  int np = cha->cha_n_partitions ? ((uint64) h) % cha->cha_n_partitions : 0;;
 	  H_BLOOM (h);
-	  np = cha->cha_n_partitions ? h % cha->cha_n_partitions : 0;
 	  if (np < min_part || np >= max_part)
 	    continue;
+	  cnt++;
 	  cha_p = cha->cha_n_partitions ? &cha->cha_partitions[np] : cha;
-	  array = (int64 *) cha_p->cha_array;
-	  pos1 = CHA_POS_1 (cha_p, h);
-	  if (CHA_EMPTY == row)
-	    goto except;
-	  ent = array[pos1];
-	  if (CHA_EMPTY == ent)
+	  array = cha_p->cha_array;
+	  pos1 = CHA_LIN_POS (cha_p, h);
+	  __builtin_prefetch (&array[pos1]);
+	  ep1[fill] = &array[pos1];
+	  nps[fill] = np;
+	  hash_no[fill] = h;
+	  rows[fill] = row;
+	  fill++;
+	  if (CHAI_BATCH == fill)
 	    {
-	      array[pos1] = row;
-	      goto done;
+	      n_dist += fill;
+	      cha_insert_vec_1i_n (cha, ep1, rows, hash_no, nps, fill);
+	      fill = 0;
 	    }
-	  if (row == ent)
-	    goto done;
-	  for (inx = 0; inx < 7; inx++)
-	    {
-	      INC_LOW_3 (pos1);
-	      ent = array[pos1];
-	      if (CHA_EMPTY == ent)
-		{
-		  array[pos1] = row;
-		  goto done;
-		}
-	      if (ent == row)
-		goto done;
-	    }
-	except:
-	  for (e = 0; e < cha_p->cha_exception_fill; e++)
-	    {
-	      int64 ent = ((int64 *) cha_p->cha_exceptions)[e];
-	      if (row == ent)
-		goto done;
-	    }
-	  cha_add_except (cha_p, (int64 *) row);
-
-	done:;
-	  ctr++;
 	}
+      page_ctr++;
     }
   H_BLOOM_FLUSH;
-  cha->cha_distinct_count = cha->cha_count = ctr;
+  if (fill)
+    {
+      cha_insert_vec_1i_n (cha, ep1, rows, hash_no, nps, fill);
+      n_dist += fill;
+      cha->cha_distinct_count += n_dist;
+    }
+  return cnt;
 }
-
 
 long chash_cum_hash_ins = 0;
 
@@ -6373,10 +6368,10 @@ cha_inline_any (hash_source_t * hs, chash_t * cha, it_cursor_t * itc, row_no_t *
 
 
 void
-asc_row_nos (row_no_t * matches, int n_values)
+asc_row_nos (row_no_t * matches, int start, int n_values)
 {
   int inx;
-  for (inx = 0; inx < n_values; inx++)
+  for (inx = start; inx < n_values; inx++)
     matches[inx] = inx;
 }
 
@@ -6651,7 +6646,7 @@ ce_hash_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_by
   else if (cha && cha->cha_bloom)
     n_values = cha_bloom (cha, hash_no, matches, n_values, cha->cha_bloom, cha->cha_n_bloom);
   else
-    asc_row_nos (matches, n_values);
+    asc_row_nos (matches, 0, n_values);
   if (!n_values)
     return ce_row + org_n_values;
   if (dc->dc_any_null)
@@ -6782,7 +6777,7 @@ ce_hash_sets_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_byt
   else if (cha && cha->cha_bloom)
     n_values = cha_bloom (cha, hash_no, matches, n_values, cha->cha_bloom, cha->cha_n_bloom);
   else
-    asc_row_nos (matches, n_values);
+    asc_row_nos (matches, 0, n_values);
   if (!n_values)
     return itc->itc_match_in >= itc->itc_n_matches ? CE_AT_END : itc->itc_matches[itc->itc_match_in];
   if (dc->dc_any_null)

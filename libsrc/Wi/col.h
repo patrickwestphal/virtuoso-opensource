@@ -773,5 +773,6 @@ void itc_set_sp_stat (it_cursor_t * itc);
 #endif
 extern int dbf_ignore_uneven_col;
 void ceic_upd_rd (ce_ins_ctx_t * ceic, int map_pos, int nth_col, db_buf_t str);
+void ce_skip_bits_2 (db_buf_t bits, int skip, int *byte_ret, int *bit_ret);
 
 #endif

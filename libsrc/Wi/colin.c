@@ -28,7 +28,7 @@
 #include "sqlnode.h"
 #include "date.h"
 #include "datesupp.h"
-
+#include "mhash.h"
 
 
 
@@ -558,7 +558,39 @@ ce_vec_any_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n
 #define DTP_MIN 0
 #define DTP_MAX IRI_ID_MAX
 #include "cevecf.c"
+#define CONC(a, b) a##b
 
+int enable_int_vec_hash = 1;
+
+#define RANGE_NAME ce_vec_int_range_hash
+#define SETS_NAME ce_vec_int_sets_hash
+#define CHA_1I_N_NAME cha_inline_1i_n_int
+#define CHA_1I_NAME cha_inline_1i_int
+#define EXPECT_DV  DV_LONG_INT
+#define ELT_T int32
+#define REF LONG_REF_CA
+
+#include "cevechash.c"
+
+#define RANGE_NAME ce_vec_iri32_range_hash
+#define SETS_NAME ce_vec_iri32_sets_hash
+#define CHA_1I_N_NAME cha_inline_1i_n_iri32
+#define CHA_1I_NAME cha_inline_1i_iri32
+#define EXPECT_DV  DV_IRI_ID
+#define ELT_T uint32
+#define REF (uint32)LONG_REF_CA
+
+#include "cevechash.c"
+
+#define RANGE_NAME ce_vec_int64_range_hash
+#define SETS_NAME ce_vec_int64_sets_hash
+#define CHA_1I_N_NAME cha_inline_1i_n_int64
+#define CHA_1I_NAME cha_inline_1i_int64
+#define EXPECT_DV  DV_LONG_INT
+#define ELT_T int64
+#define REF INT64_REF_CA
+
+#include "cevechash.c"
 
 
 #define NAME ce_bits_int_range_eq_filter
@@ -714,9 +746,6 @@ ce_intd_register (flags)
   ce_op_register (CE_INT_DELTA | flags, CMP_EQ, 1, ce_intd_sets_ltgt);
 }
 
-int ce_hash_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes);
-int ce_hash_sets_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes);
-
 void
 ce_hash_register ()
 {
@@ -732,6 +761,14 @@ ce_hash_register ()
 	  ce_op_register (cet, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 1, ce_hash_sets_filter);
 	}
     }
+  ce_op_register (CE_VEC, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 0, ce_vec_int_range_hash);
+  ce_op_register (CE_VEC, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 1, ce_vec_int_sets_hash);
+  ce_op_register (CE_VEC | CE_IS_IRI, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 0, ce_vec_iri32_range_hash);
+  ce_op_register (CE_VEC | CE_IS_IRI, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 1, ce_vec_iri32_sets_hash);
+  ce_op_register (CE_VEC | CE_IS_64, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 0, ce_vec_int64_range_hash);
+  ce_op_register (CE_VEC | CE_IS_64, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 1, ce_vec_int64_sets_hash);
+  ce_op_register (CE_VEC | CE_IS_IRI | CE_IS_64, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 0, ce_vec_int64_range_hash);
+  ce_op_register (CE_VEC | CE_IS_IRI | CE_IS_64, CE_OP_CODE (CMP_HASH_RANGE, CMP_NONE), 1, ce_vec_int64_sets_hash);
 }
 
 void

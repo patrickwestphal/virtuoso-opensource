@@ -41,7 +41,6 @@ CE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   dtp_t flags = *cpo->cpo_ce;
   int last_row = cpo->cpo_ce_row_no;
   int64 lower = -1, upper = 0x1ffffffff;	/* above 32 bit range */
-  db_buf_t body;
   CED_VARS
 #ifdef CEINTD_RANGE
   int last_of_ce = MIN (last_row + n_values, cpo->cpo_to);
