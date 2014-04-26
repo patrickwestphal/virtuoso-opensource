@@ -140,3 +140,6 @@ extern int chash_part_size;
 int ce_hash_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes);
 int ce_hash_sets_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes);
 void cha_inline_result (hash_source_t * hs, chash_t * cha, caddr_t * inst, int64 * row, int rl);
+
+extern long tc_hash_range_filter;
+extern long tc_hash_sets_filter;

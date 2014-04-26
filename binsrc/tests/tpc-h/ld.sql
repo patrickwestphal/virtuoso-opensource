@@ -15,6 +15,6 @@ log_enable (2); insert into region select * from region_f &
 
 wait_for_children;
 status ('');
-checkpoint;
+cl_exec ('checkpoint');
 
 select curdatetime ();

@@ -116,6 +116,7 @@ RANGE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   int last = MIN (ce_row + n_values, cpo->cpo_to);
   uint32 min = QST_INT (inst, hrng->hrng_min);
   uint32 max = QST_INT (inst, hrng->hrng_max);
+  /*TC (tc_hash_range_filter); */
   if (EXPECT_DV != cha->cha_sqt[0].sqt_dtp || !enable_int_vec_hash)
     return ce_hash_range_filter (cpo, ce_first, n_values, n_bytes);
   ce_first -= sizeof (ELT_T) * ce_row;
@@ -141,7 +142,8 @@ RANGE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
     }
   else if (bf)
     {
-      for (inx = ce_row + cpo->cpo_skip; inx + 4 <= last; inx += 4)
+      inx = ce_row + cpo->cpo_skip;
+      for (; 0 && inx + 4 <= last; inx += 4)
 	{
 	  CHB_VAR (0);
 	  CHB_VAR (1);
@@ -201,6 +203,7 @@ SETS_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   int last = ce_row + n_values;
   uint32 min = QST_INT (inst, hrng->hrng_min);
   uint32 max = QST_INT (inst, hrng->hrng_max);
+  /*TC (tc_hash_sets_filter); */
   if (EXPECT_DV != cha->cha_sqt[0].sqt_dtp || !enable_int_vec_hash)
     return ce_hash_sets_filter (cpo, ce_first, n_values, n_bytes);
   ce_first -= sizeof (ELT_T) * ce_row;
@@ -227,7 +230,7 @@ SETS_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
     }
   else if (bf)
     {
-      while (inx + 4 <= n_matches && (s4 = matches[inx + 3]) < last)
+      while (0 && inx + 4 <= n_matches && (s4 = matches[inx + 3]) < last)
 	{
 	  CHB_VAR (0);
 	  CHB_VAR (1);

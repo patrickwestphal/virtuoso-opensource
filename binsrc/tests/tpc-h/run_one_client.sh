@@ -32,7 +32,7 @@ STREAM=$3
 SEQ=$4
 LOGFILE=$6
 POW=${7-0}
-EXT=$3
+EXT=$3.$4
 
 LOG()
 {

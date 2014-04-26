@@ -561,6 +561,9 @@ ce_vec_any_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n
 #define CONC(a, b) a##b
 
 int enable_int_vec_hash = 1;
+long tc_hash_range_filter;
+long tc_hash_sets_filter;
+
 
 #define RANGE_NAME ce_vec_int_range_hash
 #define SETS_NAME ce_vec_int_sets_hash

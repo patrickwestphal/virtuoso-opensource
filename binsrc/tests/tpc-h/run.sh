@@ -200,8 +200,10 @@ waitAll ()
     BANNER "RUN TPC-H POWER TEST #$seq"
 
     ECHO "PASSED: START STREAM 0 RUN #$seq AT "$DSN "`date \"+%m/%d/%Y %H:%M:%S\"`"
-    $TESTDIR/run_rf.sh $ISQL $DSN 0 $seq 1 $LOGFILE 1 $THREADS #POWer flag ON
+    #$TESTDIR/run_rf.sh $ISQL $DSN 0 $seq 1 $LOGFILE 1 $THREADS #POWer flag ON
+    $ISQL $DSN dba dba EXEC="rf_metric ($seq, 23, 0, $THREADS)" >> $LOGFILE
     $TESTDIR/run_one_client.sh $ISQL $DSN 0 $seq 1 $LOGFILE 1 $THREADS
+    $ISQL $DSN dba dba EXEC="rf_metric ($seq, 24, 0, $THREADS)" >> $LOGFILE
     ECHO "PASSED: FINISH STREAM 0 RUN #$seq AT "$DSN "`date \"+%m/%d/%Y %H:%M:%S\"`"
 
     RUN $ISQL $DSN[1] PROMPT=OFF ERRORS=STDOUT 'EXEC="POWER_SIZE ($SCALE, $seq);"'  >> $LOGFILE 

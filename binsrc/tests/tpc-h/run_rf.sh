@@ -37,7 +37,7 @@ THREADS=$5
 LOGFILE=$6
 POW=$7
 CLI=$8
-EXT=rf-$3
+EXT=rf-$3.$4
 
 LOG()
 {
