@@ -158,7 +158,7 @@ libwi_la_SOURCES = \
 	blobio.c \
 	ceins.c \
 	cetop.c \
-	chash.c \
+	lhash.c \
 	clcli.c \
 	cldaq.c \
 	clop.c \
@@ -307,7 +307,7 @@ libwi_odbc_la_SOURCES = \
 	blobio.c \
 	ceins.c \
 	cetop.c \
-	chash.c \
+	lhash.c \
 	clcli.c \
 	cldaq.c \
 	clop.c \
