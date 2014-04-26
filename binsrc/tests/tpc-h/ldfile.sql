@@ -1,0 +1,9 @@
+ft_set_file ('LINEITEM_F', 'dbgen/lineitem.tbl', delimiter => '|');
+ft_set_file ('ORDERS_F', 'dbgen/orders.tbl', delimiter => '|');
+ft_set_file ('PARTSUPP_F', 'dbgen/partsupp.tbl', delimiter => '|');
+ft_set_file ('PART_F', 'dbgen/part.tbl', delimiter => '|');
+ft_set_file ('CUSTOMER_F', 'dbgen/customer.tbl', delimiter => '|');
+ft_set_file ('SUPPLIER_F', 'dbgen/supplier.tbl', delimiter => '|');
+ft_set_file ('REGION_F', 'dbgen/region.tbl', delimiter => '|');
+ft_set_file ('NATION_F', 'dbgen/nation.tbl', delimiter => '|');
+ft_set_file ('DELETE_F', 'dbgen/delete.1', delimiter => '|');
