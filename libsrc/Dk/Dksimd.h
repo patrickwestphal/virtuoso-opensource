@@ -1,6 +1,4 @@
 /*
- *  Dksimd.h
- *
  *  $Id$
  *
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
@@ -25,6 +23,8 @@
 
 #ifndef _DKSIMD_H
 #define _DKSIMD_H
+
+extern int dk_has_sse42;
 
 #if defined(__GNUC__)
 typedef long v2di_t __attribute__ ((vector_size (16)));
@@ -52,8 +52,7 @@ typedef union
 #define PSTR_EQUAL_ANY 0 /*	    = 0000b */
 #define PSTR_RANGES 4		   /* = 0100b */
 #define PSTR_EQUAL_EACH 8	/*    = 1000b */
-#define PSTR_EQUAL_ORDERED 10	   /* = 1100b */
+#define PSTR_EQUAL_ORDERED 12	   /* = 1100b */
 #define PSTR_NEGATIVE_POLARITY 0x20 /* = 010000b */
 #define PSTR_BYTE_MASK 0x40	 = 1000000b
-
 #endif
