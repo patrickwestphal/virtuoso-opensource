@@ -414,6 +414,18 @@ clo_destroy (cl_op_t * clo)
       dk_free_tree (clo->_.call.func);
       dk_free_tree (clo->_.call.params);
       break;
+    case CLO_QF_EXEC:
+      dk_free_tree ((caddr_t) clo->_.frag.params);
+      break;
+    case CLO_STN_IN:
+      cl_msg_string_free (clo->_.stn_in.in);
+      break;
+    case CLO_DFG_ARRAY:
+      dk_free_tree ((caddr_t) clo->_.dfg_array.stats);
+      break;
+    case CLO_DFG_STATE:
+      dk_free_box ((caddr_t) clo->_.dfg_stat.out_counts);
+      break;
     case CLO_TOP:
       return clo_top_free (clo);
 #ifdef RDF_SECURITY_CLO
