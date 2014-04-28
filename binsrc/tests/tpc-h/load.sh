@@ -116,7 +116,7 @@ then
     LOG "***ABORTED: ld.sql"
     exit 3
 fi
-
+BANNER "FINISHED LOADING TPC-H DATA " "`date \"+%m/%d/%Y %H:%M:%S\"`"
 
 RUN $ISQL $DSN PROMPT=OFF ERRORS=STDOUT -u SCALE=$SCALE < ldck.sql
 if test $STATUS -ne 0

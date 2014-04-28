@@ -45,6 +45,7 @@ export CFGFILE DBFILE DBLOGFILE DELETEMASK SRVMSGLOGFILE
 export BACKUP_DUMP_OPTION CRASH_DUMP_OPTION TESTCFGFILE SERVER
 
 . $HOME/binsrc/tests/tpc-h/test_fn.sh
+export ISQL=`which isql`
 LOGFILE=`pwd`/run.output
 export LOGFILE
 
