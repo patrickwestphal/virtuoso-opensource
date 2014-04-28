@@ -215,7 +215,6 @@ mp_free (mem_pool_t * mp)
   dk_free ((caddr_t) mp, sizeof (mem_pool_t));
 }
 
-#ifdef MALLOC_DEBUG
 void
 mp_check (mem_pool_t * mp)
 {
@@ -234,7 +233,7 @@ mp_check (mem_pool_t * mp)
 	GPF_T1 (err);
     }
 }
-#endif
+
 
 void
 mp_alloc_box_assert (mem_pool_t * mp, caddr_t box)
@@ -300,7 +299,7 @@ mp_free (mem_pool_t * mp)
     {
       next = mb->mb_next;
       if (mb->mb_size < mp_large_min)
-      dk_free ((caddr_t) mb, mb->mb_size);
+	dk_free ((caddr_t) mb, mb->mb_size);
       mb = next;
     }
   maphash (mp_uname_free, mp->mp_unames);
@@ -335,6 +334,32 @@ DBG_NAME (mp_alloc_box) (DBG_PARAMS mem_pool_t * mp, size_t len1, dtp_t dtp)
   size_t len, hlen;
   int bh_len;
   caddr_t new_alloc;
+#ifndef LACERATED_POOL
+  mem_block_t *mb = NULL, *f;
+  if (DV_NON_BOX  == dtp && len1 > mp_large_min && len1 > mp->mp_block_size / 2)
+    return mp_large_alloc (mp, len1);
+  else if (len1 > mp_large_min  && len1 > mp->mp_block_size / 2)
+    {
+      ptr =  mp_large_alloc (mp, len1 + 8);
+      ptr += 4;
+      WRITE_BOX_HEADER (ptr, len1, dtp);
+      memzero (ptr, len1);
+      return (caddr_t)ptr;
+    }
+
+#else
+
+  if (len1 > mp_large_min)
+    {
+      if (DV_NON_BOX == dtp)
+        return (caddr_t)mp_large_alloc (mp, len1);
+      ptr = (caddr_t)mp_large_alloc (mp, len1 + 8);
+      ptr += 4;
+      WRITE_BOX_HEADER (ptr, len1, dtp);
+      memzero (ptr, len1);
+      return (caddr_t)ptr;
+    }
+#endif
 #ifdef LACERATED_POOL
 #ifdef DOUBLE_ALIGN
   len = ALIGN_8 (len1 + 8);
@@ -364,7 +389,6 @@ DBG_NAME (mp_alloc_box) (DBG_PARAMS mem_pool_t * mp, size_t len1, dtp_t dtp)
   ptr = new_alloc;
 #endif
 #else
-  mem_block_t *mb = NULL, *f;
   if (len1 > mp_large_min && len1 > mp->mp_block_size / 2)
     {
       if (DV_NON_BOX == dtp)
@@ -382,9 +406,9 @@ DBG_NAME (mp_alloc_box) (DBG_PARAMS mem_pool_t * mp, size_t len1, dtp_t dtp)
   hlen = ALIGN_8 ((sizeof (mem_block_t)));	/* we can have a doubles so structure also must be aligned */
   if (!f || f->mb_size - f->mb_fill < len)
     {
-      if (len > mp->mp_block_size - hlen)
+      if (len + BOX_SSE_MARGIN > mp->mp_block_size - hlen)
 	{
-	  mb = (mem_block_t *) dk_alloc (hlen + len);
+	  mb = (mem_block_t *) dk_alloc (hlen + len + BOX_SSE_MARGIN);
 	  mb->mb_size = len + hlen;
 	  mb->mb_fill = hlen;
 	  if (f)
@@ -403,12 +427,12 @@ DBG_NAME (mp_alloc_box) (DBG_PARAMS mem_pool_t * mp, size_t len1, dtp_t dtp)
 	{
 	  if (mp->mp_block_size < mp_large_min)
 	    {
-	  mb = (mem_block_t *) dk_alloc (mp->mp_block_size);
+	      mb = (mem_block_t *) dk_alloc (mp->mp_block_size);
 	      MP_BYTES_INCREMENT(mp,mb->mb_size);
 	    }
 	  else
 	    mb = (mem_block_t *)mp_large_alloc (mp, mp->mp_block_size);
-	  mb->mb_size = mp->mp_block_size;
+	  mb->mb_size = mp->mp_block_size - BOX_SSE_MARGIN;
 	  mb->mb_fill = hlen;
 	  mb->mb_next = mp->mp_first;
 	  mp->mp_first = mb;
@@ -425,13 +449,13 @@ DBG_NAME (mp_alloc_box) (DBG_PARAMS mem_pool_t * mp, size_t len1, dtp_t dtp)
 #endif
       if (DV_NON_BOX != dtp)
 	{
-      WRITE_BOX_HEADER (ptr, len1, dtp);
+	  WRITE_BOX_HEADER (ptr, len1, dtp);
 	}
 #ifndef LACERATED_POOL
     }
 #endif
   if (DV_NON_BOX != dtp)
-  memset (ptr, 0, len1);
+    memzero (ptr, len1);
   return ((caddr_t) ptr);
 }
 
@@ -1405,7 +1429,7 @@ mm_cache_init (size_t sz, size_t min, size_t max, int steps, float step)
 
 
 
-size_t 
+size_t
 mp_block_size_sc (size_t sz)
 {
   int ign;
@@ -1419,7 +1443,6 @@ mp_block_size_sc (size_t sz)
 
 
 #ifdef MP_MAP_CHECK
-
 dk_mutex_t mp_mmap_mark_mtx;
 dk_pool_4g_t * dk_pool_map[256 * 256];
 int dk_pool_map_inited;
@@ -1499,13 +1522,14 @@ mp_check_not_in_pool (int64 __ptr)
 void
 mp_by_address (uint64 ptr)
 {
-  int inx;  DO_HT (mem_pool_t *, mp, ptrlong, ign, mp_registered)
+  int inx;
+  DO_HT (mem_pool_t *, mp, ptrlong, ign, mp_registered)
     {
       DO_HT (ptrlong, start, size_t, sz, &mp->mp_large)
 	{
 	  if (ptr >= start && ptr < start + sz)
 	    {
-	      printf ("Address %p is %ld bytes inside map starting at %p of size %ld\n", (void*)ptr, ptr - start, (void*)start, sz);
+	      printf ("Address %p is %ld bytes inside map starting at %p of size %ld in mp %p\n", (void*)ptr, ptr - start, (void*)start, sz, mp);
 	    }
 	}
       END_DO_HT;
@@ -1517,7 +1541,7 @@ mp_by_address (uint64 ptr)
       int fill = rc->rc_fill, inx2;
       for (inx2 = 0; inx2 < fill; inx2++)
 	{
-	  int64 start = (int64) (rc->rc_items[inx2]);
+	  int64 start = rc->rc_items[inx2];
 	  if (ptr >= start && ptr < start + mm_sizes[inx])
 	    {
 	      printf ("Address %x is %ld bytes indes arc cached block start %p size %ld\n", (void*)ptr, ptr - start, (void*)start, mm_sizes[inx]);
@@ -1559,7 +1583,7 @@ mp_list_marks (int first, int n_print)
 			  if (n_printed >= first && n_printed < n_print + first)
 			    {
 			      int64 last_addr = ((long)inx << 32) + ((long)inx << 15) + (bit << 12);
-			      printf ("0x%p - 0x%p - %ld pages\n", last_addr, first_addr, (last_addr - first_addr) >> 12);
+			      printf ("0x%p - 0x%p - %ld pages\n", (last_addr - first_addr) >> 12);
 			    }
 			  n_printed++;
 			  first_addr = 0;
@@ -1597,19 +1621,19 @@ mp_mmap (size_t sz)
   for (;;)
     {
       int64 tsc = rdtsc ();
-  ptr = mmap (NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+      ptr = mmap (NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
       mp_mmap_clocks += rdtsc () - tsc;
-  if (MAP_FAILED == ptr || !ptr)
-    {
-      log_error ("mmap failed with %d", errno);
+      if (MAP_FAILED == ptr || !ptr)
+	{
+	  log_error ("mmap failed with %d", errno);
 	  mm_cache_clear ();
 	  retries++;
 	  if (retries > 3)
-      GPF_T1 ("could not allocate memory with mmap");
+	    GPF_T1 ("could not allocate memory with mmap");
 	  continue;
-    }
-  mp_mmap_mark (ptr, sz, 1);
-  return ptr;
+	}
+      mp_mmap_mark (ptr, sz, 1);
+      return ptr;
     }
 #else
   return malloc (sz);
@@ -1694,7 +1718,6 @@ mm_free_n  (int nth, size_t target_bytes, int age_limit, uint32 now)
 }
 
 
-
 size_t
 mm_cache_trim (size_t target_sz, int age_limit, int old_only)
 {
@@ -1721,7 +1744,7 @@ mm_cache_trim (size_t target_sz, int age_limit, int old_only)
       uint32 * times = rc->rc_item_time;
       for (inx2 = 0; inx2 < fill; inx2++)
 	{
-	  if (now - times[inx] >= age_limit)
+	  if (now - times[inx2] >= age_limit)
 	    {
 	      old_bytes[inx] += mm_sizes[inx];
 	      old_total += mm_sizes[inx];
@@ -1916,7 +1939,7 @@ mp_reuse_large (mem_pool_t * mp, void * ptr)
 }
 
 
-int 
+int
 mp_reserve (mem_pool_t * mp, size_t inc)
 {
   int ret = 0;
@@ -1932,7 +1955,6 @@ mp_reserve (mem_pool_t * mp, size_t inc)
   mutex_leave (&mp_reserve_mtx);
   return ret;
 }
-
 
 void
 mp_comment (mem_pool_t * mp, char * str1, char * str2)
@@ -2149,7 +2171,7 @@ caddr_t mp_full_box_copy_tree (mem_pool_t * mp, caddr_t box) { return dbg_mp_ful
 caddr_t mp_box_num (mem_pool_t * mp, boxint num) { return dbg_mp_box_num (__FILE__, __LINE__, mp, num); }
 #undef mp_box_iri_id
 caddr_t mp_box_iri_id (mem_pool_t * mp, iri_id_t num) { return dbg_mp_box_iri_id (__FILE__, __LINE__, mp, num); }
-#undef mp_box_double 
+#undef mp_box_double
 caddr_t mp_box_double (mem_pool_t * mp, double num) { return dbg_mp_box_double (__FILE__, __LINE__, mp, num); }
 #undef mp_box_float
 caddr_t mp_box_float (mem_pool_t * mp, float num) { return dbg_mp_box_float (__FILE__, __LINE__, mp, num); }
