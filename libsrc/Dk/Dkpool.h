@@ -376,6 +376,9 @@ void mp_trash (mem_pool_t * mp, caddr_t box);
 
 extern box_tmp_copy_f box_tmp_copier[256];
 
+/* After aligning length to 8, make sure this much extra mapped  space for sse string ops */
+#define BOX_SSE_MARGIN 16
+
 #ifdef LACERATED_POOL
 #define MP_BYTES(x, mp, len)  			{ (x) = (void *)mp_alloc_box (mp, len, DV_NON_BOX); }
 #else
