@@ -3064,6 +3064,7 @@ sel_top_count (select_node_t * sel, caddr_t * qst)
 {
   if (sel->sel_row_ctr)
     {
+      query_instance_t *qi = (query_instance_t *) qst;
       int64 rows = unbox (QST_GET_V (qst, sel->sel_row_ctr));
       int64 skip = sel->sel_top_skip ? (int64) unbox (QST_GET (qst, sel->sel_top_skip)) : 0;
       int64 top = unbox (QST_GET (qst, sel->sel_top));
@@ -3072,9 +3073,8 @@ sel_top_count (select_node_t * sel, caddr_t * qst)
 	sqlr_new_error ("22023", "SR349", "SKIP parameter < 0");
       if (top < 0 && !skip_only)
 	sqlr_new_error ("22023", "SR350", "TOP parameter < 0");
-      if (top >= 0 && rows - skip >= top)
+      if ((top >= 0 && rows - skip >= top) || QI_ACL_CK_ROWS (qi))
 	{
-	  query_instance_t *qi = (query_instance_t *) qst;
 	  subq_init (sel->src_gen.src_query, qst);
 	  longjmp_splice (qi->qi_thread->thr_reset_ctx, RST_AT_END);
 	}
@@ -3686,7 +3686,7 @@ qr_mt_dml_sync (query_t * qr, query_instance_t * qi)
 		  dk_free_tree (err);
 		  err = NULL;
 		}
-		END_IO_SECT (err);
+		END_IO_SECT (&err);
 	      }
 	    while (err);
 	  }
@@ -4478,8 +4478,8 @@ qr_subq_exec (client_connection_t * cli, query_t * qr,
   int inx;
   volatile int n_actual_params;
   caddr_t ret;
-  caddr_t *inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, is_vec ? caller->qi_n_sets : 0);
-  query_instance_t *qi = (query_instance_t *) inst;
+  caddr_t *inst;
+  query_instance_t *qi;
   caddr_t *state;
   char saved_qual_buf[25 + BOX_AUTO_OVERHEAD];
   user_t *saved_user = cli->cli_user;
@@ -4490,6 +4490,8 @@ qr_subq_exec (client_connection_t * cli, query_t * qr,
 #endif
 
   QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN);
+  inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, is_vec ? caller->qi_n_sets : 0);
+  qi = (query_instance_t *) inst;
   state = inst;
   if (cli->cli_qualifier)
     {
@@ -4669,8 +4671,8 @@ qr_subq_exec_vec (client_connection_t * cli, query_t * qr,
   long n_affected;
   int inx;
   int n_actual_params, n_sets = qi_n_sets (caller);
-  caddr_t *inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, n_sets);
-  query_instance_t *qi = (query_instance_t *) inst;
+  caddr_t *inst;
+  query_instance_t *qi;
   caddr_t *state;
   user_t *saved_user = cli->cli_user;
   char saved_qual_buf[25 + BOX_AUTO_OVERHEAD];
@@ -4681,6 +4683,8 @@ qr_subq_exec_vec (client_connection_t * cli, query_t * qr,
 #endif
 
   QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN);
+  inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, n_sets);
+  qi = (query_instance_t *) inst;
   state = inst;
   if (cli->cli_qualifier)
     {

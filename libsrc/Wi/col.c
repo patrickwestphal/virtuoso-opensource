@@ -44,10 +44,6 @@
 #define IS_64(n) \
   (!((n) >= (int64) INT32_MIN && (n) <= (int64) INT32_MAX))
 
-#define IS_64_T(n, dtp)						\
-  (IS_IRI_DTP (dtp) ? (((iri_id_t)n) > (iri_id_t)0xffffffff) \
-: (!((n) >= (int64) INT32_MIN && (n) <= (int64) INT32_MAX)))
-
 
 dtp_t
 cs_any_ce_flags (compress_state_t * cs, int nth)
@@ -3977,6 +3973,8 @@ cs_array_add (compress_state_t * cs, caddr_t any, int64 n)
   cs->cs_values[cs->cs_n_values++] = any;
 }
 
+dtp_t dtp_no_dict[256];
+
 
 void
 cs_compress (compress_state_t * cs, caddr_t any)
@@ -3986,7 +3984,7 @@ cs_compress (compress_state_t * cs, caddr_t any)
   int64 hash = 1;
   int box_len = box_length (any) - 1;
   cs->cs_non_comp_len += box_len;
-  if (DV_COL_BLOB_SERIAL == dtp)
+  if (dtp_no_dict[dtp])
     cs->cs_no_dict = 1;
   if (cs->cs_no_dict)
     cs_array_add (cs, any, n);
@@ -6073,5 +6071,13 @@ col_init ()
   bif_define ("__dcv_test", bif_dcvt);
   bif_define ("__string_test", bif_string_test);
   bif_define ("__ddl_table_col_drop_update", bif_ddl_table_col_update);
+  dtp_no_dict[DV_COL_BLOB_SERIAL] = 1;
+  dtp_no_dict[DV_ARRAY_OF_POINTER] = 1;
+  dtp_no_dict[DV_ARRAY_OF_LONG] = 1;
+  dtp_no_dict[DV_ARRAY_OF_FLOAT] = 1;
+  dtp_no_dict[DV_ARRAY_OF_DOUBLE] = 1;
+  dtp_no_dict[DV_GEO] = 1;
+  dtp_no_dict[DV_XML_ENTITY] = 1;
+  dtp_no_dict[DV_OBJECT] = 1;
   colin_init ();
 }

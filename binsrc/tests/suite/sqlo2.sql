@@ -7,9 +7,9 @@
 --  
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
---
+--  
 --  Copyright (C) 1998-2014 OpenLink Software
---
+--  
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
 --  Free Software Foundation; only version 2 of the License, dated June 1991.
@@ -1226,9 +1226,9 @@ SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
 ECHO BOTH ": B7074-1 : table prepared STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
 
 select blob_to_string (DATA) from B7074 order by DT2;
-ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+ECHO BOTH $IF $EQ $STATE OK "PASSED" "***FAILED";
 SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
-ECHO BOTH ": B7074-2 : can't put long string in a temp tb STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+ECHO BOTH ": B7074-2 : blob to string after oby, so long string in oby ok STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
 
 --XXX
 --select * from (select blob_to_string (DATA) as DATA long varchar, DT2 from B7074 order by ID) dummy order by DT2;

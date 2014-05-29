@@ -3988,9 +3988,9 @@ spar_make_typed_literal (sparp_t * sparp, caddr_t strg, caddr_t type, caddr_t la
 /* Fast casts for xsd types taht match to SQL types without additional checks */
   if (uname_xmlschema_ns_uri_hash_boolean == type)
     {
-      if (!strcmp ("true", strg))
+      if (!strcmp ("true", strg) || !strcmp ("1", strg))
 	return spartlist (sparp, 4, SPAR_LIT, (ptrlong) 1, type, NULL);
-      if (!strcmp ("false", strg))
+      if (!strcmp ("false", strg) || !strcmp ("0", strg))
 	return spartlist (sparp, 4, SPAR_LIT, t_box_num_nonull (0), type, NULL);
       goto cannot_cast;
     }
@@ -4707,6 +4707,8 @@ const sparp_bif_desc_t sparp_bif_descs[] = {
       SPART_VARR_IS_BLANK | SPART_VARR_IS_REF},
   {"bound", BOUND_L, '-', 0, 1, 1, SSG_VALMODE_BOOL, {SSG_VALMODE_SQLVAL, NULL, NULL},
       SPART_VARR_IS_LIT | SPART_VARR_NOT_NULL | SPART_VARR_LONG_EQ_SQL},
+  {"case WHEN operator", SPAR_BIF_CASEWHEN, 'B', SSG_SD_VIRTSPECIFIC, 3, 0xFFF, NULL, {NULL, NULL, NULL}, 0},
+  {"case X operator", SPAR_BIF_CASEX, 'B', SSG_SD_VIRTSPECIFIC, 4, 0xFFF, NULL, {NULL, NULL, NULL}, 0},
   {"ceil", SPAR_BIF_CEIL, 'B', SSG_SD_SPARQL11_DRAFT, 1, 1, SSG_VALMODE_NUM, {SSG_VALMODE_NUM, NULL, NULL}, 0},
   {"coalesce", SPAR_BIF_COALESCE, '-', SSG_SD_SPARQL11_DRAFT, 0, 0xFFF, NULL, {SSG_VALMODE_SQLVAL, NULL, NULL}, 0},
   {"concat", SPAR_BIF_CONCAT, 'B', SSG_SD_SPARQL11_DRAFT, 0, 0xFFF, SSG_VALMODE_SQLVAL, {SSG_VALMODE_SQLVAL, NULL, NULL},

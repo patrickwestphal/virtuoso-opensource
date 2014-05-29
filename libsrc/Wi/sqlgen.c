@@ -2010,7 +2010,7 @@ sqlg_pop_sqs (sql_comp_t * sc, subq_source_t * sqs, data_source_t ** head, dk_se
     qn->src_continuations = NULL;
     if (qn != last)
       sql_node_append (head, qn);
-    if (IS_QN (qn, select_node_input_subq))
+    if (IS_QN (qn, select_node_input_subq) && !((select_node_t *) qn)->sel_subq_inlined)
       {
 	QNCAST (select_node_t, sel, qn);
 	sel->sel_set_ctr = sctr;
@@ -2024,6 +2024,17 @@ sqlg_pop_sqs (sql_comp_t * sc, subq_source_t * sqs, data_source_t ** head, dk_se
   qr->qr_nodes = dk_set_conc (sqr->qr_nodes, qr->qr_nodes);
   sqr->qr_nodes = NULL;
   return last;
+}
+
+int
+sqlg_in_inlined_subq (data_source_t * qn)
+{
+  for (qn = qn; qn; qn = qn_next (qn))
+    {
+      if (IS_QN (qn, select_node_input_subq))
+	return ((select_node_t *) qn)->sel_subq_inlined;
+    }
+  return 0;
 }
 
 int setp_is_high_card (setp_node_t * setp);
@@ -2048,8 +2059,18 @@ sqlg_inline_sqs (sql_comp_t * sc, df_elt_t * dfe, subq_source_t * sqs, data_sour
 	      return sqlg_pop_sqs (sc, sqs, head, pre_code);
 	    }
 	}
-      if (IS_QN (qn, breakup_node_input))
+      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_is_streaming)
 	{
+	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
+	}
+      if (IS_QN (qn, breakup_node_input) && !sqlg_in_inlined_subq (qn))
+	{
+	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
+	}
+      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_distinct && !sqlg_in_inlined_subq (qn))
+	{
+	  if (qn_next_qn (qn, (qn_input_fn) skip_node_input))
+	    break;
 	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
 	}
     }
@@ -5057,6 +5078,12 @@ sqlg_add_breakup_node (sql_comp_t * sc, data_source_t ** head, state_slot_t *** 
 	state_slot_t *v = ssl_new_inst_variable (sc->sc_cc, "brkc", ssl->ssl_sqt.sqt_dtp);
 	cv_artm (code, (ao_func_t) box_identity, v, ssl, NULL);
 	ssl_out[inx] = v;
+      }
+    if (inx >= n_per_set)
+      {
+	state_slot_t *prev = ssl_out[inx % n_per_set];
+	if (prev->ssl_dtp != DV_ANY && dtp_canonical[ssl->ssl_dtp] != dtp_canonical[prev->ssl_dtp])
+	  prev->ssl_dtp = DV_ANY;
       }
   }
   END_DO_BOX;

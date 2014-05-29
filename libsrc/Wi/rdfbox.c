@@ -21,6 +21,7 @@
  *
  */
 
+#include "datesupp.h"
 #include "sqlnode.h"
 #include "sqlbif.h"
 #include "arith.h"
@@ -34,6 +35,113 @@
 #include "xslt_impl.h"		/* For vector_sort_t */
 #include "aqueue.h"		/* For aq_allocate() in rdf replication */
 #include "geo.h"
+
+int rb_type__xsd_ENTITY;
+int rb_type__xsd_ENTITIES;
+int rb_type__xsd_ID;
+int rb_type__xsd_IDREF;
+int rb_type__xsd_IDREFS;
+int rb_type__xsd_NCName;
+int rb_type__xsd_Name;
+int rb_type__xsd_NMTOKEN;
+int rb_type__xsd_NMTOKENS;
+int rb_type__xsd_NOTATION;
+int rb_type__xsd_QName;
+int rb_type__xsd_any;
+int rb_type__xsd_anyAtomicType;
+int rb_type__xsd_anySimpleType;
+int rb_type__xsd_anyType;
+int rb_type__xsd_anyURI;
+int rb_type__xsd_base64Binary;
+int rb_type__xsd_boolean;
+int rb_type__xsd_byte;
+int rb_type__xsd_date;
+int rb_type__xsd_dateTime;
+int rb_type__xsd_dateTimeStamp;
+int rb_type__xsd_dayTimeDuration;
+int rb_type__xsd_decimal;
+int rb_type__xsd_double;
+int rb_type__xsd_duration;
+int rb_type__xsd_float;
+int rb_type__xsd_gDay;
+int rb_type__xsd_gMonth;
+int rb_type__xsd_gMonthDay;
+int rb_type__xsd_gYear;
+int rb_type__xsd_gYearMonth;
+int rb_type__xsd_hexBinary;
+int rb_type__xsd_int;
+int rb_type__xsd_integer;
+int rb_type__xsd_language;
+int rb_type__xsd_long;
+int rb_type__xsd_negativeInteger;
+int rb_type__xsd_nonNegativeInteger;
+int rb_type__xsd_nonPositiveInteger;
+int rb_type__xsd_normalizedString;
+int rb_type__xsd_positiveInteger;
+int rb_type__xsd_short;
+int rb_type__xsd_string;
+int rb_type__xsd_time;
+int rb_type__xsd_token;
+int rb_type__xsd_unsignedByte;
+int rb_type__xsd_unsignedInt;
+int rb_type__xsd_unsignedLong;
+int rb_type__xsd_unsignedShort;
+int rb_type__xsd_yearMonthDuration;
+
+stat_desc_t rdf_preset_datatypes_descs[] = {
+  {"rb_type__xsd:ENTITY", (long *) &rb_type__xsd_ENTITY, SD_INT32},
+  {"rb_type__xsd:ENTITIES", (long *) &rb_type__xsd_ENTITIES, SD_INT32},
+  {"rb_type__xsd:ID", (long *) &rb_type__xsd_ID, SD_INT32},
+  {"rb_type__xsd:IDREF", (long *) &rb_type__xsd_IDREF, SD_INT32},
+  {"rb_type__xsd:IDREFS", (long *) &rb_type__xsd_IDREFS, SD_INT32},
+  {"rb_type__xsd:NCName", (long *) &rb_type__xsd_NCName, SD_INT32},
+  {"rb_type__xsd:Name", (long *) &rb_type__xsd_Name, SD_INT32},
+  {"rb_type__xsd:NMTOKEN", (long *) &rb_type__xsd_NMTOKEN, SD_INT32},
+  {"rb_type__xsd:NMTOKENS", (long *) &rb_type__xsd_NMTOKENS, SD_INT32},
+  {"rb_type__xsd:NOTATION", (long *) &rb_type__xsd_NOTATION, SD_INT32},
+  {"rb_type__xsd:QName", (long *) &rb_type__xsd_QName, SD_INT32},
+  {"rb_type__xsd:any", (long *) &rb_type__xsd_any, SD_INT32},
+  {"rb_type__xsd:anyAtomicType", (long *) &rb_type__xsd_anyAtomicType, SD_INT32},
+  {"rb_type__xsd:anySimpleType", (long *) &rb_type__xsd_anySimpleType, SD_INT32},
+  {"rb_type__xsd:anyType", (long *) &rb_type__xsd_anyType, SD_INT32},
+  {"rb_type__xsd:anyURI", (long *) &rb_type__xsd_anyURI, SD_INT32},
+  {"rb_type__xsd:base64Binary", (long *) &rb_type__xsd_base64Binary, SD_INT32},
+  {"rb_type__xsd:boolean", (long *) &rb_type__xsd_boolean, SD_INT32},
+  {"rb_type__xsd:byte", (long *) &rb_type__xsd_byte, SD_INT32},
+  {"rb_type__xsd:date", (long *) &rb_type__xsd_date, SD_INT32},
+  {"rb_type__xsd:dateTime", (long *) &rb_type__xsd_dateTime, SD_INT32},
+  {"rb_type__xsd:dateTimeStamp", (long *) &rb_type__xsd_dateTimeStamp, SD_INT32},
+  {"rb_type__xsd:dayTimeDuration", (long *) &rb_type__xsd_dayTimeDuration, SD_INT32},
+  {"rb_type__xsd:decimal", (long *) &rb_type__xsd_decimal, SD_INT32},
+  {"rb_type__xsd:double", (long *) &rb_type__xsd_double, SD_INT32},
+  {"rb_type__xsd:duration", (long *) &rb_type__xsd_duration, SD_INT32},
+  {"rb_type__xsd:float", (long *) &rb_type__xsd_float, SD_INT32},
+  {"rb_type__xsd:gDay", (long *) &rb_type__xsd_gDay, SD_INT32},
+  {"rb_type__xsd:gMonth", (long *) &rb_type__xsd_gMonth, SD_INT32},
+  {"rb_type__xsd:gMonthDay", (long *) &rb_type__xsd_gMonthDay, SD_INT32},
+  {"rb_type__xsd:gYear", (long *) &rb_type__xsd_gYear, SD_INT32},
+  {"rb_type__xsd:gYearMonth", (long *) &rb_type__xsd_gYearMonth, SD_INT32},
+  {"rb_type__xsd:hexBinary", (long *) &rb_type__xsd_hexBinary, SD_INT32},
+  {"rb_type__xsd:int", (long *) &rb_type__xsd_int, SD_INT32},
+  {"rb_type__xsd:integer", (long *) &rb_type__xsd_integer, SD_INT32},
+  {"rb_type__xsd:language", (long *) &rb_type__xsd_language, SD_INT32},
+  {"rb_type__xsd:long", (long *) &rb_type__xsd_long, SD_INT32},
+  {"rb_type__xsd:negativeInteger", (long *) &rb_type__xsd_negativeInteger, SD_INT32},
+  {"rb_type__xsd:nonNegativeInteger", (long *) &rb_type__xsd_nonNegativeInteger, SD_INT32},
+  {"rb_type__xsd:nonPositiveInteger", (long *) &rb_type__xsd_nonPositiveInteger, SD_INT32},
+  {"rb_type__xsd:normalizedString", (long *) &rb_type__xsd_normalizedString, SD_INT32},
+  {"rb_type__xsd:positiveInteger", (long *) &rb_type__xsd_positiveInteger, SD_INT32},
+  {"rb_type__xsd:short", (long *) &rb_type__xsd_short, SD_INT32},
+  {"rb_type__xsd:string", (long *) &rb_type__xsd_string, SD_INT32},
+  {"rb_type__xsd:time", (long *) &rb_type__xsd_time, SD_INT32},
+  {"rb_type__xsd:token", (long *) &rb_type__xsd_token, SD_INT32},
+  {"rb_type__xsd:unsignedByte", (long *) &rb_type__xsd_unsignedByte, SD_INT32},
+  {"rb_type__xsd:unsignedInt", (long *) &rb_type__xsd_unsignedInt, SD_INT32},
+  {"rb_type__xsd:unsignedLong", (long *) &rb_type__xsd_unsignedLong, SD_INT32},
+  {"rb_type__xsd:unsignedShort", (long *) &rb_type__xsd_unsignedShort, SD_INT32},
+  {"rb_type__xsd:yearMonthDuration", (long *) &rb_type__xsd_yearMonthDuration, SD_INT32},
+  {NULL, NULL, NULL}
+};
 
 caddr_t boxed_iid_of_virtrdf_ns_uri = NULL;
 caddr_t boxed_iid_of_virtrdf_ns_uri_rdf_repl_all = NULL;
@@ -2033,6 +2141,7 @@ bif_rdf_strsqlval (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int set_bf_iri = ((1 < BOX_ELEMENTS (args)) ? bif_long_arg (qst, args, 1, "__rdf_strsqlval") : 0x1);
   dtp_t val_dtp = DV_TYPE_OF (val);
   query_instance_t *qi = (query_instance_t *) qst;
+  int rb_type = RDF_BOX_ILL_TYPE;
   if (DV_RDF == val_dtp)
     {
       rdf_box_t *rb = (rdf_box_t *) val;
@@ -2040,6 +2149,7 @@ bif_rdf_strsqlval (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	rb_complete (rb, qi->qi_trx, qi);
       val = rb->rb_box;
       val_dtp = DV_TYPE_OF (val);
+      rb_type = rb->rb_type;
     }
   switch (val_dtp)
     {
@@ -2062,7 +2172,8 @@ bif_rdf_strsqlval (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     case DV_DATETIME:
       {
 	char temp[100];
-	dt_to_iso8601_string (val, temp, sizeof (temp));
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (val, temp, sizeof (temp), mode);
 	return box_dv_short_string (temp);
 	break;
       }
@@ -2094,6 +2205,7 @@ bif_rdf_long_to_ttl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   query_instance_t *qi = (query_instance_t *) qst;
   dtp_t val_dtp = DV_TYPE_OF (val);
   char temp[256];
+  int rb_type = RDF_BOX_ILL_TYPE;
   if (DV_RDF == val_dtp)
     {
       rdf_box_t *rb = (rdf_box_t *) val;
@@ -2101,13 +2213,17 @@ bif_rdf_long_to_ttl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	rb_complete (rb, qi->qi_trx, qi);
       val = rb->rb_box;
       val_dtp = DV_TYPE_OF (val);
+      rb_type = rb->rb_type;
     }
   switch (val_dtp)
     {
     case DV_DATETIME:
-      dt_to_iso8601_string (val, temp, sizeof (temp));
-      session_buffered_write (out, temp, strlen (temp));
-      break;
+      {
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (val, temp, sizeof (temp), mode);
+	session_buffered_write (out, temp, strlen (temp));
+	break;
+      }
     case DV_STRING:
       dks_esc_write (out, val, box_length (val) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_DQ);
       break;
@@ -2533,7 +2649,8 @@ bif_http_sys_find_best_sparql_accept (caddr_t * qst, caddr_t * err_ret, state_sl
     {
       int ctr;
       caddr_t *tmp;
-      tmp = (caddr_t *) list (28 * 2, "text/rdf+n3", "TTL",	/*  0 */
+/*INDENT-OFF*/
+      tmp = (caddr_t *) list (29 * 2, "text/rdf+n3", "TTL",	/*  0 */
 	  "text/rdf+ttl", "TTL",	/*  1 */
 	  "text/rdf+turtle", "TTL",	/*  2 */
 	  "text/turtle", "TTL",	/*  3 */
@@ -2560,7 +2677,10 @@ bif_http_sys_find_best_sparql_accept (caddr_t * qst, caddr_t * err_ret, state_sl
 	  "text/ntriples", "NT",	/* 24 */
 	  "text/csv", "CSV",	/* 25 */
 	  "text/tab-separated-values", "TSV",	/* 26 */
-	  "application/x-nice-turtle", "NICE_TTL" /* 27 Increase count in this list() call when add more MIME types! */ );
+	  "application/x-nice-turtle", "NICE_TTL",	/* 27 */
+	  "text/x-html-nice-turtle", "HTML;NICE_TTL"	/* 28 Increase count in this list() call when add more MIME types! */
+	  );
+/*INDENT-ON*/
       for (ctr = BOX_ELEMENTS (tmp); ctr--; /* no step */ )
 	tmp[ctr] = box_dv_short_string (tmp[ctr]);
       supp_rset = tmp;
@@ -2569,7 +2689,8 @@ bif_http_sys_find_best_sparql_accept (caddr_t * qst, caddr_t * err_ret, state_sl
     {
       int ctr;
       caddr_t *tmp;
-      tmp = (caddr_t *) list (38 * 2, "application/x-trig", "TRIG",	/*  0 */
+/*INDENT-OFF*/
+      tmp = (caddr_t *) list (39 * 2, "application/x-trig", "TRIG",	/*  0 */
 	  "text/rdf+n3", "TTL",	/*  1 */
 	  "text/rdf+ttl", "TTL",	/*  2 */
 	  "text/rdf+turtle", "TTL",	/*  3 */
@@ -2606,8 +2727,10 @@ bif_http_sys_find_best_sparql_accept (caddr_t * qst, caddr_t * err_ret, state_sl
 	  "text/csv", "CSV",	/* 34 */
 	  "text/tab-separated-values", "TSV",	/* 35 */
 	  "application/x-nice-turtle", "NICE_TTL",	/* 36 */
-	  "application/x-nice-microdata",
-	  "HTML;NICE_MICRODATA" /* 37 Increase count in this list() call when add more MIME types! */ );
+	  "application/x-nice-microdata", "HTML;NICE_MICRODATA",	/* 37  */
+	  "text/x-html-nice-turtle", "HTML;NICE_TTL"	/* 38 Increase count in this list() call when add more MIME types! */
+	  );
+/*INDENT-ON*/
       for (ctr = BOX_ELEMENTS (tmp); ctr--; /* no step */ )
 	tmp[ctr] = box_dv_short_string (tmp[ctr]);
       supp_dict = tmp;
@@ -2622,16 +2745,20 @@ bif_http_sys_find_best_sparql_accept (caddr_t * qst, caddr_t * err_ret, state_sl
   return http_sys_find_best_accept_impl (qst, ret_val_ssl, accept_strg, optimize_for_dict ? supp_dict : supp_rset, szMe);
 }
 
+#define TTL_ENV_ONLY_PREDEFINED_PREFIXES	0x001
+#define TTL_ENV_HTML_OUTPUT			0x100
+
 /*! Environment of TTL serializer */
 typedef struct ttl_env_s
 {
-  id_hash_iterator_t *te_used_prefixes;	/*!< Item 1 is the dictionary of used namespace prefixes */
-  caddr_t te_prev_subj_ns;	/*!< Item 2 is the namespace part of previous subject. It is DV_STRING except the very beginning of the serialization when it can be of any type except DV_STRING (non-string will be freed and replaced with NULL pointer inside the printing procedure) */
-  caddr_t te_prev_subj_loc;	/*!< Item 3 is the local part of previous subject */
-  caddr_t te_prev_pred_ns;	/*!< Item 4 is the namespace part of previous predicate. */
-  caddr_t te_prev_pred_loc;	/*!< Item 5 is the local part of previous predicate */
-  ptrlong te_ns_count_s_o;	/*!< Item 6 is a counter of created namespaces for subjects and objects */
-  ptrlong te_ns_count_p_dt;	/*!< Item 7 is a counter of created namespaces for predicates and datatypes */
+  id_hash_iterator_t *te_used_prefixes;	/*!< Item 0 is the dictionary of used namespace prefixes */
+  caddr_t te_prev_subj_ns;	/*!< Item 1 is the namespace part of previous subject. It is DV_STRING except the very beginning of the serialization when it can be of any type except DV_STRING (non-string will be freed and replaced with NULL pointer inside the printing procedure) */
+  caddr_t te_prev_subj_loc;	/*!< Item 2 is the local part of previous subject */
+  caddr_t te_prev_pred_ns;	/*!< Item 3 is the namespace part of previous predicate. */
+  caddr_t te_prev_pred_loc;	/*!< Item 4 is the local part of previous predicate */
+  ptrlong te_ns_count_s_o;	/*!< Item 5 is a counter of created namespaces for subjects and objects */
+  ptrlong te_ns_count_p_dt;	/*!< Item 6 is a counter of created namespaces for predicates and datatypes */
+  ptrlong te_flags;		/*!< Item 7 is a bitwise OR of TTL_ENV_xxx bits */
   ttl_iriref_t *te_cols;	/*!< Array of temp data for result set columns */
   dk_session_t *te_out_ses;	/*!< Output session, used only for sparql_rset_ttl_write_row */
 } ttl_env_t;
@@ -2673,7 +2800,15 @@ ttl_try_to_cache_new_prefix (caddr_t * qst, dk_session_t * ses, ttl_env_t * env,
     }
   ti->prefix = xml_get_cli_or_global_ns_prefix (qst, ti->ns, ~0);
   if (NULL == ti->prefix)
-    ti->prefix = box_sprintf (20, "ns%d", ns2pref->ht_count);
+    {
+      if (TTL_ENV_ONLY_PREDEFINED_PREFIXES & env->te_flags)
+	{
+	  if (NULL == ti->uri)
+	    ti->uri = box_dv_short_concat (ti->ns, ti->loc);
+	  return 0;
+	}
+      ti->prefix = box_sprintf (20, "ns%d", ns2pref->ht_count);
+    }
   id_hash_set (ns2pref, (caddr_t) (&ti->ns), (caddr_t) (&(ti->prefix)));
   ti->prefix = box_copy (ti->prefix);
   ns_counter_ptr[0] = ns_counter_val + 1;
@@ -2701,34 +2836,69 @@ ttl_http_write_prefix_if_needed (caddr_t * qst, dk_session_t * ses, ttl_env_t * 
     }
   session_buffered_write (ses, "@prefix ", 8);
   session_buffered_write (ses, ti->prefix, strlen (ti->prefix));
-  session_buffered_write (ses, ":\t<", 3);
-  dks_esc_write (ses, ti->ns, box_length (ti->ns) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_IRI);
-  session_buffered_write (ses, "> .\n", 4);
+  if (env->te_flags & TTL_ENV_HTML_OUTPUT)
+    {
+      session_buffered_write (ses, ":\t&lt;", 6);
+      dks_esc_write (ses, ti->ns, box_length (ti->ns) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_HTML_TTL_IRI);
+      session_buffered_write (ses, "&gt; .\n", 7);
+    }
+  else
+    {
+      session_buffered_write (ses, ":\t<", 3);
+      dks_esc_write (ses, ti->ns, box_length (ti->ns) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_IRI);
+      session_buffered_write (ses, "> .\n", 4);
+    }
   return 1;
 }
+
+#define SES_WRITE(ses, str) \
+	session_buffered_write (ses, str, strlen (str))
 
 void
 ttl_http_write_ref (dk_session_t * ses, ttl_env_t * env, ttl_iriref_t * ti)
 {
-  caddr_t full_uri;
   caddr_t loc = ti->loc;
+  caddr_t full_uri = ((NULL != ti->uri) ? ti->uri : loc);
   if (ti->is_bnode)
     {
       session_buffered_write (ses, "_:", 2);
       session_buffered_write (ses, loc, strlen (loc));
       return;
     }
-  if (NULL != ti->prefix)
+  if (env->te_flags & TTL_ENV_HTML_OUTPUT)
     {
-      session_buffered_write (ses, ti->prefix, strlen (ti->prefix));
-      session_buffered_write_char (':', ses);
-      session_buffered_write (ses, loc, strlen (loc));
-      return;
+      SES_WRITE (ses, "<a href=\"/sparql/?query=DESCRIBE%20%3C");
+      dks_esc_write (ses, full_uri, box_length (full_uri) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_URI);
+      SES_WRITE (ses, "%3E&format=text%2Fx-html-nice-turtle\">");
+      if (NULL != ti->prefix)
+	{
+	  session_buffered_write (ses, ti->prefix, strlen (ti->prefix));
+	  session_buffered_write_char (':', ses);
+	  session_buffered_write (ses, loc, strlen (loc));
+	}
+      else
+	{
+	  session_buffered_write (ses, "&lt;", 4);
+	  dks_esc_write (ses, full_uri, box_length (full_uri) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_HTML_TTL_IRI);
+	  session_buffered_write (ses, "&gt;", 4);
+	}
+      session_buffered_write (ses, "</a>", 4);
     }
-  session_buffered_write_char ('<', ses);
-  full_uri = ((NULL != ti->uri) ? ti->uri : loc);
-  dks_esc_write (ses, full_uri, box_length (full_uri) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_IRI);
-  session_buffered_write_char ('>', ses);
+  else
+    {
+      if (NULL != ti->prefix)
+	{
+	  session_buffered_write (ses, ti->prefix, strlen (ti->prefix));
+	  session_buffered_write_char (':', ses);
+	  session_buffered_write (ses, loc, strlen (loc));
+	}
+      else
+	{
+	  session_buffered_write_char ('<', ses);
+	  dks_esc_write (ses, full_uri, box_length (full_uri) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_IRI);
+	  session_buffered_write_char ('>', ses);
+	}
+    }
 }
 
 #ifdef NOT_CURRENTLY_USED
@@ -2814,7 +2984,7 @@ http_ttl_or_nt_prepare_obj (query_instance_t * qi, caddr_t obj, dtp_t obj_dtp, t
 }
 
 static void
-http_ttl_or_nt_write_xe (dk_session_t * ses, query_instance_t * qi, xml_entity_t * xe, int print_type_suffix)
+http_ttl_or_nt_write_xe (dk_session_t * ses, query_instance_t * qi, xml_entity_t * xe, int print_type_suffix, int html_ttl)
 {
   dk_session_t *tmp_ses = strses_allocate ();
   caddr_t tmp_utf8_box;
@@ -2832,14 +3002,21 @@ http_ttl_or_nt_write_xe (dk_session_t * ses, query_instance_t * qi, xml_entity_t
   tmp_utf8_box = strses_string (tmp_ses);
   strses_free (tmp_ses);
   session_buffered_write_char ('"', ses);
-  dks_esc_write (ses, tmp_utf8_box, box_length (tmp_utf8_box) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_DQ);
+  dks_esc_write (ses, tmp_utf8_box, box_length (tmp_utf8_box) - 1, CHARSET_UTF8, CHARSET_UTF8,
+      html_ttl ? DKS_ESC_HTML_TTL_DQ : DKS_ESC_TTL_DQ);
   dk_free_box (tmp_utf8_box);
   session_buffered_write_char ('"', ses);
   if (print_type_suffix)
     {
-      SES_PRINT (ses, "^^<");
+      if (html_ttl)
+	SES_PRINT (ses, "^^&lt;");
+      else
+	SES_PRINT (ses, "^^<");
       SES_PRINT (ses, uname_rdf_ns_uri_XMLLiteral);
-      session_buffered_write_char ('>', ses);
+      if (html_ttl)
+	SES_PRINT (ses, "&gt;");
+      else
+	session_buffered_write_char ('>', ses);
     }
 }
 
@@ -2871,6 +3048,7 @@ http_ttl_write_obj (dk_session_t * ses, ttl_env_t * env, query_instance_t * qi, 
 {
   caddr_t obj_box_value;
   dtp_t obj_box_value_dtp;
+  int html_ttl = (TTL_ENV_HTML_OUTPUT & env->te_flags);
   if (DV_RDF == obj_dtp)
     {
       obj_box_value = ((rdf_box_t *) obj)->rb_box;
@@ -2885,8 +3063,10 @@ http_ttl_write_obj (dk_session_t * ses, ttl_env_t * env, query_instance_t * qi, 
     {
     case DV_DATETIME:
       {
-	char temp[50];
-	dt_to_iso8601_string (obj_box_value, temp, sizeof (temp));
+	char temp[100];
+	int rb_type = ((DV_RDF == obj_dtp) ? ((rdf_box_t *) obj)->rb_type : RDF_BOX_ILL_TYPE);
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (obj_box_value, temp, sizeof (temp), mode);
 	session_buffered_write_char ('"', ses);
 	session_buffered_write (ses, temp, strlen (temp));
 	session_buffered_write_char ('"', ses);
@@ -2899,17 +3079,19 @@ http_ttl_write_obj (dk_session_t * ses, ttl_env_t * env, query_instance_t * qi, 
       }
     case DV_STRING:
       session_buffered_write_char ('"', ses);
-      dks_esc_write (ses, obj_box_value, box_length (obj_box_value) - 1, CHARSET_UTF8, CHARSET_UTF8, DKS_ESC_TTL_DQ);
+      dks_esc_write (ses, obj_box_value, box_length (obj_box_value) - 1, CHARSET_UTF8, CHARSET_UTF8,
+	  html_ttl ? DKS_ESC_HTML_TTL_DQ : DKS_ESC_TTL_DQ);
       session_buffered_write_char ('"', ses);
       break;
     case DV_WIDE:
       session_buffered_write_char ('"', ses);
-      dks_esc_write (ses, obj_box_value, box_length (obj_box_value) - sizeof (wchar_t), CHARSET_UTF8, CHARSET_WIDE, DKS_ESC_TTL_DQ);
+      dks_esc_write (ses, obj_box_value, box_length (obj_box_value) - sizeof (wchar_t), CHARSET_UTF8, CHARSET_WIDE,
+	  html_ttl ? DKS_ESC_HTML_TTL_DQ : DKS_ESC_TTL_DQ);
       session_buffered_write_char ('"', ses);
       break;
     case DV_XML_ENTITY:
       http_ttl_or_nt_write_xe (ses, qi, (xml_entity_t *) (obj_box_value),
-	  ((DV_RDF == obj_dtp) ? (RDF_BOX_DEFAULT_TYPE == ((rdf_box_t *) obj)->rb_type) : 1));
+	  ((DV_RDF == obj_dtp) ? (RDF_BOX_DEFAULT_TYPE == ((rdf_box_t *) obj)->rb_type) : 1), html_ttl);
       break;
     case DV_DB_NULL:
       session_buffered_write (ses, "(NULL)", 6);
@@ -3018,11 +3200,28 @@ http_ttl_write_obj (dk_session_t * ses, ttl_env_t * env, query_instance_t * qi, 
     }
 }
 
+ttl_env_t *
+bif_ttl_env_arg (caddr_t * qst, state_slot_t ** args, int idx, const char *fname)
+{
+  ttl_env_t *env = (ttl_env_t *) bif_arg (qst, args, idx, fname);
+  if (DV_ARRAY_OF_POINTER != DV_TYPE_OF ((caddr_t) env) ||
+      (sizeof (ttl_env_t) != box_length ((caddr_t) env)) ||
+      (DV_DICT_ITERATOR != DV_TYPE_OF (env->te_used_prefixes)) ||
+      (((DV_STRING == DV_TYPE_OF (env->te_prev_subj_ns)) || (DV_UNAME == DV_TYPE_OF (env->te_prev_subj_ns))) &&
+	  ((DV_STRING != DV_TYPE_OF (env->te_prev_subj_loc)) ||
+	      ((DV_STRING != DV_TYPE_OF (env->te_prev_pred_ns)) && (DV_UNAME != DV_TYPE_OF (env->te_prev_pred_ns))) ||
+	      (DV_STRING != DV_TYPE_OF (env->te_prev_pred_loc)))) ||
+      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_s_o)) ||
+      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_p_dt)) || (DV_LONG_INT != DV_TYPE_OF (env->te_flags)))
+    sqlr_new_error ("22023", "SR601", "Argument %d of %s() should be an array of special format", idx, fname);
+  return env;
+}
+
 caddr_t
 bif_http_ttl_prefixes (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   query_instance_t *qi = (query_instance_t *) qst;
-  ttl_env_t *env = (ttl_env_t *) bif_arg (qst, args, 0, "http_ttl_prefixes");
+  ttl_env_t *env = bif_ttl_env_arg (qst, args, 0, "http_ttl_prefixes");
   caddr_t subj = bif_arg (qst, args, 1, "http_ttl_prefixes");
   caddr_t pred = bif_arg (qst, args, 2, "http_ttl_prefixes");
   caddr_t obj = bif_arg (qst, args, 3, "http_ttl_prefixes");
@@ -3032,15 +3231,6 @@ bif_http_ttl_prefixes (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   dtp_t obj_dtp = 0;
   ttl_iriref_items_t tii;
   memset (&tii, 0, sizeof (ttl_iriref_items_t));
-  if (DV_ARRAY_OF_POINTER != DV_TYPE_OF ((caddr_t) env) ||
-      (sizeof (ttl_env_t) != box_length ((caddr_t) env)) ||
-      (DV_DICT_ITERATOR != DV_TYPE_OF (env->te_used_prefixes)) ||
-      (((DV_STRING == DV_TYPE_OF (env->te_prev_subj_ns)) || (DV_UNAME == DV_TYPE_OF (env->te_prev_subj_ns))) &&
-	  ((DV_STRING != DV_TYPE_OF (env->te_prev_subj_loc)) ||
-	      ((DV_STRING != DV_TYPE_OF (env->te_prev_pred_ns)) && (DV_UNAME != DV_TYPE_OF (env->te_prev_pred_ns))) ||
-	      (DV_STRING != DV_TYPE_OF (env->te_prev_pred_loc)))) ||
-      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_s_o)) || (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_p_dt)))
-    sqlr_new_error ("22023", "SR601", "Argument 1 of http_ttl_prefixes() should be an array of special format");
   if (!iri_cast_and_split_ttl_qname (qi, subj, &tii.s.ns, &tii.s.loc, &tii.s.is_bnode))
     goto fail;			/* see below */
   if (!iri_cast_and_split_ttl_qname (qi, pred, &tii.p.ns, &tii.p.loc, &tii.p.is_bnode))
@@ -3115,7 +3305,7 @@ caddr_t
 bif_http_ttl_triple (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   query_instance_t *qi = (query_instance_t *) qst;
-  ttl_env_t *env = (ttl_env_t *) bif_arg (qst, args, 0, "http_ttl_triple");
+  ttl_env_t *env = bif_ttl_env_arg (qst, args, 0, "http_ttl_triple");
   caddr_t subj = bif_arg (qst, args, 1, "http_ttl_triple");
   caddr_t pred = bif_arg (qst, args, 2, "http_ttl_triple");
   caddr_t obj = bif_arg (qst, args, 3, "http_ttl_triple");
@@ -3125,15 +3315,6 @@ bif_http_ttl_triple (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   dtp_t obj_dtp = 0;
   ttl_iriref_items_t tii;
   memset (&tii, 0, sizeof (ttl_iriref_items_t));
-  if (DV_ARRAY_OF_POINTER != DV_TYPE_OF ((caddr_t) env) ||
-      (sizeof (ttl_env_t) != box_length ((caddr_t) env)) ||
-      (DV_DICT_ITERATOR != DV_TYPE_OF (env->te_used_prefixes)) ||
-      (((DV_STRING == DV_TYPE_OF (env->te_prev_subj_ns)) || (DV_UNAME == DV_TYPE_OF (env->te_prev_subj_ns))) &&
-	  ((DV_STRING != DV_TYPE_OF (env->te_prev_subj_loc)) ||
-	      ((DV_STRING != DV_TYPE_OF (env->te_prev_pred_ns)) && (DV_UNAME != DV_TYPE_OF (env->te_prev_pred_ns))) ||
-	      (DV_STRING != DV_TYPE_OF (env->te_prev_pred_loc)))) ||
-      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_s_o)) || (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_p_dt)))
-    sqlr_new_error ("22023", "SR601", "Argument 1 of http_ttl_triple() should be an array of special format");
   if (!iri_cast_and_split_ttl_qname (qi, subj, &tii.s.ns, &tii.s.loc, &tii.s.is_bnode))
     goto fail;			/* see below */
   if (!iri_cast_and_split_ttl_qname (qi, pred, &tii.p.ns, &tii.p.loc, &tii.p.is_bnode))
@@ -3446,8 +3627,10 @@ http_rdfxml_write_obj (dk_session_t * ses, ttl_env_t * env, query_instance_t * q
     {
     case DV_DATETIME:
       {
-	char temp[50];
-	dt_to_iso8601_string (obj_box_value, temp, sizeof (temp));
+	char temp[100];
+	int rb_type = ((DV_RDF == obj_dtp) ? ((rdf_box_t *) obj)->rb_type : RDF_BOX_ILL_TYPE);
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (obj_box_value, temp, sizeof (temp), mode);
 	session_buffered_write (ses, temp, strlen (temp));
 	break;
       }
@@ -3690,8 +3873,10 @@ http_nt_write_obj (dk_session_t * ses, nt_env_t * env, query_instance_t * qi, ca
     {
     case DV_DATETIME:
       {
-	char temp[50];
-	dt_to_iso8601_string (obj_box_value, temp, sizeof (temp));
+	char temp[100];
+	int rb_type = ((DV_RDF == obj_dtp) ? ((rdf_box_t *) obj)->rb_type : RDF_BOX_ILL_TYPE);
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (obj_box_value, temp, sizeof (temp), mode);
 	session_buffered_write_char ('"', ses);
 	session_buffered_write (ses, temp, strlen (temp));
 	session_buffered_write_char ('"', ses);
@@ -3715,7 +3900,7 @@ http_nt_write_obj (dk_session_t * ses, nt_env_t * env, query_instance_t * qi, ca
     case DV_XML_ENTITY:
       {
 	http_ttl_or_nt_write_xe (ses, qi, (xml_entity_t *) (obj_box_value),
-	    ((DV_RDF == obj_dtp) ? (RDF_BOX_DEFAULT_TYPE == ((rdf_box_t *) obj)->rb_type) : 1));
+	    ((DV_RDF == obj_dtp) ? (RDF_BOX_DEFAULT_TYPE == ((rdf_box_t *) obj)->rb_type) : 1), 0);
 	break;
       }
     case DV_DB_NULL:
@@ -3844,7 +4029,7 @@ caddr_t
 bif_http_ttl_value (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   query_instance_t *qi = (query_instance_t *) qst;
-  ttl_env_t *env = (ttl_env_t *) bif_arg (qst, args, 0, "http_ttl_value");
+  ttl_env_t *env = bif_ttl_env_arg (qst, args, 0, "http_ttl_value");
   caddr_t obj = bif_arg (qst, args, 1, "http_ttl_value");
   long pos = bif_long_arg (qst, args, 2, "http_ttl_value");
   dk_session_t *ses = http_session_no_catch_arg (qst, args, 3, "http_ttl_value");
@@ -3853,15 +4038,6 @@ bif_http_ttl_value (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   ttl_iriref_items_t tii;
   caddr_t err = NULL;
   memset (&tii, 0, sizeof (ttl_iriref_items_t));
-  if (DV_ARRAY_OF_POINTER != DV_TYPE_OF ((caddr_t) env) ||
-      (sizeof (ttl_env_t) != box_length ((caddr_t) env)) ||
-      (DV_DICT_ITERATOR != DV_TYPE_OF (env->te_used_prefixes)) ||
-      (((DV_STRING == DV_TYPE_OF (env->te_prev_subj_ns)) || (DV_UNAME == DV_TYPE_OF (env->te_prev_subj_ns))) &&
-	  ((DV_STRING != DV_TYPE_OF (env->te_prev_subj_loc)) ||
-	      ((DV_STRING != DV_TYPE_OF (env->te_prev_pred_ns)) && (DV_UNAME != DV_TYPE_OF (env->te_prev_pred_ns))) ||
-	      (DV_STRING != DV_TYPE_OF (env->te_prev_pred_loc)))) ||
-      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_s_o)) || (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_p_dt)))
-    sqlr_new_error ("22023", "SR601", "Argument 1 of http_ttl_value() should be an array of special format");
   obj_dtp = DV_TYPE_OF (obj);
   switch (obj_dtp)
     {
@@ -3871,8 +4047,12 @@ bif_http_ttl_value (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       obj_is_iri = 1;
       break;
     case DV_STRING:
-      obj_is_iri = (BF_IRI & box_flags (obj)) ? 1 : 0;
-      break;
+      {
+	obj_is_iri = (BF_IRI & box_flags (obj)) ? 1 : 0;
+	if (env->te_flags & TTL_ENV_HTML_OUTPUT)
+	  tii.o.uri = box_copy_tree (obj);
+	break;
+      }
     default:
       obj_is_iri = 0;
       break;
@@ -4199,8 +4379,10 @@ http_talis_json_write_literal_obj (dk_session_t * ses, query_instance_t * qi, ca
     {
     case DV_DATETIME:
       {
-	char temp[50];
-	dt_to_iso8601_string (obj_box_value, temp, sizeof (temp));
+	char temp[100];
+	int rb_type = ((DV_RDF == obj_dtp) ? ((rdf_box_t *) obj)->rb_type : RDF_BOX_ILL_TYPE);
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (obj_box_value, temp, sizeof (temp), mode);
 	session_buffered_write_char ('\"', ses);
 	session_buffered_write (ses, temp, strlen (temp));
 	session_buffered_write_char ('\"', ses);
@@ -4432,8 +4614,10 @@ http_ld_json_write_literal_obj (dk_session_t * ses, query_instance_t * qi, caddr
     {
     case DV_DATETIME:
       {
-	char temp[50];
-	dt_to_iso8601_string (obj_box_value, temp, sizeof (temp));
+	char temp[100];
+	int rb_type = ((DV_RDF == obj_dtp) ? ((rdf_box_t *) obj)->rb_type : RDF_BOX_ILL_TYPE);
+	int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb_type);
+	dt_to_iso8601_string_ext (obj_box_value, temp, sizeof (temp), mode);
 	session_buffered_write_char ('\"', ses);
 	session_buffered_write (ses, temp, strlen (temp));
 	session_buffered_write_char ('\"', ses);
@@ -4630,19 +4814,10 @@ caddr_t
 bif_sparql_rset_ttl_write_row (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   query_instance_t *qi = (query_instance_t *) qst;
-  ttl_env_t *env = (ttl_env_t *) bif_arg (qst, args, 1, "sparql_rset_ttl_write_row");
+  ttl_env_t *env = bif_ttl_env_arg (qst, args, 1, "sparql_rset_ttl_write_row");
   caddr_t *row = (caddr_t *) bif_arg (qst, args, 2, "sparql_rset_ttl_write_row");
   dk_session_t *ses;
   int colctr, colcount, need_semicolon;
-  if (DV_ARRAY_OF_POINTER != DV_TYPE_OF ((caddr_t) env) ||
-      (sizeof (ttl_env_t) != box_length ((caddr_t) env)) ||
-      (DV_DICT_ITERATOR != DV_TYPE_OF (env->te_used_prefixes)) ||
-      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_s_o)) ||
-      (DV_LONG_INT != DV_TYPE_OF (env->te_ns_count_p_dt)) ||
-      ((DV_LONG_INT != DV_TYPE_OF (env->te_out_ses)) && (DV_STRING_SESSION != DV_TYPE_OF (env->te_out_ses))
-	  && (DV_DB_NULL != DV_TYPE_OF (env->te_out_ses))) || (DV_ARRAY_OF_POINTER != DV_TYPE_OF ((caddr_t) (env->te_cols)))
-      || (box_length ((caddr_t) (env->te_cols)) % sizeof (ttl_iriref_t)))
-    sqlr_new_error ("22023", "SR605", "Argument 2 of sparql_rset_ttl_write_row() should be an array of special format");
   ses = env->te_out_ses;
   if (DV_DB_NULL == DV_TYPE_OF (ses))
     ses = bif_strses_or_http_ses_arg (qst, args, 0, "sparql_rset_ttl_write_row");
@@ -5038,8 +5213,9 @@ sparql_rset_xml_write_row_impl (query_instance_t * qi, dk_session_t * ses, caddr
 	      rb_complete (rb, qi->qi_trx, qi);
 	    if (DV_DATETIME == DV_TYPE_OF (rb->rb_box))
 	      {
-		char temp[50];
-		dt_to_iso8601_string (rb->rb_box, temp, sizeof (temp));
+		char temp[100];
+		int mode = DT_PRINT_MODE_XML | dt_print_flags_of_rb_type (rb->rb_type);
+		dt_to_iso8601_string_ext (rb->rb_box, temp, sizeof (temp), mode);
 		session_buffered_write (ses, temp, strlen (temp));
 	      }
 	    else

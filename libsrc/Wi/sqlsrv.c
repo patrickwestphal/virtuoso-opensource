@@ -76,6 +76,7 @@
 #include <dirent.h>
 #define FS_DIR_MODE	 (S_IRWXU | S_IRWXG)
 #endif
+#include "strlike.h"
 
 int mode_pass_change;
 
@@ -1020,6 +1021,8 @@ make_login_answer (client_connection_t * cli)
 int virtuoso_server_initialized = 0;	/* DBMS online */
 int prpc_forced_fixed_thread = 0;
 
+#define CHECK_ACL(client,v)
+
 caddr_t *
 sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t * info)
 {
@@ -1117,6 +1120,7 @@ sf_sql_connect (char *username, char *password, char *cli_ver, caddr_t * info)
   dk_free_box (password);
 
   CHANGE_THREAD_USER (user);
+  CHECK_ACL (client, 0);
 
   if (to_shutdown)
     {
@@ -1667,12 +1671,14 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name, caddr_t * params
   srv_stmt_t *stmt;
 
   CHANGE_THREAD_USER (cli->cli_user);
+  CHECK_ACL (client, /* no return value */ );
 
   if (!sf_sql_execute_check_params (stmt_id, text, cursor_name, params, current_ofs, options))
     {
       err = srv_make_new_error ("41000", "SR344", "Malformed RPC");
       goto report_rpc_format_error;
     }
+
 
   stmt = cli_get_stmt_access (cli, stmt_id, GET_EXCLUSIVE, &err);
   if (err)
@@ -2297,6 +2303,7 @@ CLI_WRAPPER (sf_sql_tp_transact, (short op, char *xid_str), (op, xid_str))
   srv_stmt_t *stmt = cli_get_stmt_access (cli, stmt_id, GET_EXCLUSIVE, NULL);
 
   CHANGE_THREAD_USER (cli->cli_user);
+  CHECK_ACL (client, /* no return value */ );
 
   if (!stmt || !stmt->sst_inst)
     {

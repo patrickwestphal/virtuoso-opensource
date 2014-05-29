@@ -734,6 +734,8 @@ ce_hash_register ()
     }
 }
 
+int pm_max_ces;
+
 void
 colin_init ()
 {
@@ -803,5 +805,5 @@ colin_init ()
   ce_op_register (CE_BITS | CE_IS_IRI, CE_DECODE, 1, ce_bits_int_sets_decode);
   ce_op_register (CE_BITS | CE_IS_IRI | CE_IS_64, CE_DECODE, 0, ce_bits_int_range_decode);
   ce_op_register (CE_BITS | CE_IS_IRI | CE_IS_64, CE_DECODE, 1, ce_bits_int_sets_decode);
-
+  pm_max_ces = PM_MAX_CES;
 }

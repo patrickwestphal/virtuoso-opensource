@@ -1915,6 +1915,21 @@ query_t *DBG_NAME (sql_proc_to_recompile) (DBG_PARAMS const char *string2, clien
   return qr;
 }
 
+int
+sql_text_is_inline_sparql (char *text)
+{
+  caddr_t **lexems;
+  int n_lexems;
+  lexems = sql_lex_analyze (text, NULL, 0, 1, SPARQL_L);
+  n_lexems = BOX_ELEMENTS_0 (lexems);
+  if (n_lexems == 1 && BOX_ELEMENTS (lexems[0]) == 3 && lexems[0][2] == SPARQL_L)
+    {
+      dk_free_tree ((box_t) lexems);
+      return 1;
+    }
+  dk_free_tree ((box_t) lexems);
+  return 0;
+}
 
 subq_compilation_t *
 sqlc_subq_compilation_1 (sql_comp_t * sc, ST * tree, char *name, int scrollables)
