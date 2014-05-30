@@ -2561,7 +2561,7 @@ sqlg_pop_sqs (sql_comp_t * sc, subq_source_t * sqs, data_source_t ** head, dk_se
     qn->src_continuations = NULL;
     if (qn != last)
       sql_node_append (head, qn);
-    if (IS_QN (qn, select_node_input_subq))
+    if (IS_QN (qn, select_node_input_subq) && !((select_node_t *) qn)->sel_subq_inlined)
       {
 	QNCAST (select_node_t, sel, qn);
 	sel->sel_set_ctr = sctr;
@@ -2575,6 +2575,17 @@ sqlg_pop_sqs (sql_comp_t * sc, subq_source_t * sqs, data_source_t ** head, dk_se
   qr->qr_nodes = dk_set_conc (sqr->qr_nodes, qr->qr_nodes);
   sqr->qr_nodes = NULL;
   return last;
+}
+
+int
+sqlg_in_inlined_subq (data_source_t * qn)
+{
+  for (qn = qn; qn; qn = qn_next (qn))
+    {
+      if (IS_QN (qn, select_node_input_subq))
+	return ((select_node_t *) qn)->sel_subq_inlined;
+    }
+  return 0;
 }
 
 int setp_is_high_card (setp_node_t * setp);
@@ -2593,21 +2604,23 @@ sqlg_inline_sqs_1 (sql_comp_t * sc, df_elt_t * dfe, subq_source_t * sqs, data_so
 	{
 	  QNCAST (fun_ref_node_t, fref, qn);
 	  table_source_t *rdr = (table_source_t *) qn_next (qn);
+	  select_node_t *sel;
 	  if (IS_QN (rdr, chash_read_input) && (fref->fnr_setp->setp_partitioned || setp_is_high_card (fref->fnr_setp))
-	      && qn_next_qn ((data_source_t *) rdr, (qn_input_fn) select_node_input_subq))
+	      && (sel = (select_node_t *) qn_next_qn ((data_source_t *) rdr, (qn_input_fn) select_node_input_subq))
+	      && !sel->sel_subq_inlined)
 	    {
 	      return sqlg_pop_sqs (sc, sqs, head, pre_code);
 	    }
 	}
-      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_is_streaming)
+      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_is_streaming && !sqlg_in_inlined_subq (qn))
 	{
 	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
 	}
-      if (IS_QN (qn, breakup_node_input))
+      if (IS_QN (qn, breakup_node_input) && !sqlg_in_inlined_subq (qn))
 	{
 	  return sqlg_pop_sqs (sc, sqs, head, pre_code);
 	}
-      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_distinct)
+      if (IS_QN (qn, setp_node_input) && ((setp_node_t *) qn)->setp_distinct && !sqlg_in_inlined_subq (qn))
 	{
 	  if (qn_next_qn (qn, (qn_input_fn) skip_node_input))
 	    break;
@@ -4310,6 +4323,7 @@ sqlg_parallel_ts_seq (sql_comp_t * sc, df_elt_t * dt_dfe, table_source_t * ts, f
       if (is_sdfg && IS_QN (ts, chash_read_input) && ts->ts_nth_slice)
 	{
 	  ts->ts_part_gby_reader = 1;
+	  ts->ts_aq_state = cc_new_instance_slot (sc->sc_cc);
 	  ts->ts_agg_node = (data_source_t *) fref;
 	  ts->ts_aq_qis = qi_ssl;
 	  ts->clb.clb_itcl = sdfg_itcl;
@@ -4366,6 +4380,8 @@ sqlg_parallel_ts_seq (sql_comp_t * sc, df_elt_t * dt_dfe, table_source_t * ts, f
 	stn->stn_slice_qis = prev_ts->ts_aq_qis;
 	stn->stn_nth = nth++;
 	stn->stn_coordinator_req_no = first_stn->stn_coordinator_req_no;
+	stn->stn_coordinator_id = first_stn->stn_coordinator_id;
+	stn->stn_aq = first_stn->stn_aq;
 	stn->stn_out_bytes = first_stn->stn_out_bytes;
 	stn->stn_qf = first_stn->stn_qf;
       }
@@ -6050,6 +6066,12 @@ sqlg_add_breakup_node (sql_comp_t * sc, data_source_t ** head, state_slot_t *** 
 	state_slot_t *v = ssl_new_inst_variable (sc->sc_cc, "brkc", ssl->ssl_sqt.sqt_dtp);
 	cv_artm (code, (ao_func_t) box_identity, v, ssl, NULL);
 	ssl_out[inx] = v;
+      }
+    if (inx >= n_per_set)
+      {
+	state_slot_t *prev = ssl_out[inx % n_per_set];
+	if (prev->ssl_dtp != DV_ANY && dtp_canonical[ssl->ssl_dtp] != dtp_canonical[prev->ssl_dtp])
+	  prev->ssl_dtp = DV_ANY;
       }
   }
   END_DO_BOX;

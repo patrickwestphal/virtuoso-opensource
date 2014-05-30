@@ -529,6 +529,7 @@ typedef struct query_instance_s
   int qi_set;			/*inx of current  value in vectored code vec.  Use for scalar ops like function call */
   int qi_n_sets;		/* when running code vec, no of sets */
   struct select_node_s *qi_branched_select;	/* if a exists/scalar subq made this qi as a parallel branch, this is the select node ending the subq.  Need to know for results merge */
+  int64 qi_rows_sent;
 #ifdef PLDBG
   void *qi_last_break;
   int qi_step;
@@ -1898,6 +1899,7 @@ typedef struct _cl_aq_ctx
   char claq_is_allocated;	/* if copy by dfg thread starting another */
 } cl_aq_ctx_t;
 
+#define QI_ACL_CK_ROWS(qi) 0
 
 typedef struct client_connection_s
 {

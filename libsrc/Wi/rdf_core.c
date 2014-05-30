@@ -747,6 +747,8 @@ ttlp_reset_stacks (ttlp_t * ttlp)
     dk_free_tree ((box_t) dk_set_pop (&(ttlp->ttlp_saved_uris)));
   while (NULL != ttlp->ttlp_unused_seq_bnodes)
     dk_free_tree ((box_t) dk_set_pop (&(ttlp->ttlp_unused_seq_bnodes)));
+  dk_free_tree (ttlp->ttlp_last_q_save);
+  ttlp->ttlp_last_q_save = NULL;
   dk_free_tree (ttlp->ttlp_last_complete_uri);
   ttlp->ttlp_last_complete_uri = NULL;
   dk_free_tree (ttlp->ttlp_subj_uri);

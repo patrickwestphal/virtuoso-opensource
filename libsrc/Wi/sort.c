@@ -174,6 +174,18 @@ setp_top_change (setp_node_t * setp, caddr_t * inst, cl_op_t * top_clo, dk_sessi
 {
 }
 
+int enable_top_print = 0;
+
+void
+top_print (caddr_t * val, char *text)
+{
+  if (enable_top_print)
+    {
+      printf ("%s ");
+      sqlo_box_print ((caddr_t) val);
+    }
+}
+
 
 #define MV(to, from) \
   {if (copy) to = box_copy_tree ((caddr_t)from); else { to = from; from = NULL;}}
@@ -194,10 +206,11 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
   if (top_clo->_.top.is_full)
     {
       caddr_t last = clo->_.top.is_full ? (caddr_t) clo->_.top.values : clo->_.top.values[clo->_.top.fill - 1];
-      if (top_is_better (last, top_clo->_.top.values, clo->_.top.cmp))
+      if (clo->_.top.is_full && top_is_better (last, top_clo->_.top.values, clo->_.top.cmp))
 	{
 	  caddr_t oldv = (caddr_t) top_clo->_.top.values;
 	  top_clo->_.top.values = (caddr_t *) box_copy_tree (last);
+	  top_print (top_clo->_.top.values, "update full");
 	  changed = 1;
 	  setp_top_change (setp, inst, top_clo, ser);
 	  mutex_leave (&top_clo->_.top.mtx);
@@ -210,6 +223,7 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
       caddr_t oldv = (caddr_t) top_clo->_.top.values;
       top_clo->_.top.is_full = 1;
       top_clo->_.top.values = box_copy_tree ((caddr_t) clo->_.top.values);
+      top_print (top_clo->_.top.values, "first full");
       changed = 1;
       setp_top_change (setp, inst, top_clo, ser);
       mutex_leave (&top_clo->_.top.mtx);
@@ -264,6 +278,7 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
 	      caddr_t *oldv = top_clo->_.top.values;
 	      top_clo->_.top.values = top_clo->_.top.values[top_clo->_.top.fill - 1];
 	      top_clo->_.top.is_full = 1;
+	      top_print (top_clo->_.top.values, "init");
 	      setp_top_change (setp, inst, top_clo, ser);
 	      mutex_leave (&top_clo->_.top.mtx);
 	      oldv[top_clo->_.top.cnt - 1] = NULL;
@@ -279,6 +294,29 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
 end:
   return 0;
 }
+
+
+caddr_t string_to_dt_box (char *str);
+
+#if 0
+void
+top_arr_ck (caddr_t ** arr, int fill)
+{
+  int inx, rc;
+  static caddr_t dt;
+  if (!dt)
+    dt = string_to_dt_box ("2010-09-01 00:44:22");
+  for (inx = 0; inx < fill - 1; inx++)
+    {
+      rc = cmp_boxes (arr[inx][0], arr[inx + 1][0], NULL, NULL);
+      if (DVC_GREATER == 7 & rc)
+	bing ();
+    }
+  if (DVC_LESS == cmp_boxes (arr[fill - 1][0], dt, NULL, NULL))
+    bing ();
+}
+#endif
+
 
 #undef MV
 
@@ -300,6 +338,7 @@ setp_top_oby_changed (setp_node_t * setp, caddr_t * inst, int top)
   memzero (&clo, sizeof (clo));
   qi->qi_set = 0;
   fill = unbox (qst_get (inst, setp->setp_row_ctr));
+  /*top_arr_ck (arr, fill); */
   clo._.top.id = id;
   clo._.top.cmp = setp->setp_key_is_desc && ORDER_DESC & (ptrlong) setp->setp_key_is_desc->data;
   if (fill < top)

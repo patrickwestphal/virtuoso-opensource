@@ -388,7 +388,10 @@ sqlo_dfe_print (df_elt_t * dfe, int offset)
 	      }
 	    DO_BOX (df_elt_t *, out, inx, dfe->_.sub.dt_out)
 	    {
-	      sqlo_dfe_print (out, offset + OFS_INCR);
+	      if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (out))
+		sqlo_print (("- "));
+	      else
+		sqlo_dfe_print (out, offset + OFS_INCR);
 	    }
 	    END_DO_BOX;
 	  }
@@ -714,4 +717,10 @@ void
 dfelp (dk_set_t s)
 {
   sqlo_dfe_list_print (s, 0);
+}
+
+void
+pbox (caddr_t x)
+{
+  sqlo_box_print (x);
 }

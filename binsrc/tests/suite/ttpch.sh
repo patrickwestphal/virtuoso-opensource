@@ -48,8 +48,8 @@ dbgen=$dbgendir/dbgen
 bibm=$VIRTUOSO_TEST/../bibm
 
 LOCAL=$PORT
-GENERATE_PORTS 1
-REMOTE=$GENERATED_PORT
+#GENERATE_PORTS 1
+#REMOTE=$GENERATED_PORT
 if [ $REMOTE -eq $LOCAL ]
 then
     REMOTE=`expr $LOCAL + 1`

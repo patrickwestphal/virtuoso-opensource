@@ -236,6 +236,7 @@ extern int enable_cm_trace;
 extern int enable_listener_prio;
 extern int enable_cll_nb_read;
 extern int enable_high_card_part;
+extern int64 c_setp_partition_threshold;
 extern int enable_dt_hash;
 extern int enable_hash_fill_reuse;
 extern int enable_lp;
@@ -1765,6 +1766,7 @@ stat_desc_t dbf_descs[] = {
   {"enable_lp", &enable_lp, SD_INT32},
   {"enable_hash_fill_reuse", &enable_hash_fill_reuse, SD_INT32},
   {"enable_high_card_part", (long *) &enable_high_card_part, SD_INT32},
+  {"c_setp_partition_threshold", &c_setp_partition_threshold},
   {"enable_stream_gb", (long *) &enable_stream_gb, SD_INT32},
   {"enable_qrc", &enable_qrc, SD_INT32},
   {"qrc_tolerance", &qrc_tolerance, SD_INT32},
@@ -4412,9 +4414,9 @@ bif_db_activity (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   db_activity_t *da = 0 == strcmp (acct, "http") ? &http_activity : &qi->qi_client->cli_activity;
   caddr_t res;
   if ((flag & 1))
-    res = list (8, box_num (da->da_random_rows), box_num (da->da_seq_rows), box_num (da->da_lock_waits),
+    res = list (9, box_num (da->da_random_rows), box_num (da->da_seq_rows), box_num (da->da_lock_waits),
 	box_num (da->da_lock_wait_msec), box_num (da->da_disk_reads), box_num (da->da_spec_disk_reads),
-	box_num (da->da_cl_messages), box_num (da->da_cl_bytes));
+	box_num (da->da_cl_messages), box_num (da->da_cl_bytes), box_num (da->da_same_seg));
   else
     {
       char txt[200];
@@ -4626,14 +4628,16 @@ bif_stat_export (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   END_DO_HT;
   DO_HT (ptrlong, id, dbe_key_t *, key, sc->sc_id_to_key)
   {
+    id_hash_t *p_hash;
     caddr_t p_arr = NULL;
-    if (key->key_p_stat)
+    p_hash = (id_hash_t *) gethash ((void *) (ptrlong) key->key_id, empty_ric->ric_p_stat);
+    if (p_hash)
       {
 	dk_set_t psts = NULL;
 	id_hash_iterator_t hit;
 	float *arr;
 	caddr_t *k;
-	id_hash_iterator (&hit, key->key_p_stat);
+	id_hash_iterator (&hit, p_hash);
 	while (hit_next (&hit, (caddr_t *) & id, (caddr_t *) & arr))
 	  {
 	    dk_set_push (&psts, list (5, sc_data_to_ext (qi, box_iri_id (*(iri_id_t *) id)), box_float (arr[0]), box_float (arr[1]),
@@ -4715,7 +4719,7 @@ bif_stat_import (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	  fs[1] = unbox_float (p[2]);
 	  fs[2] = unbox_float (p[3]);
 	  fs[3] = unbox_float (p[4]);
-	  id_hash_set (key->key_p_stat, (caddr_t) iid, (caddr_t) & fs);
+	  ric_set_p_stat (empty_ric, key, iid, fs);
 	}
 	END_DO_BOX;
       }
@@ -4726,7 +4730,7 @@ bif_stat_import (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     ric = rdf_name_to_ctx (rc[0]);
     if (!ric)
       continue;
-    DO_BOX (caddr_t *, smp, inx, rc[1])
+    DO_BOX (caddr_t *, smp, inx2, rc[1])
     {
       caddr_t k = sc_ext_to_data (qi, smp[0]);
       tb_sample_t smpl;

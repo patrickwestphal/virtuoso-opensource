@@ -412,7 +412,7 @@ state_slot_t *
 sqlc_new_temp (sql_comp_t * sc, const char *name, dtp_t dtp)
 {
   state_slot_t *out;
-  if (sc->sc_cc->cc_query->qr_proc_vectored)
+  if (sc->sc_cc->cc_query && sc->sc_cc->cc_query->qr_proc_vectored)
     return ssl_new_vec (sc->sc_cc, name, dtp);
   if (sc->sc_temp_in_qst)
     {
@@ -2565,6 +2565,10 @@ cv_free (code_vec_t cv)
 	  {
 	    ha_free ((hash_area_t *) ins->_.pred.cmp);
 	  }
+	else if (bop_comp_func == ins->_.pred.func)
+	  dk_free ((box_t) ins->_.pred.cmp, sizeof (bop_comparison_t));
+	else if (subq_comp_func == ins->_.pred.func)
+	  dk_free ((box_t) ins->_.pred.cmp, sizeof (subq_pred_t));
 	else
 	  dk_free ((box_t) ins->_.pred.cmp, -1);
       }

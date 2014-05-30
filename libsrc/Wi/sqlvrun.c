@@ -2298,7 +2298,7 @@ qst_copy (caddr_t * inst, state_slot_t ** copy_ssls, ssl_index_t * cp_sets)
       for (inx = 0; inx < box_length (cp_sets) / sizeof (ssl_index_t); inx++)
 	qst_sets_copy ((caddr_t *) qi, (caddr_t *) cpqi, cp_sets[inx], cp_sets[inx] + 1);
     }
-  if (!copy_ssls)
+  if (0 && !copy_ssls)
     copy_ssls = qr->qr_qp_copy_ssls;
   DO_BOX (state_slot_t *, ssl, sinx, copy_ssls)
   {
@@ -2558,13 +2558,20 @@ ts_aq_final (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
 void
 qi_qp_anytime (caddr_t * inst, query_t * qr)
 {
-  /* add up parallel aggregations after anytime */
+  /* add up parallel aggregations after anytime.  If partitioned gby and sdfg, set the qi's to be not continuable, in this case the fref successor will read the partitions  */
   DO_SET (table_source_t *, ts, &qr->qr_nodes)
   {
     if (IS_TS (ts) && ts->ts_aq_state && TS_AQ_COORD == QST_INT (inst, ts->ts_aq_state))
       {
-	QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD_AQ_WAIT;
-	ts_aq_final (ts, inst, NULL);
+	if (!ts->ts_in_sdfg)
+	  {
+	    QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD_AQ_WAIT;
+	    ts_aq_final (ts, inst, NULL);
+	  }
+	else
+	  {
+	    return;
+	  }
       }
   }
   END_DO_SET ();
@@ -2759,7 +2766,8 @@ ts_thread (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int aq_state,
       qn_init ((table_source_t *) ts->ts_agg_node, cp_inst);
       cp_qi->qi_n_sets = n_sets;
       fun_ref_set_defaults_and_counts (fref, cp_inst);
-      fun_ref_reset_setps (fref, cp_inst);
+      if (!ts->ts_in_sdfg)
+	fun_ref_reset_setps (fref, cp_inst);
     }
   if (itc->itc_param_order)
     {
@@ -2976,7 +2984,7 @@ ts_split_sets (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_par
   QNCAST (query_instance_t, qi, itc->itc_out_state);
   double usecs, n_ways_d;
   int n_sets = itc->itc_n_sets, chunk;
-  uint32 n_ways;
+  uint32 n_ways, inc_res;
   int ctr = 0, inx;
   qst_set (inst, ts->ts_aq, NULL);
   usecs = itc->itc_n_sets * ts->ts_cost_after * compiler_unit_msecs * 1000;
@@ -2991,9 +2999,11 @@ ts_split_sets (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_par
     n_ways = n_sets;
   if (n_ways < 2)
     return itc_reset (itc);
-  n_ways = 1 + qi_inc_branch_count (qi, enable_qp, n_ways - 1);
+  n_ways = 1 + (inc_res = qi_inc_branch_count (qi, enable_qp, n_ways - 1));
   if (n_ways < 2)
     return itc_reset (itc);
+  if (n_ways > enable_qp)
+    n_ways = enable_qp;
   if (n_ways > n_sets)
     n_ways = n_sets;
   chunk = n_sets / n_ways;
@@ -3044,7 +3054,7 @@ tsp_next_col (ts_split_state_t * tsp, it_cursor_t * itc, buffer_desc_t ** buf_re
       {
 	qi_inc_branch_count ((query_instance_t *) itc->itc_out_state, INT32_MAX, 1);
 	tsp->tsp_n_parts++;
-	if (tsp->tsp_n_parts > 90)
+	if (tsp->tsp_n_parts > sdfg_max_slices - 3)
 	  is_last = 1;
       }
     rows_per_part = (tsp->tsp_card_est / rows_per_seg) / tsp->tsp_org_n_parts;
@@ -3367,7 +3377,7 @@ ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
 {
   /* Recognize case where sdfg must be started.  Run the complete sdfg. */
   caddr_t **qis;
-  int last = -1, inx;
+  int last = -1, inx, ts_aq_mode;
   QNCAST (query_instance_t, qi, inst);
   buffer_desc_t *buf;
   client_connection_t *cli = qi->qi_client;
@@ -3377,6 +3387,7 @@ ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
     return ts_initial_itc_1 (ts, inst, itc);
   if (!qi->qi_is_branch && !qi->qi_root_id)
     qi_assign_root_id (qi);
+  ts_reset_qis (ts, inst, QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index));
   ts_sdfg_init (ts, inst);
   buf = ts_initial_itc_1 (ts, inst, itc);
   qis = QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index);
@@ -3385,13 +3396,21 @@ ts_initial_itc (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
   DO_BOX (caddr_t *, slice_qi, inx, qis) if (slice_qi)
     last = inx;
   END_DO_BOX;
+  ts_aq_mode = itc->itc_landed ? TS_AQ_PLACED : TS_AQ_FIRST;
   if (!ts->ts_branch_by_value)
     {
-      itc_register_and_leave (itc, buf);
+      if (itc->itc_landed)
+	{
+	  itc_register_and_leave (itc, buf);
+	}
+      else
+	page_leave_outside_map (buf);
     }
   QST_BOX (caddr_t, inst, ts->ts_order_cursor->ssl_index) = NULL;	/* the other thread will take the itc */
-  ts_thread (ts, inst, itc, TS_AQ_PLACED, last + 1);
+  ts_thread (ts, inst, itc, ts_aq_mode, last + 1);
   ts_sdfg_run (ts, inst);
+  if (last > 0)
+    qi_inc_branch_count (qi, 10000, -last);
   if (ts->ts_agg_node && IS_QN (ts->ts_agg_node, fun_ref_node_input))
     {
       QNCAST (fun_ref_node_t, fref, ts->ts_agg_node);
@@ -3860,6 +3879,8 @@ cha_mergeable (chash_t * ch1, chash_t * ch2)
     {
       if (ch1->cha_sqt[inx].sqt_dtp != ch2->cha_sqt[inx].sqt_dtp)
 	return 0;
+      if (DV_ARRAY_OF_POINTER == ch1->cha_sqt[inx].sqt_dtp)
+	return 0;
     }
   return 1;
 }
@@ -4040,6 +4061,22 @@ vec_fref_group_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * ins
 	int set_in_sctr = agg_set_no ? qst_vec_get_int64 (inst, agg_set_no, set) : set;
 	((query_instance_t *) branch)->qi_set = set_in_sctr;
 	fref_setp_trace (fref, branch);
+
+	DO_SET (setp_node_t *, setp, &fref->fnr_setps)
+	{
+	  hash_area_t *ha = setp->setp_ha;
+	  if (HA_GROUP != ha->ha_op)
+	    continue;
+	  if (1 == n_sets && (tree = (index_tree_t *) (SSL_REF == ha->ha_tree->ssl_type
+		      || SSL_VEC == ha->ha_tree->ssl_type ? sslr_qst_get (branch, (state_slot_ref_t *) ha->ha_tree,
+			  0) : qst_get (branch, ha->ha_tree))))
+	    {
+	      if (tree->it_hi && tree->it_hi->hi_chash)
+		chash_to_memcache (inst, tree, ha);
+	    }
+	}
+	END_DO_SET ();
+
 	fref_setp_flush (fref, branch);
 	qi->qi_set = set_in_sctr;
 	DO_SET (setp_node_t *, setp, &fref->fnr_setps)
@@ -4185,139 +4222,4 @@ ts_aq_result (table_source_t * ts, caddr_t * inst)
     }
   else
     ts_merge_subq_branches (ts, inst);
-}
-
-
-int
-qi_fref_continuable (caddr_t * inst, dk_set_t nodes)
-{
-  DO_SET (table_source_t *, ts, &nodes)
-  {
-    if (IS_TS (ts) && ts->ts_aq)
-      {
-	int state = QST_INT (inst, ts->ts_aq_state);
-	if (TS_AQ_COORD_AQ_WAIT == state)
-	  return 0;
-      }
-    if (SRC_IN_STATE (ts, inst))
-      return 1;
-  }
-  END_DO_SET ();
-  return 0;
-}
-
-
-#define FST_INIT 0
-#define FST_LOCAL 1
-#define FST_LOCAL_DONE 2
-
-
-void
-fun_ref_streaming_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
-{
-  int n_sets, req_no;
-  table_source_t *ts = fref->fnr_stream_ts;
-  QNCAST (query_instance_t, qi, inst);
-  QN_N_SETS (fref, inst);
-  n_sets = MAX (1, qi->qi_n_sets);
-  if (fref->src_gen.src_out_fill)
-    QST_INT (inst, fref->src_gen.src_out_fill) = n_sets;
-
-  for (;;)
-    {
-      int fs_state = QST_INT (inst, fref->fnr_stream_state);
-      if (state)
-	{
-	  if (ts)
-	    {
-	      qst_set (inst, ts->ts_aq, NULL);
-	      qst_set (inst, ts->ts_aq_qis, NULL);
-	    }
-	  fs_state = QST_INT (inst, fref->fnr_stream_state) = FST_INIT;
-	}
-      else
-	{
-	  caddr_t err = NULL;
-	  async_queue_t *aq = ts ? (async_queue_t *) qst_get (inst, ts->ts_aq) : NULL;
-	  caddr_t *branch = QST_BOX (caddr_t *, inst, fref->fnr_current_branch);
-	  if (aq)
-	    {
-	      if (branch != inst)
-		{
-		  if (qi_fref_continuable (branch, fref->fnr_select_nodes))
-		    aq_request (aq, aq_qr_func, list (4, box_copy ((caddr_t) branch), box_num ((ptrlong) ts->src_gen.src_query),
-			    box_num (qi->qi_trx->lt_rc_w_id ? qi->qi_trx->lt_rc_w_id : qi->qi_trx->lt_w_id),
-			    box_num ((ptrlong) qi->qi_client->cli_csl)));
-		  else
-		    {
-		      bing ();
-		      /*fnr_branch_done (fref, inst, branch) */ ;
-		    }
-		}
-	      if (!aq->aq_requests->ht_count && FST_LOCAL_DONE == fs_state)
-		{
-		  if (prof_on)
-		    qi_add_stats ((QI *) inst, (QI **) QST_GET_V (inst, ts->ts_aq_qis), fref->src_gen.src_query);
-		  qst_set (inst, ts->ts_aq_qis, NULL);
-		  qst_set (inst, ts->ts_aq, NULL);
-		  SRC_IN_STATE (fref, inst) = NULL;
-		  return;
-		}
-	      branch = (caddr_t *) aq_wait_any (aq, &err, FST_LOCAL_DONE == fs_state, &req_no);
-	      dk_free_box ((caddr_t) branch);	/* drop the ref count, to compensate for the copy in the aq_request */
-	      if (AQR_RUNNING == (ptrlong) err)
-		QST_BOX (caddr_t *, inst, fref->fnr_current_branch) = inst;
-	      else if (err)
-		sqlr_resignal (err);
-	      else
-		{
-		  QST_BOX (caddr_t *, inst, fref->fnr_current_branch) = branch;
-		  goto result;
-		}
-	    }
-	  else if (FST_LOCAL_DONE == fs_state)
-	    {
-	      SRC_IN_STATE (fref, inst) = NULL;
-	      return;
-	    }
-	}
-      QR_RESET_CTX
-      {
-	if (FST_INIT == fs_state)
-	  {
-	    fs_state = QST_INT (inst, fref->fnr_stream_state) = FST_LOCAL;
-	    qn_input (fref->fnr_select, inst, state);
-	  }
-	else
-	  {
-	    if (qi_fref_continuable (inst, fref->fnr_select_nodes))
-	      {
-		QST_INT (inst, ts->ts_aq_state) = 0;
-		cl_fref_resume (fref, inst);
-	      }
-	  }
-	/* the continue returned, meaning locaal at end.  Set the branching ts so it will not try to sync since the fref does that */
-	QST_INT (inst, fref->fnr_stream_state) = FST_LOCAL_DONE;
-	QST_BOX (caddr_t *, inst, fref->fnr_current_branch) = inst;
-	if (ts)
-	  {
-	    SRC_IN_STATE (ts, inst) = NULL;
-	    QST_INT (inst, ts->ts_aq_state) = 0;
-	  }
-      }
-      QR_RESET_CODE
-      {
-	POP_QR_RESET;
-	QST_BOX (caddr_t *, inst, fref->fnr_current_branch) = inst;
-	if (RST_GB_ENOUGH == reset_code)
-	  goto result;
-	longjmp_splice (THREAD_CURRENT_THREAD->thr_reset_ctx, RST_ERROR);
-      }
-      END_QR_RESET;
-
-    result:
-      SRC_IN_STATE (fref, inst) = inst;
-      qn_send_output ((data_source_t *) fref, inst);
-      state = NULL;
-    }
 }

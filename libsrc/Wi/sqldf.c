@@ -341,6 +341,12 @@ sqlo_df_from (sqlo_t * so, df_elt_t * tb_dfe, ST ** from)
 	  }
 	so->so_is_top_and = 0;
       }
+    if (ot->ot_enclosing_where_cond)
+      {
+	so->so_is_top_and = 1;
+	sqlo_df (so, ot->ot_enclosing_where_cond);
+	ot->ot_enclosing_where_cond = NULL;
+      }
   }
   END_DO_SET ();
 }
@@ -1365,8 +1371,7 @@ sqlo_dt_nth_col (sqlo_t * so, df_elt_t * super, df_elt_t * dt_dfe, int inx, df_e
 	      sqlo_dt_col_card (so, col_dfe, exp);
 	      sqt_max_desc (&col_dfe->dfe_sqt, &exp->dfe_sqt);
 	    }
-	  if (so->so_place_code_forr_cond)
-	    sqlo_post_oby_ref (so, dt_dfe, exp, inx);
+	  sqlo_post_oby_ref (so, dt_dfe, exp, inx);
 
 	  col_alias = ((ST **) (dt_dfe->_.sub.ot->ot_left_sel->_.select_stmt.selection))[inx]->_.as_exp.name;
 	  exp_alias = sqlo_df (so, (ST *) t_list (3, COL_DOTTED, dt_dfe->_.sub.ot->ot_new_prefix, col_alias));
@@ -1498,7 +1503,7 @@ sqlo_hash_fill_dt_place_col (df_elt_t * dt_dfe, df_elt_t * col)
     dt_dfe->_.sub.dt_out = (df_elt_t **) t_box_append_1 ((caddr_t) out, (caddr_t) ref_dfe);
   if (!is_name)
     tree->_.select_stmt.selection =
-	(caddr_t *) t_box_append_1 ((caddr_t) tree->_.select_stmt.selection, (caddr_t) listst (5, BOP_AS, ref_dfe->dfe_tree, NULL,
+	(caddr_t *) t_box_append_1 ((caddr_t) tree->_.select_stmt.selection, (caddr_t) t_listst (5, BOP_AS, ref_dfe->dfe_tree, NULL,
 	    t_box_string (tmp), NULL, NULL));
 }
 
@@ -1690,11 +1695,12 @@ dfe_skip_to_min_card (df_elt_t * place, df_elt_t * super, df_elt_t * dfe)
 {
   /* when placing a func, see if some place later in the query has lower card */
   df_elt_t *best = place, *org_place = place;
-  float best_arity = 1, arity = 1, ref_arity = 1;
+  float best_arity, arity;
   if (!enable_min_card)
     return place;
   if (!dfe->dfe_tables)
     return place;
+  best_arity = arity = dfe_arity_with_supers (org_place);
   while (place)
     {
       if (dfe_is_super (place, super))
@@ -1724,10 +1730,23 @@ dfe_skip_to_min_card (df_elt_t * place, df_elt_t * super, df_elt_t * dfe)
 	{
 	  if (place->_.setp.is_being_placed)
 	    goto over;
-	  ref_arity = dfe_arity_with_supers (org_place);
 	  if (!place->_.setp.gb_card)
 	    place->_.setp.gb_card = dfe_group_by_card (place);
-	  arity *= MIN (0.8, place->_.setp.gb_card / ref_arity);
+	  arity *= MIN (0.8, place->_.setp.gb_card);
+	}
+      else if (DFE_ORDER == place->dfe_type)
+	{
+	  ptrlong top_cnt;
+	  if (place->_.setp.is_being_placed)
+	    goto over;
+	  top_cnt = place->_.setp.top_cnt;
+	  if (top_cnt)
+	    {
+	      place->dfe_arity = arity > top_cnt ? top_cnt / arity : 1;
+	    }
+	  else
+	    place->dfe_arity = 1;
+	  arity *= MIN (0.8, place->dfe_arity);
 	}
       if (arity < best_arity)
 	{
@@ -3511,6 +3530,7 @@ dfe_table_set_by_best (df_elt_t * tb_dfe, index_choice_t * ic, float true_arity,
   df_elt_t *tpred;
   tb_dfe->_.table.key = ic->ic_key;
   tb_dfe->_.table.is_unique = ic->ic_is_unique;
+  tb_dfe->_.table.is_arity_sure = ic->ic_leading_constants;
   tb_dfe->dfe_unit = ic->ic_unit;
   tb_dfe->dfe_arity = true_arity != -1 ? true_arity : ic->ic_arity;
   tb_dfe->_.table.inx_card = ic->ic_inx_card;
@@ -5636,6 +5656,7 @@ sqlo_try_hash (sqlo_t * so, df_elt_t * dfe, op_table_t * super_ot, float *score_
       fill_dfe = (df_elt_t *) t_box_copy ((caddr_t) dfe);
       fill_dfe->_.table.top_pred = NULL;
       fill_dfe->_.table.inx_op = NULL;
+      fill_dfe->_.table.index_path = NULL;
       fill_dfe->_.table.hash_role = HR_FILL;
       fill_dfe->_.table.is_hash_filler_unique = dfe->_.table.is_unique;
       sqlo_hash_fill_extract_or (so, super_ot, dfe, &org_preds);
@@ -5677,6 +5698,7 @@ sqlo_try_hash (sqlo_t * so, df_elt_t * dfe, op_table_t * super_ot, float *score_
       dfe->_.table.single_locus = 1;
     }
   dfe->_.table.inx_op = NULL;	/* if hash is better, no inx op */
+  dfe->_.table.index_path = NULL;	/* if hash is better, no inx path */
   dfe->_.table.reuses_hash_filler = dfr != NULL;
   dfe->_.table.hash_filler_reuse = dfr;
   dfe->_.table.hash_role = HR_REF;
@@ -7224,8 +7246,7 @@ sqlo_layout_1 (sqlo_t * so, op_table_t * ot, int is_top)
 		    int old_mode = so->so_place_code_forr_cond;
 		    sqlo_set_select_mode (so, ot, sel_dfe, top_exp);
 		    sqlo_place_exp (so, select_super, sel_dfe);
-		    if (so->so_place_code_forr_cond)
-		      sqlo_post_oby_ref (so, ot->ot_work_dfe, sel_dfe, inx);
+		    sqlo_post_oby_ref (so, ot->ot_work_dfe, sel_dfe, inx);
 		    so->so_place_code_forr_cond = old_mode;
 		  }
 	      }

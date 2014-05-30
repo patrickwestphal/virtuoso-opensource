@@ -3,11 +3,6 @@
 #
 #
 
-include ../../../../Makeconfig
-include ../../../../Makerules
-include ../../../../virtappl.inc
-include ../../../../cplusplus.inc
-
 # Current values for MACHINE are:  ATT, DOS, HP, IBM, ICL, MVS, 
 #                                  SGI, SUN, U2200, VMS, LINUX, WIN32
 
@@ -31,7 +26,7 @@ CFLAGS+= -I$(TOP)/libsrc/Wi -I$(TOP)/libsrc/plugin -I$(TOP)/binsrc/tests
 LDFLAGS+= -L$(TOP)/lib
 OBJ     = .o
 EXE     =
-LIBS    = -lm -lwic -ldk1t -lthrs -lutil2  -lssl -lcrypto
+LIBS    = -lm -lssl -lcrypto
 VERSION=2
 RELEASE=6
 PATCH=0
@@ -41,7 +36,7 @@ NEW_BUILD=`expr ${BUILD} + 1`
 PROG1 = dbgen$(EXE)
 PROG2 = qgen$(EXE)
 PROG3 = load_tbl$(EXE_SUFFIX)
-PROGS = $(PROG1) $(PROG2) $(PROG3)
+PROGS = $(PROG1) $(PROG2) 
 #
 HDR1 = dss.h rnd.h config.h dsstypes.h shared.h bcd2.h rng64.h release.h
 HDR2 = tpcd.h permute.h

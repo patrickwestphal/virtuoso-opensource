@@ -107,6 +107,7 @@ sdfg_hs_loc_ts (sql_comp_t * sc, hash_source_t * hs)
     if (key_ssl == part_ssl)
       break;
     nth_part++;
+
   }
   END_DO_SET ();
   hs_part_ssl = hs->hs_ref_slots[nth_part];
@@ -187,9 +188,12 @@ ts_sdfg_run (table_source_t * ts, caddr_t * inst)
   cll_in_box_t *rcv_clib = (cll_in_box_t *) clrg->clrg_clibs->data;
   int save_sl = qi->qi_is_dfg_slice;
   caddr_t **qis = QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index);
+  if ((!IS_TS (ts) && !IS_QN (ts, chash_read_input)) || !ts->ts_aq_state)
+    GPF_T1 ("in ts sdfg run, the ts is not a ts or chash reader or does not have ts aq state");
   if (!stn)
     stn = (stage_node_t *) qf_first_qn (ts->ts_qf, (qn_input_fn) stage_node_input);
   qi->qi_is_dfg_slice = 0;
+  QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD;
   for (;;)
     {
       caddr_t err = NULL;
@@ -198,7 +202,10 @@ ts_sdfg_run (table_source_t * ts, caddr_t * inst)
       DO_BOX (caddr_t *, slice_qi, inx, qis)
       {
 	if (slice_qi)
-	  QST_INT (slice_qi, stn->stn_out_bytes) = 0;
+	  {
+	    qst_set_long (slice_qi, stn->stn_coordinator_req_no, rcv_clib->clib_req_no);
+	    QST_INT (slice_qi, stn->stn_out_bytes) = 0;
+	  }
       }
       END_DO_BOX;
       IN_CLL;
@@ -217,6 +224,7 @@ ts_sdfg_run (table_source_t * ts, caddr_t * inst)
 	break;
     }
   qi->qi_is_dfg_slice = save_sl;
+  QST_INT (inst, ts->ts_aq_state) = TS_AQ_NONE;
 }
 
 void itcl_dfg_init (itc_cluster_t * itcl, query_frag_t * qf, caddr_t * inst);
@@ -239,17 +247,37 @@ ts_sdfg_init (table_source_t * ts, caddr_t * inst)
 }
 
 void
-ts_sliced_reader (table_source_t * ts, caddr_t * inst)
+ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha)
 {
   /* processing high card partitioned gby results, thread per partition.  If ends in a oby or non partitioned gby, add up at the end. */
+  index_tree_t **slice_trees;
   QNCAST (QI, qi, inst);
+  stage_node_t *stn = (stage_node_t *) qf_first_qn (ts->ts_qf, (qn_input_fn) stage_node_input);
   fun_ref_node_t *fref;
   caddr_t **qis = QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index);
   int inx, n_branches = 0;
+  index_tree_t *tree = (index_tree_t *) qst_get (inst, ha->ha_tree);
+  if (!tree || !tree->it_hi || !(slice_trees = tree->it_hi->hi_slice_trees))
+    return;
   DO_BOX (caddr_t *, slice_inst, inx, qis)
   {
     if (slice_inst)
       {
+	QNCAST (QI, slice_qi, slice_inst);
+	if (slice_qi->qi_slice >= clm_all->clm_distinct_slices)
+	  continue;
+	QST_INT (slice_inst, ts->ts_in_sdfg) = 1;
+	SRC_IN_STATE (ts, slice_inst) = slice_inst;
+	n_branches++;
+      }
+    else if (inx < BOX_ELEMENTS (slice_trees) && slice_trees[inx] && slice_trees[inx] != tree)
+      {
+	/* need slice qi for reading a slice tree for which there is no qi now since the qi was not present on the last batch */
+	caddr_t *slice_inst = qf_slice_qi (stn->stn_qf, inst, 0);;
+	QNCAST (QI, slice_qi, slice_inst);
+	qis[inx] = slice_inst;
+	slice_qi->qi_slice = inx;
+	qst_set (slice_inst, ha->ha_tree, box_copy ((caddr_t) slice_trees[inx]));
 	QST_INT (slice_inst, ts->ts_in_sdfg) = 1;
 	SRC_IN_STATE (ts, slice_inst) = slice_inst;
 	n_branches++;

@@ -1457,6 +1457,13 @@ ks_start_search (key_source_t * ks, caddr_t * inst, caddr_t * state,
       itc->itc_is_vacuum = ks->ks_is_vacuum;
       itc_free_owned_params (itc);
       ITC_START_SEARCH_PARS (itc);
+      if (itc->itc_top_row_spec)
+	{
+	  /* if on a previous use there was a top k added to row specs remove because in a subq the next use might start with no top k value.  Also resets a possible added hash spec */
+	  key_free_trail_specs (itc->itc_row_specs);
+	  itc->itc_top_row_spec = 0;
+	  itc->itc_hash_row_spec = 0;
+	}
       if (!itc->itc_hash_row_spec)
 	itc->itc_row_specs = ks->ks_row_spec;
       if (ks->ks_vec_source)
@@ -1842,6 +1849,14 @@ ts_top_oby_limit (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
   top_setp = ks->ks_top_oby_top_setp ? ks->ks_top_oby_top_setp : setp;
   if (!setp_top_k_limit (setp, inst, &val))
     return;
+  if (tb_is_rdf_quad (ks->ks_key->key_table))
+    {
+      if (DV_STRINGP (val))
+	{
+	  /* string cases, i.e. rdf box or iri cannot be pushed as a selection on the table, need the conversion function */
+	  return;
+	}
+    }
   if (!itc->itc_top_row_spec)
     {
       if (RSP_CHANGED != itc->itc_hash_row_spec)
@@ -1863,16 +1878,6 @@ ts_top_oby_limit (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
     {
       ssl = sp->sp_max_ssl;
       nth = sp->sp_max;
-    }
-  if (tb_is_rdf_quad (ks->ks_key->key_table))
-    {
-      if (DV_STRINGP (val))
-	{
-	  /* string cases, i.e. rdf box or iri cannot be pushed as a seldction on the table, need the conversion function */
-	  sp_list_remove (&itc->itc_row_specs, ks->ks_top_oby_spec);
-	  if (itc->itc_is_col)
-	    itc_set_sp_stat (itc);
-	}
     }
   if (DV_ANY == sp->sp_cl.cl_sqt.sqt_col_dtp)
     {
@@ -3158,6 +3163,7 @@ sel_top_count (select_node_t * sel, caddr_t * qst)
 {
   if (sel->sel_row_ctr)
     {
+      query_instance_t *qi = (query_instance_t *) qst;
       int64 rows = unbox (QST_GET_V (qst, sel->sel_row_ctr));
       int64 skip = sel->sel_top_skip ? (int64) unbox (QST_GET (qst, sel->sel_top_skip)) : 0;
       int64 top = unbox (QST_GET (qst, sel->sel_top));
@@ -3166,9 +3172,8 @@ sel_top_count (select_node_t * sel, caddr_t * qst)
 	sqlr_new_error ("22023", "SR349", "SKIP parameter < 0");
       if (top < 0 && !skip_only)
 	sqlr_new_error ("22023", "SR350", "TOP parameter < 0");
-      if (top >= 0 && rows - skip >= top)
+      if ((top >= 0 && rows - skip >= top) || QI_ACL_CK_ROWS (qi))
 	{
-	  query_instance_t *qi = (query_instance_t *) qst;
 	  subq_init (sel->src_gen.src_query, qst);
 	  longjmp_splice (qi->qi_thread->thr_reset_ctx, RST_AT_END);
 	}
@@ -3455,17 +3460,42 @@ fref_setp_flush (fun_ref_node_t * fref, caddr_t * state)
 
 
 void
+setp_local_part_init (dk_set_t setps, caddr_t * inst)
+{
+  if (CL_RUN_LOCAL != cl_run_local_only)
+    return;
+  DO_SET (setp_node_t *, setp, &setps)
+  {
+    if (setp->setp_partitioned && setp->setp_ha && HA_GROUP == setp->setp_ha->ha_op)
+      {
+	index_tree_t *it = it_temp_allocate (wi_inst.wi_temp);
+	it->it_hi = hi_allocate (10, HI_CHASH, setp->setp_ha);
+	it->it_hi->hi_slice_trees =
+	    (index_tree_t **) dk_alloc_box_zero (sizeof (caddr_t) * clm_all->clm_distinct_slices, DV_ARRAY_OF_POINTER);
+	qst_set (inst, setp->setp_ha->ha_tree, (caddr_t) it);
+	if (setp->setp_any_distinct_gos)
+	  {
+	    it->it_hi->hi_gb_dist_trees = hash_table_allocate (11);
+	    DO_SET (gb_op_t *, go, &setp->setp_gb_ops)
+	    {
+	      caddr_t *dist_arr =
+		  (caddr_t *) dk_alloc_box_zero (sizeof (caddr_t) * clm_all->clm_distinct_slices, DV_ARRAY_OF_POINTER);
+	      sethash ((void *) (ptrlong) go->go_distinct_ha->ha_tree->ssl_index, it->it_hi->hi_gb_dist_trees, (void *) dist_arr);
+	    }
+	    END_DO_SET ();
+	  }
+      }
+  }
+  END_DO_SET ();
+}
+
+void
 fun_ref_node_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
 {
   int first_set = 0, n_sets;
   int is_gb_build = fref->fnr_cl_qf && fref->fnr_setp && fref->fnr_setp->setp_is_gb_build;
   db_buf_t set_mask = NULL;
   QNCAST (query_instance_t, qi, inst);
-  if (fref->fnr_setp && fref->fnr_setp->setp_is_streaming)
-    {
-      fun_ref_streaming_input (fref, inst, state);
-      return;
-    }
   QN_N_SETS (fref, inst);
   n_sets = MAX (1, qi->qi_n_sets);
   if (FREF_SINGLE_ANYTIME_FINISH == state)
@@ -3475,6 +3505,7 @@ fun_ref_node_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
     }
   if (fref->fnr_setp && fref->fnr_setp->setp_top_id)
     setp_top_init (fref->fnr_setp, inst);
+  setp_local_part_init (fref->fnr_setps, inst);
   if (!state)
     {
       setp_node_t *setp = fref->fnr_setp;
@@ -3635,6 +3666,50 @@ qi_extend_anytime (caddr_t * inst, float ext_pct)
   cli->cli_anytime_timeout += (int) (((float) cli->cli_anytime_timeout * ext_pct) / 100);
 }
 
+int
+qn_is_sdfg (data_source_t * qn)
+{
+  QNCAST (table_source_t, ts, qn);
+  if (IS_TS (qn))
+    return ts->ts_in_sdfg;
+  if (IS_QN (qn, chash_read_input))
+    return ts->ts_part_gby_reader;
+  return 0;
+}
+
+
+int
+qn_sdfg_anytime (table_source_t * ts, caddr_t * inst)
+{
+  for (ts = ts; ts; ts = (table_source_t *) qn_next ((data_source_t *) ts))
+    {
+      SRC_IN_STATE (ts, inst) = NULL;
+      if (qn_is_sdfg ((data_source_t *) ts))
+	{
+	  if (!ts->ts_aq_state)
+	    GPF_T1 ("a sdfg node must have aq state");
+	  if (TS_AQ_COORD == QST_INT (inst, ts->ts_aq_state))
+	    {
+	      /* set the slice qis so they are not continuable except where the sliced reader will set the flag */
+	      caddr_t **qis = (caddr_t **) qst_get (inst, ts->ts_aq_qis);
+	      query_t *qr = ts->src_gen.src_query;
+	      int inx;
+	      DO_BOX (caddr_t *, slice_inst, inx, qis)
+	      {
+		if (!slice_inst)
+		  continue;
+		DO_SET (data_source_t *, qn, &qr->qr_nodes) SRC_IN_STATE (qn, slice_inst) = NULL;
+		END_DO_SET ();
+	      }
+	      END_DO_BOX;
+	      QST_INT (inst, ts->ts_aq_state) = TS_AQ_NONE;
+	      return AT_RESET;
+	    }
+	}
+    }
+  return AT_NOP;
+}
+
 
 int
 qn_anytime_state (data_source_t * qn, caddr_t * inst)
@@ -3725,6 +3800,8 @@ qn_anytime_state (data_source_t * qn, caddr_t * inst)
 	}
       return qn_anytime_state (qn_next (qn), inst);
     }
+  else if (qn_is_sdfg (qn))
+    return qn_sdfg_anytime ((table_source_t *) qn, inst);
   {
     if (SRC_IN_STATE (qn, inst))
       {
@@ -3794,7 +3871,7 @@ qr_mt_dml_sync (query_t * qr, query_instance_t * qi)
 		  dk_free_tree (err);
 		  err = NULL;
 		}
-		END_IO_SECT (err);
+		END_IO_SECT (&err);
 	      }
 	    while (err);
 	  }
@@ -4627,8 +4704,8 @@ qr_subq_exec (client_connection_t * cli, query_t * qr,
   int inx;
   volatile int n_actual_params;
   caddr_t ret;
-  caddr_t *inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, is_vec ? caller->qi_n_sets : 0);
-  query_instance_t *qi = (query_instance_t *) inst;
+  caddr_t *inst;
+  query_instance_t *qi;
   caddr_t *state;
   char saved_qual_buf[25 + BOX_AUTO_OVERHEAD];
   user_t *saved_user = cli->cli_user;
@@ -4639,6 +4716,8 @@ qr_subq_exec (client_connection_t * cli, query_t * qr,
 #endif
 
   QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN);
+  inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, is_vec ? caller->qi_n_sets : 0);
+  qi = (query_instance_t *) inst;
   state = inst;
   if (cli->cli_qualifier)
     {
@@ -4818,8 +4897,8 @@ qr_subq_exec_vec (client_connection_t * cli, query_t * qr,
   long n_affected;
   int inx;
   int n_actual_params, n_sets = qi_n_sets (caller);
-  caddr_t *inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, n_sets);
-  query_instance_t *qi = (query_instance_t *) inst;
+  caddr_t *inst;
+  query_instance_t *qi;
   caddr_t *state;
   user_t *saved_user = cli->cli_user;
   char saved_qual_buf[25 + BOX_AUTO_OVERHEAD];
@@ -4830,6 +4909,8 @@ qr_subq_exec_vec (client_connection_t * cli, query_t * qr,
 #endif
 
   QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN);
+  inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, n_sets);
+  qi = (query_instance_t *) inst;
   state = inst;
   if (cli->cli_qualifier)
     {

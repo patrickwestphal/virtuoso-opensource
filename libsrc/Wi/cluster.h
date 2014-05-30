@@ -1633,7 +1633,7 @@ int itcl_dfg_set_end (itc_cluster_t * itcl, cll_in_box_t * clib);
 
 #define IS_QF(qf) ((qn_input_fn)query_frag_input == ((data_source_t*)qf)->src_input)
 #define IS_STN(qf) ((qn_input_fn)stage_node_input == ((data_source_t*)qf)->src_input)
-
+caddr_t *qf_slice_qi (query_frag_t * qf, caddr_t * inst, int is_in_cll);
 void stage_node_input (stage_node_t * stn, caddr_t * inst, caddr_t * state);
 void stage_node_free (stage_node_t * stn);
 void dfg_resume_pending (query_t * subq, query_instance_t * qi, dk_set_t nodes, int *any_done, stage_node_t * successors_only);

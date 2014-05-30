@@ -372,7 +372,7 @@ struct timezone
   int tz_dsttime;
 };
 
-int
+static int
 gettimeofday (struct timeval *tv, struct timezone *tz)
 {
   FILETIME ft;
@@ -388,10 +388,10 @@ gettimeofday (struct timeval *tv, struct timezone *tz)
       res |= ft.dwLowDateTime;
 
       /* converting file time to Unix epoch 1970/1/1 */
-      res -= 11644473600000000ULL;
+      res -= 116444736000000000ULL;
       res /= 10;		/* convert into microseconds */
-      tv->tv_sec = (long) (res / 1000000UL);
-      tv->tv_usec = (long) (res % 1000000UL);
+      tv->tv_sec = (long) (res / 1000000ULL);
+      tv->tv_usec = (long) (res % 1000000ULL);
     }
   if (NULL != tz)
     {
@@ -414,6 +414,7 @@ dt_now (caddr_t dt)
 {
   static time_t last_time;
   static long last_frac;
+  time_t tim;
   long day;
   struct timeval tv;
   struct tm tm;
@@ -421,8 +422,9 @@ dt_now (caddr_t dt)
   struct tm result;
 #endif
   gettimeofday (&tv, NULL);
+  tim = (time_t) tv.tv_sec;
 #if defined(HAVE_GMTIME_R)
-  tm = *(struct tm *) gmtime_r (&tv.tv_sec, &result);
+  tm = *(struct tm *) gmtime_r (&tim, &result);
 #else
   tm = *(struct tm *) gmtime (&tv.tv_sec);
 #endif
@@ -431,7 +433,17 @@ dt_now (caddr_t dt)
   DT_SET_HOUR (dt, tm.tm_hour);
   DT_SET_MINUTE (dt, tm.tm_min);
   DT_SET_SECOND (dt, tm.tm_sec);
-  DT_SET_FRACTION (dt, (tv.tv_usec * 1000));
+  if (tim == last_time && last_frac == tv.tv_usec)
+    {
+      last_frac++;
+      DT_SET_FRACTION (dt, (last_frac * 1000));
+    }
+  else
+    {
+      last_frac = tv.tv_usec;
+      last_time = tim;
+      DT_SET_FRACTION (dt, (tv.tv_usec * 1000));
+    }
   DT_SET_TZ (dt, dt_local_tz);
   DT_SET_DT_TYPE (dt, DT_TYPE_DATETIME);
 }

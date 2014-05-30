@@ -60,6 +60,7 @@ typedef struct op_table_s
   ST *ot_join_cond;
   char ot_is_outer;
   char ot_inside_outer;
+  ST *ot_enclosing_where_cond;	/* optional or other ot can add a condition to the top level where of the enclosing dt */
   oid_t ot_u_id;
   oid_t ot_g_id;
   dk_set_t ot_table_refd_cols;	/* if the ot is a table, which cols are refd. Use for knowing if index only is possible in costing */
@@ -1075,7 +1076,7 @@ void sqlg_non_index_ins (sql_comp_t * sc, df_elt_t * tb_dfe, key_source_t * ks);
 void sqlg_is_text_only (sqlo_t * so, df_elt_t * tb_dfe, table_source_t * ts);
 data_source_t *sqlg_make_path_ts (sqlo_t * so, df_elt_t * tb_dfe);
 int dfe_is_eq_pred (df_elt_t * pred);
-float sqlo_index_path_cost (dk_set_t path, float *cost_ret, float *card_ret, char *sure_ret);
+float sqlo_index_path_cost (dk_set_t path, float *cost_ret, float *card_ret, char *sure_ret, df_elt_t * tb_dfe);
 data_source_t *sqlg_make_ts (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code);
 float dfe_group_by_card (df_elt_t * dfe);
 int dfe_is_o_ro2sq_range (df_elt_t * pred, df_elt_t * tb_dfe, df_elt_t ** o_col_dfe_ret, df_elt_t ** exp_dfe_ret, int *op_ret);
@@ -1180,5 +1181,6 @@ int dfe_is_cacheable (df_elt_t * dfe);
 uint32 sqlo_subq_id_hash (ST * tree);
 caddr_t sqlo_new_prefix (sqlo_t * so);
 void dfe_pred_body_cost (df_elt_t ** body, float *unit_ret, float *arity_ret, float *overhead_ret);
+int sqlo_has_node (ST * tree, int type);
 
 #endif /* _SQLO_H */

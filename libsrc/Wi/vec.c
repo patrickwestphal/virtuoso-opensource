@@ -498,7 +498,7 @@ dc_append_null (data_col_t * dc)
 void
 dc_append_chars (data_col_t * dc, char *field, int field_len)
 {
-  char head[5];
+  dtp_t head[5];
   int head_len;
   if (field_len < 256)
     {
@@ -512,7 +512,7 @@ dc_append_chars (data_col_t * dc, char *field, int field_len)
       LONG_SET_NA (&head[1], field_len);
       head_len = 5;
     }
-  dc_append_bytes (dc, field, field_len, head, head_len);
+  dc_append_bytes (dc, (db_buf_t) field, field_len, head, head_len);
 }
 
 caddr_t
@@ -1518,8 +1518,13 @@ sslr_n_consec_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, 
 	  if (!DC_IS_NULL (dc, set)) \
 	    sets[fill++] = set; \
 	} \
-      else  \
-      { \
+      else if ((DCT_BOXES & dc->dc_type))	\
+	{ \
+      caddr_t val = ((caddr_t*)dc->dc_values)[set]; \
+      if (!(IS_BOX_POINTER (val) && DV_DB_NULL == box_tag (val))) \
+sets[fill++] = set; \
+	} \
+else      { \
 	if (DV_DB_NULL != ((db_buf_t*)dc->dc_values)[set][0]) \
 	  sets[fill++] = set; \
       } \
@@ -1527,9 +1532,41 @@ sslr_n_consec_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, 
 }
 
 
+#define RES_IF_NN_G(nth_v)		\
+{ \
+  if (!dc->dc_any_null) { \
+    lin_sets[fill] = n + nth_v - 1; \
+    sets[fill++] = s##nth_v; \
+  } else  \
+    { \
+      if (dc->dc_nulls) \
+	{ \
+	  if (!DC_IS_NULL (dc, s##nth_v)) \
+	    lin_sets[fill] = n + nth_v - 1; \
+	    sets[fill++] = s##nth_v; \
+	} \
+      else if ((DCT_BOXES & dc->dc_type))	\
+	{ \
+      caddr_t val = ((caddr_t*)dc->dc_values)[s##nth_v]; \
+      if (!(IS_BOX_POINTER (val) && DV_DB_NULL == box_tag (val))) { \
+      lin_sets[fill] = n + nth_v - 1; \
+      sets[fill++] = s##nth_v;		\
+	}				\
+	}				\
+      else \
+      { \
+	if (DV_DB_NULL != ((db_buf_t*)dc->dc_values)[s##nth_v][0]) \
+	  lin_sets[fill] = n + nth_v - 1; \
+	  sets[fill++] = s##nth_v; \
+      } \
+    } \
+}
+
+
 int
-sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, int n_sets)
+sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int *lin_sets, int set, int n_sets)
 {
+  /* with sslr from set to set + n_sets:  Put the index of the non-null values in the range inside the dc into sets. Put the corresponding ordinal position in lin_sets.  So if set is 10 and the corresponding place in the refd dc is 20 and the value is not null, sets[0] is 20 and lin_sets[0] is 10.  Return count of non null values in the range */
   int n, step, fill = 0;
   data_col_t *dc = QST_BOX (data_col_t *, inst, sslr->ssl_index);
   for (n = 0; n <= n_sets - 8; n += 8)
@@ -1548,15 +1585,14 @@ sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, int n_
 	  s7 = set_nos[s7];
 	  s8 = set_nos[s8];
 	}
-      RES_IF_NN (s1);
-      RES_IF_NN (s2);
-      RES_IF_NN (s3);
-      RES_IF_NN (s4);
-      RES_IF_NN (s5);
-      RES_IF_NN (s6);
-      RES_IF_NN (s7);
-      RES_IF_NN (s8);
-
+      RES_IF_NN_G (1);
+      RES_IF_NN_G (2);
+      RES_IF_NN_G (3);
+      RES_IF_NN_G (4);
+      RES_IF_NN_G (5);
+      RES_IF_NN_G (6);
+      RES_IF_NN_G (7);
+      RES_IF_NN_G (8);
     }
   for (n = n; n < n_sets; n++)
     {
@@ -1566,7 +1602,7 @@ sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, int n_
 	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
 	  s1 = set_nos[s1];
 	}
-      RES_IF_NN (s1);
+      RES_IF_NN_G (1);
     }
   return fill;
 }

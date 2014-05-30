@@ -1690,7 +1690,7 @@ void ts_sdfg_run (table_source_t * ts, caddr_t * inst);
 void ts_sdfg_init (table_source_t * ts, caddr_t * inst);
 data_source_t *qn_next_qn (data_source_t * ts, qn_input_fn in);
 stage_node_t *qn_next_stn (data_source_t * ts);
-void ts_sliced_reader (table_source_t * ts, caddr_t * inst);
+void ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha);
 data_source_t *qf_first_qn (query_frag_t * qf, qn_input_fn in);
 void ts_aq_result (table_source_t * ts, caddr_t * inst);
 

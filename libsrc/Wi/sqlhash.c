@@ -163,6 +163,8 @@ ha_non_null (hash_area_t * ha)
   return 1;
 }
 
+int enable_ahash = 1;
+
 void
 setp_set_ahash (setp_node_t * setp)
 {
@@ -171,7 +173,7 @@ setp_set_ahash (setp_node_t * setp)
   int inx;
   hash_area_t *ha = setp->setp_ha;
   memzero (&kr, sizeof (kr));
-  if (ha->ha_n_keys > 2)
+  if (!enable_ahash || ha->ha_n_keys > 2)
     return;
   for (inx = 0; inx < ha->ha_n_keys; inx++)
     {
@@ -267,8 +269,7 @@ setp_distinct_hash (sql_comp_t * sc, setp_node_t * setp, uint64 n_rows, int op)
     ha->ha_memcache_only = 1;
   if (HA_GROUP == op && !setp->setp_ahash_kr)
     setp_set_ahash (setp);
-  if ((HA_GROUP == op && sqlg_is_vector && !setp->setp_any_user_aggregate_gos
-	  && ha->ha_n_keys <= CHASH_GB_MAX_KEYS) || setp->setp_distinct)
+  if ((HA_GROUP == op && ha->ha_n_keys <= CHASH_GB_MAX_KEYS) || setp->setp_distinct)
     {
       int n_slots = BOX_ELEMENTS (ha->ha_slots);
       ha->ha_ch_len = sizeof (int64) * (enable_lin_hash ? n_slots : 1 + n_slots);

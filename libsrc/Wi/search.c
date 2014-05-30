@@ -3306,10 +3306,14 @@ itc_col_stat_free (it_cursor_t * itc, int upd_col, float est)
 	}
       if (upd_col)
 	{
-	  col->col_count = cs->cs_n_values / (float) itc->itc_st.n_sample_rows * est;
-	  if (CL_RUN_SINGLE_CLUSTER == cl_run_local_only)
-	    col->col_count *= key_n_partitions (key);
-	  if (itc->itc_st.n_sample_rows)
+	  if (key && !key->key_distinct)
+	    {
+	      col->col_count = cs->cs_n_values / (float) itc->itc_st.n_sample_rows * est;
+	      if (CL_RUN_SINGLE_CLUSTER == cl_run_local_only)
+		col->col_count *= key_n_partitions (key);
+	    }
+	  /* for distinct value count, consider a distinct projection is the col in question is the first, otherwise do not trust one */
+	  if (itc->itc_st.n_sample_rows && (key && (!key->key_distinct || col == (dbe_column_t *) key->key_parts->data)))
 	    {
 	      /* if n distinct under 2% of samples and under 200 values, assume that this is a flag.  If more distinct, scale pro rata.  */
 	      if (cs->cs_distinct->ht_inserts < itc->itc_st.n_sample_rows / 50 && cs->cs_distinct->ht_count < 200)
@@ -3333,7 +3337,7 @@ itc_col_stat_free (it_cursor_t * itc, int upd_col, float est)
 		  col->col_max = col_min_max_trunc (maxb);
 		}
 	    }
-	  else
+	  else if (key && !key->key_distinct)
 	    {
 	      col->col_n_distinct = 1;
 	      col->col_avg_len = 0;	/* no data, use declared prec instead */
@@ -4087,9 +4091,18 @@ itc_local_sample (it_cursor_t * itc)
 #endif
   if (!itc->itc_key_spec.ksp_spec_array && !itc->itc_geo_op)
     {
-      res = itc_sample_1 (itc, &buf, NULL, -1);
+      res = itc_sample_1 (itc, &buf, &n_leaves, -1);
       itc_page_leave (itc, buf);
-      return res;
+      if (n_leaves < 2)
+	return res;
+      if (itc->itc_row_specs)
+	{
+	  float row_sel = itc_row_selectivity (itc, res);
+	  if (row_sel > 0.1 && row_sel < 0.9)
+	    return res;
+	}
+      samples[0] = res;
+      goto regular;
     }
   itc->itc_random_search = RANDOM_SEARCH_OFF;
   samples[0] = itc_sample_1 (itc, &buf, &n_leaves, -1);
@@ -4097,6 +4110,7 @@ itc_local_sample (it_cursor_t * itc)
 
   if (!n_leaves)
     return samples[0];
+regular:
   {
     int angle, step = 248, offset = 5;
     for (;;)
@@ -4108,10 +4122,13 @@ itc_local_sample (it_cursor_t * itc)
 	    itc->itc_random_search = RANDOM_SEARCH_OFF;
 	    sample = itc_sample_1 (itc, &buf, &n_leaves, angle);
 	    itc_page_leave (itc, buf);
-	    tb_count = tb->tb_count == DBE_NO_STAT_DATA ? tb->tb_count_estimate : tb->tb_count;
-	    tb_count = MAX (tb_count, 1);
-	    if (sample < 0 || sample > tb_count)
-	      sample = (tb_count * 3) / 4;
+	    if (itc->itc_key_spec.ksp_spec_array)
+	      {
+		tb_count = tb->tb_count == DBE_NO_STAT_DATA ? tb->tb_count_estimate : tb->tb_count;
+		tb_count = MAX (tb_count, 1);
+		if (sample < 0 || sample > tb_count)
+		  sample = (tb_count * 3) / 4;
+	      }
 	    samples[n_samples++] = sample;
 	    if (n_samples >= max_samples)
 	      break;

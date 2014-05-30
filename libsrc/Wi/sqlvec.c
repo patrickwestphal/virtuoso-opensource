@@ -1731,7 +1731,9 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
 	memzero (go->go_distinct_setp, sizeof (setp_node_t));
 	go->go_distinct_setp->setp_distinct = 1;
 	go->go_distinct_setp->setp_ha = go->go_distinct_ha;
+	go->go_op = AMMSC_COUNTSUM;
 	go->go_old_val = ssl_new_vec (sc->sc_cc, "dist", DV_LONG_INT);
+	go->go_old_val->ssl_sqt.sqt_non_null = 1;
 	ASG_SSL (NULL, NULL, go->go_old_val);
 	setp->setp_dependent_box[nth_go] = go->go_old_val;
 	iter2->data = (void *) go->go_old_val;
@@ -3924,6 +3926,7 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
       else
 	cv_vec_slots (sc, en->src_gen.src_after_code, NULL, NULL, &ign);
       sqlg_new_vec_ssls (sc, &en->src_gen);
+      qn_add_prof (sc, qn);
       return;
     }
   if (!src_resets_done)

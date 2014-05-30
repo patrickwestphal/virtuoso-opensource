@@ -528,6 +528,24 @@ ssg_find_formatter_by_name_and_subtype (ccaddr_t name, ptrlong subtype,
       default:
 	return;
       }
+  if (!strcmp (name, "HTML;NICE_TTL"))
+    switch (subtype)
+      {
+      case SELECT_L:
+      case COUNT_DISTINCT_L:
+      case DISTINCT_L:
+	ret_formatter[0] = "DB.DBA.RDF_FORMAT_RESULT_SET_AS_HTML_NICE_TTL";
+	return;
+      case CONSTRUCT_L:
+      case DESCRIBE_L:
+	ret_formatter[0] = "DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_TTL";
+	return;
+      case ASK_L:
+	ret_formatter[0] = "DB.DBA.RDF_FORMAT_BOOL_RESULT_AS_HTML_NICE_TTL";
+	return;
+      default:
+	return;
+      }
   if (!strcmp (name, "JSON;MICRODATA"))
     switch (subtype)
       {
@@ -567,6 +585,16 @@ ssg_find_formatter_by_name_and_subtype (ccaddr_t name, ptrlong subtype,
       case CONSTRUCT_L:
       case DESCRIBE_L:
 	ret_formatter[0] = "DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_ODATA_JSON";
+	return;
+      default:
+	return;
+      }
+  if (!strcmp (name, "JSON;LD"))
+    switch (subtype)
+      {
+      case CONSTRUCT_L:
+      case DESCRIBE_L:
+	ret_formatter[0] = "DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_JSON_LD";
 	return;
       default:
 	return;
@@ -2012,12 +2040,27 @@ sparp_expn_native_valmode (sparp_t * sparp, SPART * tree)
 	case IN_L:
 	case LIKE_L:
 	  return SSG_VALMODE_BOOL;
+	case SPAR_BIF_CASEWHEN:
+	case SPAR_BIF_CASEX:
+	  {
+	    ssg_valmode_t union_valmode = SSG_VALMODE_AUTO;
+	    int argctr, argcount = BOX_ELEMENTS (tree->_.builtin.args);
+	    int sqlval_is_ok_and_cheap = 0x2;
+	    for (argctr = argcount - 1; argctr > 1; argctr -= 2)
+	      {
+		ssg_valmode_t arg_valmode = sparp_expn_native_valmode (sparp, tree->_.builtin.args[argctr]);
+		union_valmode = ssg_smallest_union_valmode (union_valmode, arg_valmode, &sqlval_is_ok_and_cheap);
+	      }
+	    if (sqlval_is_ok_and_cheap && (SSG_VALMODE_LONG == union_valmode))
+	      union_valmode = SSG_VALMODE_SQLVAL;
+	    return union_valmode;
+	  }
 	case SPAR_BIF_COALESCE:
 	  {
 	    ssg_valmode_t union_valmode = SSG_VALMODE_AUTO;
 	    int sqlval_is_ok_and_cheap = 0x2;
-	    int argctr;
-	    for (argctr = BOX_ELEMENTS (tree->_.builtin.args); argctr--; /* no step */ )
+	    int argctr, argcount = BOX_ELEMENTS (tree->_.builtin.args);
+	    for (argctr = argcount; argctr--; /* no step */ )
 	      {
 		ssg_valmode_t arg_valmode = sparp_expn_native_valmode (sparp, tree->_.builtin.args[argctr]);
 		union_valmode = ssg_smallest_union_valmode (union_valmode, arg_valmode, &sqlval_is_ok_and_cheap);
@@ -2386,11 +2429,36 @@ sparp_restr_bits_of_expn (sparp_t * sparp, SPART * tree)
 		return (SPART_VARR_IS_LIT | SPART_VARR_NOT_NULL);
 	      return SPART_VARR_IS_LIT;
 	    }
+	  case SPAR_BIF_CASEWHEN:
+	  case SPAR_BIF_CASEX:
+	    {
+	      int argcount = BOX_ELEMENTS (tree->_.builtin.args);
+	      ptrlong union_bits = sparp_restr_bits_of_expn (sparp, tree->_.builtin.args[0]);
+	      int argctr;
+	      for (argctr = argcount - 1; argctr > 1; argctr -= 2)
+		{
+		  ptrlong arg_bits = sparp_restr_bits_of_expn (sparp, tree->_.builtin.args[argctr]);
+		  union_bits &= arg_bits;
+		}
+	      if (union_bits & SPART_VARR_FIXED)
+		{
+		  ptrlong cond_bits = sparp_restr_bits_of_expn (sparp, tree->_.builtin.args[0]);
+		  for (argctr = argcount - 2; argctr > 0; argctr -= 2)
+		    {
+		      ptrlong arg_bits = sparp_restr_bits_of_expn (sparp, tree->_.builtin.args[argctr]);
+		      cond_bits &= arg_bits;
+		    }
+		  if (!((SPART_VARR_FIXED | SPART_VARR_NOT_NULL) == (cond_bits & (SPART_VARR_FIXED | SPART_VARR_NOT_NULL))))
+		    res_bits &= ~SPART_VARR_FIXED;
+		}
+	      return union_bits;
+	    }
 	  case SPAR_BIF_COALESCE:
 	    {
 	      ptrlong union_bits = sparp_restr_bits_of_expn (sparp, tree->_.builtin.args[0]);
+	      int argcount = BOX_ELEMENTS (tree->_.builtin.args);
 	      int argctr;
-	      for (argctr = BOX_ELEMENTS (tree->_.builtin.args); --argctr /* not argctr-- */ ; /* no step */ )
+	      for (argctr = argcount; --argctr /* not argctr-- */ ; /* no step */ )
 		{
 		  ptrlong arg_bits = sparp_restr_bits_of_expn (sparp, tree->_.builtin.args[argctr]);
 		  if (!(arg_bits & (SPART_VARR_ALWAYS_NULL | SPART_VARR_CONFLICT)))
@@ -4086,6 +4154,83 @@ ssg_print_builtin_expn (spar_sqlgen_t * ssg, SPART * tree, int top_filter_op, ss
 	    ssg_puts (" as varchar))");
 	  }
 	goto print_asname;
+      }
+    case SPAR_BIF_CASEWHEN:
+      {
+	ssg_valmode_t union_valmode = sparp_expn_native_valmode (ssg->ssg_sparp, tree);
+	if (IS_BOX_POINTER (union_valmode) && (1 != union_valmode->qmfColumnCount))
+	  union_valmode = SSG_VALMODE_LONG;
+	if (union_valmode != needed)
+	  ssg_print_valmoded_scalar_expn (ssg, tree, needed, union_valmode, asname);
+	else
+	  {
+	    const char *nested_asname = (IS_BOX_POINTER (asname) ? NULL_ASNAME : asname);
+	    int argcount = BOX_ELEMENTS (tree->_.builtin.args);
+	    ssg_puts (" case ");
+	    ssg->ssg_indent++;
+	    for (argctr = 0; argctr < argcount - 1; argctr += 2)
+	      {
+		SPART *argwhen = tree->_.builtin.args[argctr];
+		SPART *argthen = tree->_.builtin.args[argctr + 1];
+		ssg_puts (" when (");
+		ssg_print_scalar_expn (ssg, argwhen, SSG_VALMODE_BOOL, NULL_ASNAME);
+		ssg_puts (") then (");
+		ssg_print_scalar_expn (ssg, argthen, union_valmode, nested_asname);
+		ssg_puts (")");
+	      }
+	    ssg_puts ("else (");
+	    ssg_print_scalar_expn (ssg, tree->_.builtin.args[argcount - 1], union_valmode, nested_asname);
+	    ssg_puts (") end");
+	    ssg->ssg_indent--;
+	    if (nested_asname != asname)
+	      goto print_asname;
+	  }
+	return;
+      }
+    case SPAR_BIF_CASEX:
+      {
+	ssg_valmode_t union_valmode = sparp_expn_native_valmode (ssg->ssg_sparp, tree);
+	if (IS_BOX_POINTER (union_valmode) && (1 != union_valmode->qmfColumnCount))
+	  union_valmode = SSG_VALMODE_LONG;
+	if (union_valmode != needed)
+	  ssg_print_valmoded_scalar_expn (ssg, tree, needed, union_valmode, asname);
+	else
+	  {
+	    ssg_valmode_t arg_cmp_valmode = sparp_expn_native_valmode (ssg->ssg_sparp, arg1);
+	    const char *nested_asname = (IS_BOX_POINTER (asname) ? NULL_ASNAME : asname);
+	    int argcount = BOX_ELEMENTS (tree->_.builtin.args);
+	    int sqlval_is_ok_and_cheap = 0x2;
+	    for (argctr = 1; argctr < argcount - 1; argctr += 2)
+	      {
+		SPART *argwhen = tree->_.builtin.args[argctr];
+		arg_cmp_valmode =
+		    ssg_smallest_union_valmode (arg_cmp_valmode, sparp_expn_native_valmode (ssg->ssg_sparp, argwhen),
+		    &sqlval_is_ok_and_cheap);
+	      }
+	    if (IS_BOX_POINTER (arg_cmp_valmode) && (1 != arg_cmp_valmode->qmfColumnCount))
+	      arg_cmp_valmode = SSG_VALMODE_LONG;
+	    if (sqlval_is_ok_and_cheap && (SSG_VALMODE_LONG == arg_cmp_valmode))
+	      arg_cmp_valmode = SSG_VALMODE_SQLVAL;
+	    ssg_puts (" case (");
+	    ssg->ssg_indent++;
+	    ssg_print_scalar_expn (ssg, arg1, arg_cmp_valmode, NULL_ASNAME);
+	    for (argctr = 1; argctr < argcount - 1; argctr += 2)
+	      {
+		SPART *argwhen = tree->_.builtin.args[argctr];
+		SPART *argthen = tree->_.builtin.args[argctr + 1];
+		ssg_puts (") when (");
+		ssg_print_scalar_expn (ssg, argwhen, arg_cmp_valmode, NULL_ASNAME);
+		ssg_puts (") then (");
+		ssg_print_scalar_expn (ssg, argthen, union_valmode, nested_asname);
+	      }
+	    ssg_puts (") else (");
+	    ssg_print_scalar_expn (ssg, tree->_.builtin.args[argcount - 1], union_valmode, nested_asname);
+	    ssg_puts (") end");
+	    ssg->ssg_indent--;
+	    if (nested_asname != asname)
+	      goto print_asname;
+	  }
+	return;
       }
     case SPAR_BIF_COALESCE:
       {

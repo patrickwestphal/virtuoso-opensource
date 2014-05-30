@@ -9,6 +9,12 @@
 
 
 {
+#ifdef LINH_TRAP
+  if (9 != stat_2)
+    {
+      LINH_TRAP (2);
+    }
+#endif
   if (3 == CONC (stat_, 2))
     {
       CH_PREFETCH (2);

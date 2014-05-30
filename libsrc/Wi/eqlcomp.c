@@ -2619,7 +2619,7 @@ qr_describe_1 (query_t * qr, caddr_t * err_ret, client_connection_t * cli)
 	    prec = ROW_MAX_COL_BYTES;
 	  if (IS_WIDE_STRING_DTP (dtp) && !prec)
 	    prec = ROW_MAX_COL_BYTES;
-	  if (sl->ssl_type == SSL_COLUMN)
+	  if (sl->ssl_type == SSL_COLUMN || (SSL_VEC == sl->ssl_type && sl->ssl_column))
 	    {
 	      dbe_column_t *col = sl->ssl_column;
 	      long flags = 0;

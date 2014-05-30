@@ -274,10 +274,11 @@ select_node_input_vec (select_node_t * sel, caddr_t * inst, caddr_t * state)
 	  b2 = __ses->dks_bytes_sent;
 	  PRPC_ANSWER_END (0);
 	  qi->qi_bytes_selected += b2 - b1;
+	  qi->qi_rows_sent++;
 	  top_ctr++;
 	  fill++;
 	  pos_in_batch++;
-	  if (top && top_ctr >= top)
+	  if ((top && top_ctr >= top) || QI_ACL_CK_ROWS (qi))
 	    {
 	      subq_init (sel->src_gen.src_query, inst);
 	      SRC_RETURN (((data_source_t *) sel), inst);

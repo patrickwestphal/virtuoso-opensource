@@ -1733,7 +1733,7 @@ kpd_copy (key_partition_def_t * kpd)
 }
 
 int enable_high_card_part = 1;
-float c_setp_partition_threshold = 100000;
+int64 c_setp_partition_threshold = 100000;
 
 int
 setp_is_high_card (setp_node_t * setp)

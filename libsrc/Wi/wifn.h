@@ -116,6 +116,7 @@ int itc_next_set (it_cursor_t * itc, buffer_desc_t ** buf_ret);
 int64 itc_sample_1 (it_cursor_t * it, buffer_desc_t ** buf_ret, int64 * n_leaves_ret, int angle);
 int64 itc_sample (it_cursor_t * it);
 int64 itc_local_sample (it_cursor_t * it);
+float itc_row_selectivity (it_cursor_t * itc, int64 inx_est);
 unsigned int64 key_count_estimate (dbe_key_t * key, int n_samples, int upd_col_stats);
 void itc_col_stat_free (it_cursor_t * itc, int upd_col, float est);
 void cs_new_page (dk_hash_t * cols);

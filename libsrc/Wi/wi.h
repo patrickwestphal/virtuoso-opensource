@@ -467,13 +467,14 @@ typedef struct chash_s
   char cha_n_dependent;
   short cha_null_flags;		/*!< offset of null in entry (dependance may have nulls, keys too) */
   char cha_unique;		/* guaranteed unique/happens to be unique/nott unique.  If not unique, entries have a next pointer at end. */
-  char cha_is_1_int;		/* key is 1 int or iri and no dependent and no duplicates, all data is in the chash array, no separate rows  */
-  char cha_is_1_int_key;	/* key is single int or iri */
-  char cha_is_parallel;		/* hash join temp filled on multiple threads */
+  bitf_t cha_is_1_int:1;	/* key is 1 int or iri and no dependent and no duplicates, all data is in the chash array, no separate rows  */
+  bitf_t cha_is_1_int_key:1;	/* key is single int or iri */
+  bitf_t cha_is_parallel:1;	/* hash join temp filled on multiple threads */
+  bitf_t cha_hash_last:1;	/* if hash join cha where hash filled after all rows are received */
+  bitf_t cha_oversized:1;
+  bitf_t cha_serial_bloom:1;
+  bitf_t cha_has_gb_boxes:1;
   char cha_error;
-  char cha_hash_last;		/* if hash join cha where hash filled after all rows are received */
-  char cha_oversized;
-  char cha_serial_bloom;
   short cha_first_len;
   short cha_next_len;
   short cha_next_ptr;
@@ -532,6 +533,9 @@ struct hash_index_s
   chash_t *hi_slice_chash;
   uint64 hi_cl_id;		/* if cluster hash join temp, id for reference */
   dk_hash_t *hi_thread_cha;	/* when filling hash join chash, maps from thread to cha */
+  index_tree_t **hi_slice_trees;
+  index_tree_t *hi_top_tree;	/* for a slice tree, ref to top tree, no ref count inc */
+  dk_hash_t *hi_gb_dist_trees;	/* in group by with count distinct, if not cluster, keep trees for distinct go\s here */
   ha_key_range_t *hi_key_ranges;
   int hi_size;
   char hi_is_unique;
@@ -1461,7 +1465,7 @@ extern resource_t *pm_rc_4;
 #define bd_batch_id bdf.r.batch_id
 
 #if defined (MTX_DEBUG) && !defined (PAGE_DEBUG)
-#define PAGE_DEBUG
+//#define PAGE_DEBUG
 #endif
 
 #ifdef NDEBUG
