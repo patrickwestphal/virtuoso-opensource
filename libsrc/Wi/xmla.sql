@@ -262,6 +262,40 @@ create procedure
 }
 ;
 
+create procedure xmla_get_user (inout uname varchar, inout passwd varchar)
+{
+  if (uname is null and is_https_ctx ())
+    {
+      uname := connection_get ('SPARQLUserId'); -- if WebID ACL is checked
+      passwd := (select pwd_magic_calc (U_NAME, U_PASSWORD, 1) from DB.DBA.SYS_USERS where U_NAME = uname);
+    }
+  if (uname is null and isstring (http_param ('sid')) and __proc_exists ('VAL.DBA.authentication_details_for_connection') is not null)
+    {
+      declare val_serviceId, val_sid, val_sidRealm, val_uname, val_webidGraph varchar;
+      declare val_isRealUser, val_auth_method integer;
+      declare val_cert any;
+
+      val_serviceId := null;
+      val_uname := null;
+      val_sid := null;
+      val_isRealUser := 0;
+      val_auth_method := 0;
+      val_cert := null;
+      val_webidGraph := null;
+      val_sidRealm := null;
+      val_webidGraph := uuid();
+      val_cert := client_attr ('client_certificate');
+      VAL.DBA.authentication_details_for_connection (val_sid, val_serviceId, val_uname, val_isRealUser, val_sidRealm, 'sid', val_cert, val_webidGraph);
+      --dbg_obj_print_vars (val_sid, val_serviceId, val_uname, val_isRealUser, val_sidRealm, val_cert, val_webidGraph);
+      if (val_isRealUser)
+	{
+	  uname := val_uname;
+	  passwd := (select pwd_magic_calc (U_NAME, U_PASSWORD, 1) from DB.DBA.SYS_USERS where U_NAME = uname);
+	}
+    }
+}
+;
+
 create procedure
 "Execute"  (in  "Command" varchar
             --__soap_type 'http://openlinksw.com/virtuoso/xmla/types:Execute.Command'
@@ -304,11 +338,7 @@ create procedure
   uname := xmla_get_property ("Properties", 'UserName', null);
   passwd := xmla_get_property ("Properties", 'Password', null);
 
-  if (uname is null and is_https_ctx ())
-    {
-      uname := connection_get ('SPARQLUserId'); -- if WebID ACL is checked
-      passwd := (select pwd_magic_calc (U_NAME, U_PASSWORD, 1) from DB.DBA.SYS_USERS where U_NAME = uname);
-    }
+  xmla_get_user (uname, passwd);
 
   -- XMLA command, no statement
   if (stmt is null and ("BeginSession" is not null or "EndSession" is not null))
@@ -852,6 +882,7 @@ create method xmla_dbschema_columns () for xmla_discover
       declare uname, passwd varchar;
       uname := self.xmla_get_property ('UserName', null);
       passwd := self.xmla_get_property ('Password', null);
+      xmla_get_user (uname, passwd);
       if (uname is null or passwd is null)
 	signal ('00002', 'Unable to process the request, because the UserName property is not set or incorrect');
       set_user_id (uname, 1, passwd);
@@ -977,6 +1008,7 @@ create method xmla_dbschema_foreign_keys () for xmla_discover
       declare uname, passwd varchar;
       uname := self.xmla_get_property ('UserName', null);
       passwd := self.xmla_get_property ('Password', null);
+      xmla_get_user (uname, passwd);
       if (uname is null or passwd is null)
 	signal ('00002', 'Unable to process the request, because the UserName property is not set or incorrect');
       set_user_id (uname, 1, passwd);
@@ -1055,6 +1087,7 @@ create method xmla_dbschema_primary_keys () for xmla_discover
       declare uname, passwd varchar;
       uname := self.xmla_get_property ('UserName', null);
       passwd := self.xmla_get_property ('Password', null);
+      xmla_get_user (uname, passwd);
       if (uname is null or passwd is null)
 	signal ('00002', 'Unable to process the request, because the UserName property is not set or incorrect');
       set_user_id (uname, 1, passwd);
@@ -1201,6 +1234,7 @@ create method xmla_dbschema_tables () for xmla_discover
       declare uname, passwd varchar;
       uname := self.xmla_get_property ('UserName', null);
       passwd := self.xmla_get_property ('Password', null);
+      xmla_get_user (uname, passwd);
       if (uname is null or passwd is null)
 	signal ('00002', 'Unable to process the request, because the UserName property is not set or incorrect');
       set_user_id (uname, 1, passwd);

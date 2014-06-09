@@ -72,3 +72,4 @@ for (set = FIRST; set < LAST; set += BATCH)
 #undef CH_PREFETCH
 #undef L_E_INSERT
 #undef L_INSERT
+#undef IGN_IF

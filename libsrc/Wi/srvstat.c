@@ -210,6 +210,9 @@ extern long tc_dc_extend_values;
 extern int32 em_ra_window;
 extern int32 em_ra_threshold;
 extern int enable_top_pred;
+extern int enable_g_in_sec;
+extern int64 rdf_ctx_max_mem;
+extern int64 rdf_ctx_in_use;
 extern int enable_mem_hash_join;
 extern int32 enable_qrc;
 extern int32 qrc_tolerance;
@@ -1062,8 +1065,11 @@ hic_status ()
   for (it = hash_index_cache.hic_first; it; it = it->it_hic_next)
     {
       hi_signature_t *hsi = it->it_hi_signature;
-      int n_cols = box_length ((caddr_t) hsi->hsi_col_ids) / sizeof (oid_t);
-      int n_keys = (int) unbox (hsi->hsi_n_keys);
+      int n_cols, n_keys;
+      if (it->it_hi->hi_is_rdf_ctx)
+	continue;
+      n_cols = box_length ((caddr_t) hsi->hsi_col_ids) / sizeof (oid_t);
+      n_keys = (int) unbox (hsi->hsi_n_keys);
       int inx;
       for (inx = 0; inx < n_cols; inx++)
 	{
@@ -1758,6 +1764,9 @@ stat_desc_t dbf_descs[] = {
   {"cl_batches_per_rpc", (long *) &cl_batches_per_rpc, SD_INT32},
   {"cl_rdf_inf_inited", (long *) &cl_rdf_inf_inited, SD_INT32},
   {"enable_top_pred", &enable_top_pred, SD_INT32},
+  {"enable_g_in_sec", &enable_g_in_sec, SD_INT32},
+  {"rdf_ctx_max_mem", &rdf_ctx_max_mem, NULL},
+  {"rdf_ctx_in_use", &rdf_ctx_in_use},
   {"enable_mem_hash_join", (long *) &enable_mem_hash_join, SD_INT32},
   {"enable_hash_merge", (long *) &enable_hash_merge, SD_INT32},
   {"enable_hash_fill_join", (long *) &enable_hash_fill_join, SD_INT32},

@@ -4101,6 +4101,8 @@ itc_local_sample (it_cursor_t * itc)
 	  if (row_sel > 0.1 && row_sel < 0.9)
 	    return res;
 	}
+      else
+	max_samples = MIN (max_samples, 5);
       samples[0] = res;
       goto regular;
     }

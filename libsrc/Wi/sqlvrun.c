@@ -1766,10 +1766,12 @@ itc_param_sort (key_source_t * ks, it_cursor_t * itc, int is_del_with_nulls)
   itc_out_col_extend (itc);
   if (ks->ks_from_temp_tree)
     {
+      setp_node_t *setp = ks->ks_from_setp;
       int tset;
       for (tset = 0; tset < n_params; tset++)
 	{
-	  caddr_t *branch = chash_reader_current_branch (ts, inst, 0);
+	  index_tree_t *tree;
+	  caddr_t *branch = setp ? chash_reader_current_branch (ts, setp->setp_ha, inst, 0, &tree) : inst;
 	  QNCAST (QI, branch_qi, qi);
 	  branch_qi->qi_set = tset;
 	  if (itc_from_sort_temp (itc, branch_qi, ks->ks_from_temp_tree))

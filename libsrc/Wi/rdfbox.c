@@ -5899,6 +5899,8 @@ bif_rgs_ack_cbk (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return bif_rgs_impl (qst, err_ret, args, fname, RGU_ACK, 1);
 }
 
+int enable_g_in_sec;
+
 caddr_t
 bif_rgs_user_perms_clo (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
@@ -5908,9 +5910,26 @@ bif_rgs_user_perms_clo (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       (USER_SHOULD_EXIST | USER_SHOULD_BE_SQL_ENABLED | USER_NOBODY_IS_PERMITTED | USER_SPARQL_IS_PERMITTED), 1);
   long perms = bif_long_arg (qst, args, 1, "__rgs_user_perms_clo");
   dk_hash_64_t *usr_perms_ht = usr->usr_rdf_graph_perms;
-  cl_op_t *clo = clo_allocate (CLO_RDF_GRAPH_USER_PERMS);
+  cl_op_t *clo = clo_allocate (CLO_RDF_GRAPH_USER_PERMS);;
   clo->_.rdf_graph_user_perms.u_id = usr->usr_id;
   clo->_.rdf_graph_user_perms.req_perms = perms;
+  if (enable_g_in_sec)
+    {
+      QNCAST (QI, qi, qst);
+      client_connection_t *cli = qi->qi_client;
+      char *q_name = "g_ctx_query";
+      char *p_name = "g_ctx_param";
+      caddr_t *place = (caddr_t *) id_hash_get (cli->cli_globals, (caddr_t) & q_name);
+      caddr_t *place2 = (caddr_t *) id_hash_get (cli->cli_globals, (caddr_t) & p_name);
+      if (!place || !place2)
+	{
+	  dk_free_box ((caddr_t) clo);
+	  sqlr_new_error ("42000", "GCTX1", "g_in_query or g_in_params connection setting not set for graph scoping");
+	}
+      clo->_.rdf_graph_user_perms.g_read_qr = box_copy_tree (*place);
+      clo->_.rdf_graph_user_perms.g_read_param = box_copy_tree (*place2);
+      return (caddr_t) clo;
+    }
   if (NULL == usr_perms_ht)
     usr_perms_ht = rgs_alloc_usr_rdf_graph_perms (usr);
   clo->_.rdf_graph_user_perms.ht = usr_perms_ht;
@@ -6657,4 +6676,5 @@ rdf_box_init ()
   bif_define ("__rdf_range_check", bif_rdf_range_check);
   bif_set_uses_index (bif_rdf_range_check);
   bif_define_ex ("iri_name_id", bif_iri_name_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+  rdf_sec_init ();
 }

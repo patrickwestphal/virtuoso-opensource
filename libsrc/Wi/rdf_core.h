@@ -328,4 +328,8 @@ caddr_t mdigest5 (caddr_t str);
 boxint rdf_new_iri_id (lock_trx_t * lt, char **value_seq_ret, int nth, query_instance_t * qi);
 int rdf_graph_is_in_enabled_repl (caddr_t * qst, iri_id_t q_iid, int *answer_is_one_for_all_ret);
 
+index_tree_t *rdf_ctx_hash (query_instance_t * qi, caddr_t str, caddr_t params);
+void rdf_sec_init ();
+
+
 #endif

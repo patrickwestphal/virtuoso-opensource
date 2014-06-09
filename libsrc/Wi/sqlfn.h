@@ -1120,7 +1120,7 @@ typedef struct itc_ha_feed_ret_s
   caddr_t *ihfr_deps;
 } itc_ha_feed_ret_t;
 
-int itc_ha_feed (itc_ha_feed_ret_t * ret, hash_area_t * ha, caddr_t * qst, unsigned long feed_temp_blobs);
+int itc_ha_feed (itc_ha_feed_ret_t * ret, hash_area_t * ha, caddr_t * qst, unsigned long feed_temp_blobs, setp_node_t * setp);
 extern void itc_ha_flush_memcache (hash_area_t * ha, caddr_t * qst, int is_in_fill);
 
 /* is in fill */
@@ -1496,7 +1496,7 @@ void memcache_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state);
 void fun_ref_streaming_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state);
 void chash_merge (setp_node_t * setp, chash_t * cha, chash_t * delta, int n_to_go);
 dtp_t cha_dtp (dtp_t dtp, int is_key);
-caddr_t *chash_reader_current_branch (table_source_t * ts, caddr_t * inst, int is_next);
+caddr_t *chash_reader_current_branch (table_source_t * ts, hash_area_t * ha, caddr_t * inst, int is_next, index_tree_t ** tree_ret);
 int64 cha_bytes_est (hash_area_t * ha, int64 * card_ret);
 extern int64 chash_space_avail;
 extern int chash_per_query_pct;

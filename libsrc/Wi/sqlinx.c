@@ -891,7 +891,12 @@ sqlo_choose_index_path (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * col_preds_ret
   tb_dfe->dfe_arity = so->so_best_index_card;
   if (tb_dfe->_.table.text_pred)
     tb_dfe->_.table.text_pred->dfe_is_placed = DFE_PLACED;
-
+  DO_SET (index_choice_t *, ic, &tb_dfe->_.table.index_path)
+  {
+    if (ic->ic_in_filter)
+      tb_dfe->_.table.no_in_on_index = 1;
+  }
+  END_DO_SET ();
   dfe_list_set_placed (col_preds, DFE_PLACED);
 }
 
@@ -1125,7 +1130,13 @@ sqlg_make_1_ts (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic, df_elt_t **
     sql_node_append ((data_source_t **) & ts, tb_dfe->_.table.xpath_node);
   /* list of all ins that are not iterators */
   if (last)
-    sqlg_get_non_index_ins (tb_dfe, &in_list);
+    {
+      sqlg_get_non_index_ins (tb_dfe, &in_list);
+      DO_SET (df_elt_t *, in, &in_list) in->dfe_is_placed = 0;
+      END_DO_SET ();
+      sqlg_non_index_ins (sc, tb_dfe, ts->ts_order_ks);
+      in_list = NULL;
+    }
   else
     sqlg_non_index_ins (sc, tb_dfe, ts->ts_order_ks);
   ts->src_gen.src_after_test =

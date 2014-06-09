@@ -174,6 +174,17 @@ create table DB.DBA.SYS_IDONLY_ONE
 )
 ;
 
+create table DB.DBA.RDF_QUAD_SECURITY_LOG
+(
+  SL_TS timestamp not null,
+  SL_G IRI_ID_8,
+  SL_U_ID integer,
+  SL_ADMIN_LOGIN integer not null,
+  SL_ACTION any,
+  primary key (SL_TS) column
+)
+;
+
 insert soft DB.DBA.SYS_IDONLY_ONE (ID) values (0)
 ;
 
@@ -355,44 +366,50 @@ create procedure DB.DBA.XML_LOAD_ALL_NS_DECLS ()
     {
       __xml_set_ns_decl (NS_PREFIX, NS_URL, 2);
     }
-  DB.DBA.XML_SET_NS_DECL (	'bif'	, 'bif:'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dawgt'	, 'http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dbpedia'	, 'http://dbpedia.org/resource/'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dbpprop'	, 'http://dbpedia.org/property/'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'dc'	, 'http://purl.org/dc/elements/1.1/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'go'	, 'http://purl.org/obo/owl/GO#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'geo'	, 'http://www.w3.org/2003/01/geo/wgs84_pos#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'fn'	, 'http://www.w3.org/2005/xpath-functions/#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'foaf'	, 'http://xmlns.com/foaf/0.1/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'obo'	, 'http://www.geneontology.org/formats/oboInOwl#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'owl'	, 'http://www.w3.org/2002/07/owl#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'mesh'	, 'http://purl.org/commons/record/mesh/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'math'	, 'http://www.w3.org/2000/10/swap/math#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'mf'	, 'http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'nci'	, 'http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'product'	, 'http://www.buy.com/rss/module/productV2/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'protseq'	, 'http://purl.org/science/protein/bysequence/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdf'	, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdfa'	, 'http://www.w3.org/ns/rdfa#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdfdf'	, 'http://www.openlinksw.com/virtrdf-data-formats#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'rdfs'	, 'http://www.w3.org/2000/01/rdf-schema#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sc'	, 'http://purl.org/science/owl/sciencecommons/'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sd'	, 'http://www.w3.org/ns/sparql-service-description#'		, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sioc'	, 'http://rdfs.org/sioc/ns#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'skos'	, 'http://www.w3.org/2004/02/skos/core#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'sql'	, 'sql:'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'vcard'	, 'http://www.w3.org/2001/vcard-rdf/3.0#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'vcard2006'	, 'http://www.w3.org/2006/vcard/ns#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'virtrdf'	, 'http://www.openlinksw.com/schemas/virtrdf#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'virtcxml'	, 'http://www.openlinksw.com/schemas/virtcxml#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'void'	, 'http://rdfs.org/ns/void#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xf'	, 'http://www.w3.org/2004/07/xpath-functions'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xml'	, 'http://www.w3.org/XML/1998/namespace'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xsd'	, 'http://www.w3.org/2001/XMLSchema#'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xsl10'	, 'http://www.w3.org/XSL/Transform/1.0'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xsl1999'	, 'http://www.w3.org/1999/XSL/Transform'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'xslwd'	, 'http://www.w3.org/TR/WD-xsl'	, 2);
-  DB.DBA.XML_SET_NS_DECL (	'yago'	, 'http://dbpedia.org/class/yago/'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'bif'		, 'bif:'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dawgt'		, 'http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dbpedia'	, 'http://dbpedia.org/resource/'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dbpprop'	, 'http://dbpedia.org/property/'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'dc'		, 'http://purl.org/dc/elements/1.1/'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'go'		, 'http://purl.org/obo/owl/GO#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'geo'		, 'http://www.w3.org/2003/01/geo/wgs84_pos#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'fn'		, 'http://www.w3.org/2005/xpath-functions/#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'foaf'		, 'http://xmlns.com/foaf/0.1/'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'obo'		, 'http://www.geneontology.org/formats/oboInOwl#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogc'		, 'http://www.opengis.net/'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgml'	, 'http://www.opengis.net/ont/gml#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgs'		, 'http://www.opengis.net/ont/geosparql#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgsf'	, 'http://www.opengis.net/def/function/geosparql/'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcgsr'	, 'http://www.opengis.net/def/rule/geosparql/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'ogcsf'		, 'http://www.opengis.net/ont/sf#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'owl'		, 'http://www.w3.org/2002/07/owl#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'mesh'		, 'http://purl.org/commons/record/mesh/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'math'		, 'http://www.w3.org/2000/10/swap/math#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'mf'		, 'http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#'	, 2);
+  DB.DBA.XML_SET_NS_DECL (	'nci'		, 'http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'product'	, 'http://www.buy.com/rss/module/productV2/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'protseq'	, 'http://purl.org/science/protein/bysequence/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdf'		, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdfa'		, 'http://www.w3.org/ns/rdfa#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdfdf'		, 'http://www.openlinksw.com/virtrdf-data-formats#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'rdfs'		, 'http://www.w3.org/2000/01/rdf-schema#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sc'		, 'http://purl.org/science/owl/sciencecommons/'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sd'		, 'http://www.w3.org/ns/sparql-service-description#'		, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sioc'		, 'http://rdfs.org/sioc/ns#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'skos'		, 'http://www.w3.org/2004/02/skos/core#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'sql'		, 'sql:'							, 2);
+  DB.DBA.XML_SET_NS_DECL (	'vcard'		, 'http://www.w3.org/2001/vcard-rdf/3.0#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'vcard2006'	, 'http://www.w3.org/2006/vcard/ns#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'virtrdf'	, 'http://www.openlinksw.com/schemas/virtrdf#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'virtcxml'	, 'http://www.openlinksw.com/schemas/virtcxml#'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'void'		, 'http://rdfs.org/ns/void#'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xf'		, 'http://www.w3.org/2004/07/xpath-functions'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xml'		, 'http://www.w3.org/XML/1998/namespace'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xsd'		, 'http://www.w3.org/2001/XMLSchema#'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xsl10'		, 'http://www.w3.org/XSL/Transform/1.0'				, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xsl1999'	, 'http://www.w3.org/1999/XSL/Transform'			, 2);
+  DB.DBA.XML_SET_NS_DECL (	'xslwd'		, 'http://www.w3.org/TR/WD-xsl'					, 2);
+  DB.DBA.XML_SET_NS_DECL (	'yago'		, 'http://dbpedia.org/class/yago/'				, 2);
 }
 ;
 
@@ -817,6 +834,73 @@ cache_and_log:
   log_text ('rdf_cache_id (\'t\', ?, ?)', qname, res);  --'
   return res;
 }
+;
+
+create function DB.DBA.RDF_PRESET_TWOBYTES_OF_DATATYPES ()
+{
+  declare xsd_lnames any;
+  xsd_lnames := vector (
+    'ENTITY',
+    'ENTITIES',
+    'ID',
+    'IDREF',
+    'IDREFS',
+    'NCName',
+    'Name',
+    'NMTOKEN',
+    'NMTOKENS',
+    'NOTATION',
+    'QName',
+    'any',
+    'anyAtomicType',
+    'anySimpleType',
+    'anyType',
+    'anyURI',
+    'base64Binary',
+    'boolean',
+    'byte',
+    'date',
+    'dateTime',
+    'dateTimeStamp',
+    'dayTimeDuration',
+    'decimal',
+    'double',
+    'duration',
+    'float',
+    'gDay',
+    'gMonth',
+    'gMonthDay',
+    'gYear',
+    'gYearMonth',
+    'hexBinary',
+    'int',
+    'integer',
+    'language',
+    'long',
+    'negativeInteger',
+    'nonNegativeInteger',
+    'nonPositiveInteger',
+    'normalizedString',
+    'positiveInteger',
+    'short',
+    'string',
+    'time',
+    'token',
+    'unsignedByte',
+    'unsignedInt',
+    'unsignedLong',
+    'unsignedShort',
+    'yearMonthDuration' );
+  foreach (varchar n in xsd_lnames) do
+    {
+      __dbf_set ('rb_type__xsd:' || n, DB.DBA.RDF_TWOBYTE_OF_DATATYPE (iri_to_id ('http://www.w3.org/2001/XMLSchema#' || n)));
+    }
+  commit work;
+}
+;
+
+--!AFTER
+DB.DBA.RDF_PRESET_TWOBYTES_OF_DATATYPES ()
 ;
 
 create function DB.DBA.RDF_TWOBYTE_OF_LANGUAGE (in id varchar) returns integer
@@ -3762,9 +3846,9 @@ print_o:
 }
 ;
 
-create function DB.DBA.RDF_TRIPLES_TO_TTL_ENV (in tcount integer)
+create function DB.DBA.RDF_TRIPLES_TO_TTL_ENV (in tcount integer, in env_flags integer, in col_metas any, inout ses any)
 {
-  return vector (dict_new (__min (tcount, 16000)), 0, '', '', '', 0, 0, 0, 0);
+  return vector (dict_new (__min (tcount, 16000)), 0, '', '', '', 0, 0, env_flags, col_metas, ses);
 }
 ;
 
@@ -3779,7 +3863,7 @@ create procedure DB.DBA.RDF_TRIPLES_TO_TTL (inout triples any, inout ses any)
       http ('# Empty TURTLE\n', ses);
       return;
     }
-  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount);
+  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount, 0, 0, ses);
   { whenever sqlstate '*' goto end_pred_sort;
     rowvector_subj_sort (triples, 1, 1);
 end_pred_sort: ;
@@ -3809,7 +3893,7 @@ create procedure DB.DBA.RDF_TRIPLES_TO_TRIG (inout triples any, inout ses any)
       http ('# Empty TriG\n', ses);
       return;
     }
-  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount);
+  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount, 0, 0, ses);
   { whenever sqlstate '*' goto end_pred_sort;
     rowvector_subj_sort (triples, 1, 1);
 end_pred_sort: ;
@@ -3971,7 +4055,7 @@ end_pred_sort: ;
   ns_dict := dict_new (case (print_top_level) when 0 then 10 else __min (tcount, 16000) end);
   dict_put (ns_dict, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf');
   dict_put (ns_dict, 'http://www.w3.org/2000/01/rdf-schema#', 'rdfs');
-  env := vector (ns_dict, 0, 0, '', '', 0, 0, 0, 0);
+  env := vector (ns_dict, 0, 0, '', '', 0, 0, 0, 0, 0);
   if (print_top_level)
     {
        http ('<?xml version="1.0" encoding="utf-8" ?>\n<rdf:RDF\n\txmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n\txmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"', ses);
@@ -4170,11 +4254,9 @@ This time the service made zero such statements, sorry.</p></body></html>', ses)
       http ('"', ses);
     }
   http ('>\n<head><title>RDFa+XHTML document</title></head><body>\n', ses);
-  http (sprintf ('<p>This document contains %d facts in XHTML+RDFa format.</p>',
+  http (sprintf ('<p>This HTML document contains %d embedded RDF statements represented using (X)HTML+RDFa notation.</p>',
     tcount), ses);
-  http ('<p>A generic web browser may not display them but the document can be saved on disk and used by some appropriate program or sent to a third party.
-Use "Save As" or "Send To" menu item of the browser; choose "HTML" file type, not "text file" or "web archive".
-</p>', ses);
+  http ('<p>The embedded RDF content will be recognized by any processor of (X)HTML+RDFa.</p>', ses);
   http ('\n<table border="1">\n<thead><tr><th>Namespace Prefix</th><th>Namespace URI</th></tr></thead><tbody>', ses);
   for (ctr := len - 2; ctr >= 0; ctr := ctr-2)
     {
@@ -4183,7 +4265,6 @@ Use "Save As" or "Send To" menu item of the browser; choose "HTML" file type, no
       http ('</td></tr>', ses);
     }
   http ('\n</tbody></table>', ses);
-  http ('\n<p>The rest of the document may look like garbage for humans or not displayed by the browser.</p>', ses);
   http ('\n<table border="1">\n<thead><tr><th>Subject</th><th>Predicate</th><th>Object</th></tr></thead>', ses);
   env := vector (0, 0, 0, null);
   rowvector_subj_sort (triples, 1, 1);
@@ -4739,11 +4820,9 @@ This time the service made zero such statements, sorry.</p></body></html>', ses)
     }
   http ('<html xmlns="http://www.w3.org/1999/xhtml"', ses);
   http ('>\n<head><title>HTML Microdata document</title></head><body>\n', ses);
-  http (sprintf ('<p>This document contains %d facts in HTML Microdata format.</p>',
+  http (sprintf ('<p>This HTML5 document contains %d embedded RDF statements represented using HTML+Microdata notation.</p>',
     tcount), ses);
-  http ('<p>A generic web browser may not display them properly but the document can be saved on disk and used by some appropriate program or sent to a third party.
-Use "Save As" or "Send To" menu item of the browser; choose "HTML" file type, not "text file" or "web archive".
-</p><p>The rest of the document may look like garbage for humans or not displayed by the browser.</p>', ses);
+  http ('<p>The embedded RDF content will be recognized by any processor of HTML5 Microdata.</p>', ses);
   http ('\n<table><tr><th>Prefix</th><th>Namespace IRI</th></tr>', ses);
   nslist := dict_to_vector (nsdict, 0);
   len := length (nslist);
@@ -4936,11 +5015,9 @@ This time the service made zero such statements, sorry.</p></body></html>', ses)
     }
   http ('<html xmlns="http://www.w3.org/1999/xhtml"', ses);
   http ('>\n<head><title>HTML Based Entity Description (with embedded Microdata)</title></head><body>\n', ses);
-  http (sprintf ('<p>This document contains %d facts in HTML Microdata format.</p>',
+  http (sprintf ('<p>This HTML5 document contains %d embedded RDF statements represented using HTML+Microdata notation.</p>',
     tcount), ses);
-  http ('<p>If you are viewing it in browser and want to save this document or sent it to a third party,
-use "Save As" or "Send To" menu item of the browser. Choose "HTML" file type, not "text file" or "web archive".
-</p><p>Some portions of the document may look like garbage for humans or not displayed by the browser, nevertheless RDF-aware programs can read that data.</p>', ses);
+  http ('<p>The embedded RDF content will be recognized by any processor of HTML5 Microdata.</p>', ses);
 
   -- http ('\n<table><tr><th>Prefix</th><th>Namespace IRI</th></tr>', ses);
   -- nslist := dict_to_vector (nsdict, 0);
@@ -6126,7 +6203,7 @@ create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_TTL (inout triples_dict any) re
 create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_NICE_TTL (inout triples_dict any) returns long varchar
 {
   declare triples, ses any;
-  if (2500 <= dict_size (triples_dict)) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
+  if (2666 < dict_size (triples_dict)) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
     return DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_TTL (triples_dict);
   ses := string_output ();
   if (214 <> __tag (triples_dict))
@@ -6139,6 +6216,24 @@ create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_NICE_TTL (inout triples_dict an
 ;
 
 create procedure DB.DBA.RDF_TRIPLES_TO_NICE_TTL (inout triples any, inout ses any)
+{
+  declare tcount integer;
+  tcount := length (triples);
+  if (0 = tcount)
+    {
+      http ('# Empty Turtle\n', ses);
+      return;
+    }
+  if (2666 < tcount) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
+    {
+      DB.DBA.RDF_TRIPLES_TO_TTL (triples, ses);
+      return;
+    }
+  DB.DBA.RDF_TRIPLES_TO_NICE_TTL_IMPL (triples, 0, ses);
+}
+;
+
+create procedure DB.DBA.RDF_TRIPLES_TO_NICE_TTL_IMPL (inout triples any, in env_flags integer, inout ses any)
 {
   declare env, printed_triples_mask any;
   declare rdf_first_iid, rdf_rest_iid, rdf_nil_iid IRI_ID;
@@ -6158,20 +6253,10 @@ create procedure DB.DBA.RDF_TRIPLES_TO_NICE_TTL (inout triples any, inout ses an
   declare prefixes_are_printed integer;
   declare prev_s, prev_p varchar;
   tcount := length (triples);
-  if (0 = tcount)
-    {
-      http ('# Empty Turtle\n', ses);
-      return;
-    }
-  if (2500 <= tcount) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
-    {
-      DB.DBA.RDF_TRIPLES_TO_TTL (triples, ses);
-      return;
-    }
   rowvector_obj_sort (triples, 2, 1);
   rowvector_subj_sort (triples, 1, 1);
   rowvector_subj_sort (triples, 0, 1);
-  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount);
+  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount, env_flags, 0, ses);
   rdf_first_iid	:= iri_to_id ('http://www.w3.org/1999/02/22-rdf-syntax-ns#first');
   rdf_rest_iid	:= iri_to_id ('http://www.w3.org/1999/02/22-rdf-syntax-ns#rest');
   rdf_nil_iid	:= iri_to_id ('http://www.w3.org/1999/02/22-rdf-syntax-ns#nil');
@@ -6588,6 +6673,45 @@ create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_MICRODATA (inout trip
     triples := dict_list_keys (triples_dict, 1);
   DB.DBA.RDF_TRIPLES_TO_HTML_NICE_MICRODATA (triples, ses);
   return ses;
+}
+;
+
+create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_TTL (inout triples_dict any) returns long varchar
+{
+  declare triples, ses any;
+  ses := string_output ();
+  if (214 <> __tag (triples_dict))
+    triples := vector ();
+  else
+    triples := dict_list_keys (triples_dict, 1);
+  DB.DBA.RDF_TRIPLES_TO_HTML_NICE_TTL (triples, ses);
+  return ses;
+}
+;
+
+create procedure DB.DBA.RDF_TRIPLES_TO_HTML_NICE_TTL (inout triples any, inout ses any)
+{
+  declare tcount integer;
+  tcount := length (triples);
+  if (0 = tcount)
+    {
+      http ('# Empty Turtle\n', ses);
+      return;
+    }
+  rowvector_obj_sort (triples, 2, 1);
+  rowvector_subj_sort (triples, 1, 1);
+  rowvector_subj_sort (triples, 0, 1);
+  if (2666 < tcount) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
+    {
+      http (sprintf ('# The result consists of %d triples so it is too long to be pretty-printed. The dump below contains that triples without any decoration', tcount), ses);
+      http ('<xmp>', ses);
+      DB.DBA.RDF_TRIPLES_TO_TTL (triples, ses);
+      http ('</xmp>', ses);
+      return;
+    }
+  http ('<pre>', ses);
+  DB.DBA.RDF_TRIPLES_TO_NICE_TTL_IMPL (triples, 257, ses);
+  http ('</pre>', ses);
 }
 ;
 
@@ -7558,6 +7682,7 @@ create function DB.DBA.SPARUL_CLEAR (in graph_iris any, in inside_sponge integer
         }
       old_log_enable := log_enable (log_mode, 1);
       declare exit handler for sqlstate '*' { log_enable (old_log_enable, 1); resignal; };
+      set_user_id ('dba', 1);
       exec (sprintf ('
       delete from DB.DBA.RDF_QUAD
       where G = __i2id (''%S'') ', g_iri));
@@ -8088,7 +8213,7 @@ create function DB.DBA.SPARQL_DELETE_QUAD_DICT_CONTENT (in dflt_graph_iri any, i
   declare exit handler for sqlstate '*' { log_enable (old_log_enable, 1); resignal; };
   if (__tag of vector = __tag (dflt_graph_iri))
     {
-      del_count := dflt_graph_iri[2]; -- 2, not 1
+      del_count := dflt_graph_iri[1]; -- 1 for del count
       dflt_graph_iri := dflt_graph_iri[0]; -- the last op.
     }
   while (dict_size (quads_dict) > 0)
@@ -8238,6 +8363,7 @@ create function DB.DBA.SPARUL_COPYMOVEADD_IMPL (in opname varchar, in src_g_iri 
   stat := '00000';
   qry := sprintf ('insert soft DB.DBA.RDF_QUAD (G,S,P,O) select __i2id (''%S''), t.S, t.P, t.O from DB.DBA.RDF_QUAD t where t.G = __i2id (''%S'') ',
      tgt_g_iri, src_g_iri );
+  set_user_id ('dba', 1);
   exec (qry, stat, msg);
   if (stat <> '00000')
     signal (stat, msg);
@@ -13176,6 +13302,7 @@ create function DB.DBA.RDF_QM_DEFINE_MAP_VALUE (in qmv any, in fldname varchar, 
         when __tag of date then 'date'
         when __tag of time then 'time'
         when __tag of long varbinary then 'longvarbinary'
+        when __tag of varbinary then 'longvarbinary'
         when 188 then 'integer'
         when __tag of integer then 'integer'
         when __tag of varchar then 'varchar'
@@ -15508,10 +15635,15 @@ create procedure DB.DBA.RDF_DEFAULT_USER_PERMS_SET_MEMONLY (in uname varchar, in
     dict_put (__rdf_graph_default_perms_of_user_dict (set_private), uid, perms);
   if (uid = http_nobody_uid())
     {
+      declare gpp_dict any;
+      declare min_rw_perm integer;
+      gpp_dict := __rdf_graph_public_perms_dict();
       if (perms is null)
-        dict_remove (__rdf_graph_public_perms_dict(), special_iid);
+        dict_remove (gpp_dict, special_iid);
       else
-        dict_put (__rdf_graph_public_perms_dict(), special_iid, perms);
+        dict_put (gpp_dict, special_iid, perms);
+      min_rw_perm := bit_and (dict_get (gpp_dict, #i0, 3), dict_get (gpp_dict, #i8192, 3));
+      __rdf_graph_default_perms_enable_raw_access_check (case (min_rw_perm) when 3 then 0 else 1 end);
     }
   foreach (varchar jso_key in affected_jso) do
     {
@@ -15657,8 +15789,7 @@ create procedure DB.DBA.RDF_GRAPH_USER_PERMS_SET_MEMONLY (in graph_iri varchar, 
   DB.DBA.RDF_GRAPH_CACHE_IID (graph_iid);
   if (uid = http_nobody_uid())
     dict_put (__rdf_graph_public_perms_dict(), graph_iid, perms);
-  else
-    __rdf_graph_specific_perms_of_user (graph_iid, uid, perms);
+  __rdf_graph_specific_perms_of_user (graph_iid, uid, perms);
   jso_mark_affected (graph_iri);
   log_text ('jso_mark_affected (?)', graph_iri);
 }
@@ -15736,8 +15867,7 @@ create procedure DB.DBA.RDF_GRAPH_USER_PERMS_DEL_MEMONLY (in graph_iri varchar, 
   DB.DBA.RDF_GRAPH_CACHE_IID (graph_iid);
   if (uid = http_nobody_uid())
     dict_remove (__rdf_graph_public_perms_dict(), graph_iid);
-  else
-    __rdf_graph_specific_perms_of_user (graph_iid, uid, -1);
+  __rdf_graph_specific_perms_of_user (graph_iid, uid, -1);
   jso_mark_affected (graph_iri);
   log_text ('jso_mark_affected (?)', graph_iri);
 }
@@ -16402,7 +16532,7 @@ create procedure DB.DBA.SPARQL_RELOAD_QM_GRAPH ()
 {
   declare ver varchar;
   declare inx int;
-  ver := '2013-12-05 0002v7';
+  ver := '2014-02-20 0001v7';
   if (USER <> 'dba')
     signal ('RDFXX', 'Only DBA can reload quad map metadata');
   if (not exists (sparql define input:storage "" ask where {
@@ -16498,6 +16628,8 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'create role SPARQL_SELECT',
     'create role SPARQL_SPONGE',
     'create role SPARQL_UPDATE',
+    'create role SPARQL_SELECT_RAW',
+    'grant SPARQL_SELECT to SPARQL_SELECT_RAW',
     'grant SPARQL_SELECT to SPARQL_UPDATE',
     'grant SPARQL_SELECT to SPARQL_SPONGE',
     'grant SPARQL_SPONGE to SPARQL_UPDATE',
@@ -16521,6 +16653,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant all on DB.DBA.RDF_EXPLICITLY_CREATED_GRAPH to SPARQL_UPDATE',
     'grant select on DB.DBA.SYS_IDONLY_EMPTY to SPARQL_SELECT',
     'grant select on DB.DBA.SYS_IDONLY_ONE to SPARQL_SELECT',
+    'grant select on DB.DBA.RDF_QUAD_SECURITY_LOG to SPARQL_SELECT_RAW',
     'grant execute on DB.DBA.RDF_GLOBAL_RESET to SPARQL_UPDATE',
     'grant execute on DB.DBA.RDF_MAKE_IID_OF_QNAME to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_MAKE_IID_OF_QNAME_SAFE to SPARQL_SELECT',
@@ -16604,6 +16737,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_TR to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_NICE_MICRODATA to SPARQL_SELECT',
+    'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_NICE_TTL to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_JSON_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_ATOM_XML_TEXT to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_ODATA_JSON to SPARQL_SELECT',
@@ -16616,6 +16750,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_RDF_XML_INIT to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_RDF_XML_ACC to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_RDF_XML_FIN to SPARQL_SELECT',
+    'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_HTML_NICE_TTL to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_JSON_INIT to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_JSON_ACC to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_JSON_FIN to SPARQL_SELECT',
@@ -16636,6 +16771,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_JSON_LD to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_MICRODATA to SPARQL_SELECT',
+    'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_TTL to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_JSON_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_CSV to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_TSV to SPARQL_SELECT',
@@ -16997,6 +17133,11 @@ create procedure DB.DBA.RDF_QUAD_LOAD_CACHE ()
     from DB.DBA.RDF_GRAPH_USER where RGU_GRAPH_IID = #i8192 );
   fake := (select count (dict_put (__rdf_graph_public_perms_dict(), RGU_GRAPH_IID, RGU_PERMISSIONS))
     from DB.DBA.RDF_GRAPH_USER where RGU_USER_ID = http_nobody_uid () );
+  declare gpp_dict any;
+  declare min_rw_perm integer;
+  gpp_dict := __rdf_graph_public_perms_dict();
+  min_rw_perm := bit_and (dict_get (gpp_dict, #i0, 3), dict_get (gpp_dict, #i8192, 3));
+  __rdf_graph_default_perms_enable_raw_access_check (case (min_rw_perm) when 3 then 0 else 1 end);
 }
 ;
 

@@ -344,11 +344,13 @@ Note: bitwise OR of all these masks should be less than SMALLEST_POSSIBLE_POINTE
 #define OPT_HASH_PARTITION ((ptrlong)941)
 #define OPT_HASH_REPLICATION ((ptrlong)942)
 #define OPT_HASH_UNIQUE ((ptrlong)957)
+#define OPT_HASH_NO_DROP ((ptrlong)959)
 #define OPT_ISOLATION ((ptrlong)943)
 #define OPT_CHECK ((ptrlong)944)
 #define OPT_PART_GBY ((ptrlong)945)
 #define OPT_NO_PART_GBY ((ptrlong)946)
 #define OPT_NO_LOCK ((ptrlong)956)
+#define OPT_NO_DT_INLINE ((ptrlong)961)
 
 #define OPT_EST_TIME ((ptrlong)950)
 #define OPT_EST_SIZE ((ptrlong)951)

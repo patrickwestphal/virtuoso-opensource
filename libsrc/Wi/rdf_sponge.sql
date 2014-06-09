@@ -1215,64 +1215,70 @@ no_cr:
 }
 ;
 
-
 -- /* guess the content type */
 create function DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (in origin_uri varchar, in ret_content_type varchar, inout ret_body any) returns varchar
 {
-  declare guessed_ret_type varchar;
-  -- dbg_obj_princ ('DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (', origin_uri, ret_content_type, '...)');
-  if (ret_content_type is not null)
-    {
-      if (strstr (ret_content_type, 'application/sparql-results+xml') is not null)
-        return 'application/sparql-results+xml';
-      if (strstr (ret_content_type, 'application/rdf+xml') is not null)
-        return 'application/rdf+xml';
-      if (strstr (ret_content_type, 'text/rdf+ttl') is not null or
-        strstr (ret_content_type, 'text/rdf+turtle') is not null or
-        strstr (ret_content_type, 'text/turtle') is not null or
-        strstr (ret_content_type, 'application/x-turtle') is not null or
-        strstr (ret_content_type, 'application/turtle') is not null )
-        return 'text/turtle';
-      if (strstr (ret_content_type, 'text/n3') is not null or
-        strstr (ret_content_type, 'text/rdf+n3') is not null )
-        return 'text/rdf+n3';
-      if (strstr (ret_content_type, 'application/x-trig') is not null)
-        return 'application/x-trig';
-      if (strstr (ret_content_type, 'text/x-nquads') is not null)
-        return 'text/x-nquads';
-    }
-  declare ret_begin, ret_html any;
-  ret_begin := subseq (ret_body, 0, 65535);
-  if (isstring_session (ret_begin))
-    ret_begin := string_output_string (ret_begin);
-  -- dbg_obj_princ ('DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE: ret_begin = ', ret_begin);
-  ret_html := xtree_doc (ret_begin, 2);
-  -- dbg_obj_princ ('DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE: ret_html = ', ret_html);
-  if (xpath_eval ('[xmlns:xh="http://www.w3.org/1999/xhtml"] /html|/xhtml|/xh:html|/xh:xhtml', ret_html) is not null)
-    {
-      if (xpath_eval ('[xmlns:grddl="http://www.w3.org/2003/g/data-view#"] /*/@grddl:transformation', ret_html) is not null)
-        return 'text/html'; -- GRDDL stylesheet is most authoritative
-      if (xpath_eval ('/*/head/@profile', ret_html) is not null)
-        return 'text/html'; -- GRDDL inline profile is authoritative, too
-      if (xpath_eval ('//*[exists(@itemscope) or exists(@itemprop) or exists(@itemid) or exists(@itemtype)]', ret_html) is not null)
-        return 'text/microdata+html'; -- Microdata are tested before RDFa because metadata with @rel may be wrongly recognised as RDFa
-      -- if (xpath_eval ('//*[exists(@rel) or exists(@rev) or exists(@typeof) or exists(@property) or exists(@about)]', ret_html) is not null)
-      if (xpath_eval ('//*[exists(@typeof) or exists(@about)]', ret_html) is not null)
-        return 'application/xhtml+xml';
-      return 'text/html';
-    }
-  if (xpath_eval ('[xmlns:rset="http://www.w3.org/2005/sparql-results#"] /rset:sparql', ret_html) is not null
-    or xpath_eval ('[xmlns:rset2="http://www.w3.org/2001/sw/DataAccess/rf1/result2"] /rset2:sparql', ret_html) is not null)
-    return 'application/sparql-results+xml';
-  if (xpath_eval ('[xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"] /rdf:rdf', ret_html) is not null)
-    return 'application/rdf+xml';
-  if (strstr (ret_begin, '<html>') is not null or
-    strstr (ret_begin, '<xhtml>') is not null )
-    return 'text/html';
-  guessed_ret_type := DB.DBA.RDF_SPONGE_GUESS_TTL_CONTENT_TYPE (origin_uri, ret_content_type, ret_body, ret_begin);
-  if (guessed_ret_type is not null)
-    return guessed_ret_type;
-  return ret_content_type;
+	declare guessed_ret_type varchar;
+	-- dbg_obj_princ ('DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (', origin_uri, ret_content_type, '...)');
+	if (ret_content_type is not null)
+	{
+		if (strstr (ret_content_type, 'application/sparql-results+xml') is not null)
+			return 'application/sparql-results+xml';
+		if (strstr (ret_content_type, 'application/rdf+xml') is not null)
+			return 'application/rdf+xml';
+		if (strstr (ret_content_type, 'text/rdf+ttl') is not null or
+			strstr (ret_content_type, 'text/rdf+turtle') is not null or
+			strstr (ret_content_type, 'text/turtle') is not null or
+			strstr (ret_content_type, 'application/x-turtle') is not null or
+			strstr (ret_content_type, 'application/turtle') is not null )
+			return 'text/turtle';
+		if (strstr (ret_content_type, 'text/n3') is not null or
+			strstr (ret_content_type, 'text/rdf+n3') is not null )
+			return 'text/rdf+n3';
+		if (strstr (ret_content_type, 'application/x-trig') is not null)
+			return 'application/x-trig';
+		if (strstr (ret_content_type, 'text/x-nquads') is not null)
+			return 'text/x-nquads';
+	}
+	declare ret_begin, ret_html any;
+	ret_begin := subseq (ret_body, 0, 65535);
+	if (isstring_session (ret_begin))
+		ret_begin := string_output_string (ret_begin);
+	-- dbg_obj_princ ('DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE: ret_begin = ', ret_begin);
+	ret_html := xtree_doc (ret_begin, 2);
+	-- dbg_obj_princ ('DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE: ret_html = ', ret_html);
+	if (xpath_eval ('[xmlns:xh="http://www.w3.org/1999/xhtml"] /html|/xhtml|/xh:html|/xh:xhtml', ret_html) is not null)
+	{
+		if (xpath_eval ('[xmlns:grddl="http://www.w3.org/2003/g/data-view#"] /*/@grddl:transformation', ret_html) is not null)
+			return 'text/html'; -- GRDDL stylesheet is most authoritative
+		if (xpath_eval ('/*/head/@profile', ret_html) is not null)
+			return 'text/html'; -- GRDDL inline profile is authoritative, too
+		if (xpath_eval ('//*[exists(@itemscope) or exists(@itemprop) or exists(@itemid) or exists(@itemtype)]', ret_html) is not null)
+			return 'text/microdata+html'; -- Microdata are tested before RDFa because metadata with @rel may be wrongly recognised as RDFa
+		-- if (xpath_eval ('//*[exists(@rel) or exists(@rev) or exists(@typeof) or exists(@property) or exists(@about)]', ret_html) is not null)
+		if (xpath_eval ('//*[exists(@typeof) or exists(@about)]', ret_html) is not null)
+			return 'application/xhtml+xml';
+		return 'text/html';
+	}
+	if (xpath_eval ('[xmlns:rset="http://www.w3.org/2005/sparql-results#"] /rset:sparql', ret_html) is not null
+		or xpath_eval ('[xmlns:rset2="http://www.w3.org/2001/sw/DataAccess/rf1/result2"] /rset2:sparql', ret_html) is not null)
+		return 'application/sparql-results+xml';
+	if (xpath_eval ('[xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"] /rdf:rdf', ret_html) is not null)
+		return 'application/rdf+xml';
+	if (strstr (ret_begin, '<html>') is not null or
+		strstr (ret_begin, '<xhtml>') is not null )
+		return 'text/html';
+	declare exit handler for sqlstate '*'
+	{
+		goto next;
+	};
+	if (length(json_parse(ret_body)) > 0)
+		return 'application/json';
+	next:;
+	guessed_ret_type := DB.DBA.RDF_SPONGE_GUESS_TTL_CONTENT_TYPE (origin_uri, ret_content_type, ret_body, ret_begin);
+	if (guessed_ret_type is not null)
+		return guessed_ret_type;
+	return ret_content_type;
 }
 ;
 
@@ -1610,6 +1616,10 @@ create procedure DB.DBA.RDF_SPONGE_PROXY_IRI(in uri varchar := '', in login varc
 create procedure DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC (in contents varchar, in base varchar, in graph varchar, in mimetype varchar :='text/html')
 {
   declare proxyiri, docproxyiri, dociri varchar;
+
+  if (__proc_exists ('DB.DBA.RM_SPONGE_DOC_IRI') is null)
+    return;
+
   proxyiri := DB.DBA.RDF_PROXY_ENTITY_IRI (graph);
   docproxyiri := DB.DBA.RDF_SPONGE_PROXY_IRI (graph);
   dociri:=DB.DBA.RM_SPONGE_DOC_IRI(graph);
@@ -1706,13 +1716,13 @@ retry_after_deadlock:
       if (xpath_eval ('[ xmlns:dv="http://www.w3.org/2003/g/data-view#" ] /*[1]/@dv:transformation', xt) is not null)
         goto load_grddl;
       DB.DBA.RDF_LOAD_RDFXML (ret_body, base, coalesce (dest, graph_iri));
-      if (extra <> '0')
+      if (get_soft <> 'no-sponge')
         DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, coalesce (dest, graph_iri), ret_content_type);
       rdf_fmt := 1;
       if (groupdest is not null)
         {
           DB.DBA.RDF_LOAD_RDFXML (ret_body, base, groupdest);
-          if (extra <> '0')
+	  if (get_soft <> 'no-sponge')
             DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, groupdest, ret_content_type);
         }
         goto load_grddl;
@@ -1757,14 +1767,14 @@ retry_after_deadlock:
       --  DB.DBA.SPARUL_CLEAR (coalesce (dest, graph_iri), 1);
 
       DB.DBA.TTLP (ret_body, base, coalesce (dest, graph_iri), ttl_mode);
-      if(extra<>'0')
+      if (get_soft <> 'no-sponge')
         DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, coalesce (dest, graph_iri), ret_content_type);
       rdf_fmt := 1;
 
       if (groupdest is not null)
         {
           DB.DBA.TTLP (ret_body, base, groupdest);
-          if(extra<>'0')
+	  if (get_soft <> 'no-sponge')
             DB.DBA.RDF_LOAD_RDFXML_PP_GENERIC(ret_body, base, groupdest, ret_content_type);
         }
       if (exists (select 1 from DB.DBA.SYS_RDF_MAPPERS where RM_TYPE = 'URL' and regexp_match (RM_PATTERN, new_origin_uri) and RM_ENABLED = 1))
@@ -2010,33 +2020,24 @@ again:
 }
 ;
 
-create procedure DB.DBA.CHECK_CONNECTION_PERMISSIONS (in resource varchar, in scope varchar)
-{
-  if (__proc_exists ('DB.DBA.DBEV_CHECK_PERMISSIONS') is not null) {
-    return "DB"."DBA"."DBEV_CHECK_PERMISSIONS" (resource, scope);
-  }
-  else {
-    return vector ();
-  }
-}
-;
-
 --!
 -- Check if sponging is allowed for the current user/context.
 --/
 create procedure DB.DBA.SPONGING_ALLOWED ()
 {
   declare r any;
-  if (registry_get ('__sponger_access_mode__') = 'acl') {
-    r := DB.DBA.CHECK_CONNECTION_PERMISSIONS ('urn:virtuoso:sponger', 'urn:virtuoso:val:scope:sponger');
+
+  r := DB.DBA.CHECK_CONNECTION_PERMISSIONS (resource=>'urn:virtuoso:access:sparql', scope=>'http://www.openlinksw.com/ontology/acl#Query');
+
+  -- No ACL system installed -> allow access
+  if (r is null)
+    return 1;
+
     if (position ('http://www.openlinksw.com/ontology/acl#Sponge', r) > 0)
       return 1;
+
     return 0;
   }
-  else {
-    return 1;
-  }
-}
 ;
 
 create function DB.DBA.RDF_SPONGE_UP (in graph_iri varchar, in options any, in uid integer := -1)
@@ -2075,13 +2076,14 @@ create function DB.DBA.RDF_SPONGE_UP (in graph_iri varchar, in options any, in u
 
 create function DB.DBA.RDF_SPONGE_UP_1 (in graph_iri varchar, in options any, in uid integer := -1)
 {
-  declare dest, get_soft, local_iri, immg, res_graph_iri, cookie, get_private varchar;
+  declare dest, get_soft, local_iri, immg, res_graph_iri, cookie, get_private, get_enforce_acls varchar;
   declare perms, log_mode integer;
   -- dbg_obj_princ ('DB.DBA.RDF_SPONGE_UP_1 (', graph_iri, options, ')');
   graph_iri := cast (graph_iri as varchar);
   --set_user_id ('dba', 1);
 
-  if (DB.DBA.SPONGING_ALLOWED() = 0)
+  get_enforce_acls := get_keyword_ucase ('get:enforce-acls', options);
+  if (get_enforce_acls = 'yes' and DB.DBA.SPONGING_ALLOWED() = 0)
   {
     if (get_keyword_ucase ('get:error-recovery', options, 'signal') = 'signal')
       signal ('RDFZZ', 'RDF_SPONGE_UP_1: Use of the Sponger is denied for the current user');

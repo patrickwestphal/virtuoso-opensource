@@ -765,7 +765,7 @@ internal_sql_connect (SQLHDBC hdbc,
 #ifdef _SSL
   /* We need to ensure that SSL error stack is clear before peeking a error */
   ERR_clear_error ();
-#if !defined (WIN32)
+#if 0				/*!defined (WIN32) */
   {
     char *ssl_usage = con->con_encrypt;
     if (ssl_usage && strlen (ssl_usage) > 0 && atoi (ssl_usage) == 0)

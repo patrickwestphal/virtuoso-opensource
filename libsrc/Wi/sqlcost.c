@@ -475,7 +475,8 @@ dfe_n_in_order (df_elt_t * dfe, df_elt_t * prev_tb, df_elt_t ** prev_ret, float 
   int c1, c2, n1, n2, mx, nth;
   int n_col_eqs = 0;
   df_elt_t *col1, *col2, *lower1, *upper1;
-  if (HR_FILL != dfe->_.table.hash_role);
+  if (HR_FILL == dfe->_.table.hash_role)
+    return 0;
   if (!prev_tb)
     prev_tb = dfe_prev_tb (dfe, card_between, 0);
   *prev_ret = prev_tb;
@@ -661,10 +662,7 @@ dfe_vec_inx_cost (df_elt_t * dfe, index_choice_t * ic, int64 sample)
     return 8;			/* hash fillers and refs do not take this into account */
   order = dfe_n_in_order (dfe, NULL, &prev_tb, &card_between, &eq_on_ordering, &cl_colocated);
   ic->ic_in_order = order;
-  IC_SAVE;
-  ref_card = dfe_arity_with_supers (dfe->dfe_prev);
-  dfe->_.table.in_arity = ref_card;
-  IC_RESTORE;
+  ref_card = dfe->_.table.in_arity;
   if (!order)
     {
       float t_card;
@@ -1072,6 +1070,12 @@ sqlo_in_list_unit (df_elt_t * in_tb, df_elt_t * pred, float *u1, float *a1)
   if (!in_list)
     return 0;
 
+  if (sqlo_is_sec_in_list (in_list))
+    {
+      *a1 = 0.99;
+      *u1 = 0.001;
+      return 1;
+    }
   if (pred->_.bin.is_not)
     {
       *u1 = 0.041;
@@ -1084,6 +1088,7 @@ sqlo_in_list_unit (df_elt_t * in_tb, df_elt_t * pred, float *u1, float *a1)
       *a1 = 0.3;
       return 1;
     }
+
   thr = THREAD_CURRENT_THREAD;
   nth = (ptrlong) THR_ATTR (thr, TA_NTH_IN_ITEM);
   n_items = (ptrlong) THR_ATTR (thr, TA_N_IN_ITEMS);
@@ -1116,6 +1121,7 @@ sqlo_in_pred_index (df_elt_t * dfe, index_choice_t * ic, df_elt_t * lower, dbe_c
 {
   /* decide whether a possibly by index in pred should be done by index.  If already not by index then not by index.
    * If on first part or if all parts before are const, then by index, also by index if leading parts are very unselective, else not by index*/
+  df_elt_t **in_list;
   int nth_part;
   dbe_key_t *key = dfe->_.table.key;
   if (ic->ic_in_filter)
@@ -1125,12 +1131,16 @@ sqlo_in_pred_index (df_elt_t * dfe, index_choice_t * ic, df_elt_t * lower, dbe_c
       return;
     }
   nth_part = dk_set_position (key->key_parts, col);
+  in_list = sqlo_in_list (lower, NULL, NULL);
+  if (sqlo_is_sec_in_list (in_list))
+    goto no_index;
   if (0 == nth_part)
     return;
   if (inx_const_fill == nth_part)
     return;
   if (tb_count / inx_arity > 10000)
     return;
+no_index:
   ic->ic_in_filter = 1;
   lower->_.bin.is_on_index = 0;
   *is_indexed_ret = 0;
@@ -3604,7 +3614,7 @@ rq_sample (df_elt_t * dfe, rq_cols_t * rq, index_choice_t * ic)
   ic->ic_no_dep_sample = 1;
   if (non_index_in)
     {
-      du_thread_t *thr = THREAD_CURRENT_THREAD;;
+      du_thread_t *thr = THREAD_CURRENT_THREAD;
       df_elt_t **in_list = sqlo_in_list (non_index_in, NULL, NULL);
       int ctr, nth_save = (ptrlong) THR_ATTR (thr, TA_NTH_IN_ITEM);
       res = 0;
@@ -4086,7 +4096,7 @@ col_dfe_list_size (dk_set_t cols)
   int res = 0;
   DO_SET (df_elt_t *, dfe, &cols)
   {
-    if (DFE_COLUMN == dfe->dfe_type)
+    if (DFE_COLUMN == dfe->dfe_type && dfe->_.col.col)
       res += MAX (8, dfe->_.col.col->col_avg_len);
     else
       res += 8;
@@ -4278,6 +4288,9 @@ dfe_table_cost_ic_1 (df_elt_t * dfe, index_choice_t * ic, int inx_only)
   inx_cost = dbe_key_unit_cost (dfe->_.table.key);
   ic->ic_ric = rdf_name_to_ctx (sqlo_opt_value (dfe->_.table.ot->ot_opts, OPT_RDF_INFERENCE));
   memzero (eq_preds, sizeof (eq_preds));
+  IC_SAVE;
+  dfe->_.table.in_arity = dfe_arity_with_supers (dfe->dfe_prev);
+  IC_RESTORE;
   DO_SET (dbe_column_t *, part, &dfe->_.table.key->key_parts)
   {
     int col_already_eq;

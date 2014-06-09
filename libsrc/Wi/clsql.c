@@ -1738,7 +1738,9 @@ int64 c_setp_partition_threshold = 100000;
 int
 setp_is_high_card (setp_node_t * setp)
 {
-  return enable_high_card_part && setp->setp_card > c_setp_partition_threshold && !setp->setp_in_union;
+  if (setp->setp_copy_of && setp->setp_copy_of->setp_partitioned)
+    return 1;
+  return enable_high_card_part && setp->setp_card > c_setp_partition_threshold;
 }
 
 

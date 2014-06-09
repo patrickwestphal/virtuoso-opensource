@@ -1704,7 +1704,10 @@ sql_option
 	| HASH SET INTNUM  { $$ = t_CONS (OPT_HASH_SET, t_CONS ($3, NULL)); }
 	| HASH PARTITION column { $$ = t_CONS (OPT_HASH_PARTITION, t_CONS ( $3, NULL)); }
 	| HASH REPLICATION { $$ = t_CONS (OPT_HASH_REPLICATION, t_CONS ((ptrlong)1, NULL)); }
-	| HASH UNIQUE { $$ = t_CONS (OPT_HASH_REPLICATION, t_CONS ((ptrlong)1, NULL)); }
+	| HASH UNIQUE { $$ = t_CONS (OPT_HASH_UNIQUE, t_CONS ((ptrlong)1, NULL)); }
+	| HASH NO_L DROP { $$ = t_CONS (OPT_HASH_NO_DROP, t_CONS ((ptrlong)1, NULL)); }
+	| FINAL_L { $$ = t_CONS (OPT_NO_DT_INLINE, t_CONS ((ptrlong)1, NULL)); }
+
 	| ISOLATION_L txn_isolation_level { $$ = t_CONS (OPT_ISOLATION, t_CONS ( $2, NULL)); }
 	| INTERSECT { $$ = t_CONS (OPT_JOIN, t_CONS (OPT_INTERSECT, NULL)); }
 	| NO_L __LOCK { $$ = t_CONS (OPT_NO_LOCK, t_CONS (1, NULL)); }

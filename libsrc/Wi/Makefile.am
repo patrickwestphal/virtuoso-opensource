@@ -122,6 +122,7 @@ C_FILES_SPARQL	= \
 	rdf_core.c \
 	rdf_mapping_jso.c \
 	rdfbox.c \
+	rdfsec.c \
 	rdfinf.c \
 	rdfld.c \
 	rdfxml_parser.c \

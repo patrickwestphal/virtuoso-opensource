@@ -538,6 +538,8 @@ struct hash_index_s
   dk_hash_t *hi_gb_dist_trees;	/* in group by with count distinct, if not cluster, keep trees for distinct go\s here */
   ha_key_range_t *hi_key_ranges;
   int hi_size;
+  char hi_is_cl_cache;		/* set if replicas or partitions exist in other cluster nodes and the ht is cached, i.e. survives the creating qi, broadcast a free when freeing this */
+  char hi_is_rdf_ctx;
   char hi_is_unique;
   int64 hi_count;
 #ifdef OLD_HASH

@@ -1009,7 +1009,7 @@ sqlo_add_table_ref (sqlo_t * so, ST ** tree_ret, dk_set_t * res)
 	    ot = (op_table_t *) so->so_tables->data;
 	    ot->ot_prefix = tree->_.table_ref.range;
 	    if (BOX_ELEMENTS (tree) > 3)
-	      ot->ot_dt_opts = tree->_.dt_ref.opts;
+	      ot->ot_opts = ot->ot_dt_opts = tree->_.dt_ref.opts;
 	    tree->_.table_ref.range = ot->ot_new_prefix;
 /*	    t_set_push (res, (void *) ot);*/
 	    sco_add_table (so->so_scope, ot);
@@ -2786,7 +2786,9 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
   /* do the dt expansion */
   {
     int has_dt_expanded = 0;
-    if (texp && !sqlo_opt_value (ST_OPT (texp, caddr_t *, _.table_exp.opts), OPT_ORDER))
+    if (texp
+	&& !sqlo_opt_value (ST_OPT (texp, caddr_t *, _.table_exp.opts), OPT_ORDER)
+	&& !sqlo_opt_value (ST_OPT (texp, caddr_t *, _.table_exp.opts), OPT_NO_DT_INLINE))
       {
 	has_dt_expanded = sqlo_expand_dt_1 (so, tree, ot);
       }

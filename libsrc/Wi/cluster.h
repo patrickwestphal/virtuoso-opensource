@@ -361,6 +361,8 @@ typedef struct cl_op_s
       int u_id;
       int req_perms;
       dk_hash_64_t *ht;
+      caddr_t g_read_qr;
+      caddr_t g_read_param;
     } rdf_graph_user_perms;
   } _;
 } cl_op_t;

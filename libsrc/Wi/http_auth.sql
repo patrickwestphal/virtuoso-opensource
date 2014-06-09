@@ -531,7 +531,29 @@ DB.DBA.HP_AUTH_SPARQL_USER (in realm varchar)
 {
   if (DB.DBA.HTTP_AUTH_CHECK_USER (realm, 1, 1) = 1)
     return 1;
-  else
-    return 0;
+  if (isstring (http_param ('sid')) and __proc_exists ('VAL.DBA.authentication_details_for_connection') is not null)
+    {
+      declare val_serviceId, val_sid, val_sidRealm, val_uname, val_webidGraph varchar;
+      declare val_isRealUser, val_auth_method integer;
+      declare val_cert any;
+
+      val_serviceId := null;
+      val_uname := null;
+      val_sid := null;
+      val_isRealUser := 0;
+      val_auth_method := 0;
+      val_cert := null;
+      val_webidGraph := null;
+      val_sidRealm := null;
+      val_webidGraph := uuid();
+      val_cert := client_attr ('client_certificate');
+      VAL.DBA.authentication_details_for_connection (val_sid, val_serviceId, val_uname, val_isRealUser, val_sidRealm, 'sid', val_cert, val_webidGraph);
+      --dbg_obj_print_vars (val_sid, val_serviceId, val_uname, val_isRealUser, val_sidRealm, val_cert, val_webidGraph);
+      if (val_isRealUser)
+	{
+	  return 1;
+	}
+    }
+  return 0;
 }
 ;

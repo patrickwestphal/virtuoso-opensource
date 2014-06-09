@@ -181,7 +181,6 @@ top_print (caddr_t * val, char *text)
 {
   if (enable_top_print)
     {
-      printf ("%s ");
       sqlo_box_print ((caddr_t) val);
     }
 }
@@ -206,7 +205,7 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
   if (top_clo->_.top.is_full)
     {
       caddr_t last = clo->_.top.is_full ? (caddr_t) clo->_.top.values : clo->_.top.values[clo->_.top.fill - 1];
-      if (clo->_.top.is_full && top_is_better (last, top_clo->_.top.values, clo->_.top.cmp))
+      if (clo->_.top.is_full && top_is_better (last, (caddr_t) top_clo->_.top.values, clo->_.top.cmp))
 	{
 	  caddr_t oldv = (caddr_t) top_clo->_.top.values;
 	  top_clo->_.top.values = (caddr_t *) box_copy_tree (last);
@@ -766,7 +765,7 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
     {
       itc_ha_feed_ret_t ihfr;
       if (!setp->src_gen.src_sets)
-	itc_ha_feed (&ihfr, setp->setp_ha, inst, 0);
+	itc_ha_feed (&ihfr, setp->setp_ha, inst, 0, NULL);
       else
 	{
 	  int set, n_sets;
@@ -780,7 +779,7 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
 	  for (set = 0; set < n_sets; set++)
 	    {
 	      qi->qi_set = set;
-	      itc_ha_feed (&ihfr, setp->setp_ha, inst, 0);
+	      itc_ha_feed (&ihfr, setp->setp_ha, inst, 0, NULL);
 	    }
 	}
       return DVC_MATCH;
@@ -789,7 +788,7 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
     {
       itc_ha_feed_ret_t ihfr;
       if (!setp->src_gen.src_out_fill)
-	return DVC_MATCH != itc_ha_feed (&ihfr, setp->setp_ha, inst, 0);
+	return DVC_MATCH != itc_ha_feed (&ihfr, setp->setp_ha, inst, 0, NULL);
       else
 	{
 	  int set, n_sets = QST_INT (inst, setp->src_gen.src_prev->src_out_fill);
@@ -801,7 +800,7 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
 	      int match = 0;
 	      qi->qi_set = set;
 	      if (SETP_DISTINCT_NO_OP != setp->setp_distinct)
-		match = DVC_MATCH == itc_ha_feed (&ihfr, setp->setp_ha, inst, 0);
+		match = DVC_MATCH == itc_ha_feed (&ihfr, setp->setp_ha, inst, 0, NULL);
 	      if (setp->setp_set_op == INTERSECT_ST || setp->setp_set_op == INTERSECT_ALL_ST)
 		match = !match;
 	      if (!match)
@@ -950,17 +949,20 @@ setp_temp_clear (setp_node_t * setp, hash_area_t * ha, caddr_t * qst)
   if (bp_ref_itc)
     itc_free (bp_ref_itc);
 #endif
-  if (SSL_VEC == ha->ha_tree->ssl_type)
+  if (!setp || !setp->setp_is_preset || !QST_INT (qst, setp->setp_is_preset))
     {
-      data_col_t *dc = QST_BOX (data_col_t *, qst, ha->ha_tree->ssl_index);
-      dc_reset (dc);
-    }
-  else
-    {
-      it = (index_tree_t *) QST_GET_V (qst, ha->ha_tree);
-      qst[ha->ha_tree->ssl_index] = NULL;
-      if (it)
-	it_temp_free (it);
+      if (SSL_VEC == ha->ha_tree->ssl_type)
+	{
+	  data_col_t *dc = QST_BOX (data_col_t *, qst, ha->ha_tree->ssl_index);
+	  dc_reset (dc);
+	}
+      else
+	{
+	  it = (index_tree_t *) QST_GET_V (qst, ha->ha_tree);
+	  qst[ha->ha_tree->ssl_index] = NULL;
+	  if (it)
+	    it_temp_free (it);
+	}
     }
   if (!setp)
     return;

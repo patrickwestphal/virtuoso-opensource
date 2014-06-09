@@ -346,6 +346,16 @@ long raw_length (caddr_t arg);
   qi->qi_g_id = old_g;\
 }
 
+
+#define AS_DBA_C(qi, exp) \
+{ \
+ user_t * u = qi->qi_client->cli_user; \
+qi->qi_client->cli_user = user_t_dba;	\
+  exp; \
+  qi->qi_client->cli_user = u;\
+}
+
+
 int bif_is_no_cluster (bif_t bif);	/* cannot be execd except where invoked */
 int bif_need_enlist (bif_t bif);
 

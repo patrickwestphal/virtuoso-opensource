@@ -181,6 +181,7 @@ void
 ts_sdfg_run (table_source_t * ts, caddr_t * inst)
 {
   /* ts is outermost ts of sdfg.  Wait for aq, feed until all done */
+  stage_node_t stn_auto;
   QNCAST (QI, qi, inst);
   stage_node_t *stn = qn_next_stn ((data_source_t *) ts);
   cl_op_t *itcl_clo = (cl_op_t *) qst_get (inst, ts->clb.clb_itcl);
@@ -194,6 +195,12 @@ ts_sdfg_run (table_source_t * ts, caddr_t * inst)
     stn = (stage_node_t *) qf_first_qn (ts->ts_qf, (qn_input_fn) stage_node_input);
   qi->qi_is_dfg_slice = 0;
   QST_INT (inst, ts->ts_aq_state) = TS_AQ_COORD;
+  if (stn->src_gen.src_query != ts->src_gen.src_query)
+    {
+      stn_auto = *stn;
+      stn_auto.src_gen.src_query = ts->src_gen.src_query;
+      stn = &stn_auto;
+    }
   for (;;)
     {
       caddr_t err = NULL;
@@ -259,6 +266,11 @@ ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha)
   index_tree_t *tree = (index_tree_t *) qst_get (inst, ha->ha_tree);
   if (!tree || !tree->it_hi || !(slice_trees = tree->it_hi->hi_slice_trees))
     return;
+  if (!qis && tree && tree->it_hi->hi_slice_trees)
+    {
+      qis = (caddr_t **) dk_alloc_box_zero (box_length (tree->it_hi->hi_slice_trees), DV_ARRAY_OF_POINTER);
+      QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index) = qis;
+    }
   DO_BOX (caddr_t *, slice_inst, inx, qis)
   {
     if (slice_inst)

@@ -1761,6 +1761,32 @@ over:
 
 
 int
+pred_body_defines (df_elt_t ** pred, df_elt_t * defd)
+{
+  /* the args of the 1st cond are unconditionally evaluated and results are assigned at any place thereafter */
+  int op;
+  if (!IS_BOX_POINTER (pred))
+    return 0;
+  op = (ptrlong) pred[0];
+  if (BOP_AND == op || BOP_OR == op || BOP_NOT == op)
+    return pred_body_defines (pred[1], defd);
+  if (DFE_PRED_BODY == op)
+    {
+      int inx;
+      for (inx = 1; inx < BOX_ELEMENTS (pred); inx++)
+	{
+	  df_elt_t *dfe = pred[inx];
+	  if (DFE_BOP_PRED == dfe->dfe_type)
+	    return NULL;
+	  if (dfe_defines (dfe, defd))
+	    return defd;
+	}
+    }
+  return NULL;
+}
+
+
+int
 dfe_defines (df_elt_t * defining, df_elt_t * defd)
 {
   if (!defd)
@@ -1816,7 +1842,13 @@ dfe_defines (df_elt_t * defining, df_elt_t * defd)
       }
       END_DO_SET ();
     }
-
+  else if (DFE_TABLE == defining->dfe_type && !defining->_.table.is_being_placed)
+    {
+      if (pred_body_defines (defining->_.table.join_test, defd))
+	return defining;
+      if (pred_body_defines (defining->_.table.top_pred, defd))
+	return defining;
+    }
   return 0;
 }
 
@@ -2637,10 +2669,14 @@ sqlo_dt_try_hash_1 (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * dt_dfe, df_elt_t 
 {
   float score = 0;
   df_elt_t *hr_copy;
-  if (!enable_dt_hash || nh_copy->_.sub.in_arity <= 1)
-    return nh_copy;
-  if (!nh_copy->_.sub.dt_imp_preds)
-    return nh_copy;		/* no join preds */
+  int jt = sqlo_opt_value (dt_dfe->_.sub.ot->ot_dt_opts, OPT_JOIN);
+  if (OPT_HASH != jt)
+    {
+      if (!enable_dt_hash || nh_copy->_.sub.in_arity <= 1)
+	return nh_copy;
+      if (!nh_copy->_.sub.dt_imp_preds)
+	return nh_copy;		/* no join preds */
+    }
   hr_copy = sqlo_dt_try_hash (so, dt_dfe, tb_dfe->dfe_super->_.sub.ot, &score, nh_copy);
   return hr_copy ? hr_copy : nh_copy;
 }
@@ -3357,6 +3393,19 @@ sqlo_merge_col_preds (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t col_preds, dk_set
 #define dfe_is_upper(dfe) (dfe->_.bin.op == BOP_LT || dfe->_.bin.op == BOP_LTE)
 
 extern caddr_t uname_one_of_these;
+
+
+int
+sqlo_is_sec_in_list (df_elt_t ** in_list)
+{
+  /* true for in list with RDF security conds */
+  if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (in_list) || BOX_ELEMENTS (in_list) < 2)
+    return 0;
+  if (DFE_CALL != in_list[1]->dfe_type)
+    return 0;
+  return st_is_call (in_list[1]->dfe_tree, "__rgs_user_perms_clo", 2);
+}
+
 
 /*#define IS_ONE_OF_THESE(name)  (0 == stricmp (name, "one_of_these")) */
 #define IS_ONE_OF_THESE(n) (n == uname_one_of_these)
@@ -5737,6 +5786,7 @@ sqlo_try_hash (sqlo_t * so, df_elt_t * dfe, op_table_t * super_ot, float *score_
       sqlo_hash_fill_dt_new_preds (so, super_ot, dfe, &post_preds);
     }
   dfe->dfe_remote_locus_refs = hash_pred_locus_refs;	/* Bug 1500 */
+  dfe->_.table.join_test = NULL;	/* do not find defd dfes in join test being replaced */
   dfe->_.table.join_test = sqlo_and_list_body (so, LOC_LOCAL, dfe, post_preds);
   dfe->dfe_unit = 0;
   *score_ret = sqlo_score (super_ot->ot_work_dfe, super_ot->ot_work_dfe->_.sub.in_arity);
@@ -5899,7 +5949,9 @@ sqlo_try_in_loop (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, df_elt_t ** s
 		sqlo_dt_unplace (so, subq_dfe);
 		ot->ot_preds = old_ot_preds;
 		sqlo_place_table (so, tb_dfe);	/*put it back */
+		SET_BEING_PLACED (tb_dfe, 1);
 		sqlo_try_hash (so, tb_dfe, ot, prev_score);
+		SET_BEING_PLACED (tb_dfe, 0);
 		return;
 	      }
 	    /* the opt choice is made. */
@@ -6562,7 +6614,9 @@ sqlo_leaves (sqlo_t * so, op_table_t * ot, dk_set_t * all_leaves, dk_set_t * new
 	float this_score;
 	sqlo_place_table (so, leaf);
 	this_score = sqlo_score (ot->ot_work_dfe, ot->ot_work_dfe->_.sub.in_arity);
+	SET_BEING_PLACED (leaf, 1);
 	sqlo_try_hash (so, leaf, ot, &this_score);
+	SET_BEING_PLACED (leaf, 0);
 	if (!(leaf->_.table.hash_filler && DFE_DT == leaf->_.table.hash_filler->dfe_type))
 	  {
 	    /* if the hash build imports other tables, the leaf simplification is not valid, a leaf must be a self-contained dfe for placing/unplacing to work */
@@ -6916,7 +6970,9 @@ sqlo_try (sqlo_t * so, op_table_t * ot, dk_set_t dfes, df_elt_t ** in_loop_ret, 
     if (DFE_TABLE != dfe->dfe_type || !dfe->_.table.is_leaf)
       {
 	this_score = sqlo_score (ot->ot_work_dfe, ot->ot_work_dfe->_.sub.in_arity);
+	SET_BEING_PLACED (dfe, 1);
 	sqlo_try_hash (so, dfe, ot, &this_score);
+	SET_BEING_PLACED (dfe, 0);
 	if (DFE_TABLE == dfe->dfe_type && HR_NONE == dfe->_.table.hash_role)
 	  sqlo_try_scan_order (so, dfe);
 	sqlo_try_in_loop (so, ot, dfe, in_loop_ret, &this_score);

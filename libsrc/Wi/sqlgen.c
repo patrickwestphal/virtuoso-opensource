@@ -641,7 +641,10 @@ sqlg_key_source_create (sqlo_t * so, df_elt_t * tb_dfe, dbe_key_t * key)
     else if ((in_list = sqlo_in_list (cp, NULL, NULL)))
       {
 	if (tb_dfe->_.table.no_in_on_index)
-	  break;
+	  {
+	    cp->dfe_is_placed = 0;
+	    break;
+	  }
 	sqlg_in_list (so, ks, col, in_list, cp);
 	goto next_part;
       }
@@ -1812,6 +1815,10 @@ sqlg_hash_filler_dt (sqlo_t * so, df_elt_t * dt_dfe, subq_source_t * sqs)
   sql_comp_t *sc = so->so_sc;
   select_node_t *sel = sqs->sqs_query->qr_select_node;
   int inx, nth = 0;
+  df_elt_t *ref = dt_dfe->_.sub.hash_filler_of;
+  caddr_t *opts = ref ? (DFE_DT == ref->dfe_type ? ref->_.sub.ot->ot_opts : ref->_.table.ot->ot_opts) : NULL;
+  int decl_unq = sqlo_opt_value (opts, OPT_HASH_UNIQUE);
+  int decl_no_drop = sqlo_opt_value (opts, OPT_HASH_NO_DROP);
   if (dt_dfe->_.sub.gby_hash_filler)
     {
       /* the dt has a group by.  The group by serves as hash build side.  The hash is not partitionable. */
@@ -1831,6 +1838,7 @@ sqlg_hash_filler_dt (sqlo_t * so, df_elt_t * dt_dfe, subq_source_t * sqs)
       END_DO_SET ();
       if (!setp || !fref)
 	sqlc_new_error (sc->sc_cc, "42000", "HJGBY", "Hash join to derived table with group by.  No setp. Interal");
+      setp->setp_ht_no_drop |= decl_no_drop;
       dt_dfe->_.sub.hash_filler_of->_.table.ot->ot_hash_filler = setp;
       setp->setp_is_gb_build = 1;
       setp->setp_no_bloom = 1;
@@ -1895,11 +1903,14 @@ sqlg_hash_filler_dt (sqlo_t * so, df_elt_t * dt_dfe, subq_source_t * sqs)
   ha->ha_allow_nulls = 0;
   ha->ha_op = HA_FILL;
   ha->ha_memcache_only = 0;
+  if (decl_unq)
+    ha->ha_ch_unique = CHA_ALWAYS_UNQ;
   {
     SQL_NODE_INIT (fun_ref_node_t, fref, hash_fill_node_input, fun_ref_free);
     fref->fnr_select = head;
     fref->fnr_select_nodes = sqlg_continue_list (head);
     fref->fnr_setp = setp;
+    setp->setp_ht_no_drop |= decl_no_drop;
     setp->setp_fref = fref;
     if (enable_par_fill && enable_chash_join && enable_qp > 1)
       {
@@ -2193,6 +2204,8 @@ sqlg_hash_source (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code)
 int
 sqlg_dt_hash_is_unq (df_elt_t * dt_dfe)
 {
+  if (sqlo_opt_value (dt_dfe->_.sub.ot->ot_opts, OPT_HASH_UNIQUE))
+    return 1;
   return 0;
 }
 
@@ -4162,6 +4175,17 @@ sqlg_sdfg_part (sql_comp_t * sc, setp_node_t * setp, table_source_t * prev_ts, d
 	    return;
 	}
       setp->setp_partitioned = 1;
+      if (setp->setp_copy_of)
+	{
+	  setp->setp_copy_of->setp_partitioned = 1;
+	  if (!setp->setp_copy_of->setp_is_preset)
+	    setp->setp_is_preset = setp->setp_copy_of->setp_is_preset = cc_new_instance_slot (sc->sc_cc);
+	  else
+	    setp->setp_is_preset = setp->setp_copy_of->setp_is_preset;
+	}
+      else
+	setp->setp_is_preset = cc_new_instance_slot (sc->sc_cc);
+
       if (reader)
 	{
 	  reader->ts_aq_qis = prev_ts->ts_aq_qis;
@@ -4445,6 +4469,7 @@ setp_copy (sql_comp_t * sc, setp_node_t * org)
   dk_set_t iter;
   SQL_NODE_INIT (setp_node_t, setp, setp_node_input, setp_node_free);
   memcpy (setp, org, sizeof (setp_node_t));
+  setp->setp_copy_of = org;
   org->setp_in_union = 1;
   CVC (setp->src_gen.src_pre_code);
   setp->setp_ha = ha_copy (setp->setp_ha);
@@ -4721,11 +4746,30 @@ sqlg_cl_colocate_union (sql_comp_t * sc, fun_ref_node_t * fref, dk_set_t terms)
 
 
 query_frag_t *
-fnr_qf (fun_ref_node_t * fref)
+fnr_qf (data_source_t * qn)
 {
-  data_source_t *qn;
-  for (qn = fref->fnr_select; qn; qn = qn_next (qn))
+  for (qn = qn; qn; qn = qn_next (qn))
     {
+      if (IS_QN (qn, subq_node_input))
+	{
+	  if (!qn_next (qn))
+	    {
+	      QNCAST (subq_source_t, sqs, qn);
+	      return fnr_qf (sqs->sqs_query->qr_head_node);
+	    }
+	}
+      if (IS_QN (qn, union_node_input))
+	{
+	  QNCAST (union_node_t, uni, qn);
+	  DO_SET (query_t *, qr, &uni->uni_successors)
+	  {
+	    query_frag_t *qf = fnr_qf (qr->qr_head_node);
+	    if (qf)
+	      return qf;
+	  }
+	  END_DO_SET ();
+	  return NULL;
+	}
       if (IS_QN (qn, stage_node_input))
 	return ((stage_node_t *) qn)->stn_qf;
       if (IS_TS (qn) && ((table_source_t *) qn)->ts_qf)
@@ -4776,7 +4820,7 @@ sqlg_fref_qp (sql_comp_t * sc, fun_ref_node_t * fref, df_elt_t * dt_dfe)
       if (IS_QN (ts, chash_read_input) && ts->ts_nth_slice && prev_fref)
 	{
 	  /* reader of a partitioned gby.  Can parallelize so each partition runs the rest in its of qi */
-	  query_frag_t *qf = fnr_qf (prev_fref);
+	  query_frag_t *qf = fnr_qf (prev_fref->fnr_select);
 	  sc->sc_qf = qf;
 	  if (!qf)
 	    SQL_GPF_T1 (sc->sc_cc, "parallel postprocess of partitioned group by finds no dfg before the group by");
@@ -6832,6 +6876,7 @@ dfe_unit_col_loci (df_elt_t * dfe)
 	    dfe->_.table.hash_filler_reused = 1;
 	}
       dfe_list_col_loci ((df_elt_t *) dfe->_.table.join_test);
+      dfe_list_col_loci ((df_elt_t *) dfe->_.table.top_pred);
       dfe_list_col_loci ((df_elt_t *) dfe->_.table.after_join_test);
       dfe_list_col_loci ((df_elt_t *) dfe->_.table.vdb_join_test);
       break;

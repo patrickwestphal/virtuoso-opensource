@@ -321,6 +321,9 @@ jp_fanout (join_plan_t * jp)
 	    }
 	  if (!PRED_IS_EQ (ps->ps_pred))
 	    {
+	      df_elt_t **in_list = sqlo_in_list (ps->ps_pred, NULL, NULL);
+	      if (sqlo_is_sec_in_list (in_list))
+		continue;
 	      misc_card *= 0.5;
 	      continue;
 	    }
@@ -1576,7 +1579,10 @@ sqlo_jp_build_init (sqlo_t * so, df_elt_t * hash_ref_tb, dk_set_t * all_jps, dk_
       join_plan_t *top_jp;
       DO_SET (df_elt_t *, dfe, &hash_ref_tb->_.sub.ot->ot_from_dfes)
       {
+	op_table_t *save = so->so_this_dt;
+	so->so_this_dt = dfe->dfe_super->_.sub.ot;
 	sqlo_jp_build_init (so, dfe, all_jps, org_preds, hash_keys, hash_set);
+	so->so_this_dt = save;
       }
       END_DO_SET ();
       top_jp = ((join_plan_t *) (*all_jps)->data)->jp_top_jp;
@@ -2225,7 +2231,7 @@ sqlo_dth_need_build (df_elt_t * dt)
       else if (DFE_ORDER == elt->dfe_type)
 	oby = elt;
     }
-  return (gby && !oby);
+  return (!gby && !oby);
 }
 
 void

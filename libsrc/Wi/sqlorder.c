@@ -58,8 +58,11 @@ setp_node_free (setp_node_t * setp)
     if (go->go_distinct_ha)
       {
 	ha_free (go->go_distinct_ha);
-	go->go_distinct_setp->setp_reserve_ha = NULL;
-	setp_node_free (go->go_distinct_setp);
+	if (go->go_distinct_setp)
+	  {
+	    go->go_distinct_setp->setp_reserve_ha = NULL;
+	    setp_node_free (go->go_distinct_setp);
+	  }
       }
     dk_free_box ((caddr_t) go->go_ua_arglist);
     cv_free (go->go_ua_init_setp_call);

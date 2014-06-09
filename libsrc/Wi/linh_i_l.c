@@ -12,6 +12,10 @@
 if (stat_NN != 9)
   {
     int inx;
+#ifdef IGN_IF
+    IGN_IF (NN);
+#endif
+
     for (inx = 0; inx < 8; inx++)
       {
 	w_NN = array_NN[pos1_NN];

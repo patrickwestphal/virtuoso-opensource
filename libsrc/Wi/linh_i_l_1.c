@@ -12,6 +12,10 @@
 if (stat_1 != 9)
   {
     int inx;
+#ifdef IGN_IF
+    IGN_IF (1);
+#endif
+
     for (inx = 0; inx < 8; inx++)
       {
 	w_1 = array_1[pos1_1];

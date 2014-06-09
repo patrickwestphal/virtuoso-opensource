@@ -1208,7 +1208,7 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
 	    }
 	  else if (DV_ARRAY_OF_POINTER == cha->cha_sqt[nth_col].sqt_dtp)
 	    {
-	      row[nth_col] = box_copy_tree (val);
+	      row[nth_col] = (int64) box_copy_tree ((caddr_t) val);
 	    }
 	  else
 	    {
@@ -2571,7 +2571,6 @@ cha_clear (chash_t * cha, hash_index_t * hi)
 void
 cha_free (chash_t * cha)
 {
-  int n_sqt;
   mutex_enter (&chash_rc_mtx);
   chash_space_avail += cha->cha_reserved;
   mutex_leave (&chash_rc_mtx);
@@ -2658,6 +2657,35 @@ cha_gb_build_init (setp_node_t * setp, chash_t * cha)
 }
 
 
+index_tree_t *setp_gb_dist_tree (setp_node_t * setp, caddr_t * inst, gb_op_t * go, index_tree_t * top_tree);
+
+
+void
+setp_dist_type_check (setp_node_t * setp, caddr_t * inst, gb_op_t * go, index_tree_t * top_tree)
+{
+  hash_area_t *ha = go->go_distinct_ha;
+  int inx, n_slots = BOX_ELEMENTS (ha->ha_slots), anified = 0;
+  chash_t *cha;
+  index_tree_t *tree = setp_gb_dist_tree (setp, inst, go, top_tree);
+  if (!tree)
+    return;
+  cha = tree->it_hi->hi_chash;
+  for (inx = 0; inx < n_slots; inx++)
+    {
+      state_slot_t *ssl = ha->ha_slots[inx];
+      data_col_t *dc;
+      dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
+      if (cha && inx < cha->cha_n_keys && dc->dc_dtp != cha->cha_sqt[inx].sqt_dtp && DV_ANY != cha->cha_sqt[inx].sqt_dtp)
+	{
+	  cha_anify (cha, inx, cha->cha_sqt[inx].sqt_dtp);
+	  anified = 1;
+	}
+    }
+  if (anified)
+    cha_anify_rehash (cha, go->go_distinct_setp);
+}
+
+
 int
 setp_chash_group (setp_node_t * setp, caddr_t * inst)
 {
@@ -2667,7 +2695,6 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
   hash_area_t *ha = setp->setp_ha;
   int64 prev_cnt;
   int inx, n_slots = BOX_ELEMENTS (ha->ha_slots), anified = 0;
-  int n_gbs = dk_set_length (setp->setp_gb_ops);
   chash_t *cha = NULL;
   QNCAST (query_instance_t, qi, inst);
 
@@ -2712,21 +2739,25 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
     {
       state_slot_t *ssl = ha->ha_slots[inx];
       data_col_t *dc;
+      gb_op_t *go = NULL;
       if (SSL_CONSTANT == ssl->ssl_type)
 	{
 	  if (inx < ha->ha_n_keys)
 	    goto no;
 	  continue;
 	}
+      if (inx >= ha->ha_n_keys)
+	go = (gb_op_t *) dk_set_nth (setp->setp_gb_ops, inx - ha->ha_n_keys);
       if (ssl->ssl_type < SSL_VEC)
 	{
-	  gb_op_t *go = (gb_op_t *) dk_set_nth (setp->setp_gb_ops, inx - ha->ha_n_keys);
 	  if (inx < ha->ha_n_keys)
 	    goto no;
 	  if (go && go->go_ua_arglist)
 	    continue;
 	  goto no;
 	}
+      if (go && go->go_distinct_ha)
+	setp_dist_type_check (setp, inst, go, top_tree);
       dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
       if (cha && inx < cha->cha_n_keys && dc->dc_dtp != cha->cha_sqt[inx].sqt_dtp && DV_ANY != cha->cha_sqt[inx].sqt_dtp)
 	{
@@ -2880,7 +2911,7 @@ setp_chash_distinct (setp_node_t * setp, caddr_t * inst)
 {
   index_tree_t *tree;
   hash_area_t *ha = setp->setp_ha;
-  int inx, n_slots = BOX_ELEMENTS (ha->ha_slots);
+  int inx, n_slots = BOX_ELEMENTS (ha->ha_slots), anified = 0;
   data_col_t *sets = setp->setp_ssa.ssa_set_no ? QST_BOX (data_col_t *, inst, setp->setp_ssa.ssa_set_no->ssl_index) : NULL;
   chash_t *cha = NULL;
   QNCAST (query_instance_t, qi, inst);
@@ -2912,9 +2943,14 @@ setp_chash_distinct (setp_node_t * setp, caddr_t * inst)
       if (ssl->ssl_type < SSL_VEC)
 	goto no;
       dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
-      if (cha && dc->dc_dtp != cha->cha_sqt[inx].sqt_dtp && !((DCT_BOXES & dc->dc_type) && DV_ANY == cha->cha_sqt[inx].sqt_dtp))
-	goto no;
+      if (cha && inx < cha->cha_n_keys && dc->dc_dtp != cha->cha_sqt[inx].sqt_dtp && DV_ANY != cha->cha_sqt[inx].sqt_dtp)
+	{
+	  cha_anify (cha, inx, cha->cha_sqt[inx].sqt_dtp);
+	  anified = 1;
+	}
     }
+  if (anified)
+    cha_anify_rehash (cha, setp);
   if (!cha)
     {
       tree = cha_allocate (setp, inst, 0);
@@ -2956,7 +2992,9 @@ setp_gb_dist_tree (setp_node_t * setp, caddr_t * inst, gb_op_t * go, index_tree_
       index_tree_t **trees;
       if (!top_tree->it_hi->hi_gb_dist_trees)
 	sqlr_new_error ("GDSLI", "GDSLI", "Partitioned distinct group by top tree not inited");
-      trees = (index_tree_t **) gethash ((void *) (ptrlong) setp->setp_ha->ha_tree->ssl_index, top_tree->it_hi->hi_gb_dist_trees);
+      trees =
+	  (index_tree_t **) gethash ((void *) (ptrlong) go->go_distinct_setp->setp_ha->ha_tree->ssl_index,
+	  top_tree->it_hi->hi_gb_dist_trees);
       if (!trees || qi->qi_slice >= BOX_ELEMENTS (trees))
 	sqlr_new_error ("GDISL", "GDISL", "group by distinct qi slice out of range");
       tree = trees[qi->qi_slice];
@@ -2994,6 +3032,7 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
   DC_CHECK_LEN (flag_dc, n_sets - 1);
   DO_SET (gb_op_t *, go, &top_setp->setp_gb_ops)
   {
+    char is_any = 0;
     hash_area_t *ha = go->go_distinct_ha;
     index_tree_t *tree;
     index_tree_t *top_tree = QST_BOX (index_tree_t *, inst, top_setp->setp_ha->ha_tree->ssl_index);
@@ -3016,6 +3055,7 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
     key_vecs[key] =
 	(db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp,
 	(db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1, NULL);
+    is_any = DV_ANY == cha->cha_sqt[key].sqt_dtp;
     dc_reset (flag_dc);
     flags = (int64 *) flag_dc->dc_values;
     flag_fill = first_set;
@@ -3060,6 +3100,9 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
 	DIS_RESULT (n);							\
       }
 
+#define IGN_IF(n) \
+      if (nulls[ARTM_VEC_LEN * key + SET_NO (n)] || (is_any && DV_DB_NULL == key_vecs[key][SET_NO (n)][0])) \
+	{ DIS_DUP (n); goto done_##n;}
 #include "linh_i.c"
 
     flag_dc->dc_n_values = flag_fill;
@@ -3698,15 +3741,35 @@ cha_survival (chash_t * cha, caddr_t * inst, setp_node_t * setp)
 
 
 caddr_t *
-chash_reader_current_branch (table_source_t * ts, caddr_t * inst, int is_next)
+chash_reader_current_branch (table_source_t * ts, hash_area_t * ha, caddr_t * inst, int is_next, index_tree_t ** tree_ret)
 {
   query_t *qr;
+  *tree_ret = NULL;
   if (!ts->ts_nth_slice || ts->ts_part_gby_reader)
     return is_next ? NULL : inst;
   /* if non dfg remote branch the slice is in the main inst */
   qr = ts->src_gen.src_query;
   if (!ts->ts_aq_qis)
     return is_next ? NULL : inst;
+  if (ha->ha_tree->ssl_type < SSL_VEC)
+    {
+      index_tree_t *top_tree = (index_tree_t *) QST_GET_V (inst, ha->ha_tree);
+      if (top_tree)
+	{
+	  int nth = QST_INT (inst, ts->ts_nth_slice);
+	  index_tree_t **trees = top_tree->it_hi->hi_slice_trees;
+	  for (nth = nth; nth < BOX_ELEMENTS (trees); nth++)
+	    {
+	      index_tree_t *slice_tree = trees[nth];
+	      if (slice_tree == top_tree)
+		continue;
+	      QST_INT (inst, ts->ts_nth_slice) = nth;
+	      *tree_ret = slice_tree;
+	      return NULL;
+	    }
+	  return NULL;
+	}
+    }
   {
     QI **qis = QST_BOX (QI **, inst, ts->ts_aq_qis->ssl_index);
     int nth = QST_INT (inst, ts->ts_nth_slice);
@@ -3822,7 +3885,11 @@ next_batch:
       int64 surviving = CHA_EMPTY;
       branch = (setp && setp->setp_current_branch) ? QST_BOX (caddr_t *, inst, setp->setp_current_branch) : inst;
       if (ts->ts_nth_slice)
-	branch = chash_reader_current_branch (ts, inst, 0);
+	{
+	  branch = chash_reader_current_branch (ts, ha, inst, 0, &tree);
+	  if (tree)
+	    goto tree_ck;
+	}
       if (!branch)
 	continue;		/* can be there are no branches at all */
       qi->qi_set = set;
@@ -3831,6 +3898,7 @@ next_batch:
 	  tree = (index_tree_t *) qst_get (branch, ha->ha_tree);
 	  if (!tree)
 	    continue;
+	tree_ck:
 	  if (ts->ts_part_gby_reader && tree->it_hi->hi_slice_trees)
 	    {
 	      if (qi->qi_slice >= BOX_ELEMENTS (tree->it_hi->hi_slice_trees))
@@ -3968,8 +4036,8 @@ next_batch:
   if (ts->ts_nth_slice)
     {
       QST_INT (inst, ts->ts_nth_slice)++;
-      branch = chash_reader_current_branch (ts, inst, 1);
-      if (!branch)
+      branch = chash_reader_current_branch (ts, ha, inst, 1, &tree);
+      if (!branch && !tree)
 	SRC_IN_STATE ((data_source_t *) ts, inst) = NULL;
       else
 	{
@@ -4641,7 +4709,6 @@ setp_fill_cha (setp_node_t * setp, caddr_t * inst, index_tree_t * tree)
 void
 cha_anify_part (chash_t * cha, int nth_col, dtp_t prev_dtp)
 {
-  dtp_t dtp = cha->cha_sqt[nth_col].sqt_dtp;
   chash_page_t *chp;
   for (chp = cha->cha_init_page; chp; chp = chp->h.h.chp_next)
     {
@@ -6192,7 +6259,7 @@ itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp)
   caddr_t *inst = itc->itc_out_state;
   hash_source_t *hs = hrng->hrng_hs;
   uint32 min, max, l, ctr;
-  int pos1_1, pos2_1, e;
+  int pos1_1, e;
   int64 **array, k, *ent;
   chash_t *cha_p;
   uint64 h = 1;
@@ -6264,7 +6331,7 @@ itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp)
 	    goto exc;
 	  for (ctr = 0; ctr < 8; ctr++)
 	    {
-	      if (CHA_EMPTY == array[pos1_1])
+	      if (CHA_EMPTY == (int64) array[pos1_1])
 		goto not_found;
 	      if (k == ((int64 *) array)[pos1_1])
 		goto found;
@@ -7169,7 +7236,7 @@ ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, in
 	goto exc;
       for (ctr = 0; ctr < 8; ctr++)
 	{
-	  if (CHA_EMPTY == array[pos1_1])
+	  if (CHA_EMPTY == (int64) array[pos1_1])
 	    goto not_found;
 	  if (k == ((int64 *) array)[pos1_1])
 	    goto found;
@@ -7211,6 +7278,7 @@ ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, in
     {
       dtp_t nulls = 0;
       GPF_T1 ("ce_int_chash_check: not supposed to come here");
+#if 0
       for (ctr = 0; ctr < 8; ctr++)
 	{
 	  ent = array[pos1_1];
@@ -7226,6 +7294,7 @@ ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, in
 	  if (h == HIGH_16 (ent) && cha_cmp (cha, (ent = (int64 *) LOW_48 (ent)), &k, 0, &nulls))
 	    goto found_a;
 	}
+#endif
       goto not_found;
     found_a:
       if (hs && hs->hs_ha->ha_n_deps)
@@ -7379,6 +7448,14 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
 	  if (!hs)
 	    {
 	      best = inx;
+	      tree = qst_get_chash (inst, hrng->hrng_ht, hrng->hrng_ht_id, NULL);
+	      cha = tree ? tree->it_hi->hi_chash : NULL;
+	      if (!cha || !cha->cha_distinct_count)
+		{
+		  /* join with empty chash is like null in search params, always empty */
+		  key_free_trail_specs (sp_copy_1);
+		  return 1;
+		}
 	      break;
 	    }
 	  n_deps = hs->hs_ha->ha_n_deps;
@@ -7596,7 +7673,7 @@ chash_fill_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
 	  if (nth_part == n_part)
 	    {
 	      SRC_IN_STATE (fref, inst) = NULL;
-	      if (!fref->fnr_is_chash_in)
+	      if (!fref->fnr_is_chash_in && !fref->fnr_setp->setp_ht_no_drop)
 		qst_set (inst, fref->fnr_setp->setp_ha->ha_tree, NULL);
 	      return;
 	    }
@@ -7666,7 +7743,11 @@ chash_fill_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
 	int64 da_time = 0;
 	if (fref->src_gen.src_stat)
 	  da_time = qi->qi_client->cli_activity.da_thread_time;
-	chash_filled (fref->fnr_setp, tree->it_hi, 0 == nth_part, n_filled);
+	{
+	  chash_filled (fref->fnr_setp, tree->it_hi, 0 == nth_part, n_filled);
+	  if (0 == nth_part && fref->fnr_setp->setp_ht_no_drop)
+	    tree->it_ref_count++;
+	}
 	if (fref->src_gen.src_stat)
 	  SRC_STAT (fref, inst)->srs_cum_time +=
 	      ((qi->qi_client->cli_activity.da_thread_time - da_time) / (enable_qp ? enable_qp : 1)) * (enable_qp - 1);
@@ -7788,6 +7869,16 @@ bif_chash_in_init (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 		dk_hash_64_iterator_t iter;
 		int64 *g_iid_num_ptr, *g_perms_ptr;
 		int need_dupe_check = (0 != dc->dc_n_values);
+		if (clo->_.rdf_graph_user_perms.g_read_qr)
+		  {
+		    index_tree_t *tree =
+			rdf_ctx_hash (qi, clo->_.rdf_graph_user_perms.g_read_qr, clo->_.rdf_graph_user_perms.g_read_param);
+		    if (!args[3] || !ssl_is_settable (args[3]))
+		      qst_set (qst, args[1], (caddr_t) tree);
+		    else
+		      qst_set (qst, args[2], box_num (tree->it_hi->hi_cl_id));
+		    return NULL;
+		  }
 		rwlock_rdlock (ht->ht_rwlock);
 		dbg_printf (("Chash from user %d, req perms %d\n\n", (int) (clo->_.rdf_graph_user_perms.u_id), req_perms));
 		dk_hash_64_iterator (&iter, ht);

@@ -1517,7 +1517,9 @@ typedef struct setp_node_s
   table_source_t *setp_reader;	/* node for sending the gby state in vectored cluster */
   setp_save_t setp_ssa;
   table_source_t *setp_loc_ts;
+  struct setp_node_s *setp_copy_of;	/* if [partitioned setps in a union, all need the same partitioning, so ref to the original */
   float setp_card;		/* for a group by, guess of how many distinct values of grouping cols */
+  ssl_index_t setp_is_preset;	/* if set, do not clear on entry of subq, outer context has preset the value */
   ssl_index_t setp_qfs_state;
   char setp_is_qf_last;		/* if set, the next can be a read node of partitioned setp but do not call it from the setp. */
   char setp_is_gb_build;	/* group by doubles as hash join build */
@@ -1525,6 +1527,7 @@ typedef struct setp_node_s
   char setp_is_cl_gb_result;
   char setp_in_union;
   char setp_fill_right_oj;	/* if hash filler for a right oj trhat needs hit flags */
+  char setp_ht_no_drop;		/* for a hash join build, add extra ref so hash survives the creating qi */
   short setp_stream_col_pos;	/* ordinal position of streaming ssl in gby keys */
   state_slot_t *setp_last_streaming_value;
   state_slot_t *setp_streaming_ssl;	/* if grouping cols are ordering cols but have duplicates, this is the col to check for distinguishing known complete groups from possible incomplete groups */
