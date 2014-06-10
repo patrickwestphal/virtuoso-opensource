@@ -8,9 +8,8 @@ HOME=`pwd`
 VIRTDEV_HOME=$HOME;
 export VIRTDEV_HOME
 
-PATH=".:$HOME/bin:/usr/local/bin:$PATH"
+PATH=".:$HOME/bin:$HOME/binsrc/virtuoso:$HOME/binsrc/tests:/usr/local/bin:$PATH"
 CDPATH=.:$HOME/libsrc:$HOME/binsrc:$HOME:$HOME/binsrc/samples:$HOME/binsrc/tests
-CVSIGNORE='.AppleDouble *.exe *.lis *.obj *.olb *;* *.makeout'
 LD_LIBRARY_PATH=$HOME/lib:DEFAULT
 
 #You may use this one...
@@ -23,18 +22,10 @@ PS1='VIRTMAIN:\w\$ '
 #PS1=`pwd | sed 's/^\(.*\)home\(_*\)//g' | sed 's/virt/VIRT/g' | sed 's/dev/DEV/g' | sed 's/uoso/UOSO/g' | sed 's/cvs/CVS/g' | sed 's/\([a-z/]\)//g'`
 #PS1="$PS1:\\w\\$ "
 
-if [ -f "$HOME/CVS/Tag" ]
-then
-  PS1=`cat "$HOME/CVS/Tag" | cut -b 2-`'@\h:\w\$ '
-else
-  PS1='VIRTMAIN@\h:\w\$ '
-fi
-
 #If coming in from an xterm-debian, resolve down to ordinary "xterm"
 env | grep 'TERM=xterm' && TERM=xterm
 
-CVS_RSH=ssh
-export MAINTAINER CVS_RSH TERM
+export MAINTAINER TERM
 
 #These two sets are to make visible in MC that we're in Virtdev
 #MC_COLOR_TABLE="normal=,red:marked=,red:executable=,red:directory=,red:link=,red:device=,red:special=blue,red"
