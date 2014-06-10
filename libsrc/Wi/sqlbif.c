@@ -8990,36 +8990,6 @@ bif_one_of_these (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       caddr_t values = qst_get (qst, args[inx]);
       switch (DV_TYPE_OF (values))
 	{
-#ifdef RDF_SECURITY_CLO
-	case DV_CLOP:
-	  {
-	    cl_op_t *clo = (cl_op_t *) values;
-	    if ((CLO_RDF_GRAPH_USER_PERMS == clo->clo_op) && (DV_IRI_ID == DV_TYPE_OF (item)))
-	      {
-		dk_hash_64_t *ht = clo->_.rdf_graph_user_perms.ht;
-		int req_perms = clo->_.rdf_graph_user_perms.req_perms;
-		int64 unboxed_item = unbox_iri_int64 (item), perms;
-#ifdef DBG_PRINTF
-		dk_hash_64_iterator_t iter;
-		int64 *g_iid_num_ptr, *g_perms_ptr;
-		rwlock_rdlock (ht->ht_rwlock);
-		dbg_printf (("\n\nCheck of %lld <%s> in %p, user %d, req perms %d", unboxed_item, key_id_to_iri (qst, unboxed_item),
-			clo, (int) (clo->_.rdf_graph_user_perms.u_id), req_perms));
-		dk_hash_64_iterator (&iter, ht);
-		while (dk_hash_64_hit_next (&iter, &g_iid_num_ptr, &g_perms_ptr))
-		  dbg_printf (("\n%lld <%s> has %d", g_iid_num_ptr[0], key_id_to_iri (qst, g_iid_num_ptr[0]),
-			  (int) (g_perms_ptr[0])));
-		rwlock_unlock (ht->ht_rwlock);
-#endif
-		rwlock_rdlock (ht->ht_rwlock);
-		gethash_64 (perms, unboxed_item, ht);
-		rwlock_unlock (ht->ht_rwlock);
-		if ((perms & req_perms) == req_perms)
-		  return (box_num (inx));
-	      }
-	    break;
-	  }
-#endif
 	case DV_ARRAY_OF_POINTER:
 	  {
 	    int nth, n_values = BOX_ELEMENTS (values);

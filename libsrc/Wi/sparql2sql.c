@@ -7506,11 +7506,6 @@ sparp_gp_trav_add_graph_perm_read_filters (sparp_t * sparp, SPART * curr, sparp_
       if (NULL != sparp->sparp_gs_app_callback)
 	rgs_ack_fname = "SPECIAL::bif:__rgs_ack_cbk";
       else
-#ifdef RDF_SECURITY_CLO
-      if ((NULL == g_fake_arg_for_side_fx) && !spar_world_and_private_perms_differ (sparp, RDF_GRAPH_PERM_READ))
-	rgs_ack_fname = "SPECIAL::bif:__rgs_ack_as_IN_clo";
-      else
-#endif
 	rgs_ack_fname = "SPECIAL::bif:__rgs_ack";
       filter = spar_make_funcall (sparp, 0,
 	  rgs_ack_fname,

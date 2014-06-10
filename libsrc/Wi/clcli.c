@@ -428,27 +428,6 @@ clo_destroy (cl_op_t * clo)
       break;
     case CLO_TOP:
       return clo_top_free (clo);
-#ifdef RDF_SECURITY_CLO
-    case CLO_RDF_GRAPH_USER_PERMS:
-      {
-	dk_hash_64_t *ht = clo->_.rdf_graph_user_perms.ht;
-	if (NULL != ht)
-	  {
-	    rwlock_t *rwl = ht->ht_rwlock;
-	    rwlock_wrlock (rwl);
-	    ht->ht_dict_refctr--;
-	    if (0 == ht->ht_dict_refctr)
-	      {
-		dk_free_box ((caddr_t) ht);
-		rwlock_unlock (rwl);
-		rwlock_free (rwl);
-	      }
-	    else
-	      rwlock_unlock (rwl);
-	  }
-	break;
-      }
-#endif
     }
   return 0;
 }

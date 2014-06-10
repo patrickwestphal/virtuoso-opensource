@@ -7271,48 +7271,6 @@ bif_chash_in_init (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       int inx2;
       switch (DV_TYPE_OF (vals))
 	{
-#ifdef RDF_SECURITY_CLO
-	case DV_CLOP:
-	  {
-	    cl_op_t *clo = (cl_op_t *) vals;
-	    if (CLO_RDF_GRAPH_USER_PERMS == clo->clo_op)
-	      {
-		dk_hash_64_t *ht = clo->_.rdf_graph_user_perms.ht;
-		int req_perms = clo->_.rdf_graph_user_perms.req_perms;
-		dk_hash_64_iterator_t iter;
-		int64 *g_iid_num_ptr, *g_perms_ptr;
-		int need_dupe_check = (0 != dc->dc_n_values);
-		rwlock_rdlock (ht->ht_rwlock);
-		dbg_printf (("Chash from user %d, req perms %d\n\n", (int) (clo->_.rdf_graph_user_perms.u_id), req_perms));
-		dk_hash_64_iterator (&iter, ht);
-		while (dk_hash_64_hit_next (&iter, &g_iid_num_ptr, &g_perms_ptr))
-		  {
-		    dbg_printf ((BOXINT_FMT " <%s> has %d\n", (boxint) (g_iid_num_ptr[0]), key_id_to_iri (qst, g_iid_num_ptr[0]),
-			    (int) (g_perms_ptr[0])));
-		    if ((g_perms_ptr[0] & req_perms) == req_perms)
-		      {
-			char val_buf[sizeof (int64) + BOX_AUTO_OVERHEAD];
-			caddr_t val;
-			BOX_AUTO (val, val_buf, sizeof (int64), DV_IRI_ID);
-			((int64 *) val)[0] = g_iid_num_ptr[0];
-			if (need_dupe_check)
-			  {
-			    for (inx2 = 0; inx2 < dc->dc_n_values; inx2++)
-			      {
-				qi->qi_set = inx2;
-				if (DVC_MATCH == cmp_boxes (val, qst_get ((caddr_t *) qi, hfq->hfq_fill_dc), NULL, NULL))
-				  goto next_in_rgu_clo;
-			      }
-			  }
-			dc_append_box (dc, val);
-		      }
-		  next_in_rgu_clo:;
-		  }
-		rwlock_unlock (ht->ht_rwlock);
-	      }
-	    break;
-	  }
-#endif
 	case DV_ARRAY_OF_POINTER:
 	  {
 	    int nth, n_vals = BOX_ELEMENTS (vals);

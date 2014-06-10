@@ -66,8 +66,12 @@ clo_top_free (cl_op_t * clo)
 cl_op_t *
 setp_get_top (setp_node_t * setp, caddr_t * inst, int create)
 {
-  ptrlong id = unbox (QST_GET_V (inst, setp->setp_top_id));
-  cl_op_t *clo = (cl_op_t *) QST_GET_V (inst, setp->setp_top_clo);
+  ptrlong id;
+  cl_op_t *clo;
+  if (!setp->setp_top_id)
+    return NULL;
+  id = unbox (QST_GET_V (inst, setp->setp_top_id));
+  clo = (cl_op_t *) QST_GET_V (inst, setp->setp_top_clo);
   if (!clo)
     {
       mutex_enter (&cha_top_mtx);
@@ -1307,46 +1311,6 @@ in_iter_input_fill_members (caddr_t vals, collation_t * out_collation, dk_set_t 
 {
   switch (DV_TYPE_OF (vals))
     {
-#ifdef RDF_SECURITY_CLO
-    case DV_CLOP:
-      {
-	cl_op_t *clo = (cl_op_t *) vals;
-	if (CLO_RDF_GRAPH_USER_PERMS == clo->clo_op)
-	  {
-	    dk_hash_64_t *ht = clo->_.rdf_graph_user_perms.ht;
-	    int req_perms = clo->_.rdf_graph_user_perms.req_perms;
-	    dk_hash_64_iterator_t iter;
-	    int64 *g_iid_num_ptr, *g_perms_ptr;
-	    int need_dupe_check = (NULL != members_ptr[0]);
-	    rwlock_rdlock (ht->ht_rwlock);
-	    dk_hash_64_iterator (&iter, ht);
-	    while (dk_hash_64_hit_next (&iter, &g_iid_num_ptr, &g_perms_ptr))
-	      {
-		caddr_t val;
-		if ((g_perms_ptr[0] & req_perms) == req_perms)
-		  {
-		    char val_buf[sizeof (int64) + BOX_AUTO_OVERHEAD];
-		    caddr_t val;
-		    BOX_AUTO (val, val_buf, sizeof (int64), DV_IRI_ID);
-		    ((int64 *) val)[0] = g_iid_num_ptr[0];
-		    if (need_dupe_check)
-		      {
-			DO_SET (caddr_t, member, members_ptr)
-			{
-			  if (DVC_MATCH == cmp_boxes (val, member, out_collation, out_collation))
-			    goto next_in_rgu_clo;
-			}
-			END_DO_SET ();
-		      }
-		    dk_set_push (members_ptr, (void *) box_copy_tree (val));
-		  }
-	      next_in_rgu_clo:;
-	      }
-	    rwlock_unlock (ht->ht_rwlock);
-	  }
-	break;
-      }
-#endif
     case DV_ARRAY_OF_POINTER:
       {
 	int nth, n_vals = BOX_ELEMENTS (vals);

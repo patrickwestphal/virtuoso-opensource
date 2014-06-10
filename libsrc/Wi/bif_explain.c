@@ -57,7 +57,7 @@
 #include "http.h"
 #include "mhash.h"
 
-extern int enable_qrc;			/* generate query plan comments and warnings */
+int enable_qrc;			/* generate query plan comments and warnings */
 #define MSG_MAX_LEN 100
 
 typedef struct qr_comment_s
