@@ -212,13 +212,13 @@ void spinlock_free (spinlock_t *self);
 void spinlock_enter (spinlock_t *self);
 void spinlock_leave (spinlock_t *self);
 
-rwlock_t * rwlock_allocate (void);
-void rwlock_free (rwlock_t *);
-void rwlock_rdlock (rwlock_t *);
-int rwlock_tryrdlock (rwlock_t *);
-void rwlock_wrlock (rwlock_t *);
-int rwlock_trywrlock (rwlock_t *);
-void rwlock_unlock (rwlock_t *);
+EXE_EXPORT (rwlock_t *, rwlock_allocate, (void));
+EXE_EXPORT (void, rwlock_free, (rwlock_t *));
+EXE_EXPORT (void, rwlock_rdlock, (rwlock_t *));
+EXE_EXPORT (int, rwlock_tryrdlock, (rwlock_t *));
+EXE_EXPORT (void, rwlock_wrlock, (rwlock_t *));
+EXE_EXPORT (int, rwlock_trywrlock, (rwlock_t *));
+EXE_EXPORT (void, rwlock_unlock, (rwlock_t *));
 
 END_CPLUSPLUS
 
