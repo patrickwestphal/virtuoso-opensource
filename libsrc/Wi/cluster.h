@@ -35,9 +35,6 @@ typedef struct cl_message_s cl_message_t;
 #define CM_TRACE
 #endif
 
-#ifndef VOS
-#define RDF_SECURITY_CLO
-#endif
 
 
 typedef struct cl_status_s
@@ -875,9 +872,6 @@ typedef struct cl_self_message_s
 #define CLO_DFG_AGG			31	/*!< request for simple aggregate result from dist frag */
 #define CLO_CONTROL			32
 #define CLO_TOP 33
-#ifdef RDF_SECURITY_CLO
-#define CLO_RDF_GRAPH_USER_PERMS	34	/*!< A hashtable of user permissions for graphs */
-#endif
 
 /* action codes for ddl messages */
 #define CLO_DDL_TABLE 1

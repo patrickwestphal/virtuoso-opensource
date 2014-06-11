@@ -1,7 +1,7 @@
 #!/bin/sh
 #  tsql2.sh
 #
-#  $Id: tsql2.sh,v 1.14.4.1.4.9 2013/01/02 16:15:28 source Exp $
+#  $Id$
 #
 #  SQL conformance tests
 #  
@@ -144,13 +144,14 @@ then
     exit 1
 fi
 
-LOG + running sql script tcoll
-RUN $ISQL $DSN PROMPT=OFF VERBOSE=OFF ERRORS=STDOUT < $VIRTUOSO_TEST/tcoll.sql
-if test $STATUS -ne 0
-then
-    LOG "***ABORTED: tcoll.sql"
-    exit 1
-fi
+# collation not supported in v7
+#LOG + running sql script tcoll
+#RUN $ISQL $DSN PROMPT=OFF VERBOSE=OFF ERRORS=STDOUT < $VIRTUOSO_TEST/tcoll.sql
+#if test $STATUS -ne 0
+#then
+#    LOG "***ABORTED: tcoll.sql"
+#    exit 1
+#fi
 
 LOG + running sql script tschema2
 RUN $ISQL $DSN PROMPT=OFF VERBOSE=OFF ERRORS=STDOUT < $VIRTUOSO_TEST/tschema2.sql

@@ -2033,7 +2033,8 @@ create procedure DB.DBA.SPONGING_ALLOWED ()
   if (r is null)
     return 1;
 
-    if (position ('http://www.openlinksw.com/ontology/acl#Sponge', r) > 0)
+    if (position ('http://www.openlinksw.com/ontology/acl#Sponge', r) > 0 or
+        position ('http://www.openlinksw.com/ontology/acl#Write', r) > 0)
       return 1;
 
     return 0;

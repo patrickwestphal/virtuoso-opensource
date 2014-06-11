@@ -38,9 +38,6 @@ extern "C"
 #include "sqlbif.h"
 #include "rdf_mapping_jso.h"
 
-#ifndef VOS
-#define RDF_RAW_SQL_SECURITY
-#endif
 
 #ifdef DEBUG
 #define SPARYYDEBUG

@@ -3436,7 +3436,7 @@ fref_setp_flush (fun_ref_node_t * fref, caddr_t * state)
       hash_area_t *ha = setp->setp_ha;
       if (HA_GROUP == ha->ha_op)
 	{
-	  if (!setp->setp_any_user_aggregate_gos)
+	  if (!setp->setp_any_user_aggregate_gos && !setp->setp_any_distinct_gos)
 	    itc_ha_flush_memcache (ha, state, SETP_NO_CHASH_FLUSH);
 	}
       setp_filled (setp, state);
@@ -4752,7 +4752,7 @@ qr_subq_exec (client_connection_t * cli, query_t * qr,
   long end_time;
 #endif
 
-  QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN);
+  QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN, parms);
   inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, is_vec ? caller->qi_n_sets : 0);
   qi = (query_instance_t *) inst;
   state = inst;
@@ -4945,7 +4945,7 @@ qr_subq_exec_vec (client_connection_t * cli, query_t * qr,
   long end_time;
 #endif
 
-  QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN);
+  QR_EXEC_CHECK_STACK (caller, &ret, CALL_STACK_MARGIN, NULL);
   inst = (caddr_t *) qi_alloc (qr, opts, auto_qi, auto_qi_len, n_sets);
   qi = (query_instance_t *) inst;
   state = inst;

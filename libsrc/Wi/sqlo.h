@@ -1000,6 +1000,11 @@ sinv_map_t *sinv_call_map (ST * tree, client_connection_t * cli);
 int sqlo_is_contains_vdb_tb (sqlo_t * so, op_table_t * ot, char ctype, ST ** args);
 int sel_n_breakup (ST * sel);
 int sqlo_is_sec_in_list (df_elt_t ** in_list);
+/* flags for specially recognized in predicates */
+#define INL_GENERIC 0
+#define INL_RDF_SEC 1
+#define INL_RDF_INF 2
+
 df_elt_t **sqlo_in_list (df_elt_t * pred, df_elt_t * tb_dfe, caddr_t name);
 df_elt_t **sqlo_in_list_1 (df_elt_t * pred, df_elt_t * tb_dfe, caddr_t name, df_elt_t *** subrange_ret);
 dbe_column_t *cp_left_col (df_elt_t * cp);
@@ -1181,7 +1186,7 @@ void jp_ps_init_card (join_plan_t * jp, pred_score_t * ps);
 int dfe_is_cacheable (df_elt_t * dfe);
 uint32 sqlo_subq_id_hash (ST * tree);
 caddr_t sqlo_new_prefix (sqlo_t * so);
-void dfe_pred_body_cost (df_elt_t ** body, float *unit_ret, float *arity_ret, float *overhead_ret);
+void dfe_pred_body_cost (df_elt_t ** body, float *unit_ret, float *arity_ret, float *overhead_ret, df_elt_t * in_tb);
 int sqlo_has_node (ST * tree, int type);
 
 #endif /* _SQLO_H */

@@ -3403,7 +3403,10 @@ sqlo_is_sec_in_list (df_elt_t ** in_list)
     return 0;
   if (DFE_CALL != in_list[1]->dfe_type)
     return 0;
-  return st_is_call (in_list[1]->dfe_tree, "__rgs_user_perms_clo", 2);
+  if (st_is_call (in_list[1]->dfe_tree, "__rgs_user_perms_clo", 2))
+    return INL_RDF_SEC;
+  if (st_is_call (in_list[1]->dfe_tree, "rdf_super_sub_list", 4))
+    return INL_RDF_INF;
 }
 
 

@@ -1,7 +1,7 @@
 --
 --  tcoll.sql
 --
---  $Id: tcoll.sql,v 1.5.10.2 2013/01/02 16:15:00 source Exp $
+--  $Id$
 --
 --  Collation tests
 --  

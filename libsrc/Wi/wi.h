@@ -33,8 +33,6 @@
 
 #define VAJRA
 //#define VOS
-#ifndef VOS
-#endif
 #define NO_CL GPF_T1 ("not available without cluster support")
 
 #ifdef MALLOC_DEBUG
@@ -64,8 +62,6 @@
 /*
  *  Global features
  */
-#ifdef VOS
-#endif
 typedef struct free_set_cache_s free_set_cache_t;
 typedef struct index_tree_s index_tree_t;
 typedef struct search_spec_s search_spec_t;
