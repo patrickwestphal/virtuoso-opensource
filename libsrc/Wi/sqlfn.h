@@ -962,9 +962,21 @@ int sec_col_check (dbe_column_t * col, oid_t group, oid_t user, int op);
 void buf_bsort (buffer_desc_t ** bs, int n_bufs, sort_key_func_t key);
 
 
-#define QR_EXEC_CHECK_STACK(qi, addr, margin) \
-  if (THR_IS_STACK_OVERFLOW (qi->qi_thread, addr, margin)) \
-    return srv_make_new_error ("42000", "SR178", "Stack overflow (stack size is %ld, more than %ld is in use)", (long)(qi->qi_thread->thr_stack_size), (long)(qi->qi_thread->thr_stack_size - margin));
+#define QR_EXEC_CHECK_STACK(qi, addr, margin, params) \
+  if (THR_IS_STACK_OVERFLOW (qi->qi_thread, addr, margin))  { \
+    int pinx = 0; \
+    if (params) \
+      { \
+	DO_SET (state_slot_t *, parm, &qr->qr_parms) \
+	  { \
+	    if (!IS_SSL_REF_PARAMETER (parm->ssl_type)) \
+	      dk_free_tree (parms[pinx]); \
+	    pinx ++; \
+	  } \
+	END_DO_SET (); \
+      } \
+    return srv_make_new_error ("42000", "SR178", "Stack overflow (stack size is %ld, more than %ld is in use)", (long)(qi->qi_thread->thr_stack_size), (long)(qi->qi_thread->thr_stack_size - margin)); \
+  }
 
 
 #ifdef DEBUG
@@ -1112,7 +1124,7 @@ typedef struct itc_ha_feed_ret_s
   caddr_t *ihfr_deps;
 } itc_ha_feed_ret_t;
 
-int itc_ha_feed (itc_ha_feed_ret_t * ret, hash_area_t * ha, caddr_t * qst, unsigned long feed_temp_blobs);
+int itc_ha_feed (itc_ha_feed_ret_t * ret, hash_area_t * ha, caddr_t * qst, unsigned long feed_temp_blobs, setp_node_t * setp);
 extern void itc_ha_flush_memcache (hash_area_t * ha, caddr_t * qst, int is_in_fill);
 
 /* is in fill */

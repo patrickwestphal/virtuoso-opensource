@@ -787,7 +787,7 @@ USER_KEY_DELETE (in username varchar, in key_name varchar)
   declare keys any;
   declare inx int;
   if (lower(user) <> 'dba' and username <> user)
-    signal ('42000', 'Can\'t delete non own keys');
+    signal ('42000', 'Can not delete non own keys');
   keys := coalesce (USER_GET_OPTION (username, 'KEYS'), vector ());
   inx := position (key_name, keys);
   if (inx > 0)
@@ -862,7 +862,7 @@ USER_KEYS_INIT (in username varchar, in opts any)
  	    key_value := file_to_string (path);
 	  else
 	    {
-	      log_message (sprintf ('XENC: Can\'t open key file: %s', path));
+	      log_message (sprintf ('XENC: Can not open key file: %s', path));
 	      goto next;
 	    }
 	}
@@ -1037,14 +1037,17 @@ create procedure
 {
   declare cn, fp, new_user, certs any;
   declare rc int;
+
   rc := -1;
 
   if (user_name = '' or user_name is null)
     {
       declare ext_oid varchar;
       declare exit handler for sqlstate '*' {
-        goto normal_auth;
+        goto cert_auth;
       };
+
+      user_name := null;
 
 	-- subject
 	cn := get_certificate_info (2);
@@ -1052,7 +1055,7 @@ create procedure
 	fp := get_certificate_info (6);
 
 	if (fp is null)
-	  goto normal_auth;
+	  goto cert_auth;
 
         ext_oid := virtuoso_ini_item_value ('Parameters', 'X509ExtensionOID');
 
@@ -1075,17 +1078,180 @@ create procedure
 	    rc := 1;
 	  }
     }
-  -- normal verification
-normal_auth:
-  if (__proc_exists ('DB.DBA.DBEV_LOGIN'))
+
+  cert_auth:;
+
+  -- We only check ACLs for non-admins and cert-auth
+  if (user_name is null
+      or (user_name = 'dba' and isstring (client_attr ('client_certificate')))
+      or (user_name <> 'dba' and client_attr ('client_ssl')
+          and not exists (select (1) from DB.DBA.SYS_USER_GROUP, DB.DBA.SYS_USERS a, DB.DBA.SYS_USERS b
+                                    where UG_GID=b.U_ID and b.U_NAME='administrators' and a.U_NAME=user_name and UG_UID=a.U_ID)))
     {
-      rc := "DB"."DBA"."DBEV_LOGIN" (user_name, digest, session_random);
+      declare agentUri, sqlRealm varchar;
+      declare default_host varchar;
+      declare acls any;
+      declare resMinValues, resMaxValue decimal;
+      declare resMinServiceId, resMaxServiceId varchar;
+      declare maxRate, maxLen, maxRows, sparqlOnly, sparqlRead, sparqlWrite, sparqlSponge int;
+
+      -- We use a dedicated realm for SQL access control
+      sqlRealm := 'http://www.openlinksw.com/ontology/acl#SqlRealm';
+      -- in case something in ACLs raise an unhandled error
+      declare exit handler for sqlstate '*' {
+        goto normal_auth;
+      };
+
+      -- Determine the agent IRI which is either built from the username or the certificate fingerprint
+      fp := get_certificate_info (6);
+      if (not fp is null and fp <> 0)
+        {
+          agentUri := 'cert:' || fp;
+        }
+      else if (user_name is not null)
+        {
+          default_host := cfg_item_value (virtuoso_ini_path (), 'URIQA', 'DefaultHost');
+          if (default_host is null) {
+            default_host := sys_stat ('st_host_name');
+            if (server_http_port () <> '80')
+              default_host := default_host ||':'|| server_http_port ();
+          }
+          agentUri := sprintf ('http://%s/dataspace/person/%s#this', default_host, user_name);
+
+          -- Save the authentication information in the connection to be used in aclhooks.sql
+          connection_set ('__current_acl_uname__', user_name);
+        }
+      else
+        {
+          agentUri := null;
+        }
+
+      -- Check ACL Rules and Restrictions for client access
+      maxRate := 0;
+      maxLen := 0;
+      maxRows := 0;
+      sparqlOnly := 1;
+      sparqlRead := 0;
+      sparqlWrite := 0;
+      sparqlSponge := 0;
+
+      if (DB.DBA.RESTRICTION_GET (
+          resource=>'urn:virtuoso:restrictions:sql-request-rate',
+          minValue=>resMinValues,
+          minServiceId=>resMinServiceId,
+          maxValue=>resMaxValue,
+          maxServiceId=>resMaxServiceId,
+          agentIri=>agentUri,
+          realm=>sqlRealm))
+        {
+          maxRate := resMaxValue;
+        }
+      if (DB.DBA.RESTRICTION_GET (
+          resource=>'urn:virtuoso:restrictions:sql-content-size',
+          minValue=>resMinValues,
+          minServiceId=>resMinServiceId,
+          maxValue=>resMaxValue,
+          maxServiceId=>resMaxServiceId,
+          agentIri=>agentUri,
+          realm=>sqlRealm))
+        {
+          maxLen := resMaxValue;
+        }
+      if (DB.DBA.RESTRICTION_GET (
+          resource=>'urn:virtuoso:restrictions:sql-result-rows',
+          minValue=>resMinValues,
+          minServiceId=>resMinServiceId,
+          maxValue=>resMaxValue,
+          maxServiceId=>resMaxServiceId,
+          agentIri=>agentUri,
+          realm=>sqlRealm))
+        {
+          maxRows := resMaxValue;
+        }
+
+      -- Check SPARQL permissions
+      acls := DB.DBA.CHECK_CONNECTION_PERMISSIONS (
+        resource=>'urn:virtuoso:access:sparql',
+        scope=>'http://www.openlinksw.com/ontology/acl#Query',
+        agentIri=>agentUri,
+        realm=>sqlRealm);
+      if (position ('http://www.openlinksw.com/ontology/acl#Read', acls))
+        {
+          sparqlRead := 1;
+        }
+      if (position ('http://www.openlinksw.com/ontology/acl#Write', acls))
+        {
+          sparqlWrite := 1;
+        }
+      if (position ('http://www.openlinksw.com/ontology/acl#Sponge', acls))
+        {
+          sparqlSponge := 1;
+        }
+
+      -- backwards-compatibility
+      if (position ('http://www.w3.org/ns/auth/acl#Read', acls))
+        {
+          sparqlRead := 1;
+        }
+      if (position ('http://www.w3.org/ns/auth/acl#Write', acls))
+        {
+          sparqlWrite := 1;
+        }
+
+      -- Check if we have SQL permissions
+      acls := DB.DBA.CHECK_CONNECTION_PERMISSIONS (
+        resource=>'urn:virtuoso:access:sql',
+        scope=>'http://www.openlinksw.com/ontology/acl#Query',
+        agentIri=>agentUri,
+        realm=>sqlRealm);
+      -- For now we require both sql read and write since we have no way to separate the two yet
+      if (position ('http://www.openlinksw.com/ontology/acl#Read', acls) and
+          position ('http://www.openlinksw.com/ontology/acl#Write', acls))
+        {
+          sparqlOnly := 0;
+        }
+
+      -- At least sparql permissions are required to do anything, otherwise we refuse login altogether
+      if (sparqlOnly and not sparqlRead and not sparqlWrite and not sparqlSponge)
+        {
+          rc := -1;
+          goto normal_auth;
+        }
+
+      -- Save the authentication information in the connection to be used in aclhooks.sql
+      connection_set ('__current_acl_agent_iri__', agentUri);
+      connection_set ('__current_acl_realm_iri__', sqlRealm);
+
+      if (user_name is null) {
+        -- We use our special sparql-only user which has full access to all graphs, private and public
+        user_name := 'SPARQL_ADMIN';
+        rc := 1;
+      }
+
+      -- Set the limits for the client connection as well as the graph security callback for SPARQL queries
+      set_client_acl_restrictions (
+        maxRate,
+        maxLen,
+        sparqlOnly,
+        sprintf (' define sql:gs-app-callback "INTERNAL_ACL_HOOK" define sql:gs-app-uid "%s" define get:enforce-acls "yes" ', agentUri),
+        maxRows
+      );
     }
-  else if (rc <= 0) -- only if not authenticated
+
+  -- normal verification (only if rc != 0 which means "no access")
+normal_auth:
+  if (rc <> 0)
     {
-      rc := DB.DBA.FOAF_SSL_LOGIN (user_name, digest, session_random);
-      if (rc = 0)
-	rc := DB.DBA.LDAP_LOGIN (user_name, digest, session_random);
+      if (__proc_exists ('DB.DBA.DBEV_LOGIN'))
+        {
+          rc := "DB"."DBA"."DBEV_LOGIN" (user_name, digest, session_random);
+        }
+      else if (rc <= 0) -- only if not authenticated
+        {
+          rc := DB.DBA.FOAF_SSL_LOGIN (user_name, digest, session_random);
+          if (rc = 0)
+            rc := DB.DBA.LDAP_LOGIN (user_name, digest, session_random);
+        }
     }
   return rc;
 }
@@ -1104,7 +1270,7 @@ SET_USER_OS_ACOUNT (in username varchar, in os_u_name varchar,
 	return 1;
     }
   signal ('42000',
-      concat ('Can''t login system user ', os_u_name, '. Logon failure: unknown user name or bad password.'),
+      concat ('Can not login system user ', os_u_name, '. Logon failure: unknown user name or bad password.'),
       'SR359');
 }
 ;

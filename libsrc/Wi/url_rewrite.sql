@@ -423,11 +423,19 @@ end_scan:
   if (isstring (host))
     {
       long_path := replace (long_path, '^{URIQADefaultHost}^', host);
+      long_path := replace (long_path, '^{uURIQADefaultHost}^', sprintf ('%U', host));
       if (strstr (long_path, '^{DynamicLocalFormat}^') is not null)
         {
 	  long_path := replace (long_path, '^{DynamicLocalFormat}^',
 	  	sprintf ('%s://%{WSHost}s', case when is_https_ctx () then 'https' else 'http' end));
         }
+    }
+  if (http_host () <> 0)
+    {
+      long_path := replace (long_path, '^{Host}^', http_host ());
+      long_path := replace (long_path, '^{uHost}^', sprintf ('%U', http_host ()));
+      long_path := replace (long_path, '^{FullHost}^', sprintf ('%s://%s', case when is_https_ctx () then 'https' else 'http' end, http_host ()));
+      long_path := replace (long_path, '^{uFullHost}^', sprintf ('%U', sprintf ('%s://%s', case when is_https_ctx () then 'https' else 'http' end, http_host ())));
     }
   return long_path;
 }

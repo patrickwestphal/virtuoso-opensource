@@ -825,6 +825,73 @@ cache_and_log:
 }
 ;
 
+create function DB.DBA.RDF_PRESET_TWOBYTES_OF_DATATYPES ()
+{
+  declare xsd_lnames any;
+  xsd_lnames := vector (
+    'ENTITY',
+    'ENTITIES',
+    'ID',
+    'IDREF',
+    'IDREFS',
+    'NCName',
+    'Name',
+    'NMTOKEN',
+    'NMTOKENS',
+    'NOTATION',
+    'QName',
+    'any',
+    'anyAtomicType',
+    'anySimpleType',
+    'anyType',
+    'anyURI',
+    'base64Binary',
+    'boolean',
+    'byte',
+    'date',
+    'dateTime',
+    'dateTimeStamp',
+    'dayTimeDuration',
+    'decimal',
+    'double',
+    'duration',
+    'float',
+    'gDay',
+    'gMonth',
+    'gMonthDay',
+    'gYear',
+    'gYearMonth',
+    'hexBinary',
+    'int',
+    'integer',
+    'language',
+    'long',
+    'negativeInteger',
+    'nonNegativeInteger',
+    'nonPositiveInteger',
+    'normalizedString',
+    'positiveInteger',
+    'short',
+    'string',
+    'time',
+    'token',
+    'unsignedByte',
+    'unsignedInt',
+    'unsignedLong',
+    'unsignedShort',
+    'yearMonthDuration' );
+  foreach (varchar n in xsd_lnames) do
+    {
+      __dbf_set ('rb_type__xsd:' || n, DB.DBA.RDF_TWOBYTE_OF_DATATYPE (iri_to_id ('http://www.w3.org/2001/XMLSchema#' || n)));
+    }
+  commit work;
+}
+;
+
+--!AFTER
+DB.DBA.RDF_PRESET_TWOBYTES_OF_DATATYPES ()
+;
+
 create function DB.DBA.RDF_TWOBYTE_OF_LANGUAGE (in id varchar) returns integer
 {
   declare res integer;
@@ -3768,9 +3835,9 @@ print_o:
 }
 ;
 
-create function DB.DBA.RDF_TRIPLES_TO_TTL_ENV (in tcount integer)
+create function DB.DBA.RDF_TRIPLES_TO_TTL_ENV (in tcount integer, in env_flags integer, in col_metas any, inout ses any)
 {
-  return vector (dict_new (__min (tcount, 16000)), 0, '', '', '', 0, 0, 0, 0);
+  return vector (dict_new (__min (tcount, 16000)), 0, '', '', '', 0, 0, env_flags, col_metas, ses);
 }
 ;
 
@@ -3785,7 +3852,7 @@ create procedure DB.DBA.RDF_TRIPLES_TO_TTL (inout triples any, inout ses any)
       http ('# Empty TURTLE\n', ses);
       return;
     }
-  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount);
+  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount, 0, 0, ses);
   { whenever sqlstate '*' goto end_pred_sort;
     rowvector_subj_sort (triples, 1, 1);
 end_pred_sort: ;
@@ -3815,7 +3882,7 @@ create procedure DB.DBA.RDF_TRIPLES_TO_TRIG (inout triples any, inout ses any)
       http ('# Empty TriG\n', ses);
       return;
     }
-  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount);
+  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount, 0, 0, ses);
   { whenever sqlstate '*' goto end_pred_sort;
     rowvector_subj_sort (triples, 1, 1);
 end_pred_sort: ;
@@ -3977,7 +4044,7 @@ end_pred_sort: ;
   ns_dict := dict_new (case (print_top_level) when 0 then 10 else __min (tcount, 16000) end);
   dict_put (ns_dict, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf');
   dict_put (ns_dict, 'http://www.w3.org/2000/01/rdf-schema#', 'rdfs');
-  env := vector (ns_dict, 0, 0, '', '', 0, 0, 0, 0);
+  env := vector (ns_dict, 0, 0, '', '', 0, 0, 0, 0, 0);
   if (print_top_level)
     {
        http ('<?xml version="1.0" encoding="utf-8" ?>\n<rdf:RDF\n\txmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n\txmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"', ses);
@@ -4176,11 +4243,9 @@ This time the service made zero such statements, sorry.</p></body></html>', ses)
       http ('"', ses);
     }
   http ('>\n<head><title>RDFa+XHTML document</title></head><body>\n', ses);
-  http (sprintf ('<p>This document contains %d facts in XHTML+RDFa format.</p>',
+  http (sprintf ('<p>This HTML document contains %d embedded RDF statements represented using (X)HTML+RDFa notation.</p>',
     tcount), ses);
-  http ('<p>A generic web browser may not display them but the document can be saved on disk and used by some appropriate program or sent to a third party.
-Use "Save As" or "Send To" menu item of the browser; choose "HTML" file type, not "text file" or "web archive".
-</p>', ses);
+  http ('<p>The embedded RDF content will be recognized by any processor of (X)HTML+RDFa.</p>', ses);
   http ('\n<table border="1">\n<thead><tr><th>Namespace Prefix</th><th>Namespace URI</th></tr></thead><tbody>', ses);
   for (ctr := len - 2; ctr >= 0; ctr := ctr-2)
     {
@@ -4189,7 +4254,6 @@ Use "Save As" or "Send To" menu item of the browser; choose "HTML" file type, no
       http ('</td></tr>', ses);
     }
   http ('\n</tbody></table>', ses);
-  http ('\n<p>The rest of the document may look like garbage for humans or not displayed by the browser.</p>', ses);
   http ('\n<table border="1">\n<thead><tr><th>Subject</th><th>Predicate</th><th>Object</th></tr></thead>', ses);
   env := vector (0, 0, 0, null);
   rowvector_subj_sort (triples, 1, 1);
@@ -4745,11 +4809,9 @@ This time the service made zero such statements, sorry.</p></body></html>', ses)
     }
   http ('<html xmlns="http://www.w3.org/1999/xhtml"', ses);
   http ('>\n<head><title>HTML Microdata document</title></head><body>\n', ses);
-  http (sprintf ('<p>This document contains %d facts in HTML Microdata format.</p>',
+  http (sprintf ('<p>This HTML5 document contains %d embedded RDF statements represented using HTML+Microdata notation.</p>',
     tcount), ses);
-  http ('<p>A generic web browser may not display them properly but the document can be saved on disk and used by some appropriate program or sent to a third party.
-Use "Save As" or "Send To" menu item of the browser; choose "HTML" file type, not "text file" or "web archive".
-</p><p>The rest of the document may look like garbage for humans or not displayed by the browser.</p>', ses);
+  http ('<p>The embedded RDF content will be recognized by any processor of HTML5 Microdata.</p>', ses);
   http ('\n<table><tr><th>Prefix</th><th>Namespace IRI</th></tr>', ses);
   nslist := dict_to_vector (nsdict, 0);
   len := length (nslist);
@@ -4942,11 +5004,9 @@ This time the service made zero such statements, sorry.</p></body></html>', ses)
     }
   http ('<html xmlns="http://www.w3.org/1999/xhtml"', ses);
   http ('>\n<head><title>HTML Based Entity Description (with embedded Microdata)</title></head><body>\n', ses);
-  http (sprintf ('<p>This document contains %d facts in HTML Microdata format.</p>',
+  http (sprintf ('<p>This HTML5 document contains %d embedded RDF statements represented using HTML+Microdata notation.</p>',
     tcount), ses);
-  http ('<p>If you are viewing it in browser and want to save this document or sent it to a third party,
-use "Save As" or "Send To" menu item of the browser. Choose "HTML" file type, not "text file" or "web archive".
-</p><p>Some portions of the document may look like garbage for humans or not displayed by the browser, nevertheless RDF-aware programs can read that data.</p>', ses);
+  http ('<p>The embedded RDF content will be recognized by any processor of HTML5 Microdata.</p>', ses);
 
   -- http ('\n<table><tr><th>Prefix</th><th>Namespace IRI</th></tr>', ses);
   -- nslist := dict_to_vector (nsdict, 0);
@@ -6132,7 +6192,7 @@ create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_TTL (inout triples_dict any) re
 create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_NICE_TTL (inout triples_dict any) returns long varchar
 {
   declare triples, ses any;
-  if (2500 <= dict_size (triples_dict)) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
+  if (2666 < dict_size (triples_dict)) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
     return DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_TTL (triples_dict);
   ses := string_output ();
   if (214 <> __tag (triples_dict))
@@ -6145,6 +6205,24 @@ create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_NICE_TTL (inout triples_dict an
 ;
 
 create procedure DB.DBA.RDF_TRIPLES_TO_NICE_TTL (inout triples any, inout ses any)
+{
+  declare tcount integer;
+  tcount := length (triples);
+  if (0 = tcount)
+    {
+      http ('# Empty Turtle\n', ses);
+      return;
+    }
+  if (2666 < tcount) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
+    {
+      DB.DBA.RDF_TRIPLES_TO_TTL (triples, ses);
+      return;
+    }
+  DB.DBA.RDF_TRIPLES_TO_NICE_TTL_IMPL (triples, 0, ses);
+}
+;
+
+create procedure DB.DBA.RDF_TRIPLES_TO_NICE_TTL_IMPL (inout triples any, in env_flags integer, inout ses any)
 {
   declare env, printed_triples_mask any;
   declare rdf_first_iid, rdf_rest_iid, rdf_nil_iid IRI_ID;
@@ -6164,20 +6242,10 @@ create procedure DB.DBA.RDF_TRIPLES_TO_NICE_TTL (inout triples any, inout ses an
   declare prefixes_are_printed integer;
   declare prev_s, prev_p varchar;
   tcount := length (triples);
-  if (0 = tcount)
-    {
-      http ('# Empty Turtle\n', ses);
-      return;
-    }
-  if (2500 <= tcount) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
-    {
-      DB.DBA.RDF_TRIPLES_TO_TTL (triples, ses);
-      return;
-    }
   rowvector_obj_sort (triples, 2, 1);
   rowvector_subj_sort (triples, 1, 1);
   rowvector_subj_sort (triples, 0, 1);
-  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount);
+  env := DB.DBA.RDF_TRIPLES_TO_TTL_ENV (tcount, env_flags, 0, ses);
   rdf_first_iid	:= iri_to_id ('http://www.w3.org/1999/02/22-rdf-syntax-ns#first');
   rdf_rest_iid	:= iri_to_id ('http://www.w3.org/1999/02/22-rdf-syntax-ns#rest');
   rdf_nil_iid	:= iri_to_id ('http://www.w3.org/1999/02/22-rdf-syntax-ns#nil');
@@ -6594,6 +6662,45 @@ create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_MICRODATA (inout trip
     triples := dict_list_keys (triples_dict, 1);
   DB.DBA.RDF_TRIPLES_TO_HTML_NICE_MICRODATA (triples, ses);
   return ses;
+}
+;
+
+create function DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_TTL (inout triples_dict any) returns long varchar
+{
+  declare triples, ses any;
+  ses := string_output ();
+  if (214 <> __tag (triples_dict))
+    triples := vector ();
+  else
+    triples := dict_list_keys (triples_dict, 1);
+  DB.DBA.RDF_TRIPLES_TO_HTML_NICE_TTL (triples, ses);
+  return ses;
+}
+;
+
+create procedure DB.DBA.RDF_TRIPLES_TO_HTML_NICE_TTL (inout triples any, inout ses any)
+{
+  declare tcount integer;
+  tcount := length (triples);
+  if (0 = tcount)
+    {
+      http ('# Empty Turtle\n', ses);
+      return;
+    }
+  rowvector_obj_sort (triples, 2, 1);
+  rowvector_subj_sort (triples, 1, 1);
+  rowvector_subj_sort (triples, 0, 1);
+  if (2666 < tcount) -- The "nice" algorithm is too slow to be applied to large outputs. There's also a limit for 8000 namespace prefixes.
+    {
+      http (sprintf ('# The result consists of %d triples so it is too long to be pretty-printed. The dump below contains that triples without any decoration', tcount), ses);
+      http ('<xmp>', ses);
+      DB.DBA.RDF_TRIPLES_TO_TTL (triples, ses);
+      http ('</xmp>', ses);
+      return;
+    }
+  http ('<pre>', ses);
+  DB.DBA.RDF_TRIPLES_TO_NICE_TTL_IMPL (triples, 257, ses);
+  http ('</pre>', ses);
 }
 ;
 
@@ -13182,6 +13289,7 @@ create function DB.DBA.RDF_QM_DEFINE_MAP_VALUE (in qmv any, in fldname varchar, 
         when __tag of date then 'date'
         when __tag of time then 'time'
         when __tag of long varbinary then 'longvarbinary'
+        when __tag of varbinary then 'longvarbinary'
         when 188 then 'integer'
         when __tag of integer then 'integer'
         when __tag of varchar then 'varchar'
@@ -16610,6 +16718,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_TR to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_NICE_MICRODATA to SPARQL_SELECT',
+    'grant execute on DB.DBA.RDF_TRIPLES_TO_HTML_NICE_TTL to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_JSON_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_ATOM_XML_TEXT to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_TRIPLES_TO_ODATA_JSON to SPARQL_SELECT',
@@ -16622,6 +16731,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_RDF_XML_INIT to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_RDF_XML_ACC to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_RDF_XML_FIN to SPARQL_SELECT',
+    'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_HTML_NICE_TTL to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_JSON_INIT to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_JSON_ACC to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_RESULT_SET_AS_JSON_FIN to SPARQL_SELECT',
@@ -16642,6 +16752,7 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_JSON_LD to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_MICRODATA to SPARQL_SELECT',
+    'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_HTML_NICE_TTL to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_JSON_MICRODATA to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_CSV to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_FORMAT_TRIPLE_DICT_AS_TSV to SPARQL_SELECT',
@@ -16709,9 +16820,9 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RL_FLUSH to SPARQL_UPDATE',
     'grant execute on DB.DBA.RDF_OBJ_ADD_KEYWORD_FOR_GRAPH to SPARQL_UPDATE',
     'grant execute on DB.DBA.RDF_GRAPH_GROUP_LIST_GET to SPARQL_SELECT',
-    'grant execute on L_O_LOOK to SPARQL_UPDATE',
-    'grant execute on RL_I2ID_NP to SPARQL_UPDATE',
-    'grant execute on rl_i2id to SPARQL_UPDATE',
+    'grant execute on L_O_LOOK to SPARQL_SPONGE',
+    'grant execute on RL_I2ID_NP to SPARQL_SPONGE',
+    'grant execute on rl_i2id to SPARQL_SPONGE',
     'grant execute on DB.DBA.TTLP_RL_TRIPLE to SPARQL_UPDATE',
     'grant execute on rdf_rl_type_id to SPARQL_UPDATE',
     'grant execute on rdf_rl_lang_id to SPARQL_UPDATE',

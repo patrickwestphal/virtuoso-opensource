@@ -1659,6 +1659,8 @@ cli_set_start_times (client_connection_t * cli)
 }
 
 
+int enable_vec_cli_call = 1;
+
 void
 sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name, caddr_t * params, caddr_t * current_ofs, stmt_options_t * options)
 {
@@ -1887,7 +1889,8 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name, caddr_t * params
 	  n_params, LOG_PRINT_STR_L,
 	  stmt->sst_query->qr_text ? ((stmt->sst_query->qr_text[0] == -35) ? "" : stmt->sst_query->qr_text) : "");
     }
-  if (!stmt->sst_query->qr_select_node && !stmt->sst_query->qr_is_call)
+  if (!stmt->sst_query->qr_select_node && ((stmt->sst_query->qr_proc_vectored && enable_vec_cli_call && n_params > 1)
+	  || !stmt->sst_query->qr_is_call))
     {
       err = qr_dml_array_exec (cli, stmt->sst_query, CALLER_CLIENT,
 	  cursor_name ? box_string (cursor_name) : NULL, stmt, (caddr_t **) params, options);
@@ -3120,9 +3123,12 @@ frq_no_thread_reply (future_request_t * frq)
   self->dkt_requests[0] = NULL;
   dk_free_tree (err);
 #else
+  static caddr_t nothr = NULL;
+  if (!nothr)
+    nothr = box_dv_short_string ("no_threads");
   dk_free_tree ((caddr_t) frq->rq_arguments);
-  frq->rq_arguments = (long **) list (01, 0);
-  frq->rq_service = find_service ("no_threads");
+  frq->rq_arguments = (long **) list (1, 0);
+  frq->rq_service = find_service (nothr);
 #endif
 }
 

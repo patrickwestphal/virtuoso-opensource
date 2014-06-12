@@ -65,8 +65,8 @@ static dk_mutex_t *uname_mutex;
 
 typedef struct uname_chain_pair_s
 {
-  uname_blk_t *	unc_immortals;
-  uname_blk_t *	unc_refcounted;
+  uname_blk_t *unc_immortals;
+  uname_blk_t *unc_refcounted;
 #ifdef DV_UNAME_UNIT_DEBUG
   long unc_count;
   long unc_refcount;
@@ -176,6 +176,7 @@ dk_alloc_box (size_t bytes, dtp_t tag)
 {
   unsigned char *ptr;
   size_t align_bytes;
+
 #ifdef MALLOC_DEBUG
   if (bytes & ~0xffffff)
     GPF_T1 ("box to allocate is too large");
@@ -199,6 +200,7 @@ dk_alloc_box (size_t bytes, dtp_t tag)
 #ifdef _DEBUG
   box_types_alloc[(unsigned) tag]++;
 #endif
+
   WRITE_BOX_HEADER (ptr, bytes, tag);
   return (box_t) ptr;
 }
@@ -213,7 +215,7 @@ dk_alloc_box_long (size_t bytes, dtp_t tag)
 
 #ifdef MALLOC_DEBUG
   if (bytes > 1000000000)
-    GPF_T1 ("Box over 1G, suspect, assertion in malloc debug mode only");
+    GPF_T1 ("Box over 1G, suspect, assertion in malloc debug mode inly");
 #endif
 
   /* This assumes dk_alloc aligns at least at 4 */
@@ -234,8 +236,10 @@ dk_alloc_box_long (size_t bytes, dtp_t tag)
 #ifdef _DEBUG
   box_types_alloc[(unsigned) tag]++;
 #endif
+
   if (bytes > 0xffffff)
-    bytes = 0xffffff;				 /* safety.  If overflowed, large box would be confused with small, now only the length is off, which is OK if length known elsewhere.  Like in cluster message serialization  */
+    bytes = 0xffffff;		/* safety.  If overflowed, large box would be confused with small, now only the length is off, which is OK if length known elsewhere.  Like in cluster message serialization  */
+
   WRITE_BOX_HEADER (ptr, bytes, tag);
   return (box_t) ptr;
 }
@@ -263,7 +267,7 @@ dk_try_alloc_box (size_t bytes, dtp_t tag)
   if (align_bytes >= box_min_mmap)
     ptr = dk_alloc_mmap (align_bytes);
   else
-  ptr = (unsigned char *) dk_try_alloc (align_bytes);
+    ptr = (unsigned char *) dk_try_alloc (align_bytes);
   if (!ptr)
     return (box_t) ptr;
 
@@ -371,8 +375,9 @@ dbg_dk_alloc_box_long (DBG_PARAMS size_t bytes, dtp_t tag)
 #ifdef _DEBUG
   box_types_alloc[tag]++;
 #endif
+
   if (bytes > 0xffffff)
-    bytes = 0xffffff;				 /* safety.  If overflowed, large box would be confused with small, now only the length is off, which is OK if length known elsewhere.  Like in cluster message serialization  */
+    bytes = 0xffffff;		/* safety.  If overflowed, large box would be confused with small, now only the length is off, which is OK if length known elsewhere.  Like in cluster message serialization  */
 
   WRITE_BOX_HEADER (ptr, bytes, tag);
   /* memset (ptr, 0x00, bytes); */
@@ -444,7 +449,6 @@ dbg_dk_alloc_box_zero (DBG_PARAMS size_t bytes, dtp_t tag)
   return (box_t) ptr;
 }
 #endif /* MALLOC_DEBUG */
-
 
 box_destr_f box_destr[256];
 box_copy_f box_copier[256];
@@ -804,7 +808,7 @@ box_reuse (caddr_t box, ccaddr_t data, size_t len, dtp_t dtp)
   ((dtp_t *) box)[-2] = (dtp_t) (len >> 16);
   if (DV_STRING == dtp) len --; /* the length of string box is always +1 but actual data is one char less */
   if (box != data)
-  memcpy (box, data, len);
+    memcpy (box, data, len);
 }
 
 
@@ -839,7 +843,6 @@ dk_check_tree_iter (box_t box, box_t parent, dk_hash_t * known)
     }
   return;
 }
-
 
 void
 dk_check_tree (box_t box)
@@ -1130,7 +1133,6 @@ DBG_NAME (box_copy) (DBG_PARAMS cbox_t box)
     case DV_XTREE_HEAD:
     case DV_XTREE_NODE:
       break;
-
     case DV_UNAME:
       {
 	uint32 hash;
@@ -1270,7 +1272,7 @@ box_t DBG_NAME (box_copy_tree) (DBG_PARAMS cbox_t box)
 	      __builtin_prefetch (((box_t*)box)[inx + 1]);
 	      copy[inx] = DBG_NAME (box_copy_tree) (DBG_ARGS ((box_t *) box)[inx]);
 	    }
-	copy[inx] = DBG_NAME (box_copy_tree) (DBG_ARGS ((box_t *) box)[inx]);
+          copy[inx] = DBG_NAME (box_copy_tree) (DBG_ARGS ((box_t *) box)[inx]);
 	}
       else if (len)
         {
@@ -1714,6 +1716,8 @@ box_equal (cbox_t b1, cbox_t b2)
       return 1;
     }
   memcmp_8 (b1, b2, l1, neq);
+  if (DV_STRING == b1_tag && box_flags (b1) != box_flags (b2))
+    return 0;
   return 1;
  neq:
   return 0;
@@ -1783,6 +1787,8 @@ box_strong_equal (cbox_t b1, cbox_t b2)
       return 1;
     }
   memcmp_8 (b1, b2, l1, neq);
+  if (DV_STRING == b1_tag && box_flags (b1) != box_flags (b2))
+    return 0;
   return 1;
  neq:
   return 0;
