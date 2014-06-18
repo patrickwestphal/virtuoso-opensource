@@ -257,9 +257,6 @@ extern sparp_equiv_t *sparp_equiv_exact_copy (sparp_t * sparp, sparp_equiv_t * o
 #define SPARP_EQUIV_MERGE_CONFLICT	1003	/*!< Restrict or merge is done but it is proven that restrictions contradict */
 #define SPARP_EQUIV_MERGE_DUPE		1004	/*!< Merge gets \c primary equal to \c secondary */
 
-/*! Returns 1 if tree always returns a reference or NULL but never returns literal */
-extern int sparp_tree_returns_ref (sparp_t * sparp, SPART * tree);
-
 /*! Tries to restrict \c primary by \c datatype and/or value.
 If neither datatype nor value is provided, SPARP_EQUIV_MERGE_OK is returned. */
 extern int sparp_equiv_restrict_by_constant (sparp_t * sparp, sparp_equiv_t * primary, ccaddr_t datatype, SPART * value);
@@ -513,8 +510,10 @@ extern SPART *sparp_find_subexpn_in_retlist (sparp_t * sparp, const char *varnam
 extern int sparp_subexpn_position1_in_retlist (sparp_t * sparp, const char *varname, SPART ** retvals);
 
 /*! This returns a mapping of \c var.
-If var_triple is NULL then it tries to find it using \c sparp_find_triple_of_var() for vars and \c sparp_find_triple_of_var_or_retval() for retvals */
-extern qm_value_t *sparp_find_qmv_of_var_or_retval (sparp_t * sparp, SPART * var_triple, SPART * gp, SPART * var);
+If var_triple is NULL then it tries to find it using \c sparp_find_triple_of_var() for vars and \c sparp_find_triple_of_var_or_retval() for retvals.
+\c allow_returning_null is useful when a \c var is a retval from subselect so it is not associated with any triple pattern */
+extern qm_value_t *sparp_find_qmv_of_var_or_retval (sparp_t * sparp, SPART * var_triple, SPART * gp, SPART * var,
+    int allow_returning_null);
 
 extern int sparp_find_language_dialect_by_service (sparp_t * sparp, SPART * service_expn);
 

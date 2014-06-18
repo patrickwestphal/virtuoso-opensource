@@ -3346,7 +3346,9 @@ ssg_largest_eq_valmode (ssg_valmode_t m1, ssg_valmode_t m2)
 	    return SSG_VALMODE_SQLVAL;
 	  return SSG_VALMODE_LONG;
 	}
-      return SSG_VALMODE_AUTO;
+      return m1
+	  /* There was SSG_VALMODE_AUTO, but now we have plenty of flags like qmfIsSubformatOfLongWhenEqToSql and the like, as well as SSG_VALMODE_NUM */
+	  ;
     }
   if (m2 < m1)
     return ssg_largest_eq_valmode (m2, m1);
@@ -5268,7 +5270,7 @@ ssg_print_valmoded_scalar_expn (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t
 	}
     }
   if (IS_BOX_POINTER (needed) && needed->qmfIsSubformatOfLongWhenRef &&
-      ((SSG_VALMODE_SQLVAL == native) || (SSG_VALMODE_LONG == native)))
+      ( /*(SSG_VALMODE_SQLVAL == native) || */ (SSG_VALMODE_LONG == native)))
     {
       ptrlong tree_restr_bits = sparp_restr_bits_of_expn (ssg->ssg_sparp, tree);
       if (tree_restr_bits & SPART_VARR_IS_REF)
@@ -5335,8 +5337,9 @@ ssg_print_valmoded_scalar_expn (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t
     }
   if (IS_BOX_POINTER (needed))
     {
+      ptrlong tree_restr_bits = sparp_restr_bits_of_expn (ssg->ssg_sparp, tree);
       const char *tmpl;
-      if (sparp_tree_returns_ref (ssg->ssg_sparp, tree))
+      if (tree_restr_bits & SPART_VARR_IS_REF)
 	tmpl = ssg_tmpl_ref_short_of_X (needed, native);
       else
 	tmpl = ssg_tmpl_literal_short_of_X (needed, native);
@@ -6771,6 +6774,9 @@ ssg_print_equiv_retval_expn (spar_sqlgen_t * ssg, SPART * gp, sparp_equiv_t * eq
     }
   if (flags & SSG_RETVAL_FROM_GOOD_SELECTED)
     {
+      int try_front_varname = (NULL != eq->e_front_varname);
+
+    retry_good_ignoring_front_varname:
       for (var_ctr = 0; var_ctr < var_count; var_ctr++)
 	{
 	  SPART_buf rv_buf;
@@ -6779,6 +6785,8 @@ ssg_print_equiv_retval_expn (spar_sqlgen_t * ssg, SPART * gp, sparp_equiv_t * eq
 	  SPART *var = eq->e_vars[var_ctr];
 	  caddr_t selid = var->_.var.selid;
 	  if (NULL == selid)
+	    continue;
+	  if (try_front_varname && strcmp (eq->e_front_varname, var->_.var.vname))
 	    continue;
 	  if (0 > dk_set_position_of_string (ssg->ssg_valid_ret_selids, selid))
 	    continue;
@@ -6810,6 +6818,11 @@ ssg_print_equiv_retval_expn (spar_sqlgen_t * ssg, SPART * gp, sparp_equiv_t * eq
 #endif
 	  ssg_print_valmoded_scalar_expn (ssg, rv, needed, native, asname);	/*#1 */
 	  return 1;
+	}
+      if (try_front_varname)
+	{
+	  try_front_varname = 0;
+	  goto retry_good_ignoring_front_varname;	/* see above */
 	}
       if ((0 == eq->e_var_count) &&
 	  ((flags & SSG_RETVAL_FROM_ANY_SELECTED) ||
@@ -7418,8 +7431,8 @@ ghost variable can be used as a sample variable only in absence of plain vars */
 	    sample_global_rv = ssg_sample_of_global_rv (ssg, eq, mixed_restrictions, var);
 	  if (IS_BOX_POINTER (vmode))
 	    {
-	      qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, var_rv->_.retval.triple, eq->e_gp, var_rv);
-	      col_count = BOX_ELEMENTS (qmv->qmvColumns);
+	      qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, var_rv->_.retval.triple, eq->e_gp, var_rv, 1);
+	      col_count = ((NULL == qmv) ? 1 : BOX_ELEMENTS (qmv->qmvColumns));
 	    }
 	  else
 	    col_count = 1;
@@ -7513,8 +7526,8 @@ ghost variable can be used as a sample variable only in absence of plain vars */
 	if ((IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native))
 	    && !SPART_VARNAME_IS_GLOB (sample_global_rv->_.retval.vname))
 	  {			/* Note special zeropart case below */
-	    qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, sample_global_rv_gp, sample_global_rv);
-	    col_count = BOX_ELEMENTS (qmv->qmvColumns);
+	    qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, sample_global_rv_gp, sample_global_rv, 1);
+	    col_count = ((NULL == qmv) ? 1 : BOX_ELEMENTS (qmv->qmvColumns));
 	  }
 	else
 	  col_count = 1;
@@ -7632,8 +7645,8 @@ or when only one source of eq is fixed and not null but the join with other sour
 #endif
 	  if (IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native))
 	    {			/* Note special zeropart case below */
-	      qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var);
-	      col_count = BOX_ELEMENTS (qmv->qmvColumns);
+	      qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var, 1);
+	      col_count = ((NULL == qmv) ? 1 : BOX_ELEMENTS (qmv->qmvColumns));
 	    }
 	  else
 	    col_count = 1;
@@ -7644,7 +7657,7 @@ or when only one source of eq is fixed and not null but the join with other sour
 		  (IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native)))
 		{
 		  if (NULL == qmv2)
-		    qmv2 = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var2);
+		    qmv2 = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var2, 0);
 		  if (!strcmp (qmv->qmvColumns[col_ctr]->qmvcColumnName, qmv2->qmvColumns[col_ctr]->qmvcColumnName))
 		    continue;
 		}
@@ -7738,8 +7751,8 @@ or when only one source of eq is fixed and not null but the join with other sour
 #endif
 	  if (IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native))
 	    {			/* Note special zeropart case below */
-	      qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var);
-	      col_count = BOX_ELEMENTS (qmv->qmvColumns);
+	      qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var, 1);
+	      col_count = ((NULL == qmv) ? 1 : BOX_ELEMENTS (qmv->qmvColumns));
 	    }
 	  else
 	    col_count = 1;
@@ -9402,7 +9415,7 @@ ssg_print_binv_table_exp (spar_sqlgen_t * ssg, SPART * wrapping_gp, int pass)
 	  ssg_newline (0);
 	  if (SPAR_MAX_BINDINGS_VIEW_CN >= width)
 	    {
-	      snprintf (buf, sizeof (buf), " DB.DBA.SPARQL_BINDINGS_VIEW_C%d as ", width);
+	      snprintf (buf, sizeof (buf), " DB.DBA.SPARQL_BINDINGS_VIEW_C_%d as ", width);
 	      ssg_puts (buf);
 	    }
 	  else
@@ -10901,7 +10914,7 @@ The fix is to avoid printing constant expressions at all, with only exception fo
 	  int width = BOX_ELEMENTS (final_binv->_.binv.vars);
 	  ssg_newline (0);
 	  if (SPAR_MAX_BINDINGS_VIEW_CN >= width)
-	  ssg_puts (t_box_sprintf (100, " JOIN DB.DBA.SPARQL_BINDINGS_VIEW_C%d as \"bnd2\" ON (", width));
+	  ssg_puts (t_box_sprintf (100, " JOIN DB.DBA.SPARQL_BINDINGS_VIEW_C_%d as \"bnd2\" ON (", width));
 	  else
 	  ssg_puts (" JOIN DB.DBA.SPARQL_BINDINGS_VIEW as \"bnd2\" ON (");
 	  ssg->ssg_indent += 1;
