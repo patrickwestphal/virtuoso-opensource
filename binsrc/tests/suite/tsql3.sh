@@ -1,7 +1,7 @@
 #!/bin/sh
 #  tsql3.sh
 #
-#  $Id: tsql3.sh,v 1.14.4.5.4.10 2013/01/02 16:15:28 source Exp $
+#  $Id$
 #
 #  SQL conformance tests
 #  
@@ -276,6 +276,17 @@ then
 	exit 1
     fi
 fi
+
+    LOG + running sql script tveccli
+    RUN $ISQL $DSN PROMPT=OFF VERBOSE=OFF ERRORS=STDOUT -u follow_std=0 < $VIRTUOSO_TEST/tveccli.sql
+    if test $STATUS -ne 0
+    then
+	LOG "***ABORTED:tveccli "
+	exit 1
+    fi
+fi
+
+
 
 SHUTDOWN_SERVER
 

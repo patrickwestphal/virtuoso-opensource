@@ -1,5 +1,5 @@
 --
---  $Id: tiri.sql,v 1.5.2.1.4.2 2013/01/02 16:15:11 source Exp $
+--  $Id$
 --
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
@@ -215,3 +215,38 @@ tro2sqv5 ();
 ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
 SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
 ECHO BOTH ": ro2sq heterogeneous values from any to boxes with conditinal branch : STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+create procedure tf () {return 1;}
+
+create procedure irivv (in s any array)
+{
+  declare iris any array;
+  for vectored (in str any := s, out iris := res) {
+  declare res iri_id;
+  if (tf ())
+  res := iri_to_id (str);
+}
+  return  iris;
+}
+
+
+select  __ro2sq (irivv (vector ('pfaal', 'hans',  'hyrim'))[0]);
+echo both $if $equ $last[1]  "pfaal" "PASSED" "***FAILED";
+echo both ":  vec iri to id\n";
+ 
+
+drop table it2;
+create table it2 (k iri_id_8 primary key, d iri_id_8);
+
+-- check exception in insert to 32 bit iri array
+
+insert into it2 (k) select iri_id_from_num (row_no * 2) from t1;
+update it2 set d = iri_id_from_num (rnd (3000000000 + iri_id_num (k)));
+insert into it2 (k, d) values (#i11, iri_id_from_num (6000000000));
+select count (*) from it2 where d = #i6000000000;
+echo both $if $equ $last[1] 1 "PASSED" "***FAILED";
+echo both ":  iri 32 ins range ck\n";
+
+
+
+
