@@ -1255,7 +1255,6 @@ cfg_setup (void)
   if (cfg_getlong (pconfig, section, "EnableMonitor", &mon_enable) == -1)
     mon_enable = 1;
 
-#ifdef VEC
   section = "Flags";
   {
     stat_desc_t *sd = &dbf_descs[0];
@@ -1274,7 +1273,6 @@ cfg_setup (void)
 	sd ++;
       }
   }
-#endif
 
   /*
    *  Parse [HTTPServer] section
