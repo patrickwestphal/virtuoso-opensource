@@ -264,6 +264,7 @@ ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha)
   caddr_t **qis = QST_BOX (caddr_t **, inst, ts->ts_aq_qis->ssl_index);
   int inx, n_branches = 0;
   index_tree_t *tree = (index_tree_t *) qst_get (inst, ha->ha_tree);
+  int n_sets = QST_INT (inst, ts->src_gen.src_prev->src_out_fill);
   if (!tree || !tree->it_hi || !(slice_trees = tree->it_hi->hi_slice_trees))
     return;
   if (!qis && tree && tree->it_hi->hi_slice_trees)
@@ -296,6 +297,25 @@ ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha)
       }
   }
   END_DO_BOX;
+  DO_BOX (state_slot_t *, ssl, inx, ts->ts_sdfg_params)
+  {
+    int sinx, set;
+    DO_BOX (QI *, slice_qi, sinx, qis)
+    {
+      if (!slice_qi)
+	continue;
+      for (set = 0; set < n_sets; set++)
+	{
+	  qi->qi_set = set;
+	  slice_qi->qi_set = set;
+	  qst_set_copy ((caddr_t *) slice_qi, ssl, qst_get (inst, ts->ts_sdfg_param_refs[inx]));
+	  slice_qi->qi_set = 0;
+	}
+    }
+    END_DO_BOX;
+  }
+  END_DO_BOX;
+  qi->qi_set = 0;
   ts_sdfg_run (ts, inst);
   fref = (fun_ref_node_t *) ts->ts_agg_node;
   if (fref && fref->fnr_setp && fref->fnr_setp->setp_partitioned)

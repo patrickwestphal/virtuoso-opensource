@@ -239,6 +239,7 @@ setp_distinct_hash (sql_comp_t * sc, setp_node_t * setp, uint64 n_rows, int op)
   ha->ha_row_size = 0;
   ha->ha_key = setp_temp_key (setp, &ha->ha_row_size, quietcast, op);
   setp->setp_ha = setp->setp_reserve_ha = ha;
+  ha->ha_top_gby = setp->setp_top_gby;
   ha->ha_ref_itc = ssl_new_itc (sc->sc_cc);
   ha->ha_insert_itc = ssl_new_itc (sc->sc_cc);
 #ifdef NEW_HASH

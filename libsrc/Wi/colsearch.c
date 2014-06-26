@@ -2806,8 +2806,16 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
 		  cpo.cpo_chash_dtp = sp->sp_cl.cl_sqt.sqt_col_dtp;
 		}
 	      cpo.cpo_cmp_max = (caddr_t) hrng->hrng_hs;
-	      cpo.cpo_hash_min = QST_INT (inst, hrng->hrng_min);
-	      cpo.cpo_hash_max = QST_INT (inst, hrng->hrng_max);
+	      if (hrng->hrng_min)
+		{
+		  cpo.cpo_hash_min = QST_INT (inst, hrng->hrng_min);
+		  cpo.cpo_hash_max = QST_INT (inst, hrng->hrng_max);
+		}
+	      else
+		{
+		  cpo.cpo_hash_min = 0;
+		  cpo.cpo_hash_max = 0xffffffff;
+		}
 	    }
 	  else
 	    cpo.cpo_cmp_min = itc->itc_search_params[sp->sp_min];

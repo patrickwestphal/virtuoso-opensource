@@ -114,12 +114,16 @@ RANGE_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   int mfill = itc->itc_match_out, inx;
   int init_matches = mfill;
   int last = MIN (ce_row + n_values, cpo->cpo_to);
-  uint32 min = QST_INT (inst, hrng->hrng_min);
-  uint32 max = QST_INT (inst, hrng->hrng_max);
+  uint32 min = 0, max = 0xffffffff;
   /*TC (tc_hash_range_filter); */
   if (EXPECT_DV != cha->cha_sqt[0].sqt_dtp || !enable_int_vec_hash)
     return ce_hash_range_filter (cpo, ce_first, n_values, n_bytes);
   ce_first -= sizeof (ELT_T) * ce_row;
+  if (hrng->hrng_min)
+    {
+      min = QST_INT (inst, hrng->hrng_min);
+      max = QST_INT (inst, hrng->hrng_max);
+    }
   if (hrng->hrng_min && (min != 0 || max != 0xffffffff))
     {
       for (inx = ce_row + cpo->cpo_skip; inx < last; inx++)
@@ -201,12 +205,15 @@ SETS_NAME (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_bytes)
   int init_matches = mfill;
   int n_matches = itc->itc_n_matches;
   int last = ce_row + n_values;
-  uint32 min = QST_INT (inst, hrng->hrng_min);
-  uint32 max = QST_INT (inst, hrng->hrng_max);
-  /*TC (tc_hash_sets_filter); */
+  uint32 min = 0, max = 0xffffffff;	/*TC (tc_hash_sets_filter); */
   if (EXPECT_DV != cha->cha_sqt[0].sqt_dtp || !enable_int_vec_hash)
     return ce_hash_sets_filter (cpo, ce_first, n_values, n_bytes);
   ce_first -= sizeof (ELT_T) * ce_row;
+  if (hrng->hrng_min)
+    {
+      min = QST_INT (inst, hrng->hrng_min);
+      max = QST_INT (inst, hrng->hrng_max);
+    }
   if (hrng->hrng_min && (min != 0 || max != 0xffffffff))
     {
       while (inx < n_matches && (s1 = matches[inx]) < last)

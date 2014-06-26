@@ -2876,7 +2876,7 @@ vec_ssl_assign (caddr_t * inst, state_slot_t * ssl_to, state_slot_t * ssl_from)
   db_buf_t set_mask = qi->qi_set_mask;
   int set = 0;
   data_col_t *dc_to = QST_BOX (data_col_t *, inst, ssl_to->ssl_index);
-  data_col_t *dc_from = QST_BOX (data_col_t *, inst, ssl_from->ssl_index);
+  data_col_t *dc_from = ssl_from->ssl_index ? QST_BOX (data_col_t *, inst, ssl_from->ssl_index) : NULL;
   if (SSL_VEC != ssl_to->ssl_type || DCT_BOXES & dc_to->dc_type)
     goto general;
 

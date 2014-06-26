@@ -89,6 +89,7 @@ setp_get_top (setp_node_t * setp, caddr_t * inst, int create)
 	  clo->_.top.ref_count = 1;
 	  clo->_.top.id = id;
 	  clo->_.top.cnt = unbox (qst_get (inst, setp->setp_top));
+	  clo->_.top.cmp = setp->setp_key_is_desc && ORDER_DESC & (ptrlong) setp->setp_key_is_desc->data;
 	  if (setp->setp_top_skip)
 	    clo->_.top.cnt += unbox (qst_get (inst, setp->setp_top_skip));
 	}
@@ -112,6 +113,7 @@ setp_top_init (setp_node_t * setp, caddr_t * inst)
   clo->_.top.ref_count = 1;
   qi->qi_set = 0;
   clo->_.top.cnt = unbox (qst_get (inst, SSL_BASE (setp->setp_top)));
+  clo->_.top.cmp = setp->setp_key_is_desc && ORDER_DESC & (ptrlong) setp->setp_key_is_desc->data;
   if (setp->setp_top_skip)
     clo->_.top.cnt += unbox (qst_get (inst, SSL_BASE (setp->setp_top_skip)));
   dk_mutex_init (&clo->_.top.mtx, MUTEX_TYPE_SHORT);
@@ -139,7 +141,7 @@ top_is_better (caddr_t val1, caddr_t val2, int cmp)
 
 
 int
-box_bin_search (caddr_t * values, caddr_t val, int cmp, int at_or_above, int below, int *is_eq)
+box_bin_search (caddr_t * values, caddr_t val, int is_desc, int at_or_above, int below, int *is_eq)
 {
   int guess, init_below = below;
   guess = (below - at_or_above) / 2;
@@ -151,7 +153,7 @@ box_bin_search (caddr_t * values, caddr_t val, int cmp, int at_or_above, int bel
 	  *is_eq = 1;
 	  return guess;
 	}
-      if (ORDER_DESC == cmp)
+      if (is_desc)
 	DVC_INVERT_CMP (rc);
 
       if (below - at_or_above <= 1)
@@ -185,6 +187,8 @@ top_print (caddr_t * val, char *text)
 {
   if (enable_top_print)
     {
+      if (text)
+	printf ("Host %d: %s: ", local_cll.cll_this_host, text);
       sqlo_box_print ((caddr_t) val);
     }
 }
@@ -351,6 +355,7 @@ setp_top_oby_changed (setp_node_t * setp, caddr_t * inst, int top)
 	values[inx] = arr[inx][0];
       clo._.top.values = values;
       clo._.top.fill = fill;
+      clo._.top.cnt = top;
     }
   else
     {

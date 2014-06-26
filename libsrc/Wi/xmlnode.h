@@ -56,6 +56,7 @@ typedef struct text_node_s
   ptrlong txs_why_ranges;	/*!< Bits from TXS_RANGES4XXX */
   char txs_is_driving;
   char txs_order;		/* if should give deterministic order in cluster */
+  tb_ext_inx_t *txs_tie;
   unsigned char txs_geo;
   char txs_is_rdf;
   table_source_t *txs_loc_ts;	/* half filled ts to serve for partitioning in cluster if txs partitioned by d_id */
@@ -77,6 +78,11 @@ typedef struct text_node_s
   state_slot_t *txs_qcr;
   int txs_pos_in_qcr;
   int txs_pos_in_dc;
+  state_slot_t *txs_iext_cr;
+  state_slot_t *txs_text_exps;
+  state_slot_t *txs_tie_ret;
+  state_slot_t *txs_lin_ids;
+  state_slot_t *txs_iext_sets_ret;
 } text_node_t;
 
 

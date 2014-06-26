@@ -750,6 +750,12 @@ sqlg_qn_ctx (sql_comp_t * sc, data_source_t * qn, dk_hash_t * refs)
   }
   END_DO_HT;
   hash_table_free (local_refs);
+  if (IS_QN (qn, chash_read_input) && ((table_source_t *) qn)->ts_part_gby_reader)
+    {
+      QNCAST (table_source_t, ts, qn);
+      ts->ts_sdfg_params = (state_slot_t **) ht_keys_to_array (refs);
+    }
+
   if (qn_has_clb_save (qn) && !is_simple_ts)
     {
       QNCAST (table_source_t, ts, qn);
@@ -791,12 +797,15 @@ sqlg_part_fref_order (sql_comp_t * sc, fun_ref_node_t * fref)
     dk_set_t ord = NULL;
     dk_set_t is_desc = setp->setp_key_is_desc;
     int inx = 0;
-    NEW_VARZ (clo_comp_t, clo1);
     if (!fake_int_col.col_sqt.sqt_dtp)
       fake_int_col.col_sqt.sqt_dtp = DV_LONG_INT;
-    clo1->nth = dk_set_position (qf->qf_out_slots, setp->setp_ssa.ssa_set_no);
-    clo1->col = &fake_int_col;
-    dk_set_push (&ord, (void *) clo1);
+    if (setp->setp_ssa.ssa_set_no)
+      {
+	NEW_VARZ (clo_comp_t, clo1);
+	clo1->nth = dk_set_position (qf->qf_out_slots, setp->setp_ssa.ssa_set_no);
+	clo1->col = &fake_int_col;
+	dk_set_push (&ord, (void *) clo1);
+      }
     DO_SET (state_slot_t *, key, &setp->setp_keys)
     {
       NEW_VARZ (clo_comp_t, clo);

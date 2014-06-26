@@ -322,17 +322,18 @@ ssl_print (state_slot_t * ssl)
     case SSL_CONSTANT:
       {
 	caddr_t err_ret = NULL;
-	dtp_t dtp = DV_TYPE_OF (ssl->ssl_constant);
+	caddr_t cval = ssl->ssl_constant;
+	dtp_t dtp = DV_TYPE_OF (cval);
 	if (DV_DB_NULL == dtp)
 	  stmt_printf (("<DB_NULL>"));
 	else if (DV_RDF == dtp)
 	  {
-	    rdf_box_t *rb = (rdf_box_t *) ssl->ssl_constant;
+	    rdf_box_t *rb = (rdf_box_t *) cval;
 	    stmt_printf (("rdflit" BOXINT_FMT, rb->rb_ro_id));
 	  }
 	else
 	  {
-	    caddr_t strval = box_cast_to (NULL, ssl->ssl_constant,
+	    caddr_t strval = box_cast_to (NULL, cval,
 		dtp, DV_SHORT_STRING,
 		NUMERIC_MAX_PRECISION, NUMERIC_MAX_SCALE,
 		&err_ret);
@@ -342,7 +343,7 @@ ssl_print (state_slot_t * ssl)
 		  {
 		  case DV_IRI_ID:
 		    {
-		      caddr_t str = dv_iri_short_name (ssl->ssl_constant);
+		      caddr_t str = dv_iri_short_name (cval);
 		      if (str)
 			{
 			  stmt_printf ((" #" EXPLAIN_LINE_MAX_STR_FORMAT " ", str));
@@ -357,7 +358,13 @@ ssl_print (state_slot_t * ssl)
 		    stmt_printf ((" " EXPLAIN_LINE_MAX_STR_FORMAT " ", strval));
 		    break;
 		  default:
-		    stmt_printf (("<c " EXPLAIN_LINE_MAX_STR_FORMAT ">", strval));
+		    if (box_flags (cval))
+		      stmt_printf (("<tag %d flag %d c " EXPLAIN_LINE_MAX_STR_FORMAT ">", DV_TYPE_OF (cval), box_flags (cval),
+			      strval));
+		    else if (DV_STRING != DV_TYPE_OF (cval))
+		      stmt_printf (("<tag %d c " EXPLAIN_LINE_MAX_STR_FORMAT ">", DV_TYPE_OF (cval), strval));
+		    else
+		      stmt_printf (("<c " EXPLAIN_LINE_MAX_STR_FORMAT ">", strval));
 		  }
 	      }
 	    else
@@ -3144,7 +3151,7 @@ node_print_xml (QI * qi, dk_session_t * s, data_source_t * qn)
       QNCAST (qf_select_node_t, qfs, qn);
       SES_PRINT (s, "<qfs>");
       ssl_array_print_xml (qfs->qfs_out_slots, s);
-      SES_PRINT (s, "<qfs>");
+      SES_PRINT (s, "</qfs>");
     }
   else if (IS_QN (qn, skip_node_input))
     {
@@ -3443,13 +3450,14 @@ node_print_xml (QI * qi, dk_session_t * s, data_source_t * qn)
       ssl_array_print_xml (ose->ose_out_shadow, s);
       SES_PRINT (s, "</shadow>");
       SES_PRINT (s, "</ose>");
-      SES_PRINT (s, "</outer>\n");
+      if (!(ose->ose_sctr && SCTR_RIGHT_OJ == ose->ose_sctr->sctr_role))
+	SES_PRINT (s, "</outer>\n");
     }
   else if (IS_QN (qn, set_ctr_input))
     {
       QNCAST (set_ctr_node_t, sctr, qn);
       outer_seq_end_node_t *ose = sctr->sctr_ose;
-      if (ose)
+      if (ose && SCTR_RIGHT_OJ != sctr->sctr_role)
 	SES_PRINT (s, "<outer>\n");
       ses_sprintf (s, "<sctr sctr_ose='%d'/>", ose ? ose->src_gen.src_sets : 0);
     }

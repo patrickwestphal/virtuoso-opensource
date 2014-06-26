@@ -713,6 +713,7 @@ void dbs_locate_free_bit (dbe_storage_t * dbs, dp_addr_t near_dp,
 
 
 /* meta.c */
+     tb_ext_inx_t *tb_find_tie (dbe_table_t * tb, dbe_column_t * col, caddr_t iext_type);
      dbe_key_t *tb_find_key (dbe_table_t * tb, caddr_t name, int err);
      void wi_open_keys (dbe_schema_t * sc, int is_elastic);
      const char *sch_skip_prefixes (const char *str);

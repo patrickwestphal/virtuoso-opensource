@@ -799,7 +799,7 @@ ssl_insert_cast (insert_node_t * ins, caddr_t * inst, int nth_col, caddr_t * err
   dbe_col_loc_t *cl = ins->ins_vec_cast_cl[nth_col];
   int64 prec_lower, prec_upper;
   int inx, is_prec = 0;
-  data_col_t *from_dc = QST_BOX (data_col_t *, inst, source->sslr_index);
+  data_col_t *from_dc = source->sslr_index ? QST_BOX (data_col_t *, inst, source->sslr_index) : NULL;
   data_col_t *target_dc = QST_BOX (data_col_t *, inst, res->ssl_index);
   int elt_sz = 0;
   DC_CHECK_LEN (target_dc, to_row - 1);

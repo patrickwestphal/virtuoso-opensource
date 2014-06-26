@@ -815,6 +815,9 @@ cha_fixed (chash_t * cha, data_col_t * dc, int set, int *is_null)
 #define NULL_B_DEP \
   *is_null = (dc->dc_any_null && dc->dc_nulls && BIT_IS_SET (dc->dc_nulls, set))
 
+#define NULL_B_DEP \
+  *is_null = (dc->dc_any_null && dc->dc_nulls && BIT_IS_SET (dc->dc_nulls, set))
+
 int64
 setp_non_agg_dep (setp_node_t * setp, caddr_t * inst, int nth_col, int set, char *is_null)
 {
@@ -850,8 +853,6 @@ setp_non_agg_dep (setp_node_t * setp, caddr_t * inst, int nth_col, int set, char
     }
   return 0;
 }
-
-
 
 int
 cha_is_null (setp_node_t * setp, caddr_t * inst, int nth_col, int row_no)
@@ -898,8 +899,9 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
 	row[nth_col + 1] = 0;
 	GB_HAS_VALUE (ha, row, nth_col);
       }
-    if (AMMSC_MAX == go->go_op || AMMSC_MIN == go->go_op)
+    else if (AMMSC_MAX == go->go_op || AMMSC_MIN == go->go_op)
       {
+	row[nth_col + 1] = 0;	/* may involve boxes, so init */
 	GB_NO_VALUE (ha, row, nth_col);
       }
     else if (AMMSC_SUM == go->go_op && !cha->cha_sqt[nth_col].sqt_non_null && cha_is_null (setp, inst, nth_col, row_no + base))
@@ -925,13 +927,24 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
 	  caddr_t err = NULL;
 	  if (!(is_null & 1))
 	    GB_HAS_VALUE (ha, row, nth_col);
-	  if (!cha->cha_is_parallel)
-	    row[nth_col + 1] = (int64) mp_box_to_any_1 ((caddr_t) val, &err, cha->cha_pool, DKS_TO_DC);
+	  if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
+	    {
+	      if (!cha->cha_is_parallel)
+		row[nth_col + 1] = (int64) mp_box_to_any_1 ((caddr_t) val, &err, cha->cha_pool, DKS_TO_DC);
+	      else
+		{
+		  caddr_t box = box_to_any_1 ((caddr_t) val, &err, NULL, DKS_TO_DC);
+		  row[nth_col + 1] = (int64) cha_any (cha, (db_buf_t) box);
+		  dk_free_box (box);
+		}
+	    }
+	  else if (DV_ARRAY_OF_POINTER == cha->cha_sqt[nth_col].sqt_dtp)
+	    {
+	      row[nth_col + 1] = (int64) box_copy_tree ((caddr_t) val);
+	    }
 	  else
 	    {
-	      caddr_t box = box_to_any_1 ((caddr_t) val, &err, NULL, DKS_TO_DC);
-	      row[nth_col + 1] = (int64) cha_any (cha, (db_buf_t) box);
-	      dk_free_box (box);
+	      row[nth_col + 1] = 0;
 	    }
 	}
       else if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
@@ -1936,6 +1949,27 @@ cha_dtp (dtp_t dtp, int is_key)
     }
 }
 
+dtp_t
+cha_gb_dtp (dtp_t dtp, int is_key, gb_op_t * go)
+{
+  if (is_key)
+    return cha_dtp (dtp, is_key);
+  if (vec_box_dtps[dtp])
+    return go ? DV_ARRAY_OF_POINTER : DV_ANY;
+  switch (dtp)
+    {
+    case DV_ANY:
+      return go ? DV_ARRAY_OF_POINTER : dtp;
+    case DV_LONG_INT:
+    case DV_IRI_ID:
+    case DV_DOUBLE_FLOAT:
+    case DV_DATETIME:
+    case DV_SINGLE_FLOAT:
+      return dtp;
+    default:
+      return DV_ARRAY_OF_POINTER;
+    }
+}
 
 index_tree_t *
 cha_allocate (setp_node_t * setp, caddr_t * inst, int64 card)
@@ -1976,7 +2010,17 @@ cha_allocate (setp_node_t * setp, caddr_t * inst, int64 card)
 	if (HA_FILL == ha->ha_op)
 	  cha->cha_sqt[inx].sqt_dtp = cha_dtp (dtp_canonical[ha->ha_key_cols[inx].cl_sqt.sqt_dtp], inx < ha->ha_n_keys);
 	else
-	  cha->cha_sqt[inx].sqt_dtp = cha_dtp (dc->dc_dtp, inx < ha->ha_n_keys);
+	  {
+	    dtp_t dtp;
+	    gb_op_t *go = NULL;
+	    if (inx >= ha->ha_n_keys)
+	      go = (gb_op_t *) dk_set_nth (setp->setp_gb_ops, inx - ha->ha_n_keys);
+	    if (go && go->go_ua_arglist)
+	      dtp = DV_ARRAY_OF_POINTER;
+	    else
+	      dtp = cha_gb_dtp (dc->dc_dtp, inx < ha->ha_n_keys, go);
+	    cha->cha_sqt[inx].sqt_dtp = dtp;
+	  }
 	cha->cha_sqt[inx].sqt_non_null = ssl->ssl_sqt.sqt_non_null;
       }
     memcpy (&(cha->cha_new_sqt[inx]), &(cha->cha_sqt[inx]), sizeof (sql_type_t));
@@ -3024,6 +3068,10 @@ dc_append_cha (data_col_t * dc, hash_area_t * ha, chash_t * cha, int64 * row, in
 	{
 	case DV_ANY:
 	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_deserialize_string (((caddr_t *) row)[col + 1], INT32_MAX, 0);
+	  return;
+	case DV_ARRAY_OF_POINTER:
+	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = (caddr_t) row[col + 1];
+	  row[col + 1] = 0;
 	  return;
 	case DV_LONG_INT:
 	  ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_num (row[col + 1]);

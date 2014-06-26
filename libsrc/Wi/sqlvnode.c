@@ -76,7 +76,13 @@ select_node_input_subq_vec (select_node_t * sel, caddr_t * inst, caddr_t * state
       int *out_sets;
       QN_CHECK_SETS (sel, inst, n_rows);
       out_sets = QST_BOX (int *, inst, sel->src_gen.src_sets);
-      if (sel->sel_set_no && SSL_REF == sel->sel_set_no->ssl_type)
+      if (SEL_SUBQ_PART_READER == sel->sel_subq_inlined)
+	{
+	  int inx2;
+	  for (inx2 = 0; inx2 < n_rows; inx2++)
+	    out_sets[inx2] = inx2;
+	}
+      else if (sel->sel_set_no && SSL_REF == sel->sel_set_no->ssl_type)
 	{
 	  int sets[ARTM_VEC_LEN];
 	  int inx, inx2;

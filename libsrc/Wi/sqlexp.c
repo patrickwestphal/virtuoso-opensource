@@ -2170,6 +2170,12 @@ ks_refd_slots (sql_comp_t * sc, key_source_t * ks, dk_hash_t * res, dk_hash_t * 
     ASG_SSL (res, all_res, out);
   }
   END_DO_SET ();
+  if (ks->ks_set_no_col_ssl)
+    {
+      /* for a multiset chash reader, set no comes from chash, is set here, not brought as dfg or sdfg param */
+      ASG_SSL (res, all_res, ks->ks_set_no);
+      ASG_SSL (res, all_res, ks->ks_set_no_col_ssl);
+    }
   DO_SET (search_spec_t *, sp, &ks->ks_hash_spec)
   {
     QNCAST (hash_range_spec_t, hrng, sp->sp_min_ssl);

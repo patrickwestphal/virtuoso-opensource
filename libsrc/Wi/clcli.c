@@ -428,6 +428,9 @@ clo_destroy (cl_op_t * clo)
       break;
     case CLO_TOP:
       return clo_top_free (clo);
+    case CLO_IEXT_CR:
+      clo->_.iext.free_cb (clo->_.iext.cr);
+      break;
     }
   return 0;
 }

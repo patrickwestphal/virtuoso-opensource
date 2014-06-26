@@ -118,6 +118,14 @@ typedef struct file_table_s
 } file_table_t;
 
 
+typedef struct tb_ext_index_s
+{
+  dbe_column_t *tie_col;
+  void **tie_slices;		/* handles of opened ext inxes, one per slice */
+  struct index_type_s *tie_iext;
+} tb_ext_inx_t;
+
+
 struct dbe_table_s
 {
   char *tb_name;		/* qualifier.owner.name */
@@ -140,6 +148,7 @@ struct dbe_table_s
   struct remote_ds_s *tb_remote_ds;
   caddr_t tb_remote_name;
   struct file_ds_s *tb_file;
+  dk_set_t tb_ext_indices;
   dk_hash_t *tb_misc_id_to_col_id;
   dk_hash_t *tb_col_id_to_misc_id;
   struct xml_table_ins_s *tb_xml_ins;

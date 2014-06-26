@@ -427,6 +427,29 @@ bif_xmls_element_col (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 
+
+dk_set_t *index_types;
+
+void
+iext_register (index_type_t * iext)
+{
+  NEW_VARZ (index_type_t, ie);
+  *ie = *iext;
+  ie->iext_name = box_dv_short_string (ie->iext_name);
+  dk_set_push (&index_types, (void *) ie);
+}
+
+
+index_type_t *
+iext_find (char *name)
+{
+  DO_SET (index_type_t *, ie, &index_types) if (stricmp (name, ie->iext_name))
+    return ie;
+  END_DO_SET ();
+  return NULL;
+}
+
+
 caddr_t
 bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
@@ -447,6 +470,7 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t *offb_data = NULL;
   caddr_t *constr_data = NULL;
   caddr_t opts = BOX_ELEMENTS (args) > 9 ? bif_arg (qst, args, 9, "__vt_index") : NULL;
+  caddr_t *opts_arr = (caddr_t *) opts;
   int is_geo = DV_STRING == DV_TYPE_OF (opts) && 'G' == opts[0];
   if (pending_sc)
     tb = sch_name_to_table (pending_sc, tb_name);
@@ -484,6 +508,25 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   if (!id_col || !text_col)
     sqlr_error ("S0002", "No column in vt_index");
+  if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (opts) && BOX_ELEMENTS (opts) > 1
+      && DV_STRINGP (opts_arr[0]) && !strcmp ("iext", opts_arr[0]))
+    {
+      index_type_t *iext = iext_find (opts_arr[1]);
+      int n_slices = id_key->key_partition ? id_key->key_partition->kpd_map->clm_distinct_slices : 1;
+      NEW_VARZ (tb_ext_inx_t, tie);
+      if (!iext)
+	sqlr_new_error ("42000", "IEXTN", "Index extension %s not registered", opts_arr[1]);
+      tie->tie_slices = (void ***) dk_alloc_box (n_slices * sizeof (caddr_t), DV_BIN);
+      tie->tie_col = text_col;
+      {
+	caddr_t err = NULL;
+
+	iext->iext_open (opts, 0, &tie->tie_slices[0], &err);
+	if (err)
+	  sqlr_resignal (err);
+      }
+      dk_set_push (&tb->tb_ext_indices, (void *) tie);
+    }
   if (is_geo)
     {
       id_key->key_geo_table = inx_tb;

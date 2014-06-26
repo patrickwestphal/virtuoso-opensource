@@ -240,7 +240,7 @@ void
 stn_roj_outer (stage_node_t * stn, caddr_t * inst)
 {
   hash_source_t *hs = qn_next_qn (stn, hash_source_input);
-  SRC_IN_STATE (inst, stn) = NULL;
+  SRC_IN_STATE (stn, inst) = NULL;
   QST_INT (inst, hs->hs_roj_state) = 1;
   QST_INT (inst, hs->clb.clb_nth_set) = 0;
   QST_INT (inst, hs->hs_roj) = 0;

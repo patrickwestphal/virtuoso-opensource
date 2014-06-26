@@ -2705,6 +2705,7 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
     {
       chash_t *top_cha;
       tree = qst_get_chash (inst, ha->ha_tree, setp->setp_ht_id, setp);
+      top_tree = tree;
       top_cha = tree->it_hi->hi_chash;
       top_cha->cha_hash_last = 0;
       cha = setp_fill_cha (setp, inst, tree);
@@ -2984,6 +2985,7 @@ index_tree_t *
 setp_gb_dist_tree (setp_node_t * setp, caddr_t * inst, gb_op_t * go, index_tree_t * top_tree)
 {
   QNCAST (QI, qi, inst);
+  index_tree_t *tree;
   if (top_tree->it_hi->hi_top_tree)
     top_tree = top_tree->it_hi->hi_top_tree;
   if (CL_RUN_LOCAL == cl_run_local_only)
@@ -3005,9 +3007,50 @@ setp_gb_dist_tree (setp_node_t * setp, caddr_t * inst, gb_op_t * go, index_tree_
 	}
       return tree;
     }
+  tree = (index_tree_t *) qst_get (inst, go->go_distinct_setp->setp_ha->ha_tree);
+  if (tree)
+    return tree;
   return cha_allocate (go->go_distinct_setp, inst, 0);
 }
 
+#if 0
+#define DIST_CK
+char *gd_str_1 = "Brand#21";
+char *gd_str_2 = "SMALL BRUSHED TIN";
+long gd_int_3 = 19;
+long gd_int_4 = -1;
+int gd_ctr = 0;
+dk_hash_t *gd_ck_ht;
+extern long dbf_user_1;
+
+
+void
+cha_dist_gby_ck (db_buf_t ** key_vecs, int n_sets, db_buf_t nulls)
+{
+  int inx;
+  int l1 = strlen (gd_str_1);
+  int l2 = strlen (gd_str_2);
+  if (!gd_ck_ht)
+    gd_ck_ht = hash_table_allocate (23);
+  for (inx = 0; inx < n_sets; inx++)
+    {
+      dtp_t *s1 = key_vecs[0][inx];
+      dtp_t *s2 = key_vecs[1][inx];
+      long i3 = ((int64 **) key_vecs)[2][inx];
+      if (s1[1] == l1 && s2[1] == l2 && i3 == gd_int_3)
+	{
+	  if (0 == strncmp (s1 + 2, gd_str_1, l1) && 0 == strncmp (s2 + 2, gd_str_2, l2))
+	    {
+	      long sno = ((int64 **) key_vecs)[3][inx];
+	      int dup = gethash (sno, gd_ck_ht);
+	      sethash (sno, gd_ck_ht, 1);
+	      printf ("inx %d, nth  %d,  s %Ld %s\n", inx, gd_ctr, sno, dup ? "dup" : "");
+	      gd_ctr++;
+	    }
+	}
+    }
+}
+#endif
 
 void
 setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_no, db_buf_t ** key_vecs, int first_set,
@@ -3028,8 +3071,6 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
       last = go;
   }
   END_DO_SET ();
-  flag_dc = QST_BOX (data_col_t *, inst, last->go_old_val->ssl_index);
-  DC_CHECK_LEN (flag_dc, n_sets - 1);
   DO_SET (gb_op_t *, go, &top_setp->setp_gb_ops)
   {
     char is_any = 0;
@@ -3040,6 +3081,8 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
     setp_node_t *setp;
     if (!ha)
       continue;
+    flag_dc = QST_BOX (data_col_t *, inst, last->go_old_val->ssl_index);
+    DC_CHECK_LEN (flag_dc, n_sets - 1);
     setp = go->go_distinct_setp;
     tree = QST_BOX (index_tree_t *, inst, ha->ha_tree->ssl_index);
     if (!tree)
@@ -3056,6 +3099,10 @@ setp_chash_distinct_gby (setp_node_t * top_setp, caddr_t * inst, uint64 * hash_n
 	(db_buf_t *) gb_values (cha, hash_no, inst, ha->ha_slots[key], key, first_set, last_set, (db_buf_t) temp,
 	(db_buf_t) temp_any, &any_temp_fill, (dtp_t *) nulls, 1, NULL);
     is_any = DV_ANY == cha->cha_sqt[key].sqt_dtp;
+#ifdef DIST_CK
+    if (dbf_user_1)
+      cha_dist_gby_ck (key_vecs, last_set - first_set, nulls);
+#endif
     dc_reset (flag_dc);
     flags = (int64 *) flag_dc->dc_values;
     flag_fill = first_set;
@@ -3277,8 +3324,11 @@ cha_top_sort (chash_t * cha, hash_area_t * ha, int64 *** arr, int64 ** p_ent, in
   if (fill == top)
     {
       e1 = (int64 *) LOW_48 (*arr[top - 1]);
-      if (DVC_LESS == cha_ord_cmp ((db_buf_t *) & e1[nth_col], (db_buf_t *) & ent[nth_col], dtp, non_null, GB_IS_NULL (ha, e1,
-		  nth_col), ent_null))
+      rc = cha_ord_cmp ((db_buf_t *) & e1[nth_col], (db_buf_t *) & ent[nth_col], dtp, non_null, GB_IS_NULL (ha, e1, nth_col),
+	  ent_null);
+      if (is_desc)
+	DVC_INVERT_CMP (rc);
+      if (DVC_LESS == rc)
 	return p_ent;
     }
   guess = fill / 2;
@@ -3404,7 +3454,7 @@ setp_chash_changed (setp_node_t * setp, caddr_t * inst, chash_t * cha)
     }
   cha->cha_distinct_count -= n_drop;
   clo._.top.id = id;
-  clo._.top.cmp = ORDER_DESC & setp->setp_top_gby;
+  clo._.top.cmp = 0 != (ORDER_DESC & setp->setp_top_gby);
   if (fill == top)
     {
       ret_ent = (int64 *) LOW_48 (*arr[fill - 1]);
@@ -3764,6 +3814,8 @@ chash_reader_current_branch (table_source_t * ts, hash_area_t * ha, caddr_t * in
 	      if (slice_tree == top_tree)
 		continue;
 	      QST_INT (inst, ts->ts_nth_slice) = nth;
+	      if (!slice_tree && is_next)
+		continue;
 	      *tree_ret = slice_tree;
 	      return NULL;
 	    }
@@ -3804,14 +3856,23 @@ chash_read_setp (table_source_t * ts, caddr_t * inst, setp_node_t ** setp_ret, h
       slice_id_t slice = qi->qi_client->cli_slice;
       if (QI_NO_SLICE == slice)
 	sqlr_new_error ("42000", "SLCHA", "A partitioned group by reader was called outside of a slice context");
-      if (!it || !it->it_hi || !it->it_hi->hi_slice_chash)
+      if (!it || !it->it_hi)
 	{
 	  *ha_ret = NULL;
 	  return;
 	}
-      *ha_ret = it->it_hi->hi_chash->cha_ha;
-      *cha_ret = &it->it_hi->hi_slice_chash[slice];
-      *tree_ret = it;
+      if (it->it_hi->hi_slice_chash)
+	{
+	  *ha_ret = it->it_hi->hi_chash->cha_ha;
+	  *cha_ret = &it->it_hi->hi_slice_chash[slice];
+	  *tree_ret = it;
+	}
+      else if (it->it_hi->hi_thread_cha)
+	{
+	  *cha_ret = (chash_t *) gethash ((void *) (ptrlong) slice, it->it_hi->hi_thread_cha);
+	  *ha_ret = it->it_hi->hi_chash->cha_ha;
+	  *tree_ret = it;
+	}
       qst_set (inst, ks->ks_ht, box_copy ((caddr_t) it));
     }
   else
@@ -3961,7 +4022,7 @@ next_batch:
       chp = QST_BOX (chash_page_t *, inst, ks->ks_cha_chp);
       row = QST_INT (inst, ks->ks_pos_in_temp);
       QST_INT (inst, ts->clb.clb_nth_set) = set;
-      n_cols = BOX_ELEMENTS (setp->setp_ha->ha_slots);
+      n_cols = BOX_ELEMENTS (ha->ha_slots);
       for (part = part; part < MAX (1, cha->cha_n_partitions); part++)
 	{
 	  chash_t *cha_p = CHA_PARTITION (cha, part);
@@ -3976,7 +4037,7 @@ next_batch:
 		{
 		  int k_inx = 0;
 		  int64 *ent = (int64 *) & chp->chp_data[row];
-		  if (setp->setp_top_gby && GB_IS_NULL (setp->setp_ha, ent, n_cols))
+		  if (ha->ha_top_gby && GB_IS_NULL (setp->setp_ha, ent, n_cols))
 		    continue;
 		  if (setp && has_surviving && cha_check_survival (cha, inst, setp, ent, surviving))
 		    continue;
@@ -7003,8 +7064,11 @@ ce_hash_range_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_by
   n_values = dc->dc_n_values - (dc_off / sizeof (caddr_t));
   DC_OR_AUTO (uint64, hash_no, n_values, hash_no_auto, dc);
   chash_array_0 ((int64 *) (dc->dc_values + dc_off), hash_no, dc->dc_dtp, 0, n_values, dc_elt_size (dc));
-  min = QST_INT (inst, hrng->hrng_min);
-  max = QST_INT (inst, hrng->hrng_max);
+  if (hrng->hrng_min)
+    {
+      min = QST_INT (inst, hrng->hrng_min);
+      max = QST_INT (inst, hrng->hrng_max);
+    }
   if (hrng->hrng_min && (min != 0 || max != 0xffffffff))
     {
       /* hash in multiple passes.  */
@@ -7134,8 +7198,11 @@ ce_hash_sets_filter (col_pos_t * cpo, db_buf_t ce_first, int n_values, int n_byt
   if (post_in != -1)
     itc->itc_match_in = post_in;
   chash_array_0 ((int64 *) (dc->dc_values + dc_off), hash_no, dc->dc_dtp, 0, n_values, dc_elt_size (dc));
-  min = QST_INT (inst, hrng->hrng_min);
-  max = QST_INT (inst, hrng->hrng_max);
+  if (hrng->hrng_min)
+    {
+      min = QST_INT (inst, hrng->hrng_min);
+      max = QST_INT (inst, hrng->hrng_max);
+    }
   if (hrng->hrng_min && (min != 0 || max != 0xffffffff))
     {
       /* hash in multiple passes.  */
@@ -7896,14 +7963,15 @@ bif_chash_in_init (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   }
   QR_RESET_CODE
   {
-
     POP_QR_RESET;
     qi->qi_threads = 0;
     SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_CL_CHASH_SSL_ID, NULL);
     longjmp_splice (THREAD_CURRENT_THREAD->thr_reset_ctx, reset_code);
   }
   END_QR_RESET;
+  SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_CL_CHASH_SSL_ID, NULL);
   if (!args[3] || !ssl_is_settable (args[3]))
+
     {
       index_tree_t *tree = QST_BOX (index_tree_t *, qi, hfq->hfq_tree_ssl->ssl_index);
       QST_BOX (caddr_t, qi, hfq->hfq_tree_ssl->ssl_index) = NULL;

@@ -395,6 +395,7 @@ query_frag_free (query_frag_t * qf)
   dk_free_box ((caddr_t) qf->qf_inner_out_slots);
   dk_free_box ((caddr_t) qf->qf_agg_res);
   dk_free_box ((caddr_t) qf->qf_trigger_args);
+  dk_set_free (qf->qf_ord_nodes);
   dk_free_box ((caddr_t) qf->qf_local_save);
   cl_order_free (qf->qf_order);
   dk_free_box ((caddr_t) qf->qf_result);
@@ -1507,6 +1508,8 @@ ts_free (table_source_t * ts)
   if (ts->ts_fs)
     dk_free ((caddr_t) ts->ts_fs, sizeof (file_source_t));
   dk_free_box ((caddr_t) ts->ts_branch_sets);
+  dk_free_box ((caddr_t) ts->ts_sdfg_params);
+  dk_free_box ((caddr_t) ts->ts_sdfg_param_refs);
 }
 
 

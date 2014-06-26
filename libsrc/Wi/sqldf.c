@@ -844,7 +844,8 @@ sqlo_df (sqlo_t * so, ST * tree)
 	if (NULL != (args = sqlc_contains_args (tree, &ctype)) &&
 	    !sqlo_is_contains_vdb_tb (so, ot = sqlo_cname_ot (so, args[0]->_.col_ref.prefix), ctype, args))
 	  {
-	    int inx;
+	    df_elt_t *col_dfe = NULL;
+	    int inx, n_args = BOX_ELEMENTS (args);
 	    TNEW (op_table_t, tot);
 
 	    tot->ot_is_group_dummy = 1;
@@ -856,9 +857,20 @@ sqlo_df (sqlo_t * so, ST * tree)
 	    DO_BOX (ST *, arg, inx, args)
 	    {
 	      df_elt_t *arg_dfe = sqlo_df (so, arg);
+	      if (!inx)
+		col_dfe = arg_dfe;
 	      if (DV_STRINGP (arg) && (0 == stricmp ((char *) arg, "geo") || 0 == stricmp ((char *) arg, "geo_rdf"))
 		  && inx < BOX_ELEMENTS (args) - 1)
 		dfe->_.text.geo = sqlc_geo_op (so->so_sc, args[inx + 1]);
+	      if (inx >= 2 && inx < n_args - 1 && DV_STRINGP (arg) && 0 == stricmp ((char *) arg, "index")
+		  && DFE_COLUMN == col_dfe->dfe_type)
+		{
+		  tb_ext_inx_t *tie = tb_find_tie (ot->ot_table, col_dfe->_.col.col, args[inx + 1]);
+		  if (!tie)
+		    sqlc_new_error (so->so_sc->sc_cc, "22000", "NTTIE", "Table %s doe not have extension index %s",
+			ot->ot_table->tb_name, DV_STRINGP (args[inx + 1]) ? args[inx + 1] : "<bad name>");
+		  dfe->_.text.tie = tie;
+		}
 	      if (arg_dfe->dfe_tables)
 		dfe->dfe_tables = t_set_union (dfe->dfe_tables, arg_dfe->dfe_tables);
 	    }
@@ -1769,7 +1781,7 @@ pred_body_defines (df_elt_t ** pred, df_elt_t * defd)
     return 0;
   op = (ptrlong) pred[0];
   if (BOP_AND == op || BOP_OR == op || BOP_NOT == op)
-    return pred_body_defines (pred[1], defd);
+    return pred_body_defines ((df_elt_t **) pred[1], defd);
   if (DFE_PRED_BODY == op)
     {
       int inx;
@@ -1777,7 +1789,7 @@ pred_body_defines (df_elt_t ** pred, df_elt_t * defd)
 	{
 	  df_elt_t *dfe = pred[inx];
 	  if (DFE_BOP_PRED == dfe->dfe_type)
-	    return NULL;
+	    return 0;
 	  if (dfe_defines (dfe, defd))
 	    return defd;
 	}
@@ -1845,7 +1857,7 @@ dfe_defines (df_elt_t * defining, df_elt_t * defd)
   else if (DFE_TABLE == defining->dfe_type && !defining->_.table.is_being_placed)
     {
       if (pred_body_defines (defining->_.table.join_test, defd))
-	return defining;
+	return NULL != defining;
       if (pred_body_defines (defining->_.table.top_pred, defd))
 	return defining;
     }
@@ -2669,7 +2681,7 @@ sqlo_dt_try_hash_1 (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * dt_dfe, df_elt_t 
 {
   float score = 0;
   df_elt_t *hr_copy;
-  int jt = sqlo_opt_value (dt_dfe->_.sub.ot->ot_dt_opts, OPT_JOIN);
+  int jt = (ptrlong) sqlo_opt_value (dt_dfe->_.sub.ot->ot_dt_opts, OPT_JOIN);
   if (OPT_HASH != jt)
     {
       if (!enable_dt_hash || nh_copy->_.sub.in_arity <= 1)
@@ -3443,7 +3455,7 @@ sqlo_in_list_1 (df_elt_t * pred, df_elt_t * tb_dfe, caddr_t name, df_elt_t *** s
 	  first = first->_.call.args[0];
 	  if (unbox ((caddr_t) args[1]) > 1000 || unbox ((caddr_t) args[2]) > 1000)
 	    return NULL;
-	  *subrange_ret = args;
+	  *subrange_ret = (caddr_t **) args;
 	  is_subr = 1;
 	}
       if (first && DFE_COLUMN == first->dfe_type
@@ -4232,7 +4244,7 @@ sqlo_is_chash_in (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * cp, ST ** subr)
   memzero (args, box_length (args));
   for (inx = 1; inx < n; inx++)
     args[inx + 3] = call->_.call.args[inx]->dfe_tree;
-  args[0] = col->_.col.col->col_sqt.sqt_col_dtp;
+  args[0] = (uptrlong) col->_.col.col->col_sqt.sqt_col_dtp;
   tree = t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("chash_in_init"), args);
   init_dfe = sqlo_df (so, tree);
   if (!init_dfe->_.call.extra)
@@ -5581,6 +5593,37 @@ sqlo_hash_fill_extract_or (sqlo_t * so, op_table_t * ot, df_elt_t * dfe, dk_set_
 }
 
 
+int
+sqlo_rdf_may_try_hash (sqlo_t * so, op_table_t * ot, df_elt_t * dfe, float ref_arity)
+{
+  /* Precheck if worth it to try hash join w rdf.  Special case if text pred with o already bound, near always best by hash */
+  if (dfe->_.table.text_pred && ref_arity > 2)
+    return 1;
+  return hash_join_enable >= 2;
+  DO_SET (df_elt_t *, cp, &dfe->_.table.col_preds)
+  {
+    df_elt_t *left = cp->_.bin.left;
+    dbe_column_t *col = left && DFE_COLUMN == left->dfe_type ? left->_.col.col : NULL;
+    if (!col)
+      continue;
+    switch (col->col_name[0])
+      {
+      case 'P':
+      case 'p':
+      case 'S':
+      case 's':
+      case 'O':
+      case 'o':
+      case 'G':
+      case 'g':
+	break;
+      }
+  }
+  END_DO_SET ();
+  return 1;
+}
+
+
 extern int chash_per_query_pct;
 
 void
@@ -5624,8 +5667,8 @@ sqlo_try_hash (sqlo_t * so, df_elt_t * dfe, op_table_t * super_ot, float *score_
     return 0;
   if (DFE_TABLE != dfe->dfe_type || dfe_ot (dfe)->ot_is_proc_view)
     return 0;
-  if (OPT_HASH != mode && ot && ot->ot_table && ot->ot_table->tb_name && 0 == stricmp (ot->ot_table->tb_name, "DB.DBA.RDF_QUAD")
-      && hash_join_enable < 2)
+  if (OPT_HASH != mode && ot && ot->ot_table && tb_is_rdf_quad (ot->ot_table)
+      && !sqlo_rdf_may_try_hash (so, super_ot, dfe, ref_arity))
     return 0;
   if (ot->ot_table && ot->ot_table->tb_name && nc_strstr ((unsigned char *) ot->ot_table->tb_name, (unsigned char *) "IRI_RANK"))
     return 0;			/* iri ranks never by hash join */

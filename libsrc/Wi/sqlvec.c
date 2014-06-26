@@ -852,8 +852,12 @@ sqlg_vec_ssl_ref (sql_comp_t * sc, state_slot_t * ssl, int test_only)
 	break;
       }
     if (!sqlg_vec_debug && IS_QN (qn, chash_read_input) && ((table_source_t *) qn)->ts_part_gby_reader)
-      sqlc_new_error (sc->sc_cc, "VEC..", "CLSSA",
-	  "a ssl reference would go past a partitioned group by reader, meaning bad [plan.  Support case.");
+      {
+	QNCAST (table_source_t, ts, qn);
+	if (-1 == sslr_box_position (ts->ts_sdfg_params, ssl))
+	  sqlc_new_error (sc->sc_cc, "VEC..", "CLSSA",
+	      "a ssl reference would go past a partitioned group by reader, meaning bad plan.  Support case.");
+      }
     if (!sqlg_vec_debug && IS_QN (qn, stage_node_input))
       sqlc_new_error (sc->sc_cc, "VEC..", "CLSTN", "a ssl reference would go past a dfg stage, meaning bad [plan.  Support case.");
     if (qn_ssl_ref_steps (sc, qn, &steps, ssl, &shadow))
@@ -1543,7 +1547,12 @@ int enable_oj_hash_part_merge = 1;
 void
 sqlg_stream_gb_set_last (sql_comp_t * sc, setp_node_t * setp)
 {
-  dk_set_t *nodes = sc->sc_in_qf ? &sc->sc_in_qf->qf_nodes : &setp->src_gen.src_query->qr_nodes;
+  dk_set_t *nodes = &setp->src_gen.src_query->qr_nodes;
+  if (sc->sc_in_qf)
+    {
+      sc->sc_in_qf->qf_ord_nodes = dk_set_copy (sc->sc_in_qf->qf_nodes);
+      nodes = &sc->sc_in_qf->qf_nodes;
+    }
   if (!dk_set_member (*nodes, (void *) setp))
     sqlc_new_error (sc->sc_cc, "SGBYN", "SGBYN", "Internal, ordered gby with duplicates does not have setp inside the qf or qr");
   dk_set_delete (nodes, (void *) setp);
@@ -1676,6 +1685,8 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
 	  {
 	    int k;
 	    state_slot_t *one_key = NULL;
+	    if (SETP_GBB != setp->setp_is_gb_build)
+	      break;
 	    for (k = 0; k < ha->ha_n_keys; k++)
 	      {
 		state_slot_t *ssl = ha->ha_slots[k];
@@ -2823,7 +2834,7 @@ sqlg_qf_param_order (sql_comp_t * sc, query_frag_t * qf)
   state_slot_t **ordered = (state_slot_t **) ks->ks_vec_source;
   dk_set_t extra = NULL;
   int n_vec = BOX_ELEMENTS (ordered);
-  if (!qf->qf_params)
+  if (!params)
     params = *pp = (state_slot_t **) dk_alloc_box (0, DV_BIN);
   DO_BOX (state_slot_t *, p, inx, params)
   {
@@ -3513,6 +3524,18 @@ retry:
 }
 
 
+data_source_t *
+sqlg_prev_with_sets (sql_comp_t * sc)
+{
+  DO_SET (data_source_t *, qn, &sc->sc_vec_pred)
+  {
+    if (qn->src_sets)
+      return qn;
+  }
+  END_DO_SET ();
+  return (data_source_t *) sc->sc_vec_pred->data;
+}
+
 void
 qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * all_res, int *non_cl_local)
 {
@@ -3542,7 +3565,25 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
     }
   else if (IS_QN (qn, chash_read_input))
     {
-      sqlg_vec_ts (sc, (table_source_t *) qn);
+      int inx;
+
+      QNCAST (table_source_t, ts, qn);
+      sqlg_vec_ts (sc, ts);
+      if (ts->ts_sdfg_params)
+	{
+	  data_source_t *save_cur = sc->sc_vec_current;
+	  ts->ts_sdfg_param_refs = (state_slot_t **) box_copy ((caddr_t) ts->ts_sdfg_params);
+	  ref_ssls (res, ts->ts_sdfg_param_refs);
+	  sc->sc_vec_current = (data_source_t *) sc->sc_vec_pred->data;
+	  DO_BOX (state_slot_t *, ssl, inx, ts->ts_sdfg_params)
+	  {
+	    state_slot_t *sh = ssl_new_shadow (sc, ssl, sc->sc_vec_current);
+	    ts->ts_sdfg_params[inx] = sh;
+	    t_set_delete (&sc->sc_vec_new_ssls, (void *) sh);
+	  }
+	  END_DO_BOX;
+	  sc->sc_vec_current = save_cur;
+	}
     }
   else if (IS_QN (qn, insert_node_input))
     {
@@ -3596,7 +3637,10 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
       QNCAST (subq_source_t, sqs, qn);
       dk_set_t save = sc->sc_vec_pred;
       int sets_save = qn->src_sets;
+      data_source_t *cur_save = sc->sc_vec_current;
+      sc->sc_vec_current = sqlg_prev_with_sets (sc);
       ASG_SSL (res, all_res, sqs->sqs_set_no);
+      sc->sc_vec_current = cur_save;
       t_set_push (&sc->sc_vec_pred, (void *) sqs);
       qn->src_sets = 0;		/* the sqs is transparent for the sets for the inner query */
       sqlg_subq_vec (sc, sqs->sqs_query, NULL, NULL);
@@ -3686,6 +3730,15 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
 	  sel->src_gen.src_prev = (data_source_t *) sc->sc_vec_pred->data;
 	  for (pred = sc->sc_vec_pred; pred; pred = pred->next)
 	    {
+	      /* the inlined subq can be in one piece or split into aggregation and reader.  If all inlined, the refs go straight over this.  If split, the refs go up to the first node of the qf, either a stn or a chash reader. */
+	      QNCAST (table_source_t, ts, pred->data);
+	      if (IS_QN (pred->data, stage_node_input)
+		  || (sc->sc_in_qf && (query_frag_t *) pred->data == sc->sc_in_qf)
+		  || (IS_QN (ts, chash_read_input) && ts->ts_part_gby_reader))
+		{
+		  sel->sel_subq_inlined = SEL_SUBQ_PART_READER;
+		  break;
+		}
 	      if ((set_ctr_node_t *) pred->data == sel->sel_set_ctr)
 		{
 		  sc->sc_vec_pred = pred->next;

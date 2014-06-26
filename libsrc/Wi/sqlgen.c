@@ -916,6 +916,9 @@ sqlg_text_node (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic)
   txs->txs_cached_string = ssl_new_variable (sc->sc_cc, "text_search_cached_exp_string", DV_SHORT_STRING);
   txs->txs_cached_compiled_tree = ssl_new_variable (sc->sc_cc, "text_search_cached_tree", DV_ARRAY_OF_POINTER);
   txs->txs_cached_dtd_config = ssl_new_variable (sc->sc_cc, "text_search_dtd_config", DV_ARRAY_OF_POINTER);
+  txs->txs_tie = text_pred->_.text.tie;
+  if (txs->txs_tie)
+    txs->txs_iext_cr = ssl_new_variable (sc->sc_cc, "ext_inx", DV_ARRAY_OF_POINTER);
   if (text_pred->_.text.geo)
     txs->txs_table = sqlg_geo_index_table (text_key, geo_args);
   else
@@ -1840,7 +1843,7 @@ sqlg_hash_filler_dt (sqlo_t * so, df_elt_t * dt_dfe, subq_source_t * sqs)
 	sqlc_new_error (sc->sc_cc, "42000", "HJGBY", "Hash join to derived table with group by.  No setp. Interal");
       setp->setp_ht_no_drop |= decl_no_drop;
       dt_dfe->_.sub.hash_filler_of->_.table.ot->ot_hash_filler = setp;
-      setp->setp_is_gb_build = 1;
+      setp->setp_is_gb_build = SETP_GBB;
       setp->setp_no_bloom = 1;
       if (2 == dt_dfe->_.sub.hash_filler_of->_.table.is_right_oj || setp->setp_partitioned)
 	setp->setp_cl_partition = HS_CL_PART;
@@ -3189,13 +3192,16 @@ sqlg_dfe_code (sqlo_t * so, df_elt_t * dfe, dk_set_t * code, int succ, int fail,
 	ins->_.pred.unkn = unk;
 	ins->_.pred.func = subq_comp_func;
 	{
+	  char old_colo = sc->sc_delay_colocate;
 	  char ord = sc->sc_order;
 	  query_t *qr;
 	  NEW_VARZ (subq_pred_t, subp);
 	  dfe_unit_col_loci (dfe);
 	  sc->sc_order = TS_ORDER_NONE;
+	  sc->sc_delay_colocate = 0;
 	  qr = subp->subp_query = sqlg_dt_query (so, dfe, NULL, NULL);
 	  sc->sc_order = ord;
+	  sc->sc_delay_colocate = old_colo;
 	  dk_set_push (&sc->sc_cc->cc_query->qr_subq_queries, subp->subp_query);
 	  qr->qr_select_node->src_gen.src_input = (qn_input_fn) select_node_input_subq;
 	  qr->qr_select_node->sel_vec_role = SEL_VEC_EXISTS;
@@ -3209,14 +3215,17 @@ sqlg_dfe_code (sqlo_t * so, df_elt_t * dfe, dk_set_t * code, int succ, int fail,
       }
     case DFE_VALUE_SUBQ:
       {
+	char old_colo = so->so_sc->sc_delay_colocate;
 	int old_ord = so->so_sc->sc_order;
 	query_t *qr;
 	state_slot_t *ssl, *ext_sets;
 	df_elt_t *org_dfe;
 	so->so_sc->sc_order = TS_ORDER_NONE;
+	so->so_sc->sc_delay_colocate = 0;
 	qr = sqlg_dt_query (so, dfe, NULL, (ST **) t_list (1, dfe->dfe_tree));	/* this is to prevent assignment of NULL to constant ssl */
 	ssl = cv_subq_qr (sc, code, qr);
 	so->so_sc->sc_order = old_ord;
+	so->so_sc->sc_delay_colocate = old_colo;
 	org_dfe = sqlo_df (so, dfe->dfe_tree);	/* the org one, not a layout copy is used to associate the ssl to the code */
 	org_dfe->dfe_ssl = ssl;
 	ext_sets = ssl_new_variable (sc->sc_cc, "ext_sets", DV_LONG_INT);

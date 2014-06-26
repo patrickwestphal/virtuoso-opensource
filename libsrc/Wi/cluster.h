@@ -361,6 +361,11 @@ typedef struct cl_op_s
       caddr_t g_read_qr;
       caddr_t g_read_param;
     } rdf_graph_user_perms;
+    struct
+    {
+      void *cr;
+      void (*free_cb) (void *);
+    } iext;
   } _;
 } cl_op_t;
 
@@ -872,6 +877,7 @@ typedef struct cl_self_message_s
 #define CLO_DFG_AGG			31	/*!< request for simple aggregate result from dist frag */
 #define CLO_CONTROL			32
 #define CLO_TOP 33
+#define CLO_IEXT_CR 35		/* cursor on index extension */
 
 /* action codes for ddl messages */
 #define CLO_DDL_TABLE 1

@@ -435,6 +435,7 @@ struct df_elt_s
       ST **args;
       dbe_column_t *col;
       state_slot_t *ssl;
+      tb_ext_inx_t *tie;
       op_table_t *ot;
       df_elt_t **after_test;
       dk_set_t after_preds;
@@ -1181,6 +1182,8 @@ dk_set_t st_set_copy (dk_set_t s);
 void sqlo_record_probes (sqlo_t * so, dk_set_t hash_refs);
 void sc_dfr_free (sql_comp_t * sc);
 df_elt_t *sqlo_shared_hash_fill_col (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * dfe);
+void sqlo_eqs (sqlo_t * so, op_table_t * top_ot);
+int sslr_box_position (state_slot_t ** ssls, state_slot_t * ssl);
 int dk_set_intersects (dk_set_t s1, dk_set_t s2);
 void jp_ps_init_card (join_plan_t * jp, pred_score_t * ps);
 int dfe_is_cacheable (df_elt_t * dfe);

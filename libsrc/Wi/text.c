@@ -3951,11 +3951,21 @@ txs_ext_fti_next (text_node_t * txs, caddr_t * qst, int first_time)
 void
 txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
+  int64 *scores = NULL;
+  int out_fill, inx, n_sets_ret;
   QNCAST (query_instance_t, qi, inst);
   int n_sets = txs->src_gen.src_prev ? QST_INT (inst, txs->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
   int nth_set, first_time = 0, batch_sz;
   QNCAST (data_source_t, qn, txs);
   caddr_t err = NULL;
+  data_col_t *score_dc = NULL;
+  data_col_t *id_dc = NULL;
+  if (txs->txs_score)
+    score_dc = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
+  iext_index_t *iext;
+  slice_id_t slid = qi->qi_client->cli_slice;
+  void *iext_cr = NULL;
+  tb_ext_inx_t *tie = txs->txs_tie;
   if (enable_qn_cache)
     {
       if (state)
@@ -3982,6 +3992,12 @@ txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 	    }
 	}
     }
+  if (QI_NO_SLICE == qi->qi_client->cli_slice)
+    slid = 0;
+  if (slid >= BOX_ELEMENTS (tie->tie_slices) || !tie->tie_slices[slid])
+    sqlr_new_error ("TIESL", "TIESL", "Text index ext does not have slice %d", slid);
+  iext = tie->tie_slices[qi->qi_client->cli_slice];
+
   if (state)
     nth_set = QST_INT (inst, txs->clb.clb_nth_set) = 0;
   else
@@ -3993,94 +4009,80 @@ again:
   dc_reset_array (inst, qn, qn->src_continue_reset, -1);
   for (; nth_set < n_sets; nth_set++)
     {
+      cl_op_t *clo = NULL;
       qi->qi_set = nth_set;
       for (;;)
 	{
 	  if (!state)
 	    {
 	      state = SRC_IN_STATE (qn, inst);
+	      clo = (cl_op_t *) qst_get (inst, txs->txs_iext_cr);
 	    }
 	  else
 	    {
-	      txs_ext_fti_init (txs, (query_instance_t *) state);
 	      if (txs->txs_is_driving)
-		dc_reset (QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index));
-	      first_time = 1;
+		{
+		  caddr_t err = NULL;
+		  tb_ext_inx_t *tie = txs->txs_tie;
+		  tie->tie_iext->iext_exec (iext, NULL, &iext_cr, qi->qi_client, qst_get (inst, txs->txs_text_exp), NULL, &err);
+		  if (err)
+		    sqlr_resignal (err);
+		  clo = clo_allocate (CLO_IEXT_CR);
+		  clo->_.iext.cr = iext_cr;
+		  clo->_.iext.free_cb = tie->tie_iext->iext_cursor_free;
+		  qst_set (inst, txs->txs_iext_cr, (caddr_t) clo);
+		}
+	      else
+		{
+		  /* call the check function to see if given ids match */
+		  data_col_t *lin_ids = QST_BOX (data_col_t *, inst, txs->txs_lin_ids->ssl_index);
+		  data_col_t *sets_ret = QST_BOX (data_col_t *, inst, txs->txs_iext_sets_ret->ssl_index);
+		  if (txs->txs_score)
+		    {
+		      data_col_t *scores = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
+		      DC_CHECK_LEN (score_dc, n_sets);
+		      scores = (int64 *) score_dc->dc_values;
+		    }
+		  DC_CHECK_LEN (sets_ret, n_sets);
+		  vec_ssl_assign (inst, txs->txs_lin_ids, txs->txs_d_id);
+		  tie->tie_iext->iext_is_match (iext, NULL, qst_get (inst, txs->txs_text_exp), NULL, n_sets, &n_sets_ret,
+		      (int64 *) lin_ids->dc_values, (int *) sets_ret->dc_values, scores, &err);
+		  if (err)
+		    sqlr_resignal (err);
+		  for (inx = 0; inx < n_sets_ret; inx++)
+		    qn_result (txs, inst, ((int *) sets_ret->dc_values)[inx]);
+		  if (n_sets_ret)
+		    qn_send_output ((data_source_t *) txs, inst);
+		  return;
+		}
 	    }
-	  err = txs_ext_fti_next (txs, state, first_time);	/* Should become vectored and produce up to batch_sz - qn->src_out_fill results at a single run */
-	  first_time = 0;
-	  if (err != SQL_SUCCESS)
+	  id_dc = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
+	  DC_CHECK_LEN (id_dc, batch_sz - 1);
+	  scores = score_dc ? (int64 *) score_dc->dc_values : NULL;
+	  out_fill = QST_INT (inst, txs->src_gen.src_out_fill);
+	  tie->tie_iext->iext_next (clo->_.iext.cr, NULL, batch_sz - out_fill, &n_sets_ret, (int64 *) id_dc->dc_values, scores,
+	      &err);
+	  if (err)
+	    sqlr_resignal (err);
+	  for (inx = 0; inx < n_sets_ret; inx++)
+	    qn_result ((data_source_t *) txs, inst, nth_set);
+	  if (n_sets_ret == batch_sz - out_fill)
 	    {
-	      SRC_IN_STATE (qn, inst) = NULL;
-	      if (err != (caddr_t) SQL_NO_DATA_FOUND)
-		sqlr_resignal (err);
-	      break;
-	    }
-	  qn_result (qn, inst, nth_set);
-	  if (!txs->txs_is_driving)
-	    break;
-	  SRC_IN_STATE (qn, inst) = state;
-	  state = NULL;
-	  if (QST_INT (inst, qn->src_out_fill) >= batch_sz)
-	    {
-	      QST_INT (inst, txs->clb.clb_nth_set) = nth_set;
-	      if (txs->txs_is_driving && txs->txs_qcr)
+	      SRC_IN_STATE (qn, inst) = inst;
+	      if (txs->txs_qcr)
 		txs_qc_accumulate (txs, inst);
 	      qn_send_output (qn, inst);
-	      goto again;
+	      state = NULL;
 	    }
 	}
     }
-
-  SRC_IN_STATE (qn, inst) = NULL;
-  if (txs->txs_is_driving && txs->txs_qcr)
-    txs_qc_accumulate (txs, inst);
-  if (QST_INT (inst, qn->src_out_fill))
-    qn_send_output (qn, inst);
-}
-
-
-/* That's an exact clone of loop in txn_input */
-void
-txs_ext_fti_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
-{
-  int first_time = 0;
-  for (;;)
+  if (QST_INT (inst, qn->src_out_fill) >= batch_sz)
     {
-      caddr_t err;
-      if (!state)
-	{
-	  state = qn_get_in_state ((data_source_t *) txs, inst);
-	}
-      else
-	{
-	  txs_ext_fti_init (txs, (query_instance_t *) state);
-	  first_time = 1;
-	}
-      err = txs_ext_fti_next (txs, state, first_time);
-      first_time = 0;
-      if (err == SQL_SUCCESS)
-	{
-	  if (txs->txs_is_driving)
-	    qn_record_in_state ((data_source_t *) txs, inst, state);
-	  if (!txs->src_gen.src_after_test || code_vec_run (txs->src_gen.src_after_test, inst))
-	    {
-	      qn_send_output ((data_source_t *) txs, inst);
-	    }
-	  if (!txs->txs_is_driving)
-	    {
-	      qn_record_in_state ((data_source_t *) txs, inst, NULL);
-	      return;
-	    }
-	}
-      else
-	{
-	  qn_record_in_state ((data_source_t *) txs, inst, NULL);
-	  if (err != (caddr_t) SQL_NO_DATA_FOUND)
-	    sqlr_resignal (err);
-	  return;
-	}
-      state = NULL;
+      QST_INT (inst, txs->clb.clb_nth_set) = nth_set;
+      if (txs->txs_qcr)
+	txs_qc_accumulate (txs, inst);
+      SRC_IN_STATE (txs, inst) = NULL;
+      qn_send_output (qn, inst);
     }
 }
 
@@ -4095,12 +4097,9 @@ txs_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
       geo_node_input (txs, inst, state);
       return;
     }
-  if (txs->txs_ext_fti)
+  if (txs->txs_tie)
     {
-      if (txs->src_gen.src_sets)
-	txs_ext_fti_vec_input (txs, inst, state);
-      else
-	txs_ext_fti_input (txs, inst, state);
+      txs_ext_fti_vec_input (txs, inst, state);
       return;
     }
   if (txs->src_gen.src_sets)

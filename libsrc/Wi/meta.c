@@ -3099,3 +3099,16 @@ sch_set_view_def (dbe_schema_t * sc, char *name, caddr_t tree)
       id_hash_set (sc_name_to_view, (caddr_t) & name, (caddr_t) & tree);
     }
 }
+
+
+tb_ext_inx_t *
+tb_find_tie (dbe_table_t * tb, dbe_column_t * col, caddr_t iext_type)
+{
+  DO_SET (tb_ext_inx_t *, tie, &tb->tb_ext_indices)
+  {
+    if (!stricmp (tie->tie_iext->iext_name, iext_type))
+      return tie;
+  }
+  END_DO_SET ();
+  return NULL;
+}

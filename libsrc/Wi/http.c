@@ -1055,7 +1055,6 @@ next_fragment:
       tmp[sizeof (tmp) - 1] = 0;
       break;
     case 's':
-      ptr++;
       snprintf (tmp, sizeof (tmp), "%d", http_resp_code);
       break;
     case 'b':

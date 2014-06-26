@@ -122,6 +122,7 @@ typedef struct ext_ref_s ext_ref_t;
 #include "extent.h"
 #include "col.h"
 #include "vec.h"
+#include "idxext.h"
 
 
 #define IT_DP_MAP(it, dp) \

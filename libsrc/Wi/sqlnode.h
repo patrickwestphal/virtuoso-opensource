@@ -1,5 +1,5 @@
 /*
- *  sqlnode.h
+*  sqlnode.h
  *
  *  $Id$
  *
@@ -181,8 +181,13 @@ typedef state_slot_t state_const_slot_t;
   (((caddr_t*)qst)[ssl->ssl_index])
 
 
+#if 0
+#define QST_INT(qst, inx) ((ptrlong*)qst)[inx ? inx : (GPF_T1 ("0 inx"), inx)]
+#define QST_BOX(dt, qst, inx) ((dt*)qst)[inx ? inx : (GPF_T1 ("0 inx"), inx)]
+#else
 #define QST_INT(qst, inx) ((ptrlong*)qst)[inx]
 #define QST_BOX(dt, qst, inx) ((dt*)qst)[inx]
+#endif
 
 #define SSL_IS_UNTYPED_PARAM(ssl) 	\
 	(DV_UNKNOWN == (ssl)->ssl_dtp)
@@ -581,6 +586,7 @@ typedef struct hash_area_s
   char ha_allow_nulls;
   char ha_memcache_only;	/* flags if the hash may not reside on disk */
   char ha_is_gby_distinct;
+  char ha_top_gby;
   long ha_row_size;
   uint64 ha_row_count;
   /*chash fields */
@@ -786,6 +792,8 @@ typedef struct table_source_s
   state_slot_t *ts_aq;
   state_slot_t *ts_aq_qis;	/* when this splits into many threads, this holds the per thread qis as an array */
   state_slot_t **ts_branch_ssls;
+  state_slot_t **ts_sdfg_params;	/* can be extra ssls needed in non-first sdfg, e.g. partitioned reader */
+  state_slot_t **ts_sdfg_param_refs;
   struct query_frag_s *ts_qf;	/* if ts runs in a sdfg qf but no stn in, then this is the qf.  E.g. in gpartitioned group by postprocessing */
   ssl_index_t *ts_branch_sets;
   dbe_column_t *ts_branch_col;	/* if scan partitioned by range, this is the col */
@@ -962,6 +970,7 @@ struct query_frag_s
   state_slot_t *qf_set_no;	/* if this is a dfg this is for keeping track of the set at the output */
   state_slot_t *qf_set_no_result;	/* shadow of set no in return rows, correlate result to input row */
   dk_set_t qf_nodes;
+  dk_set_t qf_ord_nodes;	/* qf nodes in sequence from lastt  to first, can differ from continue order in qf_nodes for cases of streaming  gby */
   data_source_t *qf_head_node;
   table_source_t *qf_loc_ts;
   state_slot_t **qf_params;
@@ -1419,6 +1428,10 @@ typedef struct select_node_s
 #define SEL_VEC_SCALAR 2
 #define SEL_VEC_DT 3
 
+/* sel_subq_inlined */
+#define SEL_SUBQ_SETS 1		/* an inlined dt that ends in a reader gathering all results on one thread.  Refs to previously set ssls are in the ins and the sets of the select point to past the start of the dt */
+#define SEL_SUBQ_PART_READER 2	/* a inlined subq select that is placed in a dfg fragment after a reader of a partitioned group by.  Refs to previously set ssls go via the partitoned reader */
+
 #define SEL_NODE_INIT(cc, sel) \
   sel->sel_out_box = cc_new_instance_slot (cc); \
   sel->sel_out_fill = cc_new_instance_slot (cc); \
@@ -1545,6 +1558,10 @@ typedef struct setp_node_s
   char setp_no_bloom;
   char setp_cl_partition;
 } setp_node_t;
+/* setp_is_gb_build */
+#define SETP_GBB 1		/* gby result is probed  as a hash join build side  in other qf, needs cl id */
+#define SETP_GBB_NEED_ID 2	/* not a hash join build but needs id due to refs in other qfs */
+
 
 #define SETP_DISTINCT_MAX_KEYS 100
 #define SETP_DISTINCT_NO_OP 2

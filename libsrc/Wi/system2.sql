@@ -1378,7 +1378,7 @@ qt_check (in file varchar, out message varchar, in add_test int := 0) returns in
 	  t := cast (xpath_eval (sprintf ('string (/test/result/row[%d]/col[%d][@dtp=%d])', r + 1, i + 1, __tag(c[i])), xt) as varchar);
 	  if (t <>  cast (c[i] as varchar))
 	    {
-	      message := message || sprintf (' : value at #%d %s <> %s', i, t,  cast (c[i] as varchar));
+	      message := message || sprintf (' : value at %d #%d %s <> %s', r + 1, i, t,  cast (c[i] as varchar));
 	      return 0;
 	    }
 	}

@@ -3389,7 +3389,27 @@ fnr_max_set_no (fun_ref_node_t * fref, caddr_t * inst, state_slot_t ** ssl_ret)
   if (ssl_ret)
     *ssl_ret = set_no_ssl;
   if (!set_nos->dc_n_values)
-    return 0;			/* can be there is no set no copied if single state top level ins/del/upd qr, then it is always 1 set */
+    {
+      /* can be there are flattened subqs so many set ctrs are possible, take the closest that has a value */
+      data_source_t *prev = fref->src_gen.src_prev;
+      for (prev = prev; prev; prev = prev->src_prev)
+	{
+	  if (IS_QN (prev, set_ctr_input))
+	    {
+	      QNCAST (set_ctr_node_t, sctr, prev);
+	      if (ssl_ret)
+		*ssl_ret = sctr->sctr_set_no;
+	      set_nos = QST_BOX (data_col_t *, inst, sctr->sctr_set_no->ssl_index);
+	      if (!set_nos || !set_nos->dc_n_values)
+		continue;
+	      return set_nos->dc_n_values;
+	    }
+	}
+      return 0;
+      sqlr_new_error ("QPINT", "QPINT",
+	  "Internal, support:  Forgotten copy of set no dc for qp fref preset.  To work around, set enable_qp = 1 with __dbf_set to disable query parallelization");
+      GPF_T1 ("musta forgotten branch copy of set no ssl for fref");
+    }
   return ((int64 *) set_nos->dc_values)[set_nos->dc_n_values - 1];
 }
 
@@ -3462,8 +3482,6 @@ fref_setp_flush (fun_ref_node_t * fref, caddr_t * state)
 void
 setp_local_part_init (dk_set_t setps, caddr_t * inst)
 {
-  if (CL_RUN_LOCAL != cl_run_local_only)
-    return;
   DO_SET (setp_node_t *, setp, &setps)
   {
     if (setp->setp_partitioned && setp->setp_ha && HA_GROUP == setp->setp_ha->ha_op)
@@ -3516,13 +3534,6 @@ fun_ref_node_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
       setp_mem_sort_flush (setp, inst);
       qn_record_in_state ((data_source_t *) fref, inst, NULL);
       return;
-    }
-  if (is_gb_build)
-    {
-      cha_allocate (fref->fnr_setp, inst, 1);
-#ifdef CCL6
-      cl_chash_fill_init (fref, inst);
-#endif
     }
   if (fref->src_gen.src_out_fill)
     QST_INT (inst, fref->src_gen.src_out_fill) = n_sets;
