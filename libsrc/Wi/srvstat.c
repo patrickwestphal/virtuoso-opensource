@@ -1227,6 +1227,7 @@ get_total_sys_mem ()
 extern int process_is_swapping;
 extern double curr_cpu_pct;
 void qrc_status ();
+void rdf_ctx_status ();
 
 extern int64 dk_n_allocs;
 extern int64 dk_n_free;
@@ -1270,6 +1271,11 @@ status_report (const char *mode, query_instance_t * qi)
   if (!stricmp (mode, "qrc"))
     {
       qrc_status ();
+      return;
+    }
+  if (!stricmp (mode, "rdf_ctx"))
+    {
+      rdf_ctx_status ();
       return;
     }
   if (!stricmp (mode, "cluster_d"))

@@ -1132,6 +1132,73 @@ cha_is_null (setp_node_t * setp, caddr_t * inst, int nth_col, int row_no)
   return dc_is_null (dc, row_no);
 }
 
+void
+cha_gb_dep_col (setp_node_t * setp, caddr_t * inst, hash_area_t * ha, chash_t * cha, int64 * row, int nth_col, int row_no, int base)
+{
+  char is_null = 0;
+  int64 val = setp_non_agg_dep (setp, inst, nth_col, row_no + base, &is_null);
+  if (vec_box_dtps[cha->cha_sqt[nth_col].sqt_dtp])
+    {
+      QNCAST (QI, qi, inst);
+      int save = qi->qi_set;
+      caddr_t box;
+      dtp_t dtp;
+      qi->qi_set = row_no + base;
+      box = box_copy_tree (qst_get (inst, ha->ha_slots[nth_col]));
+      dtp = DV_TYPE_OF (box);
+      row[nth_col] = box;
+      if (DV_DB_NULL == dtp)
+	{
+	  GB_NO_VALUE (ha, row, nth_col);
+	}
+      else
+	GB_HAS_VALUE (ha, row, nth_col);
+      qi->qi_set = save;
+      return;
+    }
+  if (2 & is_null)
+    {
+      caddr_t err = NULL;
+      if (!(is_null & 1))
+	GB_HAS_VALUE (ha, row, nth_col);
+      if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
+	{
+	  if (!cha->cha_is_parallel)
+	    row[nth_col] = (int64) mp_box_to_any_1 ((caddr_t) val, &err, cha->cha_pool, DKS_TO_DC);
+	  else
+	    {
+	      caddr_t box = box_to_any_1 ((caddr_t) val, &err, NULL, DKS_TO_DC);
+	      row[nth_col] = (int64) cha_any (cha, (db_buf_t) box);
+	      dk_free_box (box);
+	    }
+	}
+      else if (DV_ARRAY_OF_POINTER == cha->cha_sqt[nth_col].sqt_dtp)
+	{
+	  row[nth_col] = (int64) box_copy_tree ((caddr_t) val);
+	}
+      else
+	{
+	  row[nth_col] = 0;
+	}
+    }
+  else if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
+    {
+      row[nth_col] = (ptrlong) cha_any (cha, (db_buf_t) (ptrlong) val);
+    }
+  else if (DV_DATETIME == cha->cha_sqt[nth_col].sqt_dtp)
+    {
+      if (!is_null)
+	GB_HAS_VALUE (ha, row, nth_col);
+      row[nth_col] = (ptrlong) cha_dt (cha, (db_buf_t) val);
+    }
+  else
+    {
+      if (!is_null)
+	GB_HAS_VALUE (ha, row, nth_col);
+      row[nth_col] = val;
+    }
+}
+
 int64 *
 cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * cha, uint64 hash_no, int row_no, int base,
     dtp_t * nulls)
@@ -1169,7 +1236,12 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
       }
     else if (AMMSC_MAX == go->go_op || AMMSC_MIN == go->go_op)
       {
-	row[nth_col] = 0;	/* may involve boxes, so init */
+	if (!ha->ha_ch_nn_flags)
+	  {
+	    cha_gb_dep_col (setp, inst, ha, cha, row, nth_col, row_no, base);
+	  }
+	else
+	  row[nth_col] = 0;	/* may involve boxes, so init */
 	GB_NO_VALUE (ha, row, nth_col);
       }
     else if (AMMSC_SUM == go->go_op && !cha->cha_sqt[nth_col].sqt_non_null && cha_is_null (setp, inst, nth_col, row_no + base))
@@ -1188,49 +1260,7 @@ cha_new_gb (setp_node_t * setp, caddr_t * inst, db_buf_t ** key_vecs, chash_t * 
   n_cols = ha->ha_n_keys + ha->ha_n_deps;
   for (nth_col = nth_col; nth_col < n_cols; nth_col++)
     {
-      char is_null = 0;
-      int64 val = setp_non_agg_dep (setp, inst, nth_col, row_no + base, &is_null);
-      if (2 & is_null)
-	{
-	  caddr_t err = NULL;
-	  if (!(is_null & 1))
-	    GB_HAS_VALUE (ha, row, nth_col);
-	  if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
-	    {
-	      if (!cha->cha_is_parallel)
-		row[nth_col] = (int64) mp_box_to_any_1 ((caddr_t) val, &err, cha->cha_pool, DKS_TO_DC);
-	      else
-		{
-		  caddr_t box = box_to_any_1 ((caddr_t) val, &err, NULL, DKS_TO_DC);
-		  row[nth_col] = (int64) cha_any (cha, (db_buf_t) box);
-		  dk_free_box (box);
-		}
-	    }
-	  else if (DV_ARRAY_OF_POINTER == cha->cha_sqt[nth_col].sqt_dtp)
-	    {
-	      row[nth_col] = (int64) box_copy_tree ((caddr_t) val);
-	    }
-	  else
-	    {
-	      row[nth_col] = 0;
-	    }
-	}
-      else if (DV_ANY == cha->cha_sqt[nth_col].sqt_dtp)
-	{
-	  row[nth_col] = (ptrlong) cha_any (cha, (db_buf_t) (ptrlong) val);
-	}
-      else if (DV_DATETIME == cha->cha_sqt[nth_col].sqt_dtp)
-	{
-	  if (!is_null)
-	    GB_HAS_VALUE (ha, row, nth_col);
-	  row[nth_col] = (ptrlong) cha_dt (cha, (db_buf_t) val);
-	}
-      else
-	{
-	  if (!is_null)
-	    GB_HAS_VALUE (ha, row, nth_col);
-	  row[nth_col] = val;
-	}
+      cha_gb_dep_col (setp, inst, ha, cha, row, nth_col, row_no, base);
     }
   if (setp->setp_top_gby)
     GB_HAS_VALUE (ha, row, n_cols);	/* bit after last null flag set to indicate top gby row not deleted */

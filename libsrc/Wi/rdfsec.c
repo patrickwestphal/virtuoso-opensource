@@ -37,8 +37,6 @@
 #include "rdf_core.h"
 
 
-
-
 id_hash_t *rdf_ctx_qrs;
 dk_mutex_t rdf_ctx_qr_mtx;
 dk_hash_t rdf_ctx_ht_ids;
@@ -46,11 +44,17 @@ extern user_t *user_t_dba;
 
 int64 rdf_ctx_max_mem = 100000000;
 int64 rdf_ctx_in_use;
-
+long tc_rdf_ctx_hits;
+long tc_rdf_ctx_misses;
 
 
 
 void
 rdf_sec_init ()
+{
+}
+
+void
+rdf_ctx_status ()
 {
 }

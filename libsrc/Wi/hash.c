@@ -1,6 +1,6 @@
 
 /*
- *  hash.c
+b *  hash.c
  *
  *  $Id$
  *
@@ -2783,7 +2783,8 @@ it_hi_clear_sensitive (index_tree_t * it)
   hi_signature_t *hsi;
   int inx, len;
   dk_set_t deps;
-
+  if (it->it_hi->hi_is_rdf_ctx)
+    return;
   hsi = it->it_hi_signature;
   len = box_length ((caddr_t) hsi->hsi_col_ids) / sizeof (oid_t);
   for (inx = 0; inx < len; inx++)
@@ -3059,10 +3060,11 @@ hic_pop_oldest_it (index_tree_t * calling_it)
   id_hash_iterator (&hit, hash_index_cache.hic_hashes);
   while (hit_next (&hit, (char **) &key, (char **) &it))
     {
-      if (it && *it && *it != calling_it && (*it)->it_shared == HI_OK && !(*it)->it_ref_count &&
-	  (!best_it || (*it)->it_last_used < best_it->it_last_used))
+      index_tree_t *tree = it ? *it : NULL;
+      if (tree && tree != calling_it && tree->it_shared == HI_OK && !tree->it_ref_count &&
+	  (!best_it || tree->it_last_used < best_it->it_last_used))
 	{
-	  best_it = *it;
+	  best_it = tree;
 	}
     }
   if (best_it)

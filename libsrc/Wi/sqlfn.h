@@ -1134,7 +1134,7 @@ typedef struct itc_ha_feed_ret_s
 
 int itc_ha_feed (itc_ha_feed_ret_t * ret, hash_area_t * ha, caddr_t * qst, unsigned long feed_temp_blobs, setp_node_t * setp);
 extern void itc_ha_flush_memcache (hash_area_t * ha, caddr_t * qst, int is_in_fill);
-
+int hic_pop_oldest_it (index_tree_t * calling_it);
 /* is in fill */
 #define SETP_HASH_FILL 1
 #define SETP_NO_CHASH_FLUSH 2

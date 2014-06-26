@@ -265,6 +265,9 @@ ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha)
   int inx, n_branches = 0;
   index_tree_t *tree = (index_tree_t *) qst_get (inst, ha->ha_tree);
   int n_sets = QST_INT (inst, ts->src_gen.src_prev->src_out_fill);
+  cl_op_t *itcl_clo = (cl_op_t *) qst_get (inst, ts->clb.clb_itcl);
+  if (!itcl_clo)
+    return;
   if (!tree || !tree->it_hi || !(slice_trees = tree->it_hi->hi_slice_trees))
     return;
   if (!qis && tree && tree->it_hi->hi_slice_trees)
@@ -291,6 +294,7 @@ ts_sliced_reader (table_source_t * ts, caddr_t * inst, hash_area_t * ha)
 	qis[inx] = slice_inst;
 	slice_qi->qi_slice = inx;
 	qst_set (slice_inst, ha->ha_tree, box_copy ((caddr_t) slice_trees[inx]));
+	QST_INT (slice_inst, stn->stn_coordinator_id) = local_cll.cll_this_host;
 	QST_INT (slice_inst, ts->ts_in_sdfg) = 1;
 	SRC_IN_STATE (ts, slice_inst) = slice_inst;
 	n_branches++;
