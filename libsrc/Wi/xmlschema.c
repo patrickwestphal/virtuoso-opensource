@@ -513,11 +513,17 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       index_type_t *iext = iext_find (opts_arr[1]);
       int n_slices = id_key->key_partition ? id_key->key_partition->kpd_map->clm_distinct_slices : 1;
-      NEW_VARZ (tb_ext_inx_t, tie);
+      tb_ext_inx_t *tie;
       if (!iext)
 	sqlr_new_error ("42000", "IEXTN", "Index extension %s not registered", opts_arr[1]);
-      tie->tie_slices = (void ***) dk_alloc_box (n_slices * sizeof (caddr_t), DV_BIN);
-      tie->tie_col = text_col;
+      tie = tb_find_tie (tb, text_col, iext->iext_name);
+      if (!tie)
+	{
+	  NEW_VARZ (tb_ext_inx_t, tie2);
+	  tie = tie2;
+	  tie->tie_slices = (void ***) dk_alloc_box (n_slices * sizeof (caddr_t), DV_BIN);
+	  tie->tie_col = text_col;
+	}
       {
 	caddr_t err = NULL;
 
@@ -693,3 +699,7 @@ qi_tb_xml_schema (query_instance_t * qi, char *read_tb)
     return err;
   return NULL;
 }
+
+
+
+#include "bits.c"

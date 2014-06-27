@@ -224,6 +224,8 @@ qf_params_any_vec (dk_set_t params)
       return 1;
     if (ssl->ssl_qr_global)
       continue;
+    if (SSL_VEC == ssl->ssl_type || ssl->ssl_always_vec)
+      return 1;
     if (SSL_VARIABLE == ssl->ssl_type && ssl->ssl_name)
       return 1;
   }
