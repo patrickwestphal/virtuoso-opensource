@@ -25,8 +25,20 @@ typedef struct bits_cr_s
   int bcr_min_bits;
   char bcr_mode;
   int64 bcr_pos;
+  int64 bcr_word;
 } bits_cr_t;
 
+
+typedef struct bits_txn_s
+{
+  bits_inst_t *btx_bi;
+  dk_hash_t *btx_del_at_rb;
+  dk_hash_t *btx_del_at_commit;
+} bits_txn_t;
+
+/*bcr_pos*/
+#define BCR_INIT -1L
+#define BCR_AT_END -2L
 
 /*bcr_mode*/
 #define BCR_AND 0
@@ -54,12 +66,41 @@ bits_read_line (dk_session_t * ses, char *buf, int max)
 
 
 
-void
-bits_parse (char *str, int **ret, char *type_ret, int *n_ret)
+int *
+bits_parse (char *str)
 {
-
+  int *bits;
+  int res[MAX_BIT];
+  int i, n = -1, fill = 0;
+  for (i = 0; str[i]; i++)
+    {
+      char c = str[i];
+      if (!is_digit (c))
+	{
+	  if (-1 != n)
+	    {
+	      res[fill++] = n;
+	      n = -1;
+	      if (fill == MAX_BIT - 1)
+		break;
+	    }
+	}
+      else
+	{
+	  if (-1 == n)
+	    n = c - '0';
+	  else
+	    n *= c - '0';
+	}
+    }
+  if (-1 != n)
+    {
+      res[fill++] = n;
+    }
+  bits = dk_alloc_box (fill * sizeof (int), DV_BIN);
+  memcpy (bits, res, fill * sizeof (int));
+  return bits;
 }
-
 
 void
 bits_set_bit (bits_inst_t * bi, int64 id, int bit)
@@ -71,12 +112,12 @@ bits_set_bit (bits_inst_t * bi, int64 id, int bit)
   vec = bi->bi_vecs[bit];
   if (!vec)
     {
-      vec = dk_alloc_box_zero (100000 + (id / 8), DV_STRING);
+      vec = dk_alloc_box_zero (ALIGN_8 (100000 + (id / 8)), DV_STRING);
     }
   len = box_length (vec) - 1;
   if (id / 8 > len)
     {
-      char *vec2 = dk_alloc_box_zero (100000 + (id / 8), DV_STRING);
+      char *vec2 = dk_alloc_box_zero (ALIGN_8 (100000 + (id / 8)), DV_STRING);
       memcpy (vec2, vec, box_length (vec));
       vec = bi->bi_vecs[bit] = vec2;
     }
@@ -128,7 +169,7 @@ bits_open (char *cfg, slice_id_t slid, iext_index_t * ret, caddr_t * err_ret)
   char fname[100];
   if (bi)
     return 0;
-  snprintf (fname, sizeof (fname), "%cfg.%d.bits", cfg, slid);
+  snprintf (fname, sizeof (fname), "%s.%d.bits", cfg, slid);
   bi = (bits_inst_t *) dk_alloc (sizeof (bits_inst_t));
   memset (bi, 0, sizeof (bits_inst_t));
   bi->bi_id_to_int = hash_table_allocate (1111);
@@ -174,7 +215,7 @@ bits_checkpoint (bits_inst_t * bi, caddr_t * err_ret)
   {
     int b;
     char *ptr = temp;
-    sprintf (ptr, "%Ld\n", id);
+    sprintf (ptr, "%ld\n", id);
     fill = strlen (ptr);
     for (b = 0; b < MAX_BIT; b++)
       {
@@ -219,6 +260,7 @@ bits_insert (bits_inst_t * bi, iext_txn_t txn, int n_ins, int64 * ids, caddr_t *
 void
 bits_cr_free (bits_cr_t * cr)
 {
+  dk_free_box ((caddr_t) cr->bcr_bits);
   dk_free ((caddr_t) cr, sizeof (bits_cr_t));
 }
 
@@ -228,25 +270,108 @@ bits_exec (bits_inst_t * bi, iext_txn_t txn, bits_cr_t ** cr_ret, struct client_
 {
   NEW_VARZ (bits_cr_t, cr);
   cr->bcr_bi = bi;
-  int bits[MAX_BIT];
-  int fill = 0;
-  char c;
+  cr->bcr_pos = BCR_INIT;
   if ('O' == str[0] || 'o' == str[0])
     {
       cr->bcr_mode = BCR_OR;
       if (is_digit (str[1]))
 	cr->bcr_min_bits = atoi (str + 1);
-      c = strchr (str, ' ');
-      if (!c)
+      cr->bcr_mode = BCR_OR;
+      str = strchr (str, ' ');
+      if (!str)
 	goto err;
     }
-
-
+  else if ('A' == str[0] || 'a' == str[0])
+    {
+      cr->bcr_mode = BCR_AND;
+      str++;
+    }
+  else
+    {
+      cr->bcr_mode = BCR_AND;
+    }
+  cr->bcr_bits = bits_parse (str);
+  cr->bcr_n_bits = box_length (cr->bcr_bits) / sizeof (int);
+  if (!cr->bcr_n_bits)
+    goto err;
+  *cr_ret = cr;
   return 0;
 err:
   *err_ret = srv_make_new_error ("37000", "BITSN", "bad bits search string");
   return -1;
 }
+
+int
+bits_next (bits_cr_t * cr, iext_txn_t * txn, int max, int *n_ret, int64 * ret, int64 * ret2, caddr_t * err_ret)
+{
+  int64 *vec;
+  int64 word;
+  int64 nth_word;
+  int bit, nth_bit, nth2;
+  int ret_ctr = 0;
+  bits_inst_t *bi = cr->bcr_bi;
+  if (BCR_AT_END == cr->bcr_pos)
+    {
+      *n_ret = 0;
+      return 0;
+    }
+  rwlock_rdlock (bi->bi_rw);
+  cr->bcr_pos++;
+  for (;;)
+    {
+      nth_word = cr->bcr_pos / 64;
+      nth_bit = cr->bcr_pos & 63;
+      vec = (int64 *) bi->bi_vecs[cr->bcr_bits[0]];
+    check_word:
+      if (!vec || box_length (vec) / sizeof (int64) <= nth_word)
+	goto at_end;
+      word = vec[nth_word];
+      if (!word)
+	{
+	  cr->bcr_pos = (nth_word + 1) * 64;
+	  nth_word++;
+	  goto check_word;
+	}
+      for (nth2 = 1; nth2 < cr->bcr_n_bits; nth2++)
+	{
+	  int64 *vec2 = (int64 *) bi->bi_vecs[cr->bcr_bits[nth2]];
+	  if (!vec2 || box_length (vec2) <= nth_word)
+	    goto at_end;
+	  word &= vec2[nth_word];
+	  if (!word)
+	    {
+	      nth_word++;
+	      cr->bcr_pos = nth_word * 64;
+	      goto check_word;
+	    }
+	}
+      /* a non-zero and of the words in the position */
+      for (bit = nth_bit; bit < 64; bit++)
+	{
+	  if (word & (1L << bit))
+	    {
+	      cr->bcr_pos = nth_word * 64 + bit;
+	      ret[ret_ctr] = (int64) gethash ((void *) cr->bcr_pos, bi->bi_int_to_id);
+	      ret2[ret_ctr++] = 1;
+	      if (max == ret_ctr)
+		{
+		  rwlock_unlock (bi->bi_rw);
+		  *n_ret = ret_ctr;
+		  return 0;
+		}
+	    }
+	}
+      nth_word++;
+      cr->bcr_pos = nth_word * 64;
+    }
+at_end:
+  rwlock_unlock (bi->bi_rw);
+  *n_ret = ret_ctr;
+  cr->bcr_pos = BCR_AT_END;
+  return 0;
+}
+
+
 
 
 void
@@ -260,4 +385,6 @@ bits_register ()
   iext.iext_insert = bits_insert;
   iext.iext_exec = bits_exec;
   iext.iext_cursor_free = bits_cr_free;
+  iext.iext_next = bits_next;
+  iext_register (&iext);
 }

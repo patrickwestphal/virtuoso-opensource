@@ -952,7 +952,7 @@ dc_get_buffer (data_col_t * dc, int bytes)
   if (!new_buf)
     {
       int nth;
-      bytes = mm_next_size (bytes, &nth) - 32;
+      bytes = mm_next_size (bytes + 48, &nth) - 8;
       new_buf = (db_buf_t) mp_alloc_box_ni (dc->dc_mp, MAX (bytes, 0xfff8), DV_CUSTOM);
       mp_set_push (dc->dc_mp, &dc->dc_buffers, (void *) new_buf);
     }

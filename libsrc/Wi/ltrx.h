@@ -303,6 +303,7 @@ typedef struct lock_trx_s
   char lt_name[20];
   struct name_id_cache_s *lt_rdf_prefix;
   struct name_id_cache_s *lt_rdf_iri;
+  dk_hash_t *lt_iext;		/* from tb_ext_inx_t * to array of per slice iext_txn_t */
 } lock_trx_t;
 
 #define LT_LAST_RESERVED_NO 10	/* the first so many trx_no are reserved for temp use, no real transaction uses them */
