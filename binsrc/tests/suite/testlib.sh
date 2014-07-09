@@ -720,8 +720,17 @@ RUN_DIFF()
     fi
 }
 
-MAKECFG_FILE ()
+SYMLINK_PLUGINS()
 {
+  echo "VIRTDEV_HOME is '$VIRTDEV_HOME'"
+  [ "$VIRTDEV_HOME" = "" ] && VIRTDEV_HOME=${VIRTUOSO_BUILD-$HOME}
+  [ -d "$VIRTDEV_HOME/lib" ] && echo "Directory $VIRTDEV_HOME/lib exists" || mkdir "$VIRTDEV_HOME/lib"
+  [ -f "$VIRTDEV_HOME/lib/idxext_sample.so" ] || ln -s "$VIRTDEV_HOME/libsrc/plugin/.libs/idxext_sample.so" "$VIRTDEV_HOME/lib/idxext_sample.so"
+}
+
+MAKECFG_FILE()
+{
+  SYMLINK_PLUGINS
   if [ "$CURRENT_VIRTUOSO_CAPACITY" = "multiple" ]
   then
     CL_MAKECFG_FILE $*
@@ -737,7 +746,16 @@ MAKECFG_FILE ()
   else
       column_store=1
   fi
-  cat $_testcfgfile | sed -e "s/PORT/$_port/g" -e "s/SQLOPTIMIZE/$SQLOPTIMIZE/g" -e "s/PLDBG/$PLDBG/g" -e "s/CASE_MODE/$CASE_MODE/g" -e "s/LITEMODE/$LITEMODE/g" -e "s/COLUMN_STORE/$column_store/g" > $_cfgfile
+  home_escaped=`echo "${VIRTDEV_HOME-$HOME}" | sed "s/\\\//\\\\\\\\\//g"`
+  cat $_testcfgfile | sed \
+    -e "s/PORT/$_port/g" \
+    -e "s/SQLOPTIMIZE/$SQLOPTIMIZE/g" \
+    -e "s/PLDBG/$PLDBG/g" \
+    -e "s/CASE_MODE/$CASE_MODE/g" \
+    -e "s/LITEMODE/$LITEMODE/g" \
+    -e "s/COLUMN_STORE/$column_store/g" \
+    -e "s/BUILD_HOME/$home_escaped/g" \
+     > $_cfgfile
 }
 
 MAKECFG_FILE_WITH_HTTP()
@@ -853,6 +871,7 @@ MAKE_CL_CFG ()
    cl_port3=$5
    cl_port4=$6
    column_store=0
+   SYMLINK_PLUGINS
    if [ "$CURRENT_VIRTUOSO_TABLE_SCHEME" = "row" ]
    then
        column_store=0
@@ -868,8 +887,16 @@ MAKE_CL_CFG ()
         sed -e "s/PORT1/$cl_port1/g" -e "s/PORT2/$cl_port2/g" -e "s/PORT3/$cl_port3/g" | 
         sed -e "s/PORT4/$cl_port4/g" -e "s/THISHOST/Host$cl_no/g" > "cl$cl_no/cluster.ini"
 
-   cat $VIRTUOSO_TEST/virtuoso-cl.ini | 
-        sed -e "s/PORT/$db_port/g" -e "s/SQLOPTIMIZE/$SQLOPTIMIZE/g" -e "s/PLDBG/$PLDBG/g" -e "s/CASE_MODE/$CASE_MODE/g" -e "s/LITEMODE/$LITEMODE/g" -e "s/COLUMN_STORE/$column_store/g" > "cl$cl_no/virtuoso.ini"
+   home_escaped=`echo "${VIRTDEV_HOME-$HOME}" | sed "s/\\\//\\\\\\\\\//g"`
+   cat $VIRTUOSO_TEST/virtuoso-cl.ini | sed \
+        -e "s/PORT/$db_port/g" \
+        -e "s/SQLOPTIMIZE/$SQLOPTIMIZE/g" \
+        -e "s/PLDBG/$PLDBG/g" \
+        -e "s/CASE_MODE/$CASE_MODE/g" \
+        -e "s/LITEMODE/$LITEMODE/g" \
+        -e "s/COLUMN_STORE/$column_store/g" \
+        -e "s/BUILD_HOME/$home_escaped/g" \
+         > "cl$cl_no/virtuoso.ini"
 
    cat $VIRTUOSO_TEST/../../../binsrc/samples/demo/noise.txt > "cl$cl_no/noise.txt"
 }

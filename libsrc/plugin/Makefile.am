@@ -23,7 +23,9 @@ GEN=$(SHELL) ${top_srcdir}/bin/generate
 
 noinst_LTLIBRARIES = libplugin.la hosting_sample.la plugin_sample.la
 if WITH_PROJ
-hosting_LTLIBRARIES = v7proj4.la
+hosting_LTLIBRARIES = v7proj4.la idxext_sample.la
+else
+hosting_LTLIBRARIES = idxext_sample.la
 endif
 
 
@@ -109,7 +111,16 @@ sql_v7proj4.c: v7proj4.sql Makefile.am
                 -v pl_stats=$(PLSTATS) \
                 v7proj4.sql
 
+##########################################
+# idxext_sample
+##########################################
 
+idxext_sample_la_SOURCES = \
+	idxext_sample.c \
+	import_gate_virtuoso.c
+
+idxext_sample_la_CFLAGS  = $(base_plugin_cflags)
+idxext_sample_la_LDFLAGS = -module -avoid-version -export-dynamic -export-symbols idxext_sample.exp -lproj
 
 #########################################
 #rest of the stuff

@@ -40,6 +40,14 @@ MAKECFG_FILE $TESTCFGFILE $PORT $CFGFILE
 SHUTDOWN_SERVER
 START_SERVER $PORT 1000
 
+LOG + running index extension script tiext
+RUN $ISQL $DSN PROMPT=OFF VERBOSE=OFF ERRORS=STDOUT < $VIRTUOSO_TEST/tiext.sql
+if test $STATUS -ne 0
+then
+    LOG "***ABORTED: Index extension script tiext.sql"
+    exit 1
+fi
+
 LOG + running sql script tnull
 RUN $ISQL $DSN PROMPT=OFF VERBOSE=OFF ERRORS=STDOUT < $VIRTUOSO_TEST/tnull.sql
 if test $STATUS -ne 0
