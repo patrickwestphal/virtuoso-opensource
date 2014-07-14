@@ -645,9 +645,10 @@ TCHAR *web_query_string = NULL;	/* from environment variable QUERY_STRING */
 int web_mode = 0;		/* Is set to 1 in the beginning of main if used
 			       as a cgi-script */
 int kubl_mode = 1;		/* Currently affects only how MAXROWS are handled. */
-int print_banner_flag = 1, print_types_also = 1, verbose_mode = 1, echo_mode = 0,
+int print_banner_flag = 1, print_types_also = 1, verbose_mode = 1,
     explain_mode = 0, sparql_translate_mode = 0, vert_row_out_mode = 0,
-    csv_mode = 0;
+    csv_mode = 0, profile_mode = 0;
+int echo_mode = 0;		/* OFF for off, bit 1 for SQL commands, bit 2 for ECHO commands, bit 4 unused so far, ON for all bits set */
 int flag_newlines_at_eor = 1;	/* By default print one nl at the end of row */
 long int select_max_rows = 0;	/* By default show them all. */
 long int perm_deadlock_retries = 0, vol_deadlock_retries = 0;
@@ -2519,6 +2520,8 @@ TCHAR *STRING_VALUED[] =
 {NULL};
 TCHAR *OFF_ON[3] =
 {_T("OFF"), _T("ON"), NULL};		/* Also for AUTOCOMMIT */
+TCHAR *OFF_3BIT_ON[9] =
+{_T("OFF"), "1", "2", "3", "4", "5", "6", _T("ON"), NULL};		/* Also for AUTOCOMMIT */
 TCHAR *PRESERVED_CLEARED[3] =
 {_T("PRESERVED"), _T("CLEARED"), NULL};
 
@@ -2632,13 +2635,14 @@ struct name_var_pair isql_variables[] =
 
   add_var_def (_T("BLOBS"), (&print_blobs_flag), INT_FLAG, OFF_ON),
   add_var_def (_T("FOREACH_ERR_BREAK"), (&foreach_err_break), INT_FLAG, OFF_ON),
-  add_var_def (_T("ECHO"), (&echo_mode), INT_FLAG, OFF_ON),
+  add_var_def (_T("ECHO"), (&echo_mode), INT_FLAG, OFF_3BIT_ON),
   add_var_def (_T("EXPLAIN"), (&explain_mode), INT_FLAG, OFF_ON),
   add_var_def (_T("SPARQL_TRANSLATE"), (&sparql_translate_mode), INT_FLAG, OFF_ON),
   add_var_def (_T("VERT_ROW_OUTPUT"), (&vert_row_out_mode), INT_FLAG, OFF_ON),
   add_var_def (_T("CSV"), (&csv_mode), INT_FLAG, OFF_ON),
-  add_var_def (_T("CVS_FIELD_SEPARATOR"), (&csv_field_separator), CHARPTR_VAR, NULL),
-  add_var_def (_T("CVS_ROW_SEPARATOR"), (&csv_row_separator), CHARPTR_VAR, NULL),
+  add_var_def (_T("PROFILE"), (&profile_mode), INT_FLAG, OFF_ON),
+  add_var_def (_T("CSV_FIELD_SEPARATOR"), (&csv_field_separator), CHARPTR_VAR, NULL),
+  add_var_def (_T("CSV_ROW_SEPARATOR"), (&csv_row_separator), CHARPTR_VAR, NULL),
   add_var_def (_T("HIDDEN_CRS"), (&clear_hidden_crs_flag), INT_FLAG, PRESERVED_CLEARED),
   add_var_def (_T("BINARY_OUTPUT"), (&flag_binary_output), INT_FLAG, OFF_ON),
   add_var_def (_T("BANNER"), (&print_banner_flag), INT_FLAG, OFF_ON),
@@ -5047,7 +5051,7 @@ print_blob_col_csv (HSTMT stmt, UWORD n_col, SQLULEN width, SWORD sql_type)
           break;
     }
 
-  if (n_col < n_out_cols - 1)  /* not the rightmost column? */
+  if (n_col < n_out_cols)  /* not the rightmost column? */
     isqlt_fputts (csv_field_separator, stdout);
 
   return rc;
@@ -6176,6 +6180,15 @@ again_exec:;
           IF_ERR_GO (stmt, error, rc);
           rc = SQLExecute (stmt);
         }
+      else if (profile_mode)
+        {
+	  print_blobs_flag = 1;
+	  rc = SQLPrepare (stmt, _T("PROFILE(?)"), SQL_NTS);
+	  IF_ERR_GO (stmt, error, rc);
+	  rc = SQLBindParameter (stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, isqlt_tcslen(text), 0, UCP(text), isqlt_tcslen(text), NULL);
+	  IF_ERR_GO (stmt, error, rc);
+	  rc = SQLExecute (stmt);
+        }
       else
         {
           rc = SQLExecDirect (stmt, UCP (text), SQL_NTS);
@@ -6921,7 +6934,7 @@ rep_loop (FILE * infp, TCHAR *new_prompt)
 	    }
 	}			/* End of the inner for loop, collected one statement */
 
-      if (echo_mode)
+      if (echo_mode && (!strncmp (input, "echo ", 5) ? (echo_mode & 2) : (echo_mode & 1)))
 	{
 	  isql_fprintf (stdout, _T("\n-- Line %ld:%c%") PCT_S _T("\n"),
 	    latest_statement_begins_at (),
@@ -8626,7 +8639,7 @@ _T("                       new transaction log file.\n")
 _T("    CHECKPOINT [log];  Make a checkpoint.\n")
 _T("                       If [log] is given, preserve old log and make [log]\n")
 _T("                       new transaction log file.\n")
-_T("    status();           Display database server status.\n")
+_T("    status();          Display database server status.\n")
 #endif
 _T("\n")
 _T("Other commands:\n")
