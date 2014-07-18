@@ -272,7 +272,7 @@ bif_st_transform (caddr_t * qst, caddr_t * err, state_slot_t ** args)
   int orig_srid;
   caddr_t proj4_orig_string = NULL;
   caddr_t proj4_dest_string = NULL;
-  caddr_t err_msg, err_text;
+  caddr_t err_msg = NULL, err_text;
   projPJ orig_pj, dest_pj;
   int orig_deg_to_rad, dest_rad_to_deg;
   if (2 < BOX_ELEMENTS (args))
