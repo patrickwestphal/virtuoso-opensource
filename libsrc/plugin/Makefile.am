@@ -120,7 +120,7 @@ idxext_sample_la_SOURCES = \
 	import_gate_virtuoso.c
 
 idxext_sample_la_CFLAGS  = $(base_plugin_cflags)
-idxext_sample_la_LDFLAGS = -module -avoid-version -export-dynamic -export-symbols idxext_sample.exp -lproj
+idxext_sample_la_LDFLAGS = -module -avoid-version -export-dynamic -export-symbols idxext_sample.exp
 
 #########################################
 #rest of the stuff
