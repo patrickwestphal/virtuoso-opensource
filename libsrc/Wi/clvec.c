@@ -185,7 +185,10 @@ clib_vec_read_into_slots (cll_in_box_t * clib, caddr_t * inst, dk_set_t slots)
 	    db_buf_t dv = dre->dre_data;
 	    DB_BUF_TLEN (l, *dv, dv);
 	    if (DV_DB_NULL == dv[0])
-	      dc->dc_any_null = 1;
+	      {
+		((caddr_t *) dc->dc_values)[dc->dc_n_values++] = dk_alloc_box (0, DV_DB_NULL);
+		dc->dc_any_null = 1;
+	      }
 	    else if (DV_XML_ENTITY == dv[0])
 	      ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_deserialize_xml (dv, clib->clib_group->clrg_inst);
 	    else

@@ -1471,6 +1471,7 @@ cli_cached_sql_compile (caddr_t query_text, client_connection_t * cli, caddr_t *
 }
 
 
+
 void
 sf_stmt_prepare (caddr_t stmt_id, char *text, long explain, stmt_options_t * opts)
 {
@@ -1657,7 +1658,6 @@ cli_set_start_times (client_connection_t * cli)
   cli->cli_cl_start_ts = rdtsc ();
   cli->cli_activity.da_thread_time = 0;
 }
-
 
 int enable_vec_cli_call = 1;
 

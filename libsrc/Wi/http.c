@@ -86,7 +86,7 @@ char *http_methods[] = { "NONE", "GET", "HEAD", "POST", "PUT", "DELETE", "OPTION
   "PROPFIND", "PROPPATCH", "COPY", "MOVE", "LOCK", "UNLOCK", "MKCOL",	/* WebDAV */
   "MGET", "MPUT", "MDELETE",	/* URIQA */
   "REPORT",			/* CalDAV */
-  "TRACE", NULL
+  "TRACE", "PATCH", NULL
 };
 
 resource_t *ws_dbcs;
@@ -1866,6 +1866,7 @@ ws_clear (ws_connection_t * ws, int error_cleanup)
       ws->ws_params = NULL;
       dk_free_tree ((box_t) ws->ws_resource);
       ws->ws_resource = NULL;
+      ws->ws_in_error_handler = 0;
     }
   dk_free_tree ((box_t) ws->ws_stream_params);
   ws->ws_stream_params = NULL;
@@ -1942,15 +1943,20 @@ ws_split_ac_header (const caddr_t header)
   char *tmp, *tok_s = NULL, *tok;
   dk_set_t set = NULL;
   caddr_t string = box_dv_short_string (header);
+  float q;
   tok = strtok_r (string, ",", &tok_s);
   while (tok)
     {
       char *sep;
       while (*tok && isspace (*tok))
 	tok++;
+      q = 1.0;
       sep = strchr (tok, ';');
       if (NULL != sep)
 	{
+	  char *eq = strchr (sep, '=');
+	  if (eq)
+	    q = atof (++eq);
 	  *sep = 0;
 	  tmp = sep > tok ? sep - 1 : NULL;
 	}
@@ -1965,6 +1971,7 @@ ws_split_ac_header (const caddr_t header)
       if (*tok)
 	{
 	  dk_set_push (&set, box_dv_short_string (tok));
+	  dk_set_push (&set, box_float (q));
 	}
       tok = strtok_r (NULL, ",", &tok_s);
     }
@@ -2034,6 +2041,7 @@ ws_check_accept (ws_connection_t * ws, char *mime, const char *code, int check_o
   caddr_t *asked;
   char *match = NULL, *found = NULL;
   int inx;
+  float maxq = 0;
   int ignore = (ws->ws_p_path_string ?
       ((0 == strnicmp (ws->ws_p_path_string, "http://", 7)) || (1 == is_http_handler (ws->ws_p_path_string))) : 0);
   /*                        0123456789012 */
@@ -2055,13 +2063,17 @@ ws_check_accept (ws_connection_t * ws, char *mime, const char *code, int check_o
   if (!mime)
     mime = "text/html";
   asked = ws_split_ac_header (accept);
-  DO_BOX (caddr_t, p, inx, asked)
+  DO_BOX_FAST_STEP2 (caddr_t, p, caddr_t, q, inx, asked)
   {
+    float qf = unbox_float (q);
     p = ws_get_mime_variant (p, &found);
     if (DVC_MATCH == cmp_like (mime, p, NULL, 0, LIKE_ARG_CHAR, LIKE_ARG_CHAR))
       {
-	match = p;
-	break;
+	if (qf > maxq)
+	  {
+	    match = p;
+	    maxq = qf;
+	  }
       }
   }
   END_DO_BOX;
@@ -2170,7 +2182,31 @@ ws_cors_check (ws_connection_t * ws, char *buf, size_t buf_len)
       if (orgs != WS_CORS_STAR)
 	dk_free_tree (orgs);
       if (rc)
-	snprintf (buf, buf_len, "Access-Control-Allow-Origin: %s\r\n", place ? *place : "*");
+	{
+	  char ach[2000] = { 0 };
+	  if (ws->ws_header && box_length (ws->ws_header))
+	    {
+	      caddr_t *hdrs = ws_header_line_to_array (ws->ws_header);
+	      strcat_ck (ach, "Access-Control-Expose-Headers: ");
+	      DO_BOX (caddr_t, hdr, inx, hdrs)
+	      {
+		char *sep = strchr (hdr, ':');
+		if (sep)
+		  *sep = 0;
+		if (sep && !strstr (ach, hdr))
+		  {
+		    strcat_ck (ach, hdr);
+		    strcat_ck (ach, ",");
+		  }
+	      }
+	      END_DO_BOX;
+	      dk_free_tree (hdrs);
+	      ach[strlen (ach) - 1] = 0;
+	      strcat_ck (ach, "\r\n");
+	    }
+	  snprintf (buf, buf_len, "Access-Control-Allow-Origin: %s\r\n%s%s",
+	      place ? *place : "*", place ? "Access-Control-Allow-Credentials: true\r\n" : "", ach);
+	}
     }
   dk_free_tree (origin);
   if (0 == rc && ws->ws_map && ws->ws_map->hm_cors_restricted)
@@ -4063,6 +4099,7 @@ do_file:
 	      previous_http_status = ws->ws_status_code;
 
 	      ws_clear (ws, 1);
+	      ws->ws_in_error_handler = 1;
 
 	      dk_free_box (ws->ws_path_string);
 	      if (text[0] != '/')

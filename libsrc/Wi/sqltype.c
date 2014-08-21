@@ -42,12 +42,12 @@
 #include "sqlbif.h"
 #include "sqlo.h"
 #include "sqlpfn.h"
+#include "sqlcstate.h"
+#include "xmltree.h"
 #ifndef __SQL3_H
 #define __SQL3_H
 #include "sql3.h"
 #endif
-#include "sqlcstate.h"
-#include "xmltree.h"
 
 sql_class_imp_t imp_map[UDT_N_LANGS];
 
@@ -3760,10 +3760,10 @@ bif_complete_udt_name (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (mode == DEFAULT_EXISTING)
     {
       if (parse_mtx)
-	mutex_enter (parse_mtx);
+	parse_enter ();
       udt = sch_name_to_type (isp_schema (NULL), udt_name);
       if (parse_mtx)
-	mutex_leave (parse_mtx);
+	parse_leave ();
     }
   if (udt)
     {
