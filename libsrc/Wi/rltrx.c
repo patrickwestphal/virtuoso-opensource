@@ -1714,6 +1714,7 @@ lt_transact (lock_trx_t * lt, int op)
 #endif
   LEAVE_TXN;
   ITC_INIT (itc, NULL, lt);
+  lt_iext_transact (lt, op);
   lt_hi_transact (lt, op);
   for (;;)
     {

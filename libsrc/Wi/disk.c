@@ -1614,7 +1614,7 @@ bp_make_buffer_list (int n)
   memset (bp->bp_bufs, 0, sizeof (buffer_desc_t) * n);
   bp->bp_sort_tmp = (buffer_desc_t **) dk_alloc (sizeof (caddr_t) * n);
 
-  if (n > MIN_BUFS_FOR_ALLOC)
+  if (0 && n > MIN_BUFS_FOR_ALLOC)
     malloc_bufs = 1;
 
   for (set = 0; set < n; set += 100000)
@@ -1626,7 +1626,7 @@ bp_make_buffer_list (int n)
 
       if (!malloc_bufs)
 	{
-	  buffers_space = (unsigned char *) malloc (PAGE_SZ * (n_bufs + 1));
+	  buffers_space = (unsigned char *) mp_mmap (PAGE_SZ * (n_bufs + 1));
 	  if (!buffers_space)
 	    GPF_T1 ("Cannot allocate memory for Database buffers, try to decrease NumberOfBuffers INI setting");
 	  buffers_space = (db_buf_t) ALIGN_8K (buffers_space);
@@ -3692,9 +3692,13 @@ dst_sync (caddr_t * xx)
 }
 
 
+extern semaphore_t *bp_flush_sem;
+
 void
 dbs_sync_disks (dbe_storage_t * dbs)
 {
+  if (!bp_flush_sem)
+    mt_write_init ();
   if (!dst_sync_sem)
     dst_sync_sem = semaphore_allocate (0);
 #ifdef HAVE_FSYNC
@@ -3724,6 +3728,8 @@ dbs_sync_disks (dbe_storage_t * dbs)
 	  {
 	    DO_BOX (disk_stripe_t *, dst, inx, seg->ds_stripes)
 	    {
+	      if (!dst->dst_iq)
+		dbs_mtwrite_init (dbs);
 	      dk_set_pushnew (&iqs, (void *) dst->dst_iq);
 	    }
 	    END_DO_BOX;

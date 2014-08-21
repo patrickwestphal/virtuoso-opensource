@@ -772,10 +772,10 @@ sqlwords.h: $(srcdir)/sqlwords.gperf
 		$(srcdir)/sqlwords.gperf
 
 sql3.c sql3.h: sql3.y
-	@$(GEN) $(YACC) -o sql3.c -vd $(srcdir)/sql3.y
+	@$(GEN) $(YACC) -o sql3.c -vd -pscn3yy $(srcdir)/sql3.y
 
 scn3.c: scn3.l sql3.c sqlwords.h
-	@$(GEN) $(LEX) -o scn3.c $(srcdir)/scn3.l
+	@$(GEN) $(LEX) -o scn3.c -Pscn3yy $(srcdir)/scn3.l
 
 scn3split.c: scn3.l sql3.c sqlwords.h
 	@$(GEN) $(LEX) -o scn3split.c -Pscn3splityy $(srcdir)/scn3.l

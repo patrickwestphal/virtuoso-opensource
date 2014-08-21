@@ -1373,7 +1373,7 @@ memcache_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
   index_tree_t *tree = NULL;
   caddr_t *branch = chash_reader_current_branch (ts, setp->setp_ha, inst, 0, &tree);
   id_hash_iterator_t *hit;
-  hash_index_t *hi = tree->it_hi;
+  hash_index_t *hi = NULL;
   state_slot_t *ssl;
   int set;
   int n_sets = ts->src_gen.src_prev ? QST_INT (inst, ts->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
@@ -1382,6 +1382,7 @@ memcache_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
   data_col_t *set_no_dc = NULL;
   if (branch && !tree)
     tree = (index_tree_t *) qst_get (branch, setp->setp_ha->ha_tree);
+  hi = tree->it_hi;
   if (ks->ks_set_no_col_ssl || SSL_VEC != setp->setp_ha->ha_tree->ssl_type)
     n_sets = 1;
   if (!state)

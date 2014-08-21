@@ -3996,8 +3996,43 @@ txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
     slid = 0;
   if (slid >= BOX_ELEMENTS (tie->tie_slices) || !tie->tie_slices[slid])
     sqlr_new_error ("TIESL", "TIESL", "Text index ext does not have slice %d", slid);
-  iext = tie->tie_slices[qi->qi_client->cli_slice];
-
+  iext = tie->tie_slices[slid];
+  if (!txs->txs_is_driving)
+    {
+      /* call the check function to see if given ids match */
+      data_col_t *lin_ids = QST_BOX (data_col_t *, inst, txs->txs_lin_ids->ssl_index);
+      data_col_t *lin_qr = QST_BOX (data_col_t *, inst, txs->txs_lin_qr->ssl_index);
+      data_col_t *sets_ret = QST_BOX (data_col_t *, inst, txs->txs_iext_sets_ret->ssl_index);
+      if (txs->txs_score)
+	{
+	  data_col_t *scores = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
+	  DC_CHECK_LEN (score_dc, n_sets);
+	  scores = (int64 *) score_dc->dc_values;
+	}
+      if (SSL_VEC == txs->txs_text_exp->ssl_type || SSL_REF == txs->txs_text_exp->ssl_type)
+	{
+	  lin_qr->dc_type = DCT_BOXES;
+	  vec_ssl_assign (inst, txs->txs_lin_ids, txs->txs_d_id);
+	}
+      else
+	{
+	  int s;
+	  for (s = 0; s < n_sets; s++)
+	    ((caddr_t *) lin_qr->dc_values)[s] = qst_get (inst, txs->txs_text_exp);
+	}
+      DC_CHECK_LEN (lin_ids, n_sets - 1);
+      DC_CHECK_LEN (sets_ret, n_sets - 1);
+      vec_ssl_assign (inst, txs->txs_lin_ids, txs->txs_d_id);
+      tie->tie_iext->iext_is_match (iext, NULL, (char **) lin_qr->dc_values, NULL, n_sets, &n_sets_ret,
+	  (int64 *) lin_ids->dc_values, (int *) sets_ret->dc_values, scores, &err);
+      if (err)
+	sqlr_resignal (err);
+      for (inx = 0; inx < n_sets_ret; inx++)
+	qn_result (txs, inst, ((int *) sets_ret->dc_values)[inx]);
+      if (n_sets_ret)
+	qn_send_output ((data_source_t *) txs, inst);
+      return;
+    }
   if (state)
     nth_set = QST_INT (inst, txs->clb.clb_nth_set) = 0;
   else
@@ -4032,38 +4067,19 @@ again:
 		  clo->_.iext.free_cb = tie->tie_iext->iext_cursor_free;
 		  qst_set (inst, txs->txs_iext_cr, (caddr_t) clo);
 		}
-	      else
-		{
-		  /* call the check function to see if given ids match */
-		  data_col_t *lin_ids = QST_BOX (data_col_t *, inst, txs->txs_lin_ids->ssl_index);
-		  data_col_t *sets_ret = QST_BOX (data_col_t *, inst, txs->txs_iext_sets_ret->ssl_index);
-		  if (txs->txs_score)
-		    {
-		      data_col_t *scores = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
-		      DC_CHECK_LEN (score_dc, n_sets);
-		      scores = (int64 *) score_dc->dc_values;
-		    }
-		  DC_CHECK_LEN (sets_ret, n_sets);
-		  vec_ssl_assign (inst, txs->txs_lin_ids, txs->txs_d_id);
-		  tie->tie_iext->iext_is_match (iext, NULL, qst_get (inst, txs->txs_text_exp), NULL, n_sets, &n_sets_ret,
-		      (int64 *) lin_ids->dc_values, (int *) sets_ret->dc_values, scores, &err);
-		  if (err)
-		    sqlr_resignal (err);
-		  for (inx = 0; inx < n_sets_ret; inx++)
-		    qn_result (txs, inst, ((int *) sets_ret->dc_values)[inx]);
-		  if (n_sets_ret)
-		    qn_send_output ((data_source_t *) txs, inst);
-		  return;
-		}
+
 	    }
 	  id_dc = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
 	  DC_CHECK_LEN (id_dc, batch_sz - 1);
 	  scores = score_dc ? (int64 *) score_dc->dc_values : NULL;
 	  out_fill = QST_INT (inst, txs->src_gen.src_out_fill);
-	  tie->tie_iext->iext_next (clo->_.iext.cr, NULL, batch_sz - out_fill, &n_sets_ret, (int64 *) id_dc->dc_values, scores,
-	      &err);
+	  tie->tie_iext->iext_next (clo->_.iext.cr, NULL, batch_sz - out_fill, &n_sets_ret, ((int64 *) id_dc->dc_values) + out_fill,
+	      scores ? scores + out_fill : NULL, &err);
 	  if (err)
 	    sqlr_resignal (err);
+	  id_dc->dc_n_values += n_sets_ret;
+	  if (score_dc)
+	    score_dc->dc_n_values += n_sets_ret;
 	  for (inx = 0; inx < n_sets_ret; inx++)
 	    qn_result ((data_source_t *) txs, inst, nth_set);
 	  if (n_sets_ret == batch_sz - out_fill)
@@ -4074,9 +4090,11 @@ again:
 	      qn_send_output (qn, inst);
 	      state = NULL;
 	    }
+	  else
+	    break;
 	}
     }
-  if (QST_INT (inst, qn->src_out_fill) >= batch_sz)
+  if (QST_INT (inst, qn->src_out_fill))
     {
       QST_INT (inst, txs->clb.clb_nth_set) = nth_set;
       if (txs->txs_qcr)
@@ -4177,6 +4195,9 @@ bif_vt_hit_dist_weight (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return (caddr_t) (ptrlong) ((src & ~0xFF) ? 1 : vt_hit_dist_weight[src]);	/* It's surely very small, less than 256 and positive */
 }
 
+caddr_t bif_iext_op (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+
+
 void
 text_init (void)
 {
@@ -4192,6 +4213,7 @@ text_init (void)
   bif_define ("vt_parse", bif_vt_parse);
   bif_define ("int_log2x16", bif_int_log2x16);
   bif_define ("vt_hit_dist_weight", bif_vt_hit_dist_weight);
+  bif_define ("iext_op", bif_iext_op);
   dk_mem_hooks (DV_TEXT_SEARCH, box_non_copiable, (box_destr_f) sst_destroy, 0);
   txs_qcr_rev_mtx = mutex_allocate ();
   qc_init ();

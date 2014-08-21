@@ -1980,10 +1980,10 @@ sqlo_text_count (dbe_table_t * tb, caddr_t str, caddr_t ext_fti)
   {
     int is_sem = sqlc_inside_sem;
     if (is_sem)
-      mutex_leave (parse_mtx);
+      parse_leave ();
     ct = sqlo_eval_text_count (tb, str, ext_fti);
     if (is_sem)
-      mutex_enter (parse_mtx);
+      parse_enter ();
   }
   END_WITHOUT_TMP_POOL;
 
@@ -2017,6 +2017,39 @@ sqlo_text_estimate (df_elt_t * tb_dfe, df_elt_t ** text_pred, float *text_sel_re
 	    *text_pred = dfe;
 	    *text_sel_ret = dfe->dfe_arity ? dfe->dfe_arity : sqlo_geo_count (tb_dfe, dfe);
 	    return 1;
+	  }
+	if (dfe->_.text.tie)
+	  {
+	    float hits;
+	    float usec, usec_ck;
+	    int inx;
+	    iext_index_t iext_inst = NULL;
+	    dbe_key_t *key = dfe->_.text.tie->tie_col->col_defined_in->tb_primary_key;
+	    int slices = key->key_partition ? key->key_partition->kpd_map->clm_distinct_slices : 1;
+	    DO_BOX (iext_index_t, ext, inx, dfe->_.text.tie->tie_slices)
+	    {
+	      if (ext)
+		iext_inst = ext;
+	      break;
+	    }
+	    END_DO_BOX;
+	    if (iext_inst && DV_STRINGP ((str = (caddr_t) dfe->_.text.args[1])))
+	      {
+		dfe->_.text.tie->tie_iext->iext_sample (iext_inst, str, &hits, &usec);
+		*text_sel_ret = slices * hits;
+		dfe->dfe_unit = slices * (usec / 1000) / compiler_unit_msecs;
+		*text_pred = dfe;
+		return 1;
+	      }
+	    else
+	      {
+		dfe->_.text.tie->tie_iext->iext_cost (iext_inst, &usec, &hits, &usec_ck);
+		*text_pred = dfe;
+		*text_sel_ret = slices * hits;
+		dfe->dfe_unit = hits * slices * (usec / 1000) / compiler_unit_msecs;
+		*text_pred = dfe;
+		return 1;
+	      }
 	  }
 	if ('c' == dfe->_.text.type && DV_STRINGP ((str = (caddr_t) dfe->_.text.args[1])))
 	  {
@@ -4542,13 +4575,17 @@ dfe_table_cost_ic_1 (df_elt_t * dfe, index_choice_t * ic, int inx_only)
     }
 
   /* the ordering key is now done. See if you need to join to the main row  */
+  ic->ic_joins_pk = 0;
   if (sqlo_table_any_nonkey_refd (dfe)
       || (dfe->dfe_sqlo->so_sc->sc_is_update && 0 == strcmp (dfe->_.table.ot->ot_new_prefix, "t1")))
     {
       /* if cols are refd that are not on the key or if upd/del, in which case join to main row always needed */
       dbe_key_t *pk = tb->tb_primary_key;
       if (dfe->_.table.key != pk)
-	total_cost += inx_arity_sc * (dbe_key_unit_cost (tb->tb_primary_key) + dbe_key_row_cost (tb->tb_primary_key, NULL, NULL));
+	{
+	  ic->ic_joins_pk = 1;
+	  total_cost += inx_arity_sc * (dbe_key_unit_cost (tb->tb_primary_key) + dbe_key_row_cost (tb->tb_primary_key, NULL, NULL));
+	}
       DO_SET (df_elt_t *, pred, &dfe->_.table.col_preds)
       {
 	dbe_column_t *left_col;

@@ -1968,6 +1968,8 @@ geo_set_default_srid_transform_cbk (geo_srid_transform_cbk_t * cbk)
   geo_default_srid_transform_cbk = cbk;
 }
 
+#include "bmcmp.c"
+
 void
 bif_geo_init ()
 {
@@ -2035,4 +2037,5 @@ bif_geo_init ()
       BMD_MAX_ARGCOUNT, 7, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("st_transform_by_custom_projection", bif_st_transform_by_custom_projection, BMD_RET_TYPE, &bt_any_box,
       BMD_MIN_ARGCOUNT, 2, BMD_IS_PURE, BMD_DONE);
+  bm_cmp_init ();
 }

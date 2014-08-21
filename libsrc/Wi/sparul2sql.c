@@ -549,7 +549,7 @@ spar_compose_retvals_of_construct (sparp_t * sparp, SPART * top, SPART * ctor_gp
     use_limits = 1;
   cve.cve_make_quads = g_may_vary;
   cve.cve_default_graph = NULL;
-  spar_compose_retvals_of_ctor (sparp, ctor_gp, "sql:SPARQL_CONSTRUCT", NULL /* no big ssl const */ , NULL, NULL,
+  spar_compose_retvals_of_ctor (sparp, ctor_gp, "sql:SPARQL_CONSTRUCT2", NULL /* no big ssl const */ , NULL, NULL,
       &(top->_.req_top.retvals), &cve, formatter, agg_formatter, agg_mdata, use_limits);
 }
 
@@ -628,7 +628,7 @@ spar_compose_retvals_of_insert_or_delete (sparp_t * sparp, SPART * top, SPART * 
   cve.cve_make_quads = ((NULL != multigraph) ? 1 : 0);
   cve.cve_default_graph = graph_to_patch;
   cve.cve_graphs_should_be_set = 1;
-  spar_compose_retvals_of_ctor (sparp, ctor_gp, "sql:SPARQL_CONSTRUCT", sc_for_big_ssl_const, NULL, NULL,
+  spar_compose_retvals_of_ctor (sparp, ctor_gp, "sql:SPARQL_CONSTRUCT2", sc_for_big_ssl_const, NULL, NULL,
       &(top->_.req_top.retvals), &cve, NULL, NULL, NULL, 0);
   rv = top->_.req_top.retvals;
   if (NULL == graph_to_patch)
@@ -722,11 +722,11 @@ spar_compose_retvals_of_modify (sparp_t * sparp, SPART * top, SPART * graph_to_p
   cve.cve_make_quads = g_may_vary;
   cve.cve_default_graph = graph_to_patch;
   cve.cve_graphs_should_be_set = 1;
-  spar_compose_retvals_of_ctor (sparp, del_ctor_gp, "sql:SPARQL_CONSTRUCT", NULL /* no big ssl const */ , NULL, NULL,
+  spar_compose_retvals_of_ctor (sparp, del_ctor_gp, "sql:SPARQL_CONSTRUCT2", NULL /* no big ssl const */ , NULL, NULL,
       &(top->_.req_top.retvals), &cve, NULL, NULL, NULL, 0);
   cve.cve_limofs_var_alias = NULL;
   cve.cve_bnodes_are_prohibited = 0;
-  spar_compose_retvals_of_ctor (sparp, ins_ctor_gp, "sql:SPARQL_CONSTRUCT", NULL /* no big ssl const */ , NULL, NULL,
+  spar_compose_retvals_of_ctor (sparp, ins_ctor_gp, "sql:SPARQL_CONSTRUCT2", NULL /* no big ssl const */ , NULL, NULL,
       &ins, &cve, NULL, NULL, NULL, 0);
   rv = top->_.req_top.retvals;
 

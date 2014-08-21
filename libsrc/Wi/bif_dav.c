@@ -156,7 +156,6 @@ ws_dav_put (ws_connection_t * ws, query_t * http_call)
   char p_name[PATH_ELT_MAX_CHARS + 20];
   char method_name[100];
   int inx = 0;
-  blob_handle_t *bh = NULL;
   caddr_t content_transfer_encoding = ws_mime_header_field (ws->ws_lines, "Transfer-Encoding", NULL, 0);
   pmethod = strchr (ws->ws_req_line, '\x20');
   if (pmethod)
@@ -207,10 +206,9 @@ ws_dav_put (ws_connection_t * ws, query_t * http_call)
     }
   else
     {
-      bh = bh_alloc (DV_BLOB_HANDLE_DTP_FOR_BLOB_DTP (DV_BLOB_BIN));
-      bh->bh_ask_from_client = 2;
-      bh->bh_bytes_coming = ws->ws_req_len;
-      dk_set_push (&parts, bh);
+      dk_session_t *ses = NULL;
+      ws_http_body_read (ws, &ses);
+      dk_set_push (&parts, (caddr_t) ses);
     }
 
   if (ws->ws_params != NULL)
@@ -306,7 +304,7 @@ ws_dav (ws_connection_t * ws, query_t * http_call)
       dk_set_push (&parts, box_dv_short_string ("Content"));
       dk_set_push (&parts, ses);
     }
-  if (ws->ws_map->hm_exec_as_get)
+  if (ws->ws_map->hm_exec_as_get || ws->ws_in_error_handler)
     {
       strcpy_ck (p_name, "WS.WS.GET");
       goto p_name_is_set;

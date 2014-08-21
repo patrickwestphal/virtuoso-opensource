@@ -10581,13 +10581,23 @@ ssg_expn_is_not_int_const_but_printed_as_some_const (spar_sqlgen_t * ssg, SPART 
 }
 
 void
-ssg_print_tail_query_options (spar_sqlgen_t * ssg)
+ssg_print_tail_query_options (spar_sqlgen_t * ssg, SPART * tree, SPART * wrapping_gp)
 {
   ssg_puts ("\nOPTION (QUIETCAST");
   if (NULL != ssg->ssg_sparp->sparp_env->spare_use_ifp)
     ssg_puts (", IFP");
   if (NULL != ssg->ssg_sparp->sparp_env->spare_use_same_as)
     ssg_puts (", SAME_AS");
+  if (NULL != wrapping_gp)
+    {
+      SPART **options = sparp_get_options_of_tree (ssg->ssg_sparp, wrapping_gp);
+      SPART *table_option = sparp_get_option (ssg->ssg_sparp, options, TABLE_OPTION_L);
+      if (NULL != table_option)
+	{
+	  ssg_puts (", ");
+	  ssg_puts (table_option);
+	}
+    }
   ssg_prin_option_commalist (ssg, ssg->ssg_sparp->sparp_env->spare_sql_select_options, 1);
   ssg_puts (")");
 }
@@ -10906,7 +10916,7 @@ The fix is to avoid printing constant expressions at all, with only exception fo
       if (NULL != limofs_alias)
       {
       ssg_newline (0); ssg_puts (") as \""); ssg_puts (limofs_alias); ssg_puts ("\""); ssg->ssg_indent -= 1;}
-      ssg_print_tail_query_options (ssg); if (NULL != final_binv)
+      ssg_print_tail_query_options (ssg, tree, ssg->ssg_wrapping_gp); if (NULL != final_binv)
       {
 	int bndctr;
 	ssg_puts (" ) AS ");
@@ -10947,7 +10957,8 @@ case DISTINCT_L:
 case ASK_L:
 	ssg_puts (" ) AS ");
 	  ssg_prin_id (ssg, top_selid);
-	  t_set_push (&(ssg->ssg_valid_ret_selids), top_selid); ssg_print_tail_query_options (ssg); ssg->ssg_indent--; break;}
+	  t_set_push (&(ssg->ssg_valid_ret_selids), top_selid);
+	  ssg_print_tail_query_options (ssg, tree, ssg->ssg_wrapping_gp); ssg->ssg_indent--; break;}
       }
       else
     if (three_cols_procedure) ssg_puts ("))");}

@@ -1651,7 +1651,7 @@ proc_name (char *name)
       proc_name_t *found = *place;
       found->pn_ref_count++;
       mutex_leave (proc_name_mtx);
-      dk_free (pn, -1);
+      dk_free (pn, (PN_HEADER + len + 1));
       return found;
     }
   id_hash_set (proc_name_hash, (caddr_t) & pn, (caddr_t) & pn);
@@ -2594,11 +2594,11 @@ qi_name_to_table (query_instance_t * qi, const char *name)
 {
   dbe_table_t *tb;
   if (parse_mtx)
-    mutex_enter (parse_mtx);
+    parse_enter ();
   sqlc_set_client (qi->qi_client);
   tb = sch_name_to_table (isp_schema (NULL), name);
   if (parse_mtx)
-    mutex_leave (parse_mtx);
+    parse_leave ();
   return tb;
 }
 

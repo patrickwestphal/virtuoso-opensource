@@ -43,6 +43,7 @@ int enable_reader_colocate = 1;
 int enable_fref_colocate = 0;
 int enable_reader_before_fref = 0;
 int enable_dfg = 1;
+int enable_qf_nested_ordered = 0;
 int enable_multistate_code = 1;
 int enable_last_qf_dml = 1;
 int enable_rec_qf = 1;
@@ -416,6 +417,8 @@ sqlg_qf_nodes_env (sql_comp_t * sc, query_frag_t * qf, dk_hash_t * local_refs, d
     {
       if (IS_QN (s->data, ssa_iter_input))
 	non_postprocess_nodes = s->next;
+      else if (IS_QN (s->data, setp_node_input) && ((setp_node_t *) s->data)->setp_is_streaming)
+	non_postprocess_nodes = s;
     }
   if (!non_postprocess_nodes)
     non_postprocess_nodes = qf->qf_nodes;
@@ -482,7 +485,7 @@ void ref_ssls (dk_hash_t * ht, state_slot_t ** ssls);
 
 
 int
-ssl_arr_cmp (void *s1, void *s2)
+ssl_arr_cmp (const void *s1, const void *s2)
 {
   state_slot_t *ssl1 = *(state_slot_t **) s1;
   state_slot_t *ssl2 = *(state_slot_t **) s2;
@@ -1583,7 +1586,9 @@ sqlg_cl_multistate_group (sql_comp_t * sc)
 /* colocation of query fragments */
 
 
-
+#define COLO_BRK_START 2
+#define COLO_BRK_STOP 3
+#define COLO_BRK_DFG 4
 
 void
 sc_ssl_add_eq (sql_comp_t * sc, state_slot_t * ssl1, state_slot_t * ssl2)

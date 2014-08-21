@@ -1986,6 +1986,33 @@ dbs_cpt_backup (void)
   PrpcSessionFree (ses);
 }
 
+
+void
+iext_checkpoint (int is_shutdown)
+{
+  DO_IDHASH (caddr_t, n, id_casemode_entry_llist_t *, iter, wi_inst.wi_schema->sc_name_to_object[sc_to_table])
+  {
+    for (iter = iter; iter; iter = iter->next)
+      {
+	dbe_table_t *tb = (dbe_table_t *) iter->data;
+	DO_SET (tb_ext_inx_t *, tie, &tb->tb_ext_indices)
+	{
+	  int inx;
+	  DO_BOX (iext_index_t, iext_inst, inx, tie->tie_slices)
+	  {
+	    caddr_t err = NULL;
+	    if (iext_inst)
+	      tie->tie_iext->iext_checkpoint (iext_inst, is_shutdown, &err);
+	  }
+	  END_DO_BOX;
+	}
+	END_DO_SET ();
+      }
+  }
+  END_DO_IDHASH;
+}
+
+
 int dbs_stop_cp = 0;
 
 void
@@ -2190,6 +2217,7 @@ dbs_checkpoint (char *log_name, int shutdown)
 
     rdbg_printf (("Checkpoint atomic over.\n"));
   }
+  iext_checkpoint (shutdown);
   RESTORE_SIGNALS;
   mutex_leave (dbs_autocompact_mtx);
   DO_SET (dbe_storage_t *, dbs, &wi_inst.wi_master_wd->wd_storage)

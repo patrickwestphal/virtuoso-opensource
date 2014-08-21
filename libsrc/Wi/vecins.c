@@ -603,6 +603,29 @@ dc_mp_insert_copy_any (mem_pool_t * mp, data_col_t * dc, int inx, dbe_column_t *
 
 int n_v_ins;
 
+#define IS_RDF_OBJ(key) \
+  (0 == strcmp (key->key_name, "RDF_OBJ"))
+
+
+int
+rdf_obj_blob_col_inlined (caddr_t * val_ret, dtp_t col_dtp, mem_pool_t * mp)
+{
+  /* if table is rdf obj and teh string is under 3500 you know the rest will not overflow row len so can inline right away */
+  caddr_t err = NULL;
+  caddr_t val = *val_ret;
+  dtp_t dtp = DV_TYPE_OF (val);
+  if (IS_BLOB_HANDLE_DTP (dtp))
+    return 0;
+  if (DV_STRING == DV_TYPE_OF (val) && box_length (val) < 3500 - 5)
+    {
+      caddr_t str = *val_ret = mp_alloc_box (mp, box_length (val) + 1, DV_STRING);
+      str[0] = DV_STRING;
+      memcpy_16 (str + 1, val, box_length (val));
+      return 1;
+    }
+  return 0;
+}
+
 void
 rd_vec_blob (it_cursor_t * itc, row_delta_t * rd, dbe_column_t * col, int icol, mem_pool_t * ins_mp)
 {
@@ -610,6 +633,14 @@ rd_vec_blob (it_cursor_t * itc, row_delta_t * rd, dbe_column_t * col, int icol, 
   if (itc->itc_insert_key->key_is_col)
     {
       if (blob_col_inlined (&data, col->col_sqt.sqt_dtp, ins_mp))
+	{
+	  rd->rd_values[icol] = data;
+	  return;
+	}
+    }
+  else if (IS_RDF_OBJ (itc->itc_insert_key))
+    {
+      if (rdf_obj_blob_col_inlined (&data, col->col_sqt.sqt_dtp, ins_mp))
 	{
 	  rd->rd_values[icol] = data;
 	  return;

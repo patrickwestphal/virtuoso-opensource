@@ -131,6 +131,7 @@ typedef struct op_table_s
   char ot_any_plan;		/* true if there is at least one full plan with this ot in first position */
   char ot_is_right_oj;		/* for a dt ot, set if trying a right hash oj plan.  Only hash join is considered */
   char ot_has_top_test;
+  char ot_invariant_placed;
 } op_table_t;
 #define OT_RIGHT_OJ_REJECTED 2
 
@@ -227,6 +228,8 @@ struct df_elt_s
   bitf_t dfe_is_joined:1;	/* in planning next op, true if there is join to any previously placed dfe */
   bitf_t dfe_is_planned:1;	/* true if included in a multi-dfe next step in planning next dfe */
   bitf_t dfe_hj_2nd_restr:1;	/* a restricting join may be used twice, on probe and build side of a hash join.  Count restriction just once, so the use of the reuse of the table on the build side  has this set */
+  bitf_t dfe_layout_unit_first:1;
+  bitf_t dfe_cut_alt_plans:1;
   int32 dfe_hash;
   short dfe_nth_param;		/* If parametrizable literal */
   locus_t *dfe_locus;
@@ -284,6 +287,7 @@ struct df_elt_s
       bitf_t is_late_proj:1;
       bitf_t cl_colocated:1;	/* always same partition as previous table in cluster */
       bitf_t no_in_on_index:1;
+      bitf_t joins_pk:2;
       /* XPATH & FT members */
       df_elt_t *text_pred;
       df_elt_t *xpath_pred;
@@ -386,6 +390,7 @@ struct df_elt_s
     {
       df_elt_t **body;
       dk_set_t preds;
+      op_table_t *invariant_of_ot;
     } filter;
     struct
     {
@@ -706,6 +711,7 @@ typedef struct index_choice_s
   char ic_is_unique;
   char ic_not_applicable;
   char ic_no_dep_sample;
+  char ic_joins_pk;		/* tb dfe on 2nd key needing cols from pk */
   int ic_op;
   int ic_n_lookups;
   dk_set_t ic_altered_col_pred;

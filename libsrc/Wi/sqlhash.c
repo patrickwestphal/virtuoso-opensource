@@ -326,8 +326,8 @@ setp_after_deserialize (setp_node_t * setp)
     n_rows = 100000;		/* count probably overflowed.- Large amount */
   else if (n_rows < 1000)
     n_rows = 1000;		/* no less than 1000 if overflows memcache, must be at least this much */
-  else if (n_rows > 1000000)
-    n_rows = 1000000;		/* have a cap on hash size */
+  else if (n_rows > 1e12)
+    n_rows = 1e12;
   ha->ha_row_count = n_rows;
   if (HA_FILL == ha->ha_op)
     {

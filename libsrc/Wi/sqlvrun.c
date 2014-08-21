@@ -2520,7 +2520,10 @@ void
 ts_aq_handle_end (table_source_t * ts, caddr_t * inst)
 {
   /* if the ts is the coordinator of aq branches, wait for them */
-  int aq_state = QST_INT (inst, ts->ts_aq_state);
+  int aq_state;
+  if (!ts->ts_aq_state)
+    return;
+  aq_state = QST_INT (inst, ts->ts_aq_state);
   if (TS_AQ_COORD == aq_state)
     {
       SRC_IN_STATE (ts, inst) = inst;
@@ -3541,7 +3544,7 @@ ts_merge_subq_branches (table_source_t * ts, caddr_t * inst)
   int ign;
   QNCAST (query_instance_t, qi, inst);
   select_node_t *sel = (select_node_t *) ts->ts_agg_node;
-  db_buf_t main_bits = QST_BOX (db_buf_t, inst, sel->sel_vec_set_mask);
+  db_buf_t main_bits = sel->sel_vec_set_mask ? QST_BOX (db_buf_t, inst, sel->sel_vec_set_mask) : NULL;
   set_ctr_node_t *sctr = (set_ctr_node_t *) ts->src_gen.src_query->qr_head_node;
   data_col_t *set_nos;
   data_col_t *ext_set_dc = NULL;

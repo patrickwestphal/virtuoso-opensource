@@ -181,7 +181,7 @@ typedef state_slot_t state_const_slot_t;
   (((caddr_t*)qst)[ssl->ssl_index])
 
 
-#if 0
+#ifndef NDEBUG
 #define QST_INT(qst, inx) ((ptrlong*)qst)[inx ? inx : (GPF_T1 ("0 inx"), inx)]
 #define QST_BOX(dt, qst, inx) ((dt*)qst)[inx ? inx : (GPF_T1 ("0 inx"), inx)]
 #else
@@ -884,6 +884,7 @@ typedef struct outer_seq_end_s
   state_slot_t *ose_buffered_row;
   int ose_last_outer_set;	/* set no of the last outer row.  inx of int in qi */
   char ose_is_right_oj;
+  char ose_colocated;
 } outer_seq_end_node_t;
 
 
@@ -1545,7 +1546,6 @@ typedef struct setp_node_s
   state_slot_t *setp_last_streaming_value;
   state_slot_t *setp_streaming_ssl;	/* if grouping cols are ordering cols but have duplicates, this is the col to check for distinguishing known complete groups from possible incomplete groups */
   table_source_t *setp_streaming_ts;	/* for order gby, the ts that has the order */
-  ssl_index_t setp_current_branch;
   /* partitioned hash fill */
   state_slot_t *setp_ht_id;	/* id of ht for cluster hash fill */
   dk_set_t setp_hash_sources;	/* hs nodes that ref the hash filled here */
@@ -1613,9 +1613,6 @@ typedef struct fun_ref_node_s
   ssl_index_t fnr_nth_part;
   ssl_index_t fnr_hash_part_min;
   ssl_index_t fnr_hash_part_max;
-  table_source_t *fnr_stream_ts;	/* the ts in select that parallelizes streaming group by */
-  ssl_index_t fnr_stream_state;
-  ssl_index_t fnr_current_branch;	/* if parallel streaming, this branch was sent to output and must be continued next round */
   char fnr_stream_ok_with_hash_part;	/* true if streaming is still OK if hash join partitioning is applied.  True if stuff being agregated does not depend on the hash partition or if results depend on hash partitioning but are again aggregated without conditions  */
   char fnr_is_chash_in;		/* set if filling a hash for in predicate */
   char fnr_has_sdfg;		/* contains a dfg in single server */

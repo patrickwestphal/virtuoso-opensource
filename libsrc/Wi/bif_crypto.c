@@ -1268,7 +1268,16 @@ bif_x509_certificate_verify (caddr_t * qst, caddr_t * err_ret, state_slot_t ** a
   DO_BOX (caddr_t, ca, inx, ((caddr_t *) array))
   {
     mem_bio = BIO_new_mem_buf (ca, box_length (ca) - 1);
-    cacert = d2i_X509_bio (mem_bio, NULL);
+    if (NULL != strstr (ca, PEM_STRING_X509))
+      {
+#if OPENSSL_VERSION_NUMBER >= 0x00908000L
+	cacert = (X509 *) PEM_ASN1_read_bio ((d2i_of_void *) d2i_X509, PEM_STRING_X509, mem_bio, NULL, NULL, NULL);
+#else
+	cacert = (X509 *) PEM_ASN1_read_bio ((char *(*)()) d2i_X509, PEM_STRING_X509, mem_bio, NULL, NULL, NULL);
+#endif
+      }
+    else
+      cacert = d2i_X509_bio (mem_bio, NULL);
     BIO_free (mem_bio);
     if (!cacert)
       {
@@ -1669,6 +1678,34 @@ bif_get_certificate_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args
 	  }
 	val[n * 2] = 0;
 	ret = list (2, box_dv_short_string (buf), val);
+	break;
+      }
+    case 14:			/* certificate public key */
+      {
+	EVP_PKEY *k = X509_get_pubkey (cert);
+	BIO *b;
+	if (k)
+	  {
+#ifdef EVP_PKEY_RSA
+	    if (k->type == EVP_PKEY_RSA)
+	      {
+		char *data_ptr;
+		int len;
+		RSA *x = k->pkey.rsa;
+		b = BIO_new (BIO_s_mem ());
+		i2d_RSA_PUBKEY_bio (b, x);
+		len = BIO_get_mem_data (b, &data_ptr);
+		ret = dk_alloc_box (len, DV_BIN);
+		memcpy (ret, data_ptr, len);
+		BIO_free (b);
+	      }
+	    else
+#endif
+	      *err_ret = srv_make_new_error ("42000", "XXXXX", "The certificate's public key not supported");
+	    EVP_PKEY_free (k);
+	  }
+	else
+	  *err_ret = srv_make_new_error ("42000", "XXXXX", "Can not read the public key from the certificate");
 	break;
       }
     default:

@@ -364,6 +364,7 @@ gb_aggregate (setp_node_t * setp, caddr_t * inst, chash_t * cha, int64 ** groups
 		group_sets = tmp_group_sets;
 		sets = tmp_sets;
 		n_sets = last_set - first_set;
+		base_set = 0;
 		for (i = 0; i < n_sets; i++)
 		  {
 		    group_sets[i] = i;
@@ -2826,7 +2827,6 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
 	{
 	  SRC_IN_STATE (setp, inst) = NULL;
 	  QST_INT (inst, setp->src_gen.src_out_fill) = 0;
-	  QST_BOX (caddr_t *, inst, setp->setp_current_branch) = inst;
 	  qn_result ((data_source_t *) setp, inst, 0);
 	  qn_send_output ((data_source_t *) setp, inst);
 	}
@@ -3901,9 +3901,16 @@ chash_read_setp (table_source_t * ts, caddr_t * inst, setp_node_t ** setp_ret, h
 	{
 	  *cha_ret = (chash_t *) gethash ((void *) (ptrlong) slice, it->it_hi->hi_thread_cha);
 	  *ha_ret = it->it_hi->hi_chash->cha_ha;
+	  if (!*cha_ret)
+	    {
+	      *ha_ret = NULL;
+	      return;
+	    }
 	  *tree_ret = it;
+	  qst_set (inst, ks->ks_ht, box_copy ((caddr_t) it));
+	  return;
 	}
-      qst_set (inst, ks->ks_ht, box_copy ((caddr_t) it));
+      *ha_ret = NULL;
     }
   else
     {
@@ -3974,7 +3981,7 @@ next_batch:
     {
       int has_surviving = 0;
       int64 surviving = CHA_EMPTY;
-      branch = (setp && setp->setp_current_branch) ? QST_BOX (caddr_t *, inst, setp->setp_current_branch) : inst;
+      branch = inst;
       if (ts->ts_nth_slice)
 	{
 	  branch = chash_reader_current_branch (ts, ha, inst, 0, &tree);
@@ -4067,7 +4074,7 @@ next_batch:
 		{
 		  int k_inx = 0;
 		  int64 *ent = (int64 *) & chp->chp_data[row];
-		  if (ha->ha_top_gby && GB_IS_NULL (setp->setp_ha, ent, n_cols))
+		  if (ha->ha_top_gby && GB_IS_NULL (ha, ent, n_cols))
 		    continue;
 		  if (setp && has_surviving && cha_check_survival (cha, inst, setp, ent, surviving))
 		    continue;
@@ -4281,6 +4288,11 @@ cha_results (hash_source_t * hs, caddr_t * inst, chash_t * cha, int set, int64 *
 		      ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_copy_tree (((caddr_t *) row)[inx]);
 		      break;
 		    }
+		  else if (DV_ANY == dc->dc_sqt.sqt_dtp)
+		    {
+		      dc_append_box (dc, ((caddr_t *) row)[inx]);
+		      break;
+		    }
 		  GPF_T1 ("bad non-box out dc for chash join");
 		}
 	    }
@@ -4472,6 +4484,12 @@ cha_inline_result (hash_source_t * hs, chash_t * cha, caddr_t * inst, int64 * ro
 		{
 		  for (rlc = 0; rlc < rl; rlc++)
 		    ((caddr_t *) dc->dc_values)[dc->dc_n_values++] = box_copy_tree (((caddr_t *) row)[inx]);
+		  break;
+		}
+	      else if (DV_ANY == dc->dc_sqt.sqt_dtp)
+		{
+		  for (rlc = 0; rlc < rl; rlc++)
+		    dc_append_box (dc, ((caddr_t *) row)[inx]);
 		  break;
 		}
 	      GPF_T1 ("bad non-box out dc for chash join");

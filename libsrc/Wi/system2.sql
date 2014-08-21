@@ -1,6 +1,4 @@
 --
---  $Id$
---
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
@@ -848,6 +846,18 @@ create table SYS_X509_CERTIFICATES (
 	primary key (C_U_ID, C_KIND, C_ID))
 ;
 
+create procedure X509_CA_CERTIFICATES_INIT ()
+{
+  for select C_DATA from SYS_X509_CERTIFICATES where C_U_ID = 0 and C_KIND = 1 do
+    {
+      x509_ca_cert_add (cast (C_DATA as varchar));
+    }
+}
+;
+
+--!AFTER
+X509_CA_CERTIFICATES_INIT ()
+;
 
 create procedure X509_CERTIFICATES_ADD (in certs varchar, in kind int := 1)
 {
@@ -878,6 +888,7 @@ create procedure X509_CERTIFICATES_ADD (in certs varchar, in kind int := 1)
 	  name := split_and_decode (replace (name, '\\x', '%'))[0];
 	}
       insert soft SYS_X509_CERTIFICATES (C_U_ID, C_ID, C_DATA, C_KIND, C_NAME) values (user_id, ki, cert, kind, name);
+      x509_ca_cert_add (cert);
     }
 }
 ;
@@ -900,6 +911,8 @@ create procedure X509_CERTIFICATES_DEL (in certs varchar, in kind int := 1)
 	signal ('22023', 'Can not get certificate id');
       delete from SYS_X509_CERTIFICATES where C_U_ID = user_id and C_KIND = kind and C_ID = ki;
     }
+  x509_ca_certs_remove ();
+  X509_CA_CERTIFICATES_INIT ();
 }
 ;
 
@@ -1353,7 +1366,7 @@ qt_check (in file varchar, out message varchar, in add_test int := 0) returns in
   expl := xtree_doc (explain (qr, -1, 1));
   if (xpath_eval (xp_test, expl) is null)
     {
-      message := message || ' : ///Different plan';
+      message := message || ' : Different plan';
       plan_diff := 1;
     }
   cnt := atoi (charset_recode (xpath_eval ('/test/result/@cnt', xt), '_WIDE_', 'UTF-8'));
@@ -1376,7 +1389,22 @@ qt_check (in file varchar, out message varchar, in add_test int := 0) returns in
         {
 	  declare t any;
 	  t := cast (xpath_eval (sprintf ('string (/test/result/row[%d]/col[%d][@dtp=%d])', r + 1, i + 1, __tag(c[i])), xt) as varchar);
-	  if (t <>  cast (c[i] as varchar))
+	  if (__tag(c[i]) in (191, 190))
+	    {
+	      declare delta float;
+	      t := cast (t as double precision);
+	      if (t > c[i])
+	        delta := t - c[i];
+	      else
+		delta := c[i] - t;
+	      if (delta > 1e-6)
+		{
+		  message := message || sprintf (' : value at #%d %s <> %s', i,
+		  	cast (t as varchar),  cast (c[i] as varchar));
+		  return 0;
+		}
+	    }
+	  else if (t <>  cast (c[i] as varchar))
 	    {
 	      message := message || sprintf (' : value at %d #%d %s <> %s', r + 1, i, t,  cast (c[i] as varchar));
 	      return 0;
@@ -1461,5 +1489,303 @@ qt_xpath_gen (in xt any, in s any := null, in ck int := 0)
     }
   for (i := i - 1; i > 0; i := i - 1)
     http (']', ss);
+}
+;
+
+--
+-- Validate functions
+--
+create procedure VALIDATE.DBA.clear (
+  in S any)
+{
+  S := substring (S, 1, coalesce (strstr (S, '<>'), length (S)));
+  S := substring (S, 1, coalesce (strstr (S, '\nin'), length (S)));
+
+  return S;
+}
+;
+
+create procedure VALIDATE.DBA.validate (
+  in value any,
+  in params any := null)
+{
+  declare valueType, valueClass, valueName, valueMessage, tmp any;
+
+  declare exit handler for SQLSTATE '*'
+  {
+    if (not is_empty_or_null(valueMessage))
+      signal ('NV001', valueMessage);
+
+    if (__SQL_STATE = 'EMPTY')
+      signal ('NV011', sprintf('Field ''%s'' cannot be empty!<>', valueName));
+
+    if (__SQL_STATE = 'CLASS') {
+      if (valueType in ('free-text', 'tags'))
+        signal ('NV021', sprintf('Field ''%s'' contains invalid characters or noise words!<>', valueName));
+
+      signal ('NV022', sprintf('Field ''%s'' contains invalid characters!<>', valueName));
+    }
+
+    if (__SQL_STATE = 'TYPE')
+      signal ('NV023', sprintf('Field ''%s'' contains invalid characters for \'%s\'!<>', valueName, valueType));
+
+    if (__SQL_STATE = 'MIN')
+      signal ('NV031', sprintf('''%s'' value should be greater than %s!<>', valueName, cast (tmp as varchar)));
+
+    if (__SQL_STATE = 'MAX')
+      signal ('NV032', sprintf('''%s'' value should be less than %s!<>', valueName, cast (tmp as varchar)));
+
+    if (__SQL_STATE = 'MINLENGTH')
+      signal ('NV033', sprintf('The length of field ''%s'' should be greater than %s characters!<>', valueName, cast (tmp as varchar)));
+
+    if (__SQL_STATE = 'MAXLENGTH')
+      signal ('NV034', sprintf('The length of field ''%s'' should be less than %s characters!<>', valueName, cast (tmp as varchar)));
+
+    signal ('NV099', 'Unknown validation error!<>');
+  };
+
+  value := trim(value);
+  if (is_empty_or_null(params))
+    return value;
+
+  valueClass := coalesce (get_keyword ('class', params), get_keyword ('type', params));
+  valueType := coalesce (get_keyword ('type', params), get_keyword ('class', params));
+  valueName := get_keyword ('name', params, 'Field');
+  valueMessage := get_keyword ('message', params, '');
+  tmp := get_keyword ('canEmpty', params);
+  if (isnull (tmp))
+  {
+    if (not isnull (get_keyword ('minValue', params)))
+    {
+      tmp := 0;
+    }
+    else if (get_keyword ('minLength', params, 0) <> 0)
+    {
+      tmp := 0;
+    }
+  }
+  if (not isnull (tmp) and (tmp = 0) and is_empty_or_null(value))
+  {
+    signal('EMPTY', '');
+  }
+  else if (is_empty_or_null(value))
+  {
+    return value;
+  }
+
+  value := VALIDATE.DBA.validate_internal (valueClass, value);
+  if (valueType = 'integer')
+  {
+    tmp := get_keyword ('minValue', params);
+    if ((not isnull (tmp)) and (value < tmp))
+      signal('MIN', cast (tmp as varchar));
+
+    tmp := get_keyword ('maxValue', params);
+    if (not isnull (tmp) and (value > tmp))
+      signal('MAX', cast (tmp as varchar));
+  }
+  else if (valueType = 'float')
+  {
+    tmp := get_keyword ('minValue', params);
+    if (not isnull (tmp) and (value < tmp))
+      signal('MIN', cast (tmp as varchar));
+
+    tmp := get_keyword ('maxValue', params);
+    if (not isnull (tmp) and (value > tmp))
+      signal('MAX', cast (tmp as varchar));
+  }
+  else if (valueType = 'varchar')
+  {
+    tmp := get_keyword ('minLength', params);
+    if (not isnull (tmp) and (length (value) < tmp))
+      signal('MINLENGTH', cast (tmp as varchar));
+
+    tmp := get_keyword ('maxLength', params);
+    if (not isnull (tmp) and (length (value) > tmp))
+      signal('MAXLENGTH', cast (tmp as varchar));
+  }
+  return value;
+}
+;
+
+-----------------------------------------------------------------------------------------
+--
+create procedure VALIDATE.DBA.validate_internal (
+  in propertyType varchar,
+  in propertyValue varchar)
+{
+  declare exit handler for SQLSTATE '*' {
+    if (__SQL_STATE = 'CLASS')
+      resignal;
+
+    signal('TYPE', propertyType);
+    return;
+  };
+
+  if (propertyType = 'boolean')
+  {
+    if (propertyValue not in ('Yes', 'No'))
+      goto _error;
+  }
+  else if (propertyType = 'integer')
+  {
+    if (isnull (regexp_match('^[0-9]+\$', propertyValue)))
+      goto _error;
+
+    return cast (propertyValue as integer);
+  }
+  else if (propertyType = 'float')
+  {
+    if (isnull (regexp_match('^[-+]?([0-9]*\.)?[0-9]+([eE][-+]?[0-9]+)?\$', propertyValue)))
+      goto _error;
+
+    return cast (propertyValue as float);
+  }
+  else if (propertyType = 'dateTime')
+  {
+    if (isnull (regexp_match('^((?:19|20)[0-9][0-9])[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])\$', propertyValue)))
+      if (isnull (regexp_match('^((?:19|20)[0-9][0-9])[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01]) ([01]?[0-9]|[2][0-3])(:[0-5][0-9])?\$', propertyValue)))
+        goto _error;
+
+    return cast (propertyValue as datetime);
+  }
+  else if (propertyType = 'dateTime2')
+  {
+    if (isnull (regexp_match('^((?:19|20)[0-9][0-9])[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01]) ([01]?[0-9]|[2][0-3])(:[0-5][0-9])?\$', propertyValue)))
+      goto _error;
+
+    return cast (propertyValue as datetime);
+  }
+  else if (propertyType = 'date')
+  {
+    if (isnull (regexp_match('^((?:19|20)[0-9][0-9])[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])\$', propertyValue)))
+      goto _error;
+
+    return cast (propertyValue as datetime);
+  }
+  else if (propertyType = 'date2')
+  {
+    if (isnull (regexp_match('^(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.]((?:19|20)[0-9][0-9])\$', propertyValue)))
+      goto _error;
+    return cast (propertyValue as datetime);
+  }
+  else if (propertyType = 'time')
+  {
+    if (isnull (regexp_match('^([01]?[0-9]|[2][0-3])(:[0-5][0-9])?\$', propertyValue)))
+      goto _error;
+
+    return cast (propertyValue as time);
+  }
+  else if (propertyType = 'folder')
+  {
+    if (isnull (regexp_match('^[^\\\/\?\*\"\'\>\<\:\|]*\$', propertyValue)))
+      goto _error;
+  }
+  else if ((propertyType = 'uri') or (propertyType = 'anyuri'))
+  {
+    if (isnull (regexp_match('^(ht|f)tp(s?)\:\/\/[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&amp;%\$#_=:]*)?\$', propertyValue)))
+      goto _error;
+  }
+  else if (propertyType = 'email')
+  {
+    if (isnull (regexp_match('^([a-zA-Z0-9_\-])+(\.([a-zA-Z0-9_\-])+)*@((\[(((([0-1])?([0-9])?[0-9])|(2[0-4][0-9])|(2[0-5][0-5])))\.(((([0-1])?([0-9])?[0-9])|(2[0-4][0-9])|(2[0-5][0-5])))\.(((([0-1])?([0-9])?[0-9])|(2[0-4][0-9])|(2[0-5][0-5])))\.(((([0-1])?([0-9])?[0-9])|(2[0-4][0-9])|(2[0-5][0-5]))\]))|((([a-zA-Z0-9])+(([\-])+([a-zA-Z0-9])+)*\.)+([a-zA-Z])+(([\-])+([a-zA-Z0-9])+)*))\$', propertyValue)))
+      goto _error;
+  }
+  else if (propertyType = 'free-text')
+  {
+    if (length (propertyValue))
+      vt_parse (propertyValue);
+  }
+  else if (propertyType = 'tags')
+  {
+    if (not VALIDATE.DBA.validate_tags (propertyValue))
+      goto _error;
+  }
+  return propertyValue;
+
+_error:
+  signal ('CLASS', propertyType);
+}
+;
+
+create procedure VALIDATE.DBA.validate_ftext (
+  in S varchar)
+{
+  declare st, msg varchar;
+
+  st := '00000';
+  exec ('vt_parse (?)', st, msg, vector (S));
+  if ('00000' = st)
+    return 1;
+
+  return 0;
+}
+;
+
+create procedure VALIDATE.DBA.validate_tag (
+  in S varchar)
+{
+  S := replace (trim(S), '+', '_');
+  S := replace (trim(S), ' ', '_');
+  if (not VALIDATE.DBA.validate_ftext(S))
+    return 0;
+
+  if (not isnull (strstr(S, '"')))
+    return 0;
+
+  if (not isnull (strstr(S, '''')))
+    return 0;
+
+  if (length (S) < 2)
+    return 0;
+
+  if (length (S) > 50)
+    return 0;
+
+  return 1;
+}
+;
+
+create procedure VALIDATE.DBA.validate_tags (
+  in S varchar)
+{
+  declare N integer;
+  declare V any;
+
+  if (is_empty_or_null(S))
+    return 1;
+
+  V := split_and_decode (trim (S, ','), 0, '\0\0,');
+  if (is_empty_or_null(V))
+    return 0;
+
+  if (length(V) <> length(VALIDATE.DBA.validate_tags2unique (V)))
+    return 0;
+
+  for (N := 0; N < length(V); N := N + 1)
+    if (not WEBDAV.DBA.validate_tag (V[N]))
+      return 0;
+
+  return 1;
+}
+;
+
+create procedure VALIDATE.DBA.validate_tags2unique(
+  inout aVector any)
+{
+  declare retValue any;
+  declare N, M integer;
+
+  retValue := vector ();
+  for (N := 0; N < length (aVector); N := N + 1)
+  {
+    for (M := 0; M < length (retValue); M := M + 1)
+      if (trim(lcase(retValue[M])) = trim(lcase(aVector[N])))
+        goto _next;
+
+    retValue := vector_concat (retValue, vector (trim(aVector[N])));
+  _next:;
+  }
+  return retValue;
 }
 ;

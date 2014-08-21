@@ -133,6 +133,16 @@ typedef struct rdf_inf_slots_s
 } rdf_inf_slots_t;
 
 
+typedef struct qf_level_s
+{
+  char qfl_mode;
+  dk_set_t qfl_nodes;
+  table_source_t *qfl_last_loc;
+  dk_set_t qfl_dfg_stages;
+  struct qf_level_s *qfl_prev;
+} qf_level_t;
+
+
 typedef struct sql_comp_s
 {
   comp_context_t *sc_cc;
@@ -232,6 +242,7 @@ typedef struct sql_comp_s
   query_frag_t *sc_qf;
   fun_ref_node_t *sc_outer_fref;
   int sc_chash_in_ctr;
+  char sc_nest_non_colocated;
   char sc_in_dfg_subq;
   char sc_fref_nesting;		/* if nested gby/oby, true if colocating the gby */
   char sc_qf_n_temp_trees;	/* how many gb/oby temps in qf.  If many, make shorter batches to save mem */
@@ -276,6 +287,7 @@ typedef struct sql_comp_s
   struct st_lit_state_s *sc_stl;
   char sc_no_lit_param;		/* a lit in this place will not be a param even if the same lit is so elsewhere */
   char sc_is_rdf_type_p;
+  qf_level_t *sc_qfl;
 } sql_comp_t;
 
 

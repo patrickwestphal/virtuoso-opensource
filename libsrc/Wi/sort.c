@@ -42,6 +42,26 @@ dk_hash_t cha_id_to_top;
 dk_mutex_t cha_top_mtx;
 uint32 cha_top_id;
 
+void
+top_int_ck (cl_op_t * clo)
+{
+  caddr_t v = clo->_.top.values;
+  dtp_t dtp = DV_TYPE_OF (v);
+  if (-1 == clo->_.top.cnt || !clo->_.top.fill)
+    return;
+  if (DV_ARRAY_OF_POINTER == dtp)
+    {
+      int inx;
+      DO_BOX (caddr_t, n, inx, v) if (inx >= clo->_.top.fill)
+	break;
+      if (DV_LONG_INT == DV_TYPE_OF (n))
+	GPF_T1 ("int in top");
+      END_DO_BOX;
+    }
+  else if (DV_LONG_INT == dtp)
+    GPF_T1 ("int in top");
+}
+
 
 
 
@@ -204,11 +224,13 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
   dk_session_t *ser = NULL;
   int changed = 0;
   cl_op_t *top_clo;
+  /*top_int_ck (clo); */
   if (setp)
     {
       top_clo = setp_get_top (setp, inst, 1);
     }
   /* update top clo by clo */
+  /*top_int_ck (top_clo); */
   mutex_enter (&top_clo->_.top.mtx);
   if (top_clo->_.top.is_full)
     {
@@ -850,7 +872,6 @@ setp_node_run (setp_node_t * setp, caddr_t * inst, caddr_t * state, int print_bl
       qi->qi_n_sets = n_sets;
       if (!state && setp->setp_is_streaming)
 	{
-	  QST_BOX (caddr_t *, inst, setp->setp_current_branch) = inst;
 	  QST_INT (inst, setp->src_gen.src_out_fill) = 0;
 	  qn_result ((data_source_t *) setp, inst, 0);
 	  SRC_IN_STATE (setp, inst) = NULL;

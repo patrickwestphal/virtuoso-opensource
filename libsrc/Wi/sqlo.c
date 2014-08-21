@@ -1595,7 +1595,7 @@ sqlo_check_ft_offband (sqlo_t * so, op_table_t * ot, ST ** args, char type)
 	  inx++;
 	  continue;
 	}
-      if (0 == stricmp ((char *) arg, "ext_fti"))
+      if (0 == stricmp ((char *) arg, "ext_fti") || 0 == stricmp ((char *) arg, "index"))
 	{
 	  if (BOX_ELEMENTS (args) <= inx + 1)
 	    sqlc_error (sc->sc_cc, "37000", "contains EXT_FTI option must have an argument");

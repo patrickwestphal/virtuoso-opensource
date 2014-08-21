@@ -572,7 +572,7 @@ ins_call (instruction_t * ins, caddr_t * qst, code_vec_t code_vec)
 	  strupr (buf);
 	  if (sparp_sql_function_name_is_unsafe (buf))
 	    {
-	      if (scn3_raw_rdf_access_control)
+	      if (rdf_raw_access_control)
 		{
 		  if (!sqlp_user_has_raw_rdf_access (eff_u_id, eff_g_id))
 		    sqlr_new_error ("42000", "SR186",

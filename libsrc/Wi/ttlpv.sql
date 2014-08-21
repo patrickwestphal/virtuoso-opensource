@@ -32,6 +32,8 @@ create procedure L_O_LOOK (inout val_str varchar, inout dt_lang int, inout lng v
   if (0 = fetched)
     {
       declare flags int;
+      declare ins_id int;
+      declare ins_str any array;
       flags := case when is_text = 2 then 0 else is_text end;
       -- if (0 = flags)
       --   {
@@ -39,7 +41,9 @@ create procedure L_O_LOOK (inout val_str varchar, inout dt_lang int, inout lng v
       --     ;
       --   }
       insert into rdf_obj index rdf_obj (ro_id, ro_val, ro_flags, ro_dt_and_lang, ro_long) values (id, val_str, flags, dt_lang, lng);
-      if (1 = is_text)
+      if (rdf_iext_insert (dt_lang, id, val_str, lng, ins_id, ins_str))
+	;
+      else if (1 = is_text)
         insert soft VTLOG_DB_DBA_RDF_OBJ option (no cluster) (vtlog_ro_id, SNAPTIME, DMLTYPE) values (id, curdatetime (), 'I');
       if (2 = is_text)
 	{

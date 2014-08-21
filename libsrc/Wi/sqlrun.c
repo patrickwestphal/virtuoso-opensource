@@ -1798,6 +1798,8 @@ ts_stream_flush_ck (table_source_t * ts, caddr_t * inst)
     {
       QST_INT (inst, ts->ts_stream_flush_only) = 0;
       SRC_IN_STATE (ts, inst) = NULL;
+      if (!IS_BOX_POINTER (ts->ts_stream_setp))
+	sqlr_new_error ("4200", "OGBBR", "Bad plan, ordered aggregation setp not set or in different qf");
       setp_node_input (ts->ts_stream_setp, inst, NULL);
       return 1;
     }
@@ -3478,6 +3480,13 @@ fref_setp_flush (fun_ref_node_t * fref, caddr_t * state)
   return 0;
 }
 
+uint32 cl_ht_id_ctr;
+
+uint64
+qi_new_ht_id (query_instance_t * qi)
+{
+  return 0;
+}
 
 void
 setp_local_part_init (dk_set_t setps, caddr_t * inst)

@@ -808,7 +808,7 @@ USER_KEYS_INIT (in username varchar, in opts any)
   declare keys, path, key_value, key_type, key_passwd, key_pkey, os_u_name, os_u_pass any;
   declare certs any;
 
-  debug := 1;
+  debug := 0;
 
   opts := deserialize (blob_to_string (opts));
 
@@ -1082,11 +1082,19 @@ create procedure
   cert_auth:;
 
   -- We only check ACLs for non-admins and cert-auth
-  if (user_name is null
-      or (user_name = 'dba' and isstring (client_attr ('client_certificate')))
-      or (user_name <> 'dba' and client_attr ('client_ssl')
+  if (DB.DBA.ACLS_ENABLED_FOR_SCOPE ('http://www.openlinksw.com/ontology/acl#Query', 'http://www.openlinksw.com/ontology/acl#SqlRealm')
+      and (
+        user_name is null
+        or (
+          user_name = 'dba' and isstring (client_attr ('client_certificate'))
+        )
+        or (
+          user_name <> 'dba' and client_attr ('client_ssl')
           and not exists (select (1) from DB.DBA.SYS_USER_GROUP, DB.DBA.SYS_USERS a, DB.DBA.SYS_USERS b
-                                    where UG_GID=b.U_ID and b.U_NAME='administrators' and a.U_NAME=user_name and UG_UID=a.U_ID)))
+                                    where UG_GID=b.U_ID and b.U_NAME='administrators' and a.U_NAME=user_name and UG_UID=a.U_ID)
+        )
+      )
+    )
     {
       declare agentUri, sqlRealm varchar;
       declare default_host varchar;
@@ -1094,6 +1102,7 @@ create procedure
       declare resMinValues, resMaxValue decimal;
       declare resMinServiceId, resMaxServiceId varchar;
       declare maxRate, maxLen, maxRows, sparqlOnly, sparqlRead, sparqlWrite, sparqlSponge int;
+      declare agents any;
 
       -- We use a dedicated realm for SQL access control
       sqlRealm := 'http://www.openlinksw.com/ontology/acl#SqlRealm';
@@ -1102,28 +1111,36 @@ create procedure
         goto normal_auth;
       };
 
-      -- Determine the agent IRI which is either built from the username or the certificate fingerprint
-      fp := get_certificate_info (6);
-      if (not fp is null and fp <> 0)
+      -- Determine the agent IRI
+      agents := FOAF_SSL_WEBID_GET_ALL ();
+      if (length (agents) > 0)
         {
-          agentUri := 'cert:' || fp;
-        }
-      else if (user_name is not null)
-        {
-          default_host := cfg_item_value (virtuoso_ini_path (), 'URIQA', 'DefaultHost');
-          if (default_host is null) {
-            default_host := sys_stat ('st_host_name');
-            if (server_http_port () <> '80')
-              default_host := default_host ||':'|| server_http_port ();
-          }
-          agentUri := sprintf ('http://%s/dataspace/person/%s#this', default_host, user_name);
-
-          -- Save the authentication information in the connection to be used in aclhooks.sql
-          connection_set ('__current_acl_uname__', user_name);
+          agentUri := agents[0];
         }
       else
         {
-          agentUri := null;
+          fp := get_certificate_info (6);
+          if (not fp is null and fp <> 0)
+            {
+              agentUri := 'cert:' || fp;
+            }
+          else if (user_name is not null)
+            {
+              default_host := cfg_item_value (virtuoso_ini_path (), 'URIQA', 'DefaultHost');
+              if (default_host is null) {
+                default_host := sys_stat ('st_host_name');
+                if (server_http_port () <> '80')
+                  default_host := default_host ||':'|| server_http_port ();
+              }
+              agentUri := sprintf ('http://%s/dataspace/person/%s#this', default_host, user_name);
+
+              -- Save the authentication information in the connection to be used in aclhooks.sql
+              connection_set ('__current_acl_uname__', user_name);
+            }
+          else
+            {
+              agentUri := null;
+            }
         }
 
       -- Check ACL Rules and Restrictions for client access

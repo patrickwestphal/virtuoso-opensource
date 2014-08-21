@@ -1550,6 +1550,9 @@ sqlg_stream_gb_set_last (sql_comp_t * sc, setp_node_t * setp)
   dk_set_t *nodes = &setp->src_gen.src_query->qr_nodes;
   if (sc->sc_in_qf)
     {
+      query_frag_t *qf = sc->sc_in_qf;
+      if (IS_QN (qf, stage_node_input))
+	qf = ((stage_node_t *) qf)->stn_qf;
       sc->sc_in_qf->qf_ord_nodes = dk_set_copy (sc->sc_in_qf->qf_nodes);
       nodes = &sc->sc_in_qf->qf_nodes;
     }
@@ -1566,6 +1569,7 @@ sqlg_stream_gb (sql_comp_t * sc, setp_node_t * setp)
   /* if a grouping col is unique in its table and the table is the outermost loop this is a stream with no dups.  This means that results can be returned whevever the sources between the outermost and the setp are at end.
    * if the grouping col is the ordering col of the outermost but not unique in the outermost, output can be produced whenever the sources between the outermost and the setp are at end but the last value of the outermost loop must be left out
    * because a continue of the outer loop might produce more of these values */
+  query_frag_t *outer_qf = NULL;
   int inx;
   table_source_t *outer = NULL;
   int non_unq = 0;
@@ -1576,6 +1580,11 @@ sqlg_stream_gb (sql_comp_t * sc, setp_node_t * setp)
   {
     if (IS_QN (pred, fun_ref_node_input))
       break;
+    if (IS_QN (pred, query_frag_input) && dk_set_member (((query_frag_t *) pred)->qf_nodes, outer))
+      {
+	outer_qf = pred;
+	break;
+      }
     if (pred == outer)
       break;
     if (IS_TS (pred))
@@ -1603,10 +1612,9 @@ sqlg_stream_gb (sql_comp_t * sc, setp_node_t * setp)
       query_t *qr = setp->src_gen.src_query;
       data_source_t *next_qn;
       setp->setp_ha->ha_row_count = 3 * dc_batch_sz;	/* card now has a cap, not the whole table in there */
-      setp->setp_current_branch = setp->setp_fref->fnr_current_branch = cc_new_instance_slot (sc->sc_cc);
-      setp->setp_fref->fnr_current_branch = cc_new_instance_slot (sc->sc_cc);
-      setp->setp_streaming_ts = setp->setp_fref->fnr_stream_ts = outer;
-      setp->setp_fref->fnr_stream_state = cc_new_instance_slot (sc->sc_cc);
+      if (!dk_set_member (sc->sc_vec_pred, outer))
+	sqlc_new_error (sc->sc_cc, "QFOGB", "QFOGB", "ordered group by with setp and order ts in different qf.  Internal.");
+      setp->setp_streaming_ts = outer;
       outer->ts_stream_setp = setp;
       outer->ts_stream_flush_only = cc_new_instance_slot (sc->sc_cc);
       setp->setp_last_streaming_value = ssl_new_vec (sc->sc_cc, "last_gby_ord_value", setp->setp_streaming_ssl->ssl_sqt.sqt_dtp);
@@ -1801,6 +1809,8 @@ sqlg_streaming_reader_pred (sql_comp_t * sc)
 	  /* found a set ctr that gives the number, this is the pred of the reader, a subq select will get the set no from this, hence the sctr must be a pred of the chash read and hence of the subq select */
 	  return iter;
 	}
+      if (IS_QN (sqs, query_frag_input) && (query_frag_t *) sqs == sc->sc_in_qf)
+	return iter;		/*inside qf, the qf assigns the set no param but the set ctr/sqs is further away */
     }
   sqlc_new_error (sc->sc_cc, "37000", "SGBVE", "Internal: Ordered group by reader does not have proper prev node for sets");
   return sc->sc_vec_pred;
@@ -2605,7 +2615,8 @@ cast:
   if (sc->sc_qf_in_outer)
     {
       query_frag_t *qf = sc->sc_in_qf;
-      state_slot_t **params = IS_QN (qf, query_frag_input) ? qf->qf_params : ((stage_node_t *) qf)->stn_params;
+      state_slot_t **params =
+	  IS_QN (qf_head, query_frag_input) ? ((query_frag_t *) qf_head)->qf_params : ((stage_node_t *) qf_head)->stn_params;
       ks_cast_nullable (sc->sc_qf_ks, BOX_ELEMENTS (params), dk_set_length (*cast_ret) - 1);
     }
 }
@@ -2696,7 +2707,7 @@ sqlg_qf_first_ks (sql_comp_t * sc, query_frag_t * qf)
   int pinx, inx;
   ks->ks_is_qf_first = 1;
   sc->sc_vec_first_of_qf = qf_head;
-  sc->sc_in_qf = qf;
+  sc->sc_in_qf = IS_STN (qf) ? ((stage_node_t *) qf)->stn_qf : qf;
   sc->sc_qf_ks = ks;
   sc->sc_qf_in_outer = 0;
   if (loc_ts->ts_fs)
@@ -3234,6 +3245,70 @@ qn_in_union_subq (data_source_t * qn)
 }
 
 
+void
+stn_add_vec_ssl (state_slot_t *** ssls_ret, state_slot_t * ssl)
+{
+  /* ssls is a list of stn params.  Put the ssl right before the first scalar ssl or at end if none */
+  state_slot_t **ssls = *ssls_ret;
+  state_slot_t **new_ssls;
+  int len = BOX_ELEMENTS (ssls), inx;
+  for (inx = len - 1; inx >= 0; inx--)
+    if (SSL_IS_VEC_OR_REF (ssls[inx]))
+      break;
+  new_ssls = (state_slot_t **) dk_alloc_box (sizeof (caddr_t) * (len + 1), DV_BIN);
+  memcpy (new_ssls, ssls, (inx + 1) * sizeof (caddr_t));
+  new_ssls[inx + 1] = ssl;
+  memcpy (&new_ssls[inx + 2], &ssls[inx + 1], (len - inx - 1) * sizeof (caddr_t));
+  dk_free_box (ssls);
+  *ssls_ret = new_ssls;
+}
+
+void
+ssl_add_to_stn_params (sql_comp_t * sc, dk_set_t stns, state_slot_t * ssl, dk_set_t vec_pred)
+{
+  /* the stns are ordered first to last and are between the ts that merges the hs and the hs's org location. */
+  /* pass the value, add to params, ref the previous shadow from the next stn and make new shadow etc */
+  dk_set_t pred_save = sc->sc_vec_pred;
+  data_source_t *cur_save = sc->sc_vec_current;
+  dk_set_t s;
+  state_slot_t *prev_shadow = ssl;
+  for (s = stns; s; s = s->next)
+    {
+      dk_set_t stn_pred;
+      QNCAST (stage_node_t, stn, s->data);
+      state_slot_t *next_shadow;
+      key_source_t *ks = stn->stn_loc_ts->ts_order_ks;
+      state_slot_t *prev_ref = prev_shadow;
+      sc->sc_vec_current = stn;
+      stn_pred = dk_set_member (vec_pred, (void *) stn);
+      if (stn_pred)
+	stn_pred = stn_pred->next;
+      sc->sc_vec_pred = stn_pred;
+      REF_SSL (NULL, prev_ref);
+      next_shadow = ssl_new_shadow (sc, prev_shadow, stn);
+      stn_add_vec_ssl (&ks->ks_vec_source, prev_ref);
+      stn_add_vec_ssl (&ks->ks_vec_cast, next_shadow);
+      stn_add_vec_ssl (&stn->stn_params, prev_ref);
+      stn_add_vec_ssl (&stn->stn_inner_params, next_shadow);
+      dk_set_free (stn->stn_in_slots);
+      stn->stn_in_slots = NULL;
+      stn_set_in_slots (sc, stn);
+      sethash (ssl->ssl_index, sc->sc_vec_ssl_shadow, next_shadow);
+      prev_shadow = next_shadow;
+    }
+  sc->sc_vec_pred = pred_save;
+  sc->sc_vec_current = cur_save;
+}
+
+
+state_slot_t *
+ssl_or_shadow (sql_comp_t * sc, state_slot_t * ssl)
+{
+  state_slot_t *sh = (state_slot_t *) gethash ((void *) (ptrlong) ssl->ssl_index, sc->sc_vec_ssl_shadow);
+  return sh ? sh : ssl;
+}
+
+
 int enable_unq_non_unq = 1;
 
 void
@@ -3249,6 +3324,7 @@ sqlg_vec_hs (sql_comp_t * sc, hash_source_t * hs)
   int n_k_ssl = BOX_ELEMENTS (hs->hs_ref_slots);
   int fill = 0, inx = 0;
   set_ctr_node_t *last_sctr = NULL;
+  dk_set_t stns = NULL;
   if (!hs->hs_loc_ts)
 
     {
@@ -3292,7 +3368,8 @@ sqlg_vec_hs (sql_comp_t * sc, hash_source_t * hs)
       }
     DO_BOX (state_slot_t *, ref, inx, hs->hs_ref_slots)
     {
-      if (pred == gethash ((void *) ref, sc->sc_vec_ssl_def))
+      state_slot_t *effective_ref = ssl_or_shadow (sc, ref);
+      if (pred == gethash ((void *) effective_ref, sc->sc_vec_ssl_def))
 	{
 	  any_key = 1;
 	  if (!hs->hs_probe)
@@ -3398,6 +3475,8 @@ ref_found:
 	  QNCAST (table_source_t, post_ts, sc->sc_vec_pred->data);
 	  if (IS_TS (post_ts) || IS_RTS (post_ts))
 	    sqlg_ts_add_copy (sc, post_ts, hs->hs_out_slots);	/* any ts between recipient of merge and the hs being merged must add the out slots of the hs to its branch copy */
+	  if (IS_QN (post_ts, stage_node_input))
+	    t_set_push (&stns, (void *) post_ts);
 	  sc->sc_vec_pred = sc->sc_vec_pred->next;
 	}
       if (sc->sc_vec_pred)
@@ -3407,6 +3486,7 @@ ref_found:
   DO_BOX (state_slot_t *, ssl, inx, hs->hs_out_slots)
   {
     ASG_SSL (res, all_res, ssl);
+    ssl_add_to_stn_params (sc, stns, ssl, save_pred);
   }
   END_DO_BOX;
   if (hs->hs_merged_into_ts)
@@ -4731,8 +4811,9 @@ sqlg_vec_ts (sql_comp_t * sc, table_source_t * ts)
 
   sc->sc_vec_pred = sc->sc_vec_pred->next;
   sqlg_ts_qp_copy (sc, ts);
-  REF_SSL (res, ks->ks_set_no);
-  if (IS_QN (ts, chash_read_input) && ts->ts_in_sdfg)
+  if (!ks->ks_set_no_col_ssl)
+    REF_SSL (res, ks->ks_set_no);
+  if (IS_QN (ts, chash_read_input) && (ts->ts_in_sdfg || ks->ks_is_qf_first))
     sqlg_chash_read_set_no_shadow (sc, ts);
   if (IS_QN (ts, sort_read_input))
     {

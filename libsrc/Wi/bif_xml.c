@@ -5941,6 +5941,9 @@ bif_xmlnss_xpath_pre (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return res_str;
 }
 
+caddr_t bif_rdf_iext_insert (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
+void bif_rdf_iext_insert_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
+
 
 void
 bif_xml_init (void)
@@ -5979,6 +5982,9 @@ bif_xml_init (void)
   bif_define_ex ("number", bif_number, BMD_RET_TYPE, &bt_numeric, BMD_DONE);
   bif_define_ex ("xml_cut", bif_xml_cut, BMD_RET_TYPE, &bt_xml_entity, BMD_DONE);
   bif_define ("__vt_index", bif_vt_index);
+  bif_define_typed ("rdf_iext_insert", bif_rdf_iext_insert, &bt_integer);
+  bif_set_vectored (bif_rdf_iext_insert, bif_rdf_iext_insert_vec);
+
   bif_define ("xmls_viewremove", bif_xmls_viewremove);
   bif_define ("xml_view_dtd", bif_xml_view_dtd);
   bif_define ("xml_view_schema", bif_xml_view_schema);

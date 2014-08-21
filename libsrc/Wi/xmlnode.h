@@ -82,6 +82,7 @@ typedef struct text_node_s
   state_slot_t *txs_text_exps;
   state_slot_t *txs_tie_ret;
   state_slot_t *txs_lin_ids;
+  state_slot_t *txs_lin_qr;
   state_slot_t *txs_iext_sets_ret;
 } text_node_t;
 

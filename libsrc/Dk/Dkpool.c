@@ -205,7 +205,11 @@ mp_free (mem_pool_t * mp)
       err = dbg_find_allocation_error (buf, mp);
       if (NULL != err)
 	GPF_T1 (err);
+#ifdef USE_TLSF
+      tlsf_free (buf);
+#else
       dbg_freep (__FILE__, __LINE__, buf, mp);
+#endif
     }
   maphash (mp_uname_free, mp->mp_unames);
   hash_table_free (mp->mp_unames);
@@ -238,10 +242,16 @@ mp_check (mem_pool_t * mp)
 void
 mp_alloc_box_assert (mem_pool_t * mp, caddr_t box)
 {
+#ifdef USE_TLSF
+  caddr_t err = NULL;
+  if (IS_BOX_POINTER (box))
+    err = tlsf_check_alloc ((char*)box - 8);
+#else
 #ifdef DOUBLE_ALIGN
   const char *err = dbg_find_allocation_error (box - 8, mp);
 #else
   char *err = dbg_find_allocation_error (box - 4, mp);
+#endif
 #endif
   if (NULL != err)
     {
@@ -366,7 +376,7 @@ DBG_NAME (mp_alloc_box) (DBG_PARAMS mem_pool_t * mp, size_t len1, dtp_t dtp)
 #else
   len = ALIGN_4 (len1 + 4);
 #endif
-#if defined (MALLOC_DEBUG)
+#if defined (MALLOC_DEBUG) && !defined (USE_TLSF)
   new_alloc = dbg_mallocp (file, line, len, mp);
 #else
   new_alloc = DK_ALLOC (len);

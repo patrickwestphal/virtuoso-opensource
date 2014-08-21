@@ -89,6 +89,7 @@ int cl_alt_threads;
 int cl_max_alt_threads;
 int enable_cl_alt_queue = 0;
 int enable_cll_nb_read;
+int enable_hduplex = 0;
 char cll_stay_in_cll_mtx;
 long tc_over_max_undelivered;
 long tc_cll_undelivered;

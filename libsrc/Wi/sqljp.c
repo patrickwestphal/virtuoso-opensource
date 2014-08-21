@@ -1574,7 +1574,7 @@ sqlo_jp_build_init (sqlo_t * so, df_elt_t * hash_ref_tb, dk_set_t * all_jps, dk_
 {
   /* Put the table(s) in hash ref dfe in jp.  This can be table or derived table that is refd.  This imports further joins into build */
   op_table_t *ot = so->so_this_dt;
-  if (DFE_DT == hash_ref_tb->dfe_type)
+  if (DFE_DT == hash_ref_tb->dfe_type && !ST_P (hash_ref_tb->_.sub.ot->ot_dt, PROC_TABLE))
     {
       join_plan_t *top_jp;
       DO_SET (df_elt_t *, dfe, &hash_ref_tb->_.sub.ot->ot_from_dfes)
@@ -1605,7 +1605,10 @@ sqlo_jp_build_init (sqlo_t * so, df_elt_t * hash_ref_tb, dk_set_t * all_jps, dk_
       jp_expand_eq_set (so, jp);
       jp->jp_in_hash_fill = 1;
       t_set_push (&jp->jp_top_jp->jp_hash_fill_dfes, (void *) hash_ref_tb);
-      jp->jp_fill_selectivity = jp->jp_fanout / dfe_scan_card (hash_ref_tb);
+      if (DFE_TABLE == hash_ref_tb->dfe_type)
+	jp->jp_fill_selectivity = jp->jp_fanout / dfe_scan_card (hash_ref_tb);
+      else
+	jp->jp_fill_selectivity = 1;
     }
 }
 
@@ -1660,16 +1663,41 @@ sqlo_jp_hash_fill_preds (sqlo_t * so, join_plan_t * top_jp)
 }
 
 
-ST **sqlo_gby_hf_sel (sqlo_t * so, ST ** sel, dk_set_t hash_keys);
+ST **sqlo_gby_hf_sel (sqlo_t * so, ST ** sel, dk_set_t hash_keys, dk_set_t * as_mapping);
+
+
+caddr_t
+sqlo_hdt_dt_map (dk_set_t as_mapping, caddr_t name)
+{
+  DO_SET (caddr_t *, map, &as_mapping)
+  {
+    if (!strcmp (name, map[1]))
+      return map[0];
+  }
+  END_DO_SET ();
+  return name;
+}
 
 
 ST *
 sqlo_dt_hash_selection (sqlo_t * so, df_elt_t * hash_ref_tb, ST * sel, dk_set_t hash_keys)
 {
+  dk_set_t as_mapping = NULL;
   ST *dt = hash_ref_tb->_.sub.ot->ot_dt;
-
-  return (ST *) (sel->_.select_stmt.selection =
-      (caddr_t *) sqlo_gby_hf_sel (so, (ST **) t_box_copy_tree ((caddr_t) dt->_.select_stmt.selection), hash_keys));
+  int inx;
+  ST **new_sel, **org_sel;
+  new_sel = (ST **) (sel->_.select_stmt.selection =
+      (caddr_t *) sqlo_gby_hf_sel (so, (ST **) t_box_copy_tree ((caddr_t) dt->_.select_stmt.selection), hash_keys, &as_mapping));
+  org_sel = (ST **) t_box_copy_tree ((caddr_t) new_sel);
+  DO_BOX (ST *, exp, inx, org_sel)
+  {
+    /* mark aggs in the org sel with both the new and outside alias. outside alias in the as, exp, inside alias in the fn name */
+    if (!ST_P (exp, BOP_AS))
+      continue;
+    exp->_.as_exp.name = sqlo_hdt_dt_map (as_mapping, exp->_.as_exp.name);
+  }
+  END_DO_BOX;
+  return org_sel;
 }
 
 
@@ -1751,15 +1779,18 @@ sqlo_hash_fill_join (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t ** fill_ret, 
       }
       END_DO_BOX;
       if (DFE_DT == hash_ref_tb->dfe_type)
-	hf_org_sel = (ST **) t_box_copy_tree ((caddr_t) sqlo_dt_hash_selection (so, hash_ref_tb, sel, hash_keys));
+	hf_org_sel = sqlo_dt_hash_selection (so, hash_ref_tb, sel, hash_keys);
       DO_BOX (df_elt_t *, tb_dfe, inx, texp->_.table_exp.from)
       {
 	caddr_t *opts = t_list (2, OPT_JOIN_RESTR, tb_dfe->_.table.ot->ot_jp->jp_join_flags);
 	if (tb_dfe->_.table.ot->ot_opts)
 	  opts = (caddr_t *) t_box_conc ((caddr_t) opts, (caddr_t) tb_dfe->_.table.ot->ot_opts);
-	texp->_.table_exp.from[inx] =
-	    t_listst (3, TABLE_REF, t_listst (6, TABLE_DOTTED, tb_dfe->_.table.ot->ot_table->tb_name,
-		tb_dfe->_.table.ot->ot_new_prefix, NULL, NULL, opts), NULL);
+	if (DFE_DT == tb_dfe->dfe_type)
+	  texp->_.table_exp.from[inx] = t_listst (4, DERIVED_TABLE, tb_dfe->_.sub.ot->ot_dt, tb_dfe->_.sub.ot->ot_new_prefix, opts);
+	else
+	  texp->_.table_exp.from[inx] =
+	      t_listst (3, TABLE_REF, t_listst (6, TABLE_DOTTED, tb_dfe->_.table.ot->ot_table->tb_name,
+		  tb_dfe->_.table.ot->ot_new_prefix, NULL, NULL, opts), NULL);
 
       }
       END_DO_BOX;
@@ -1998,6 +2029,8 @@ dfe_is_cacheable (df_elt_t * dfe)
 }
 
 
+int sq_cache_hit, sq_cache_miss;
+
 df_elt_t *
 sqlo_dt_cache_lookup (sqlo_t * so, op_table_t * ot, dk_set_t imp_preds, caddr_t * cc_key_ret)
 {
@@ -2023,8 +2056,10 @@ sqlo_dt_cache_lookup (sqlo_t * so, op_table_t * ot, dk_set_t imp_preds, caddr_t 
   if (!place)
     {
       *cc_key_ret = t_box_string (sqk);
+      sq_cache_miss++;
       return NULL;
     }
+  sq_cache_hit++;
   *cc_key_ret = NULL;
   return sqlo_layout_copy (so, *place, NULL);
 }
@@ -2082,8 +2117,9 @@ sqlo_hdt_aggs (ST * tree, dk_set_t * res)
     {
       char alias[10];
       caddr_t alias_box;
-      snprintf (alias, sizeof (alias), "a%d", dk_set_length (*res));
+      snprintf (alias, sizeof (alias), "a%d", top_sc->sc_so->so_name_ctr++);
       alias_box = t_box_string (alias);
+      tree = t_box_copy_tree (tree);	/*cc */
       tree->_.fn_ref.fn_name = alias_box;
       t_set_push (res, (void *) t_list (6, BOP_AS, tree, NULL, alias_box, NULL, NULL));
       return 1;
@@ -2110,7 +2146,7 @@ sqlo_find_as (ST ** sel, caddr_t alias, int *pos_ret)
 
 
 ST **
-sqlo_gby_hf_sel (sqlo_t * so, ST ** sel, dk_set_t hash_keys)
+sqlo_gby_hf_sel (sqlo_t * so, ST ** sel, dk_set_t hash_keys, dk_set_t * as_mapping)
 {
   int inx;
   dk_set_t cols = NULL, keys = NULL, key_pos = NULL;
@@ -2125,14 +2161,24 @@ sqlo_gby_hf_sel (sqlo_t * so, ST ** sel, dk_set_t hash_keys)
 
   DO_BOX (ST *, exp, inx, sel)
   {
+    ST *as_exp = NULL;
+    caddr_t as_name = NULL;
     dk_set_t res = NULL;
     if (dk_set_member (key_pos, (void *) (ptrlong) inx))
       continue;
+    if (ST_P (exp, BOP_AS))
+      {
+	as_exp = exp->_.as_exp.left;
+	if (ST_P (as_exp, FUN_REF))
+	  as_name = exp->_.as_exp.name;
+      }
     sqlo_map_st (exp, (tree_cb_t) sqlo_hdt_aggs, &res);
     if (!res)
       cols = dk_set_conc (cols, t_cons ((void *) exp, NULL));
     else
       {
+	if (as_name)
+	  t_set_push (as_mapping, t_list (2, as_name, ((ST *) res->data)->_.as_exp.name));
 	cols = dk_set_conc (cols, dk_set_nreverse (res));
       }
   }
@@ -2155,6 +2201,7 @@ sqlo_dt_gby_result (sqlo_t * so, df_elt_t * ref_dfe, df_elt_t * fill_dfe, ST ***
   ST **sel = (ST **) ref_dfe->_.sub.ot->ot_dt->_.select_stmt.selection;
   *sel_place = (ST **) & ref_dfe->_.sub.ot->ot_dt->_.select_stmt.selection;
   *sel_save = t_box_copy_tree (sel);
+  sel = t_box_copy_tree (sel);
   DO_BOX (ST *, fref, inx, fill_dfe->_.sub.hash_fill_org_sel)
   {
     if (inx < n_keys)
@@ -2165,7 +2212,7 @@ sqlo_dt_gby_result (sqlo_t * so, df_elt_t * ref_dfe, df_elt_t * fill_dfe, ST ***
     if (ST_P (fref, BOP_AS) && ST_P (fref->_.as_exp.left, FUN_REF))
       {
 	ST *st_fref = fref->_.as_exp.left;
-	caddr_t fn_name = fref->_.fn_ref.fn_name;
+	caddr_t fn_name = st_fref->_.fn_ref.fn_name;
 	ST *col_ref = t_listst (3, COL_DOTTED, prefix, fref->_.as_exp.name);
 	df_elt_t *fref_col = sqlo_df (so, col_ref);
 	t_set_push (&hash_out, (void *) fref_col);
@@ -2213,25 +2260,62 @@ sqlo_dt_gby_result (sqlo_t * so, df_elt_t * ref_dfe, df_elt_t * fill_dfe, ST ***
   ref_dfe->_.sub.dt_hash_out = (df_elt_t **) t_list_to_array (dk_set_nreverse (hash_out));
 }
 
+int enable_dth_build_always = 0;
+
+ST *
+st_col_by_alias (ST ** sel, caddr_t alias)
+{
+  int inx;
+  DO_BOX (ST *, exp, inx, sel)
+  {
+    if (ST_P (exp, BOP_AS) && !strcmp (alias, exp->_.as_exp.name))
+      return exp->_.as_exp.left;
+  }
+  END_DO_BOX;
+  return NULL;
+}
 
 
 int
-sqlo_dth_need_build (df_elt_t * dt)
+sqlo_dth_need_build (df_elt_t * dt, dk_set_t hash_keys)
 {
-  /* a group by dt needs no separate hash build, other dts do */
+  /* a group by dt needs no separate hash build, other dts do. gby needs separate build if hash probes is not same as grouping keys  */
   df_elt_t *elt;
   df_elt_t *gby = NULL, *oby = NULL;
   ST *sel = dt->_.sub.ot->ot_dt;
-  if (ST_P (sel, SELECT_STMT) && SEL_TOP (sel))
+  ST *texp;
+  if (enable_dth_build_always || !ST_P (sel, SELECT_STMT))
     return 1;
-  for (elt = dt->_.sub.first; elt; elt = elt->dfe_next)
+  texp = sel->_.select_stmt.table_exp;
+  if (!texp)
+    return 1;
+  if (SEL_TOP (sel))
+    return 1;
+  if (texp->_.table_exp.group_by)
     {
-      if (DFE_GROUP == elt->dfe_type)
-	gby = elt;
-      else if (DFE_ORDER == elt->dfe_type)
-	oby = elt;
+      /* same no of hash probe cols and gby keys and each group key is in hash probes */
+      int inx;
+      ST **cols = (ST **) sel->_.select_stmt.selection;
+      ST **gby = texp->_.table_exp.group_by;
+      if (BOX_ELEMENTS (gby) != dk_set_length (hash_keys))
+	return 1;
+      DO_BOX (ST *, g_spec, inx, gby)
+      {
+	DO_SET (df_elt_t *, key, &hash_keys)
+	{
+	  caddr_t alias = key->dfe_tree->_.col_ref.name;
+	  ST *exp = st_col_by_alias (cols, alias);
+	  if (box_equal ((caddr_t *) exp, (caddr_t) g_spec->_.o_spec.col))
+	    goto found;
+	}
+	END_DO_SET ();
+	return 1;
+      found:;
+      }
+      END_DO_BOX;
+      return 0;
     }
-  return (!gby && !oby);
+  return 1;
 }
 
 void
@@ -2343,7 +2427,7 @@ sqlo_dt_try_hash (sqlo_t * so, df_elt_t * dfe, op_table_t * super_ot, float *sco
       if (ref_arity < 1)
 	return 0;
     }
-  need_build = sqlo_dth_need_build (dfe);
+  need_build = sqlo_dth_need_build (dfe, hash_keys);
   sqlo_record_probes (so, hash_refs);
   fill_join = sqlo_hash_fill_join (so, dfe, &fill_dfe, org_preds, hash_keys, ref_arity);
   so->so_hash_probes = prev_probes;

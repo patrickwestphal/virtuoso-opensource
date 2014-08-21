@@ -6973,7 +6973,7 @@ from DB.DBA.RDF_FORMAT_BOOL_RESULT_AS_TTL_INIT,	-- Not DB.DBA.RDF_FORMAT_BOOL_RE
 -- The optimizer can tweak these calls for optimization: instead of plain constant for default graph IRI,
 -- a call of SPARQL_INSERT_CTOR / SPARQL_DELETE_CTOR / SPARQL_MODIFY_CTOR can be placed.
 -- Thus some triples will be inserted/deleted witout being accumulated in dictionary for the whole time of the selection process.
--- Accomulators SPARQL_INSERT_CTOR_ACC / SPARQL_DELETE_CTOR_ACC / SPARQL_MODIFY_CTOR_ACC are based on a common
+-- Accumulators SPARQL_INSERT_CTOR_ACC / SPARQL_DELETE_CTOR_ACC / SPARQL_MODIFY_CTOR_ACC are based on a common
 -- SPARQL_INS_OR_DEL_CTOR_IMPL that calls either RDF_INSERT_TRIPLES / RDF_INSERT_QUADS or RDF_DELETE_TRIPLES_AGG / RDF_DELETE_QUADS, depending on the requested operation code.
 -- A common finalizer SPARQL_INS_OR_DEL_OR_MODIFY_CTOR_FIN calls RDF_INSERT_TRIPLES / RDF_INSERT_QUADS or RDF_DELETE_TRIPLES /* without _AGG suffix*/  / RDF_DELETE_QUADS.
 
@@ -8706,6 +8706,11 @@ create procedure DB.DBA.SPARQL_CONSTRUCT_FIN (inout _env any)
 --!AWK PUBLIC
 create aggregate DB.DBA.SPARQL_CONSTRUCT (in opcodes any, in vars any, in stats any, in use_dict_limit integer) returns any
 from DB.DBA.SPARQL_CONSTRUCT_INIT, DB.DBA.SPARQL_CONSTRUCT_ACC, DB.DBA.SPARQL_CONSTRUCT_FIN
+;
+
+--!AWK PUBLIC
+create aggregate DB.DBA.SPARQL_CONSTRUCT2 (in opcodes any, in vars any, in stats any, in use_dict_limit integer) returns any
+from DB.DBA.SPARQL_CONSTRUCT_INIT, sparql_construct2_acc, DB.DBA.SPARQL_CONSTRUCT_FIN
 ;
 
 create procedure DB.DBA.SPARQL_DESC_AGG_INIT (inout _env any)

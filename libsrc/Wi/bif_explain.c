@@ -1655,7 +1655,11 @@ node_print_0 (data_source_t * node)
       text_node_t *txs = (text_node_t *) node;
       if (txs->txs_geo)
 	stmt_printf (("geo %x %s (", txs->txs_geo, predicate_name_of_gsop (txs->txs_geo)));
-      else if (txs->txs_xpath_text_exp)
+      else if (txs->txs_tie)
+	{
+	  stmt_printf (("ext %s", txs->txs_tie->tie_iext->iext_name));
+	}
+      if (txs->txs_xpath_text_exp)
 	stmt_printf (("XCONTAINS ("));
       else
 	stmt_printf (("CONTAINS ("));
@@ -2376,7 +2380,11 @@ node_print (data_source_t * node)
       text_node_t *txs = (text_node_t *) node;
       if (txs->txs_geo)
 	stmt_printf (("geo %x %s ", txs->txs_geo, predicate_name_of_gsop (txs->txs_geo)));
-      else if (txs->txs_xpath_text_exp)
+      else if (txs->txs_tie)
+	{
+	  stmt_printf (("ext %s", txs->txs_tie->tie_iext->iext_name));
+	}
+      if (txs->txs_xpath_text_exp)
 	stmt_printf (("XCONTAINS ("));
       else
 	stmt_printf (("CONTAINS ("));
@@ -3464,9 +3472,10 @@ node_print_xml (QI * qi, dk_session_t * s, data_source_t * qn)
   else if (IS_QN (qn, txs_input))
     {
       QNCAST (text_node_t, txs, qn);
-      ses_sprintf (s, "<txs op='%scontains' tb='%s' card='%.2g' geo='%s'>",
+      ses_sprintf (s, "<txs op='%scontains' tb='%s' card='%.2g' geo='%s' ext='%s'>",
 	  txs->txs_xpath_text_exp ? "x" : "",
-	  txs->txs_table->tb_name, txs->txs_card, txs->txs_geo ? predicate_name_of_gsop (txs->txs_geo) : "");
+	  txs->txs_table->tb_name, txs->txs_card,
+	  txs->txs_geo ? predicate_name_of_gsop (txs->txs_geo) : "", txs->txs_tie ? txs->txs_tie->tie_iext->iext_name : "");
       node_print_code_xml (qi, s, qn);
       SES_PRINT (s, "<exp>");
       ssl_print_xml (txs->txs_text_exp, s);
@@ -3869,7 +3878,7 @@ bif_sql_text (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   sc.sc_exp_print_hook = xsql_print_stmt;
 
   MP_START ();
-  mutex_enter (parse_mtx);
+  parse_enter ();
   SCS_STATE_PUSH;
   sqlc_target_rds (local_rds);
 
@@ -3891,7 +3900,7 @@ bif_sql_text (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   sqlc_set_client (old_cli);
   SCS_STATE_POP;
   MP_DONE ();
-  mutex_leave (parse_mtx);
+  parse_leave ();
   sc_free (&sc);
   qr_free (qr);
 

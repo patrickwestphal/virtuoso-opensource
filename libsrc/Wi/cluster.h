@@ -1081,6 +1081,8 @@ int itc_rd_cluster_blobs (it_cursor_t * itc, row_delta_t * rd, mem_pool_t * ins_
 
 
 /**add vec */
+
+void clo_free_from_in_parsed (cl_op_t * clo);
 void cl_chash_filled (fun_ref_node_t * fref, caddr_t * inst, int is_first, uint32 bf_size);
 caddr_t qf_agg_id (query_frag_t * qf, caddr_t * inst);
 void cl_dfg_roj_outer (query_frag_t * qf, caddr_t * inst);

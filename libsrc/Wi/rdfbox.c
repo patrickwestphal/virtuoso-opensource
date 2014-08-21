@@ -33,9 +33,10 @@
 #include "repl.h"		/* For repl_level_t in replsr.h */
 #include "replsr.h"		/* For log_repl_text_array() */
 #include "xslt_impl.h"		/* For vector_sort_t */
-#include "aqueue.h"		/* For aq_allocate() in rdf replication */
+#include "aqueue.h"		/* For aq_allocate() in RDF replication */
 #include "geo.h"
 #include "cluster.h"
+#include "srvstat.h"
 
 int rb_type__xsd_ENTITY;
 int rb_type__xsd_ENTITIES;
@@ -323,7 +324,7 @@ bif_rdf_box (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     sqlr_new_error ("22023", "SR550", "Neither is_complete nor ro_id argument is set in call of rdf_box()");
   box_dtp = DV_TYPE_OF (box);
   if (RDF_BOX_GEO_TYPE == type && DV_GEO != box_dtp && DV_LONG_INT != box_dtp)
-    sqlr_new_error ("42000", "RDFGE", "rdf box with a geometry rdf type and a non geometry content");
+    sqlr_new_error ("42000", "RDFGE", "RDF box with a geometry RDF type and a non-geometry content");
   switch (box_dtp)
     {
     case DV_DB_NULL:
@@ -554,7 +555,7 @@ bif_rdf_box_arg (caddr_t * qst, state_slot_t ** args, int nth, const char *func)
   dtp_t dtp = DV_TYPE_OF (arg);
   if (dtp != DV_RDF)
     sqlr_new_error ("22023", "SR014",
-	"Function %s needs an rdf box as argument %d, not an arg of type %s (%d)", func, nth + 1, dv_type_title (dtp), dtp);
+	"Function %s needs an RDF box as argument %d, not an arg of type %s (%d)", func, nth + 1, dv_type_title (dtp), dtp);
   rdf_box_audit ((rdf_box_t *) arg);
   return (rdf_box_t *) arg;
 }
@@ -580,7 +581,7 @@ bif_rdf_box_set_data (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       else
 	{
 	  if (0 == rb->rb_ro_id)
-	    sqlr_new_error ("22023", "SR551", "Zero is_complete argument and rdf box with ro_id in call of rdf_box_set_data ()");
+	    sqlr_new_error ("22023", "SR551", "Zero is_complete argument and RDF box with ro_id in call of rdf_box_set_data ()");
 	  rb->rb_is_complete = 0;
 	}
     }
@@ -670,7 +671,7 @@ bif_rdf_box_set_type (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if ((RDF_BOX_MIN_TYPE > type) || (type & ~0xffff) || (RDF_BOX_ILL_TYPE == type))
     sqlr_new_error ("22023", "SR554", "Invalid datatype id %ld as argument 2 of rdf_box_set_type()", type);
   if (0 != rb->rb_ro_id)
-    sqlr_new_error ("22023", "SR555", "Datatype id can be changed only if rdf box has no ro_id in call of rdf_box_set_type ()");
+    sqlr_new_error ("22023", "SR555", "Datatype id can be changed only if RDF box has no ro_id in call of rdf_box_set_type ()");
   rb->rb_type = (short) type;
   return box_num (type);
 }
@@ -896,7 +897,7 @@ bif_rdf_box_set_ro_id (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   rdf_box_t *rb = bif_rdf_box_arg (qst, args, 0, "is_rdrf_box");
   long ro_id = bif_long_arg (qst, args, 1, "rdf_box_set_ro_id");
   if ((0 == ro_id) && !rb->rb_is_complete)
-    sqlr_new_error ("22023", "SR551", "Zero ro_id argument and rdf box with incomplete data in call of rdf_box_set_ro_id ()");
+    sqlr_new_error ("22023", "SR551", "Zero ro_id argument and RDF box with incomplete data in call of rdf_box_set_ro_id ()");
   rb->rb_ro_id = ro_id;
   return 0;
 }
@@ -983,7 +984,7 @@ rbs_ro_id (db_buf_t rbs)
 void
 rbs_hash_range (dtp_t ** buf, int *len, int *is_string)
 {
-  /* the partition hash of a any type col with an rdf box value does not depend on all bytes but only the value serialization, not the flags and ro ids */
+  /* the partition hash of a any type col with an RDF box value does not depend on all bytes but only the value serialization, not the flags and ro ids */
   long l, hl;
   dtp_t *rbs = *buf;
   dtp_t flags = rbs[1];
@@ -1030,7 +1031,7 @@ rb_id_serialize (rdf_box_t * rb, dk_session_t * ses)
 void
 rb_ext_serialize (rdf_box_t * rb, dk_session_t * ses)
 {
-  /* non string special rdf boxes like geometry or interval or udt.  id is last  */
+  /* non string special RDF boxes like geometry or interval or udt.  id is last  */
   int with_content = DKS_DB_DATA (ses) != NULL || DKS_CL_DATA (ses) != NULL
       || ((DKS_TO_CLUSTER | DKS_TO_OBY_KEY) & ses->dks_cluster_flags);
   dtp_t flags = RBS_EXT_TYPE;
@@ -1429,7 +1430,7 @@ dv_rdf_id_delta (int64 ro_id_1, int64 ro_id_2, int64 * delta_ret)
 int
 dv_rdf_id_compare (db_buf_t dv1, db_buf_t dv2, int64 offset, int64 * delta_ret)
 {
-  /* sometimes a cmp of a stored rdf id with a complete box.  Is equal if box is not ext type and ids match, else rdf id is dtp gt */
+  /* sometimes a cmp of a stored RDF id with a complete box.  Is equal if box is not ext type and ids match, else RDF id is dtp gt */
   dtp_t flags;
   int64 ro_id_2, ro_id_1;
   int len;
@@ -1492,8 +1493,8 @@ rb_copy (rdf_box_t * rb)
 int
 dv_rdf_ext_compare (db_buf_t dv1, db_buf_t dv2)
 {
-  /* rdf ext boxes like geometries, intervals or udts collate by type and ro id, values are not compared. Always gt than any scalar (non ext)  rdf type.
-   * both lang and type bits set means that there is no lang or type here and that collation is by id only.  These are less than typed ext and gt non-ext rdf dvs */
+  /* RDF ext boxes like geometries, intervals or udts collate by type and ro id, values are not compared. Always gt than any scalar (non ext)  RDF type.
+   * both lang and type bits set means that there is no lang or type here and that collation is by id only.  These are less than typed ext and gt non-ext RDF dvs */
   unsigned short type1;
   unsigned short type2;
   int64 id1, id2;
@@ -1531,13 +1532,13 @@ dv_rdf_compare (db_buf_t dv1, db_buf_t dv2)
 {
   /* this is dv_compare  where one or both arguments are dv_rdf
    * The collation is perverse: If one is not a string, collate as per dv_compare of the data.
-   * if both are strings and one is not an rdf box, treat the one that is not a box as an rdf string of max inlined chars and no lang orr type. */
+   * if both are strings and one is not an RDF box, treat the one that is not a box as an RDF string of max inlined chars and no lang orr type. */
   int len1, len2, cmp_len, mcmp;
   dtp_t dtp1 = dv1[0], dtp2 = dv2[0], flags1, flags2;
   short rdftype1, rdftype2, rdflang1, rdflang2;
   dtp_t data_dtp1, data_dtp2;
   db_buf_t data1 = NULL, data2 = NULL;
-  /* arrange so that if both are not rdf boxes, the one that is an rdf box is first */
+  /* arrange so that if both are not RDF boxes, the one that is an RDF box is first */
   if (DV_RDF != dtp1)
     {
       int res = dv_rdf_compare (dv2, dv1);
@@ -1558,7 +1559,7 @@ dv_rdf_compare (db_buf_t dv1, db_buf_t dv2)
   flags1 = dv1[1];
   if (RBS_EXT_TYPE & flags1)
     return dv_rdf_ext_compare (dv1, dv2);
-  if (dtp_canonical[dtp2] > DV_RDF)	/* dtp_canonical because dv int64 is gt dv rdf but here it counts for dv long int */
+  if (dtp_canonical[dtp2] > DV_RDF)	/* dtp_canonical because dv int64 is gt dv RDF but here it counts for dv long int */
     return DVC_DTP_LESS;
   if (RBS_SKIP_DTP & flags1)
     {
@@ -1610,10 +1611,10 @@ dv_rdf_compare (db_buf_t dv1, db_buf_t dv2)
     }
   else
     {
-      /* rdf string and non rdf */
+      /* RDF string and non RDF */
       if (DV_STRING != dtp2 && DV_SHORT_STRING_SERIAL != dtp2)
 	return DVC_DTP_LESS;
-      /* rdf string or checksum and dv string */
+      /* RDF string or checksum and dv string */
       flags2 = RBS_COMPLETE;
       data2 = dv2;
       data_dtp2 = dtp2;
@@ -1701,8 +1702,8 @@ In version 6 (Vajra), complete boxes are equal even if ro_id differ (say, one of
       else
 	return DVC_GREATER;
     }
-  /* the first is a rdf string and the second a sql one.  First max inlined chars are eq.
-   * If the rdf string is complete, it is eq if no language.  */
+  /* the first is a RDF string and the second a sql one.  First max inlined chars are eq.
+   * If the RDF string is complete, it is eq if no language.  */
   if (RBS_COMPLETE & flags1)
     {
       int64 ro1;
@@ -1725,7 +1726,7 @@ rdf_box_compare (ccaddr_t a1, ccaddr_t a2)
 {
   /* this is cmp_boxes  where one or both arguments are dv_rdf
    * The collation is perverse: If one is not a string, collate as per dv_compare of the data.
-   * if both are strings and one is not an rdf box, treat the one that is not a box as an rdf string of max inlined chars and no lang orr type. */
+   * if both are strings and one is not an RDF box, treat the one that is not a box as an RDF string of max inlined chars and no lang orr type. */
   rdf_box_t *rb1 = (rdf_box_t *) a1;
   rdf_box_t *rb2 = (rdf_box_t *) a2;
   rdf_box_t tmp_rb2;
@@ -1734,7 +1735,7 @@ rdf_box_compare (ccaddr_t a1, ccaddr_t a2)
   int len1, len2, cmp_len, cmp_headlen, mcmp;
   caddr_t data1 = NULL, data2 = NULL;
 
-  /* arrange so that if both are not rdf boxes, the one that is a box is first */
+  /* arrange so that if both are not RDF boxes, the one that is a box is first */
   if (DV_RDF != dtp1)
     {
       int res = rdf_box_compare (a2, a1);
@@ -2049,7 +2050,7 @@ bif_rdf_box_to_ro_id_search_fields (caddr_t * qst, caddr_t * err_ret, state_slot
     }
   if (DV_GEO == dtp)
     {
-      /* A trick instead of sqlr_new_error ("22023", "CLGEO", "A geometry without rdf box is not allowed as object of quad"); */
+      /* A trick instead of sqlr_new_error ("22023", "CLGEO", "A geometry without RDF box is not allowed as object of quad"); */
       caddr_t err = NULL;
       caddr_t content = box_to_any (box, &err);
       if (err)
@@ -5387,7 +5388,6 @@ bif_sparql_iri_split_rdfa_qname (caddr_t * qst, caddr_t * err_ret, state_slot_t 
       break;
     }
   while (0);
-res_done:
   if (iri != raw_iri)
     dk_free_tree (iri);
   if (to_free)
@@ -5463,11 +5463,12 @@ bif_rdf_graph_default_perms_of_user_dict (caddr_t * qst, caddr_t * err_ret, stat
 extern const char *spar_unsafe_table_names[];
 extern int spar_unsafe_table_name_count;
 
+int rdf_raw_access_control = 0;
 
 caddr_t
 bif_rdf_graph_default_perms_enable_raw_access_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
-  int old_control = scn3_raw_rdf_access_control;
+  int old_control = rdf_raw_access_control;
   sec_check_dba ((query_instance_t *) qst, "__rdf_graph_default_perms_enable_raw_access_check");
   long new_control = bif_long_arg (qst, args, 0, "__rdf_graph_default_perms_enable_raw_access_check");
   if (new_control > old_control)
@@ -5480,7 +5481,7 @@ bif_rdf_graph_default_perms_enable_raw_access_check (caddr_t * qst, caddr_t * er
 	  tb_mark_affected (buf);
 	}
     }
-  scn3_raw_rdf_access_control = new_control;
+  rdf_raw_access_control = new_control;
   return box_num (new_control);
 }
 
@@ -5825,7 +5826,6 @@ bif_rgs_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, const char
 {
   query_instance_t *qi = (query_instance_t *) qst;
   rgs_userdetails_t ud;
-  oid_t uid;
   int perms, failed_perms;
   caddr_t graph = bif_arg (qst, args, 0, fname);
   caddr_t graph_boxed_iid = NULL;
@@ -5840,10 +5840,7 @@ bif_rgs_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, const char
   if (NULL == ud.ud_u)
     perms = 0;
   else
-    {
-      uid = ud.ud_u->usr_id;
-      perms = rdf_graph_configured_perms (qi, graph_boxed_iid, ud.ud_u, 1, req_perms);
-    }
+    perms = rdf_graph_configured_perms (qi, graph_boxed_iid, ud.ud_u, 1, req_perms);
   failed_perms = req_perms & ~perms;
   if (failed_perms && (RGU_ASSERT == mode))
     sqlr_resignal (bif_rgs_impl_make_error_for_assert (qst, fname, bif_can_use_index, graph, graph_boxed_iid, failed_perms, opname,
@@ -6511,6 +6508,297 @@ bif_iri_name_id (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return box_num (LONG_REF_NA (name));
 }
 
+void
+sparql_construct2_triple (caddr_t * qst, caddr_t * err_ret, id_hash_t * ht, caddr_t * triple_op, caddr_t * vars,
+    caddr_t ** blank_iids_ptr)
+{
+  caddr_t *triple;
+  int fld_ctr, fld_count;
+  int var_count = BOX_ELEMENTS (vars);
+  ptrlong one = 1;
+  switch (BOX_ELEMENTS (triple_op))
+    {
+    case 8:
+      fld_count = 4;
+      triple = (caddr_t *) list (4, NULL, NULL, NULL, NULL);
+      break;
+    case 6:
+      fld_count = 3;
+      triple = (caddr_t *) list (3, NULL, NULL, NULL);
+      break;
+    default:
+      goto bad_op;		/* see below */
+    }
+  for (fld_ctr = fld_count; fld_ctr--; /* no step */ )
+    {
+      ptrlong op = unbox (triple_op[fld_ctr * 2]);
+      caddr_t arg = triple_op[fld_ctr * 2 + 1];
+      caddr_t val;
+      switch (op)
+	{
+	case 1:
+	  {
+	    ptrlong var_idx = unbox (arg);
+	    if ((0 > var_idx) || (var_idx >= var_count))
+	      goto bad_op;	/* see below */
+	    val = vars[var_idx];
+	    break;
+	  }
+	case 2:
+	  {
+	    int idx;
+	    int old_bnode_count = BOX_ELEMENTS_0 (blank_iids_ptr[0]);
+	    if ((1 == fld_ctr) || (3 == fld_ctr))
+	      goto bad_op;
+	    if (DV_LONG_INT != DV_TYPE_OF (arg))
+	      goto bad_op;
+	    idx = unbox (arg);
+	    if (idx > 1000)
+	      goto bad_op;
+	    if (idx >= old_bnode_count)
+	      {
+		int new_bnode_count = old_bnode_count + idx + 1;	/* this at least doubles the length */
+		caddr_t *new_iids = dk_alloc_list_zero (new_bnode_count);
+		memcpy (new_iids, blank_iids_ptr[0], old_bnode_count * sizeof (caddr_t));
+		dk_free_box ((caddr_t) (blank_iids_ptr[0]));
+		blank_iids_ptr[0] = new_iids;
+	      }
+	    if (NULL == blank_iids_ptr[0][idx])
+	      {
+		static caddr_t seq_name = NULL;
+		if (NULL == seq_name)
+		  seq_name = box_dv_short_string ("RDF_URL_IID_BLANK");
+		blank_iids_ptr[0][idx] = box_num (sequence_next_inc_and_log ((query_instance_t *) qst, err_ret, seq_name, 1, 1000));
+	      }
+	    val = blank_iids_ptr[0][idx];
+	    break;
+	  }
+	case 3:
+	  {
+	    val = arg;
+	    break;
+	  }
+	default:
+	  goto bad_op;
+	}
+      switch (DV_TYPE_OF (val))
+	{
+	case DV_DB_NULL:
+	  dk_free_tree ((caddr_t) triple);
+	  return;
+	case DV_IRI_ID:
+	  if ((((iri_id_t *) val)[0] >= min_bnode_iri_id ()) && ((1 == fld_ctr) || (3 == fld_ctr)))
+	    {
+	      dk_free_tree ((caddr_t) triple);
+	      sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: blank node can not be used as %s",
+		  ((1 == fld_ctr) ? "predicate" : "graph"));
+	    }
+	  break;
+	case DV_UNAME:
+	  break;
+	case DV_STRING:
+	  if (!(box_flags (val) & BF_IRI) && (2 != fld_ctr))
+	    {
+	      dk_free_tree ((caddr_t) triple);
+	      sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: string can not be used as %s",
+		  ((0 == fld_ctr) ? "subject" : ((1 == fld_ctr) ? "predicate" : "graph")));
+	    }
+	  break;
+	default:
+	  if (2 != fld_ctr)
+	    {
+	      dk_free_tree ((caddr_t) triple);
+	      sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: literals can not be used as %s",
+		  ((0 == fld_ctr) ? "subject" : ((1 == fld_ctr) ? "predicate" : "graph")));
+	    }
+	  break;
+	}
+      triple[fld_ctr] = box_copy_tree (val);
+    }
+  id_hash_set (ht, (caddr_t) (&triple), (caddr_t) (&one));
+  return;
+bad_op:
+  dk_free_tree ((caddr_t) (blank_iids_ptr[0]));
+  blank_iids_ptr[0] = NULL;
+  sqlr_new_error ("22023", "SR657", "Invalid opcode list in triple constructor");
+}
+
+caddr_t
+bif_sparql_construct2_acc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  const char *fname = "sparql_construct2_acc";
+  ptrlong use_dict_limit = bif_long_arg (qst, args, 4, fname);
+  caddr_t env = bif_arg_nochecks (qst, args, 0);
+  caddr_t **opcodes = (caddr_t **) bif_array_of_pointer_arg (qst, args, 1, fname);
+  caddr_t *vars = bif_array_of_pointer_arg (qst, args, 2, fname);
+  caddr_t stats = bif_array_or_null_arg (qst, args, 3, fname);
+  id_hash_iterator_t *hit;
+  id_hash_t *ht;
+  int opcode_ctr, opcodes_len = BOX_ELEMENTS (opcodes);
+  caddr_t *blank_iids = NULL;
+  if (DV_DICT_ITERATOR != DV_TYPE_OF (env))
+    {
+      long size = 31, mmem = 0, ment = 0;
+      int stat_ctr, stats_len = (DV_ARRAY_OF_POINTER == DV_TYPE_OF (stats) ? BOX_ELEMENTS (stats) : 0);
+      if (use_dict_limit)
+	{
+	  ment = unbox (sys_stat_impl ("sparql_result_set_max_rows"));
+	  mmem = unbox (sys_stat_impl ("sparql_max_mem_in_use"));
+	}
+      ht = (id_hash_t *) box_dv_dict_hashtable (size);
+      ht->ht_rehash_threshold = 120;
+      if (ment > 0)
+	ht->ht_dict_max_entries = ment;
+      if (mmem > 0)
+	ht->ht_dict_max_mem_in_use = mmem;
+      hit = (id_hash_iterator_t *) box_dv_dict_iterator ((caddr_t) ht);
+      env = (caddr_t) hit;
+      qst_set (qst, args[0], env);
+      if (0 != stats_len)
+	{
+	  for (stat_ctr = 0; stat_ctr < stats_len; stat_ctr++)
+	    {
+	      sparql_construct2_triple (qst, err_ret, ht, ((caddr_t **) stats)[stat_ctr], vars, &blank_iids);
+	      if (NULL != err_ret[0])
+		{
+		  dk_free_tree ((caddr_t) blank_iids);
+		  return NULL;
+		}
+	    }
+	  dk_free_tree ((caddr_t) blank_iids);
+	  blank_iids = NULL;
+	}
+    }
+  else
+    {
+      hit = (id_hash_iterator_t *) env;
+      ht = hit->hit_hash;
+    }
+  for (opcode_ctr = 0; opcode_ctr < opcodes_len; opcode_ctr++)
+    {
+      sparql_construct2_triple (qst, err_ret, ht, opcodes[opcode_ctr], vars, &blank_iids);
+      if (NULL != err_ret[0])
+	{
+	  dk_free_tree ((caddr_t) blank_iids);
+	  return NULL;
+	}
+    }
+  dk_free_tree ((caddr_t) blank_iids);
+  return NULL;
+}
+
+#if 0
+
+create procedure DB.DBA.
+SPARQL_CONSTRUCT_ACC (inout _env any, in opcodes any, in vars any, in stats any, in use_dict_limit integer)
+{
+  declare triple_ctr integer;
+  declare blank_ids any;
+  if (214 <> __tag (_env))
+    {
+      if (use_dict_limit)
+      _env:= dict_new (31, sys_stat ('sparql_result_set_max_rows'), sys_stat ('sparql_max_mem_in_use'));
+      else
+      _env:= dict_new (31);
+      if (0 < length (stats))
+	DB.DBA.SPARQL_CONSTRUCT_ACC (_env, stats, vector (), vector (), use_dict_limit);
+    }
+blank_ids:= 0;
+for (triple_ctr: = length (opcodes) - 1; triple_ctr >= 0; triple_ctr:= triple_ctr - 1)
+    {
+      declare fld_ctr, fld_count integer;
+      declare triple_vec any;
+      declare g_opcode integer;
+    g_opcode:= aref_or_default (opcodes, triple_ctr, 6, null);
+      if (g_opcode is null)
+	{
+	fld_count:= 3;
+	triple_vec:= vector (0, 0, 0);
+	}
+      else
+	{
+	fld_count:= 4;
+	triple_vec:= vector (0, 0, 0, 0);
+	}
+      --dbg_obj_princ ('opcodes[triple_ctr]=', opcodes[triple_ctr]);
+    for (fld_ctr: = fld_count - 1; fld_ctr >= 0; fld_ctr:= fld_ctr - 1)
+	{
+	  declare op integer;
+	  declare arg any;
+	op:= opcodes[triple_ctr][fld_ctr * 2];
+	arg:= opcodes[triple_ctr][fld_ctr * 2 + 1];
+	  if (1 = op)
+	    {
+	      declare i any;
+	    i:= vars[arg];
+	      if (i is null)
+		goto end_of_adding_triple;
+	      if (isiri_id (i))
+		{
+		  if (fld_ctr in (1, 3) and is_bnode_iri_id (i))
+		    signal ('RDF01', 'Bad variable value in CONSTRUCT: blank node can not be used as predicate or graph');
+		}
+	      else if ((isstring (i) and (1 = __box_flags (i))) or (217 = __tag (i)))
+		{
+		  if (fld_ctr in (1, 3) and (i like 'bnode://%'))
+		    signal ('RDF01', 'Bad variable value in CONSTRUCT: blank node can not be used as predicate or graph');
+		i:= iri_to_id (i);
+		}
+	      else if (2 <> fld_ctr)
+		signal ('RDF01',
+		    sprintf
+		    ('Bad variable value in CONSTRUCT: "%.100s" (tag %d box flags %d) is not a valid %s, only object of a triple can be a literal',
+			__rdf_strsqlval (i), __tag (i), __box_flags (i), case (fld_ctr) when 1 then 'predicate'
+			else
+			'subject' end));
+	    triple_vec[fld_ctr]:= i;
+	    }
+	  else if (2 = op)
+	    {
+	      if (isinteger (blank_ids))
+	      blank_ids:= vector (iri_id_from_num (sequence_next ('RDF_URL_IID_BLANK')));
+	      while (arg >= length (blank_ids))
+	      blank_ids:= vector_concat (blank_ids,
+		    vector (iri_id_from_num (sequence_next ('RDF_URL_IID_BLANK'))));
+	      if (fld_ctr in (1, 3))
+		signal ('RDF01', 'Bad triple for CONSTRUCT: blank node can not be used as predicate or graph');
+	    triple_vec[fld_ctr]:= blank_ids[arg];
+	    }
+	  else if (3 = op)
+	    {
+	      if (arg is null)
+		goto end_of_adding_triple;
+	      if (isiri_id (arg))
+		{
+		  if (fld_ctr in (1, 3) and is_bnode_iri_id (arg))
+		    signal ('RDF01', 'Bad const value in CONSTRUCT: blank node can not be used as predicate or graph');
+		}
+	      else if ((isstring (arg) and (1 = __box_flags (arg))) or (217 = __tag (arg)))
+		{
+		  if (fld_ctr in (1, 3) and (arg like 'bnode://%'))
+		    signal ('RDF01', 'Bad const value in CONSTRUCT: blank node can not be used as predicate or graph');
+		arg:= iri_to_id (arg);
+		}
+	      else if (2 <> fld_ctr)
+		signal ('RDF01',
+		    sprintf
+		    ('Bad const value in CONSTRUCT: "%.100s" (tag %d box flags %d) is not a valid %s, only object of a triple can be a literal',
+			__rdf_strsqlval (arg), __tag (arg), __box_flags (arg), case (fld_ctr) when 1 then 'predicate'
+			else
+			'subject' end));
+	      else if (__tag of vector = __tag (arg))
+	      arg:= DB.DBA.RDF_MAKE_LONG_OF_TYPEDSQLVAL_STRINGS (arg[0], arg[1], arg[2]);
+	    triple_vec[fld_ctr]:= arg;
+	    }
+	  else
+	    signal ('RDFXX', 'Bad opcode in DB.DBA.SPARQL_CONSTRUCT()');
+	}
+      --dbg_obj_princ ('generated triple:', triple_vec);
+      dict_put (_env, triple_vec, 0);
+    end_of_adding_triple:;
+    }
+}
+#endif
 
 extern box_tmp_copy_f box_tmp_copier[256];
 void bif_ro2lo_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
@@ -6642,4 +6930,5 @@ rdf_box_init ()
   bif_set_uses_index (bif_rdf_range_check);
   bif_define_ex ("iri_name_id", bif_iri_name_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
   rdf_sec_init ();
+  bif_define_ex ("sparql_construct2_acc", bif_sparql_construct2_acc, BMD_DONE);
 }

@@ -507,17 +507,15 @@ sqlc_select_top (sql_comp_t * sc, select_node_t * sel, ST * tree, dk_set_t * cod
 }
 
 
-jmp_buf_splice parse_reset;
-
-
+#ifdef OLD_GOOD_PARSER
 void
 yy_new_error (const char *s, const char *state, const char *native)
 {
   int nlen;
   int is_semi;
-  int this_lineno = scn3_lineno;
+  int this_lineno = global_scs->scs_scn3c.lineno;
   char buf_for_next[2000];
-  if (scn3_inside_error_reporter)
+  if (global_scs->scs_scn3c.inside_error_reporter)
     goto jmp;			/* see below */
   nlen = scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
   if (state)
@@ -532,9 +530,9 @@ yy_new_error (const char *s, const char *state, const char *native)
     }
   is_semi = !strcmp (yytext, ";");
   snprintf (sql_err_text + nlen, sizeof (sql_err_text) - nlen, ": %s at '%s'", s, yytext);
-  scn3_inside_error_reporter++;
+  global_scs->scs_scn3c.inside_error_reporter++;
   if (0 != yylex ())
-    if (scn3_lineno != this_lineno)
+    if (global_scs->scs_scn3c.lineno != this_lineno)
       strcpy (buf_for_next, " immediately before end of line");
     else
       {
@@ -556,8 +554,36 @@ yy_new_error (const char *s, const char *state, const char *native)
   sql_err_text[sizeof (sql_err_text) - 1] = '\0';
 
 jmp:
-  longjmp_splice (&parse_reset, 1);
+  longjmp_splice (&(global_scs->parse_reset), 1);
 }
+#else
+void
+yy_new_error (const char *s, const char *state, const char *native)
+{
+  int nlen;
+  int is_semi;
+  int this_lineno = global_scs->scs_scn3c.lineno;
+  char buf_for_next[2000];
+  if (global_scs->scs_scn3c.inside_error_reporter)
+    goto jmp;			/* see below */
+  nlen = scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
+  if (state)
+    {
+      strncpy (sql_err_state, state, sizeof (sql_err_state));
+      sql_err_state[sizeof (sql_err_state) - 1] = 0;
+    }
+  if (native)
+    {
+      strncpy (sql_err_native, native, sizeof (sql_err_native));
+      sql_err_native[sizeof (sql_err_native) - 1] = 0;
+    }
+  snprintf (sql_err_text + nlen, sizeof (sql_err_text) - nlen, ": %s", s);
+  sql_err_text[sizeof (sql_err_text) - 1] = '\0';
+
+jmp:
+  longjmp_splice (&(global_scs->parse_reset), 1);
+}
+#endif
 
 
 void
@@ -569,20 +595,21 @@ yyerror (const char *s)
 void
 yyfatalerror (const char *s)
 {
-  if (scn3_inside_error_reporter)
+  if (global_scs->scs_scn3c.inside_error_reporter)
     goto jmp;			/* see below */
   strcpy_ck (sql_err_text, s);
   sql_err_text[sizeof (sql_err_text) - 1] = '\0';
 
 jmp:
-  longjmp_splice (&parse_reset, 1);
+  longjmp_splice (&(global_scs->parse_reset), 1);
 }
 
+#ifdef OLD_GOOD_PARSER
 void
 yyerror_1 (int yystate, short *yyssa, short *yyssp, const char *strg)
 {
   char buf[2000];
-  int this_lineno = scn3_lineno;
+  int this_lineno = global_scs->scs_scn3c.lineno;
   char buf_for_next[2000];
 #ifdef DEBUG
   int sm2, sm1, sp1;
@@ -595,13 +622,13 @@ yyerror_1 (int yystate, short *yyssa, short *yyssp, const char *strg)
 #else
   snprintf (buf, sizeof (buf), ": %s at '%s'", strg, yytext);
 #endif
-  if (scn3_inside_error_reporter)
+  if (global_scs->scs_scn3c.inside_error_reporter)
     goto jmp;			/* see below */
   scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
   strcat_ck (sql_err_text, buf);
-  scn3_inside_error_reporter++;
+  global_scs->scs_scn3c.inside_error_reporter++;
   if (0 != yylex ())
-    if (scn3_lineno != this_lineno)
+    if (global_scs->scs_scn3c.lineno != this_lineno)
       strcpy (buf_for_next, " immediately before end of line");
     else
       snprintf (buf_for_next, sizeof (buf_for_next), " before '%s'", yytext);
@@ -610,10 +637,37 @@ yyerror_1 (int yystate, short *yyssa, short *yyssp, const char *strg)
   strcat_ck (sql_err_text, buf_for_next);
 
 jmp:
-  longjmp_splice (&parse_reset, 1);
+  longjmp_splice (&(global_scs->parse_reset), 1);
 }
+#else
+void
+yyerror_1 (int yystate, short *yyssa, short *yyssp, const char *strg)
+{
+  char buf[2000];
+  int this_lineno = global_scs->scs_scn3c.lineno;
+  char buf_for_next[2000];
+#ifdef DEBUG
+  int sm2, sm1, sp1;
+  sp1 = yyssp[1];
+  sm1 = yyssp[-1];
+  sm2 = ((sm1 > 0) ? yyssp[-2] : 0);
+  snprintf (buf, sizeof (buf), ": %s [%d-%d-(%d)-%d]", strg, sm2, sm1, yystate,
+      ((sp1 & ~0x7FF) ? -1 : sp1) /* stub to avoid printing random garbage in logs */ );
+#else
+  snprintf (buf, sizeof (buf), ": %s", strg);
+#endif
+  if (global_scs->scs_scn3c.inside_error_reporter)
+    goto jmp;			/* see below */
+  scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
+  strcat_ck (sql_err_text, buf);
+  global_scs->scs_scn3c.inside_error_reporter++;
 
+jmp:
+  longjmp_splice (&(global_scs->parse_reset), 1);
+}
+#endif
 
+#ifdef OLD_GOOD_PARSER
 void
 yyfatalerror_1 (int yystate, short *yyssa, short *yyssp, const char *strg)
 {
@@ -629,13 +683,54 @@ yyfatalerror_1 (int yystate, short *yyssa, short *yyssp, const char *strg)
 #else
   snprintf (buf, sizeof (buf), ": %s at '%s'", strg, yytext);
 #endif
-  if (scn3_inside_error_reporter)
+  if (global_scs->scs_scn3c.inside_error_reporter)
     goto jmp;			/* see below */
   scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
   strcat_ck (sql_err_text, buf);
 
 jmp:
-  longjmp_splice (&parse_reset, 1);
+  longjmp_splice (&(global_scs->parse_reset), 1);
+}
+#else
+void
+yyfatalerror_1 (yyscan_t scanner, int yystate, short *yyssa, short *yyssp, const char *strg)
+{
+  char buf[2000];
+#ifdef DEBUG
+  int sm2, sm1, sp1;
+  sp1 = yyssp[1];
+  sm1 = yyssp[-1];
+  sm2 = ((sm1 > 0) ? yyssp[-2] : 0);
+  snprintf (buf, sizeof (buf), ": %s [%d-%d-(%d)-%d]", strg, sm2, sm1, yystate,
+      ((sp1 & ~0x7FF) ? -1 : sp1) /* stub to avoid printing random garbage in logs */ );
+#else
+  snprintf (buf, sizeof (buf), ": %s", strg);
+#endif
+  if (global_scs->scs_scn3c.inside_error_reporter)
+    goto jmp;			/* see below */
+  scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
+  strcat_ck (sql_err_text, buf);
+
+jmp:
+  longjmp_splice (&(global_scs->parse_reset), 1);
+}
+#endif
+
+void
+scn3yyerror (const char *strg)
+{
+  char buf[2000];
+  int this_lineno = global_scs->scs_scn3c.lineno;
+  char buf_for_next[2000];
+  snprintf (buf, sizeof (buf), ": %s", strg);
+  if (global_scs->scs_scn3c.inside_error_reporter)
+    goto jmp;			/* see below */
+  scn3_sprint_curr_line_loc (sql_err_text, sizeof (sql_err_text));
+  strcat_ck (sql_err_text, buf);
+  global_scs->scs_scn3c.inside_error_reporter++;
+
+jmp:
+  longjmp_splice (&(global_scs->parse_reset), 1);
 }
 
 
@@ -930,6 +1025,23 @@ sql_stmt_comp (sql_comp_t * sc, ST ** ptree)
 
 dk_mutex_t *parse_mtx;
 du_thread_t *parse_mtx_owner;
+int enable_parse_mtx = 0;
+
+void
+parse_enter ()
+{
+  if (enable_parse_mtx)
+    mutex_enter (parse_mtx);
+}
+
+
+void
+parse_leave ()
+{
+  if (enable_parse_mtx)
+    mutex_leave (parse_mtx);
+}
+
 
 char *
 wrap_sql_string (const char *text)
@@ -1077,12 +1189,6 @@ sqlc_make_proc_store_qr (client_connection_t * cli, query_t * proc_or_trig, cons
   return qr;
 }
 
-
-void yyrestart (FILE * in);
-void sql_yy_reset ();
-int yyparse ();
-
-
 void
 sqlc_table_used (sql_comp_t * sc, dbe_table_t * tb)
 {
@@ -1131,7 +1237,7 @@ sqlc_hook (client_connection_t * cli, caddr_t * real_tree_ret, caddr_t * err_ret
     {
       return;
     }
-  mutex_leave (parse_mtx);
+  parse_leave ();
   if (proc->qr_to_recompile)
     proc = qr_recompile (proc, NULL);
   p1 = (state_slot_t *) (proc->qr_parms ? proc->qr_parms->data : NULL);
@@ -1139,7 +1245,7 @@ sqlc_hook (client_connection_t * cli, caddr_t * real_tree_ret, caddr_t * err_ret
     {
 
       log_error ("SQLPrepare hook must take at least 1 reference parameter");
-      mutex_enter (parse_mtx);
+      parse_enter ();
       return;
     }
   tree = box_copy_tree (*real_tree_ret);
@@ -1148,7 +1254,7 @@ sqlc_hook (client_connection_t * cli, caddr_t * real_tree_ret, caddr_t * err_ret
   err = qr_exec (cli, proc, CALLER_LOCAL, NULL, NULL, NULL, params, NULL, 0);
   dk_free_box ((caddr_t) params);
   SET_THR_TMP_POOL (saved_thr_mem_pool);
-  mutex_enter (parse_mtx);
+  parse_enter ();
   sqlc_set_client (cli);
   if (err_ret)
     *err_ret = err;
@@ -1273,6 +1379,7 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
   volatile int inside_sem = 0;
   volatile int is_ddl = 0;
   thr_set_tlsf (THREAD_CURRENT_THREAD->thr_tlsf, sqlc_tlsf);
+  yyscan_t scanner;
   if (!nested_sql_comp)
     {
       CLI_THREAD_TIME (cli);
@@ -1320,7 +1427,7 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
     cr_type = SQLC_PARSE_ONLY;
   else
     {
-      mutex_enter (parse_mtx);
+      parse_enter ();
       inside_sem = 1;
     }
   SCS_STATE_PUSH;
@@ -1350,17 +1457,18 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
   if (err)
     *err = NULL;
 
+  scn3yylex_init (&scanner);
   CATCH (CATCH_LISP_ERROR)
   {
     if (!the_parse_tree)
       {
 	if (!sqlc_xpath (&sc, string, err))
 	  {
-	    if (0 == setjmp_splice (&parse_reset))
+	    if (0 == setjmp_splice (&(global_scs->parse_reset)))
 	      {
-		sql_yy_reset ();
-		yyrestart (NULL);
-		yyparse ();
+		sql_yy_reset (scanner);
+		scn3yyrestart (NULL, scanner);
+		scn3yyparse (scanner);
 	      }
 	    else
 	      parse_tree = NULL;
@@ -1372,14 +1480,15 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
 	      *err = srv_make_new_error (sql_err_state[0] ? sql_err_state : "37000",
 		  sql_err_native[0] ? sql_err_native : "SQ074", "%s", sql_err_text);
 	    sqlc_set_client (old_cli);
+	    sql_pop_all_buffers (scanner);
+	    scn3yylex_destroy (scanner);
 	    if (!nested_sql_comp)
 	      {
 		MP_DONE ();
 	      }
-	    sql_pop_all_buffers ();
 	    SCS_STATE_POP;
 	    if (inside_sem)
-	      mutex_leave (parse_mtx);
+	      parse_leave ();
 	    POP_CATCH;
 	    self->thr_tlsf = save_tlsf;
 	    if (*err && strstr ((*(caddr_t **) err)[2], "RDFNI"))
@@ -1396,7 +1505,8 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
 	    return NULL;
 	  }
       }
-    sql_pop_all_buffers ();
+    sql_pop_all_buffers (scanner);
+    scn3yylex_destroy (scanner);
     tree = the_parse_tree ? (ST *) t_full_box_copy_tree ((caddr_t) the_parse_tree) : parse_tree;
     if (cr_type != SQLC_PARSE_ONLY && cr_type != SQLC_TRY_SQLO && cr_type != SQLC_SQLO_SCORE)
       is_ddl = 0;		/*sql_is_ddl (tree); */
@@ -1404,7 +1514,7 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
       {
 	if (inside_sem)
 	  {
-	    mutex_leave (parse_mtx);
+	    parse_leave ();
 	    inside_sem = 0;
 	  }
       }
@@ -1422,7 +1532,7 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
 	qr_free (qr);
 	POP_CATCH;
 	if (inside_sem)
-	  mutex_leave (parse_mtx);
+	  parse_leave ();
 	return ((query_t *) tree1);
       }
     if (cr_type == SQLC_TRY_SQLO)
@@ -1553,7 +1663,7 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
   sqlc_set_client (old_cli);
   SCS_STATE_POP;
   if (inside_sem)
-    mutex_leave (parse_mtx);
+    parse_leave ();
   if (qr)
     {
       qr->qr_text = SET_QR_TEXT (qr, sc.sc_text);

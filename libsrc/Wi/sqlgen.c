@@ -918,7 +918,15 @@ sqlg_text_node (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic)
   txs->txs_cached_dtd_config = ssl_new_variable (sc->sc_cc, "text_search_dtd_config", DV_ARRAY_OF_POINTER);
   txs->txs_tie = text_pred->_.text.tie;
   if (txs->txs_tie)
-    txs->txs_iext_cr = ssl_new_variable (sc->sc_cc, "ext_inx", DV_ARRAY_OF_POINTER);
+    {
+      txs->txs_iext_cr = ssl_new_variable (sc->sc_cc, "ext_inx", DV_ARRAY_OF_POINTER);
+      if (!tb_dfe->_.table.is_text_order)
+	{
+	  txs->txs_lin_ids = ssl_new_vec (sc->sc_cc, "linids", DV_LONG_INT);
+	  txs->txs_lin_qr = ssl_new_vec (sc->sc_cc, "linqr", DV_LONG_INT);
+	  txs->txs_iext_sets_ret = ssl_new_vec (sc->sc_cc, "linqr", DV_LONG_INT);
+	}
+    }
   if (text_pred->_.text.geo)
     txs->txs_table = sqlg_geo_index_table (text_key, geo_args);
   else
@@ -1808,6 +1816,8 @@ sqlg_hash_filler (sqlo_t * so, df_elt_t * tb_dfe, data_source_t * ts_src)
   }
 }
 
+extern int64 c_setp_partition_threshold;
+
 
 data_source_t *
 sqlg_hash_filler_dt (sqlo_t * so, df_elt_t * dt_dfe, subq_source_t * sqs)
@@ -1842,7 +1852,12 @@ sqlg_hash_filler_dt (sqlo_t * so, df_elt_t * dt_dfe, subq_source_t * sqs)
       if (!setp || !fref)
 	sqlc_new_error (sc->sc_cc, "42000", "HJGBY", "Hash join to derived table with group by.  No setp. Interal");
       setp->setp_ht_no_drop |= decl_no_drop;
-      dt_dfe->_.sub.hash_filler_of->_.table.ot->ot_hash_filler = setp;
+      if (setp->setp_ha->ha_row_count < c_setp_partition_threshold && CL_RUN_CLUSTER == cl_run_local_only)
+	{
+	  dt_dfe->_.sub.gby_hash_filler = 0;
+	  return sqlg_hash_filler_dt (so, dt_dfe, sqs);
+	}
+      setp->setp_cl_partition = dt_dfe->_.sub.hash_filler_of->_.table.ot->ot_hash_filler = setp;
       setp->setp_is_gb_build = SETP_GBB;
       setp->setp_no_bloom = 1;
       if (2 == dt_dfe->_.sub.hash_filler_of->_.table.is_right_oj || setp->setp_partitioned)
@@ -2225,6 +2240,7 @@ sqlg_append_end_node (sql_comp_t * sc, data_source_t * after, code_vec_t pre_cod
     en->src_gen.src_after_code = after_code;
   }
 }
+
 
 
 data_source_t *
@@ -3779,7 +3795,7 @@ sqlg_setp_keys (sqlo_t * so, setp_node_t * setp, int force_gb, long n_rows)
   hash_area_t *ha;
   int op = (force_gb || setp->setp_gb_ops) ? HA_GROUP : HA_ORDER;
   if (HA_GROUP == op)
-    setp->setp_set_no_in_key = sqlg_is_multistate_gb (so);
+    setp->setp_set_no_in_key = !setp->setp_is_gb_build && sqlg_is_multistate_gb (so);
   if (setp->setp_set_no_in_key)
     {
       dk_set_push (&setp->setp_keys, (void *) so->so_sc->sc_set_no_ssl);
@@ -4848,7 +4864,7 @@ sqlg_place_fref (sql_comp_t * sc, data_source_t ** head, fun_ref_node_t * fref, 
   /* A fref goes after all inits and end nodes and dpipes.  If there are hash filler frefs, goes after these. */
   data_source_t *qn, *prev = NULL;
   void *dp;
-  if (!fref->fnr_ssa.ssa_set_no)
+  if (!fref->fnr_ssa.ssa_set_no && !sc->sc_is_single_state)
     {
       fref->fnr_ssa.ssa_set_no = sqlg_set_no_if_needed (sc, head);
     }
@@ -5319,6 +5335,8 @@ sqlg_make_sort_nodes (sqlo_t * so, data_source_t ** head, ST ** order_by,
 	      }
 	  }
 	sc->sc_sort_insert_node = setp;
+	if (DFE_DT == tb_dfe->dfe_type && tb_dfe->_.sub.gby_hash_filler)
+	  setp->setp_is_gb_build = 1;
 	sqlg_setp_keys (so, setp, (is_gb && !setp->setp_gb_ops) ? 1 : 0, (long) tb_dfe->dfe_arity);
 	read_node = sqlc_make_sort_out_node (sc, out_cols, out_slots, always_null, is_gb);
 	dk_set_free (out_cols);
@@ -6434,7 +6452,7 @@ sqlg_dt_query_1 (sqlo_t * so, df_elt_t * dt_dfe, query_t * ext_query, ST ** targ
     sqlc_error (so->so_sc->sc_cc, ".....", "Stack Overflow");
   if (DK_MEM_RESERVE)
     sqlc_error (so->so_sc->sc_cc, ".....", "Out of memory");
-  sc->sc_is_single_state = !sqlg_is_multistate_gb (so);
+  sc->sc_is_single_state = dt_dfe->_.sub.gby_hash_filler || !sqlg_is_multistate_gb (so);
   sc->sc_delay_colocate = 0;
   sc->sc_re_emit_code = 0;
   sqlg_qn_has_dfe ((data_source_t *) qr, dt_dfe);
@@ -6791,6 +6809,10 @@ sqlg_dt_subquery (sqlo_t * so, df_elt_t * dt_dfe, query_t * ext_query, ST ** tar
   update_node_t *kset = sc->sc_update_keyset;
   state_slot_t *set_no = sc->sc_set_no_ssl;
   char save_sst = sc->sc_is_single_state;
+  dk_set_t in_nodes = so->so_in_list_nodes;
+  dk_set_t all_list = so->so_all_list_nodes;
+  so->so_in_list_nodes = NULL;
+  so->so_all_list_nodes = NULL;
   sc->sc_update_keyset = NULL;
   sc->sc_set_no_ssl = new_set_no;
   sqlg_set_ts_order (so, dt_dfe);
@@ -6799,6 +6821,8 @@ sqlg_dt_subquery (sqlo_t * so, df_elt_t * dt_dfe, query_t * ext_query, ST ** tar
   sc->sc_is_single_state = save_sst;
   sc->sc_set_no_ssl = set_no;
   so->so_sc->sc_order = ord;
+  so->so_in_list_nodes = in_nodes;
+  so->so_all_list_nodes = all_list;
   return qr;
 }
 

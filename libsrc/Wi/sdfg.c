@@ -161,8 +161,12 @@ data_source_t *
 qn_next_qn (data_source_t * ts, qn_input_fn in)
 {
   for (ts = ts; ts; ts = qn_next (ts))
-    if (IS_QN (ts, in))
-      return ts;
+    {
+      if (table_source_input == in && IS_QN (ts, table_source_input_unique))
+	return ts;
+      if (IS_QN (ts, in))
+	return ts;
+    }
   return NULL;
 }
 

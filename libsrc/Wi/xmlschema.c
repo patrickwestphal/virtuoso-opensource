@@ -38,28 +38,16 @@
 
 
 char *xmlt1 =
-"create table SYS_ELEMENT_TABLE (\n"
-"	ET_ELEMENT varchar, \n"
-"	ET_TABLE varchar,\n"
-"	primary key (ET_ELEMENT))";
+    "create table SYS_ELEMENT_TABLE (\n" "	ET_ELEMENT varchar, \n" "	ET_TABLE varchar,\n" "	primary key (ET_ELEMENT))";
 
 char *xmlt2 =
     "create table SYS_ELEMENT_MAP (\n"
-"	EM_TABLE varchar,\n"
-"	EM_A_ID integer,\n"
-"	EM_COL_ID integer,\n"
-"	primary key (EM_TABLE,EM_COL_ID))";
+    "	EM_TABLE varchar,\n" "	EM_A_ID integer,\n" "	EM_COL_ID integer,\n" "	primary key (EM_TABLE,EM_COL_ID))";
 
-char *xmlt3 =
-"create table SYS_ATTR (\n"
-"	A_NAME varchar,\n"
-"	A_ID integer,\n"
-"	primary key (A_ID))";
+char *xmlt3 = "create table SYS_ATTR (\n" "	A_NAME varchar,\n" "	A_ID integer,\n" "	primary key (A_ID))";
 
 char *xmlt4 =
-"create table SYS_ATTR_META (AM_A_ID integer, AM_URI varchar, \n"
-"	AM_DATA varchar,\n"
-"	primary key (AM_A_ID, AM_URI))";
+    "create table SYS_ATTR_META (AM_A_ID integer, AM_URI varchar, \n" "	AM_DATA varchar,\n" "	primary key (AM_A_ID, AM_URI))";
 
 
 char *xmlt5 =
@@ -67,8 +55,7 @@ char *xmlt5 =
     "	VI_ID_COL varchar, VI_INDEX_TABLE varchar,"
     "       VI_ID_IS_PK integer, VI_ID_CONSTR varchar,"
     "       VI_OFFBAND_COLS varchar, VI_OPTIONS varchar, VI_LANGUAGE varchar, VI_ENCODING varchar,"
-"       primary key (VI_TABLE, VI_COL))\n"
-"alter index SYS_VT_INDEX on SYS_VT_INDEX partition cluster REPLICATED";
+    "       primary key (VI_TABLE, VI_COL))\n" "alter index SYS_VT_INDEX on SYS_VT_INDEX partition cluster REPLICATED";
 
 
 xml_schema_t *xml_global;
@@ -146,10 +133,7 @@ char *ent_map_text =
     "  select sum ((xmls_element_col (tb, EM_COL_ID, EM_A_ID),\n"
     "	       log_text ('xmls_element_col (?, ?, ?)', tb, EM_COL_ID, EM_A_ID))) \n"
     "    into c from SYS_ELEMENT_MAP where EM_TABLE = tb;\n"
-"  return;\n"
-" no_col:\n"
-"  signal ('S0022', 'No column or attribute in xml_element_element_table');\n"
-"}";
+    "  return;\n" " no_col:\n" "  signal ('S0022', 'No column or attribute in xml_element_element_table');\n" "}";
 
 void
 xmls_init (void)
@@ -169,9 +153,9 @@ xmls_init (void)
   if (!xml_global)
     xml_global = xs_allocate ();
 
-  qr = sql_compile_static ("select A_ID, A_NAME from SYS_ATTR",
-		    bootstrap_cli, &err, SQLC_DEFAULT);
-  if (NULL != err) goto no_attrs;
+  qr = sql_compile_static ("select A_ID, A_NAME from SYS_ATTR", bootstrap_cli, &err, SQLC_DEFAULT);
+  if (NULL != err)
+    goto no_attrs;
   err = qr_quick_exec (qr, bootstrap_cli, "", &lc, 0);
   while (lc_next (lc))
     {
@@ -188,9 +172,11 @@ no_attrs:
   ddl_sel_for_effect ("select count (*) from SYS_ELEMENT_MAP where xmls_element_col (EM_TABLE, EM_COL_ID, EM_A_ID)");
   tb = sch_name_to_table (isp_schema (NULL), "DB.DBA.SYS_VT_INDEX");
   if (tb && tb_name_to_column (tb, LAST_FTI_COL))
-    ddl_sel_for_effect ("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
+    ddl_sel_for_effect
+	("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
   else
-    ddl_sel_for_effect ("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, NULL, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
+    ddl_sel_for_effect
+	("select count (*)  from SYS_VT_INDEX where 0 = __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, NULL, deserialize (VI_ID_CONSTR), VI_OPTIONS)");
 #ifdef OLD_VXML_TABLES
   xp_comp_init ();
 #endif
@@ -377,9 +363,7 @@ qi_new_attr (query_instance_t * qi, char *name)
     a_id = MIN_MISC_ID;
   lc_free (lc);
   a_id++;
-  err = qr_rec_exec (ins_attr_qr, qi->qi_client, NULL, qi, NULL, 2,
-		     ":0", (ptrlong) a_id, QRP_INT,
-		     ":1", name, QRP_STR);
+  err = qr_rec_exec (ins_attr_qr, qi->qi_client, NULL, qi, NULL, 2, ":0", (ptrlong) a_id, QRP_INT, ":1", name, QRP_STR);
   if (err)
     sqlr_resignal (err);
 
@@ -401,8 +385,7 @@ lt_attr_col_id (lock_trx_t * lt, key_id_t key_id, oid_t a_id)
 dbe_table_t *
 xmls_element_table (char *elt)
 {
-  dbe_table_t ** place = (dbe_table_t **)
-    id_hash_get (xml_global->xs_element_table, (caddr_t) &elt);
+  dbe_table_t **place = (dbe_table_t **) id_hash_get (xml_global->xs_element_table, (caddr_t) & elt);
   if (place)
     return (*place);
   return NULL;
@@ -446,6 +429,122 @@ bif_xmls_element_col (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 dk_set_t index_types;
+dk_hash_t rdf_type_iext;
+
+
+caddr_t
+bif_rdf_iext_insert (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  sqlr_new_error ("IEXVC", "IEXVC", "RDF index extension insert  can only run vectored");
+  return NULL;
+}
+
+iext_txn_t lt_iext_txn (lock_trx_t * lt, tb_ext_inx_t * tie, slice_id_t slid);
+
+
+void
+bif_rdf_iext_insert_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret)
+{
+  /* dt and lang, id, string.  Returns 1 for each that was added to iext given by type in dt and lang */
+  caddr_t err = NULL;
+  caddr_t str, lng;
+  slice_id_t slid;
+  iext_index_t ie;
+  iext_txn_t ietx = NULL;
+  dk_hash_t *done;
+  int dt, this_dt, any_other;
+  tb_ext_inx_t *tie, *this_tie;
+  QNCAST (QI, qi, qst);
+  int first_set = 0, n_sets = qi->qi_n_sets, set;
+  db_buf_t set_mask = qi->qi_set_mask;
+  data_col_t *ret_dc = QST_BOX (data_col_t *, qst, ret->ssl_index);
+  data_col_t *dt_lang_dc;
+  data_col_t *id_dc;
+  data_col_t *str_dc;
+  data_col_t *long_dc;
+  data_col_t *ins_id_dc;
+  data_col_t *ins_str_dc;
+  if (BOX_ELEMENTS (args) < 6 || SSL_VEC != args[0]->ssl_type || SSL_VEC != args[1]->ssl_type || SSL_VEC != args[2]->ssl_type
+      || SSL_VEC != args[3]->ssl_type || SSL_VEC != args[4]->ssl_type || SSL_VEC != args[5]->ssl_type)
+    sqlr_new_error ("07001", "IEXNA", "Not enough arguments for rdf_iext_insert,");
+  dt_lang_dc = QST_BOX (data_col_t *, qst, args[0]->ssl_index);
+  id_dc = QST_BOX (data_col_t *, qst, args[1]->ssl_index);
+  str_dc = QST_BOX (data_col_t *, qst, args[2]->ssl_index);
+  long_dc = QST_BOX (data_col_t *, qst, args[3]->ssl_index);
+  ins_id_dc = QST_BOX (data_col_t *, qst, args[4]->ssl_index);
+  ins_str_dc = QST_BOX (data_col_t *, qst, args[5]->ssl_index);
+  DC_CHECK_LEN (ins_id_dc, n_sets);
+  DC_CHECK_LEN (ins_str_dc, n_sets);
+  DC_CHECK_LEN (ret_dc, n_sets);
+  ret_dc->dc_n_values = n_sets;
+  done = hash_table_allocate (11);
+  this_dt = 0;
+  for (;;)
+    {
+      this_dt = 0;
+      this_tie = NULL;
+      any_other = 0;
+      dc_reset (ins_id_dc);
+      dc_reset (ins_str_dc);
+      SET_LOOP
+      {
+	int dt = ((int64 *) dt_lang_dc->dc_values)[set] >> 16;
+	if (gethash ((void *) (ptrlong) dt, done))
+	  continue;
+	tie = rdf_type_iext.ht_count ? gethash ((void *) (ptrlong) dt, &rdf_type_iext) : NULL;
+	if (!tie)
+	  {
+	    ((int64 *) ret_dc->dc_values)[set] = 0;
+	    continue;
+	  }
+	((int64 *) ret_dc->dc_values)[set] = 1;
+	if (!this_dt)
+	  {
+	    this_dt = dt;
+	    this_tie = tie;
+	  }
+	else if (this_tie != tie)
+	  {
+	    any_other = 1;
+	    continue;
+	  }
+	dc_append_int64 (ins_id_dc, ((int64 *) id_dc->dc_values)[set]);
+	str = qst_get (qst, args[2]);
+	lng = qst_get (qst, args[3]);
+	if (DV_DB_NULL == DV_TYPE_OF (lng))
+	  dc_append_box (ins_str_dc, str);
+	else
+	  dc_append_box (ins_str_dc, lng);
+      }
+      END_SET_LOOP;
+      if (this_tie)
+	{
+	  if (!qi->qi_non_txn_insert && !ietx)
+	    ietx = lt_iext_txn (qi->qi_trx, tie, qi->qi_slice);
+	  slid = qi->qi_client->cli_slice;
+	  if (QI_NO_SLICE == slid && CL_RUN_CLUSTER == cl_run_local_only)
+	    sqlr_new_error ("42000", "IENSL", "No slice set for iext_ rdf insert in cluster");
+	  if (CL_RUN_LOCAL == cl_run_local_only)
+	    slid = 0;
+	  if (BOX_ELEMENTS (tie->tie_slices) < slid)
+	    sqlr_new_error ("42000", "IESRN", "slice out of range for iext_rdf_insert");
+	  ie = this_tie->tie_slices[slid];
+	  if (!ie)
+	    sqlr_new_error ("ELASL", "ELASL", "No slice %d for iext rdf insert on host %d", slid, local_cll.cll_this_host);
+	  tie->tie_iext->iext_insert (ie, ietx, ins_id_dc->dc_n_values, ins_id_dc->dc_values, (caddr_t *) ins_str_dc->dc_values,
+	      &err);
+	  if (err)
+	    {
+	      hash_table_free (done);
+	      sqlr_resignal (err);
+	    }
+	}
+      if (!any_other)
+	break;
+    }
+  hash_table_free (done);
+}
+
 
 void
 iext_register (index_type_t * iext)
@@ -460,8 +559,7 @@ iext_register (index_type_t * iext)
 index_type_t *
 iext_find (char *name)
 {
-  DO_SET (index_type_t *, ie, &index_types)
-    if (!stricmp (name, ie->iext_name))
+  DO_SET (index_type_t *, ie, &index_types) if (!stricmp (name, ie->iext_name))
     return ie;
   END_DO_SET ();
   return NULL;
@@ -526,14 +624,15 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   if (!id_col || !text_col)
     sqlr_error ("S0002", "No column in vt_index");
-  if (DV_STRINGP (opts) && DV_ARRAY_OF_POINTER == (dtp_t)opts[0])
-    opts_arr = (caddr_t*)box_deserialize_string (opts, box_length (opts), 0);
+  if (DV_STRINGP (opts) && DV_ARRAY_OF_POINTER == (dtp_t) opts[0])
+    opts_arr = (caddr_t *) box_deserialize_string (opts, box_length (opts), 0);
   if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (opts_arr) && BOX_ELEMENTS (opts_arr) > 1
       && DV_STRINGP (opts_arr[0]) && !strcmp ("index", opts_arr[0]))
     {
       index_type_t *iext = iext_find (opts_arr[1]);
       int n_slices = id_key->key_partition ? id_key->key_partition->kpd_map->clm_distinct_slices : 1;
       tb_ext_inx_t *tie;
+      int inx, n_opts;
       if (!iext)
 	sqlr_new_error ("42000", "IEXTN", "Index extension %s not registered", opts_arr[1]);
       tie = tb_find_tie (tb, text_col, iext->iext_name);
@@ -541,33 +640,30 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	{
 	  NEW_VARZ (tb_ext_inx_t, tie2);
 	  tie = tie2;
-	  tie->tie_slices = (void***)dk_alloc_box_zero (n_slices * sizeof (caddr_t), DV_BIN);
+	  tie->tie_slices = (void ***) dk_alloc_box_zero (n_slices * sizeof (caddr_t), DV_BIN);
 	  tie->tie_col = text_col;
 	}
       tie->tie_iext = iext;
-#ifdef CL6
-      if (id_key->key_partition)
-	{
-	  DO_LOCAL_CSL (csl, id_key->key_partition->kpd_map)
       {
 	caddr_t err = NULL;
-	      int rc = iext->iext_open (opts_arr, csl->csl_id, &tie->tie_slices[csl->csl_id], &err);
-	      if (err)
-		sqlr_resignal (err);
-	    }
-	  END_DO_LOCAL_CSL;
-	}
-      else
-#endif
-	{
-	  caddr_t err = NULL;
-	  iext->iext_open (opts_arr, 0, &tie->tie_slices[0], &err);
+	iext->iext_open (opts_arr, 0, &tie->tie_slices[0], &err);
 	if (err)
 	  sqlr_resignal (err);
       }
       dk_set_push (&tb->tb_ext_indices, (void *) tie);
+      n_opts = BOX_ELEMENTS (opts_arr);
+      DO_BOX (caddr_t, opt, inx, opts_arr)
+      {
+	if (inx < n_opts - 1 && DV_STRINGP (opt) && !strcmp (opt, "rdf"))
+	  {
+	    int type = unbox (opts_arr[inx + 1]);
+	    if (!rdf_type_iext.ht_elements)
+	      hash_table_init (&rdf_type_iext, 53);
+	    sethash ((void *) (ptrlong) type, &rdf_type_iext, (void *) tie);
+	  }
+      }
+      END_DO_BOX;
     }
-#ifdef GEO_INDEX
   if (is_geo)
     {
       id_key->key_geo_table = inx_tb;
@@ -575,7 +671,6 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       text_col->col_is_geo_index = 1;
     }
   else
-#endif
     {
       id_key->key_text_table = inx_tb;
       id_key->key_text_col = text_col;
@@ -658,7 +753,7 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 iext_txn_t
 lt_iext_txn (lock_trx_t * lt, tb_ext_inx_t * tie, slice_id_t slid)
 {
-  iext_txn_t * slices;
+  iext_txn_t *slices;
   int n_slices = BOX_ELEMENTS (tie->tie_slices);
   if (QI_NO_SLICE == slid && CL_RUN_CLUSTER == cl_run_local_only)
     sqlr_new_error ("IESLI", "IESLI", "Getting txn for iext op in cluster when slice not set");
@@ -676,11 +771,11 @@ lt_iext_txn (lock_trx_t * lt, tb_ext_inx_t * tie, slice_id_t slid)
     }
   if (!lt->lt_iext)
     lt->lt_iext = hash_table_allocate (23);
-  slices = (iext_txn_t*)gethash ((void*)tie, lt->lt_iext);
+  slices = (iext_txn_t *) gethash ((void *) tie, lt->lt_iext);
   if (!slices)
     {
-      slices = (iext_txn_t *)dk_alloc_box_zero (sizeof (caddr_t) * n_slices, DV_BIN);
-      sethash (tie, lt->lt_iext, (void*)slices);
+      slices = (iext_txn_t *) dk_alloc_box_zero (sizeof (caddr_t) * n_slices, DV_BIN);
+      sethash (tie, lt->lt_iext, (void *) slices);
     }
   if (!slices[slid])
     slices[slid] = tie->tie_iext->iext_start_txn (tie->tie_slices[slid]);
@@ -694,35 +789,35 @@ lt_iext_transact (lock_trx_t * lt, int op)
 {
   int is_err = 0;
   if (!lt->lt_iext)
-    return;
+    return LTE_OK;
   DO_HT (tb_ext_inx_t *, tie, iext_txn_t *, slices, lt->lt_iext)
+  {
+    int inx;
+    DO_BOX (iext_txn_t, tx, inx, slices)
     {
-      int inx;
-      DO_BOX (iext_txn_t, tx, inx, slices)
+      caddr_t err = NULL;
+      if (tx)
+	tie->tie_iext->iext_transact (tx, op, &err);
+      if (LT_CL_PREPARED == op && err)
 	{
-	  caddr_t err = NULL;
-	  if (tx)
-	    tie->tie_iext->iext_transact (tx, op, &err);
-	  if (LT_CL_PREPARED == op && err)
+	  caddr_t *e2 = (caddr_t *) err;
+	  lt->lt_error_detail = e2[2];
+	  e2[2] = NULL;
+	  dk_free_tree ((caddr_t) e2);
+	  is_err = 1;
+	  if (op != LT_CL_PREPARED)
 	    {
-	      caddr_t * e2 = (caddr_t*)err;
-	      lt->lt_error_detail = e2[2];
-	      e2[2] = NULL;
-	      dk_free_tree ((caddr_t)e2);
-	      is_err = 1;
-	      if (op != LT_CL_PREPARED)
-		{
-		  hash_table_free (lt->lt_iext);
-		  lt->lt_iext = NULL;
-		}
-		goto end;
+	      hash_table_free (lt->lt_iext);
+	      lt->lt_iext = NULL;
 	    }
+	  goto end;
 	}
-      END_DO_BOX;
-      dk_free_box ((caddr_t)slices);
     }
+    END_DO_BOX;
+    dk_free_box ((caddr_t) slices);
+  }
   END_DO_HT;
- end:
+end:
   if (is_err)
     return LTE_CANCEL;
   return LTE_OK;
@@ -732,14 +827,16 @@ lt_iext_transact (lock_trx_t * lt, int op)
 tb_ext_inx_t *
 iextt_find (caddr_t tn, caddr_t cn, caddr_t in)
 {
-  tb_ext_inx_t * tie;
-  dbe_column_t * col;
-  dbe_table_t * tb = sch_name_to_table (wi_inst.wi_schema, tn);
+  tb_ext_inx_t *tie;
+  dbe_column_t *col;
+  dbe_table_t *tb = sch_name_to_table (wi_inst.wi_schema, tn);
   if (!tb)
-    sqlr_new_error ("42000", "IEXNT", "No table %.300s for iext_op('%.300s', '%.300s', '%.300s') or other index extension operation", tn, tn, cn, in); 
+    sqlr_new_error ("42000", "IEXNT",
+	"No table %.300s for iext_op('%.300s', '%.300s', '%.300s') or other index extension operation", tn, tn, cn, in);
   col = tb_name_to_column (tb, cn);
   if (!col)
-    sqlr_new_error ("42000", "IENCO", "No column %.300s for iext_op('%.300s', '%.300s', '%.300s') or other index extension operation", cn, tn, cn, in);
+    sqlr_new_error ("42000", "IENCO",
+	"No column %.300s for iext_op('%.300s', '%.300s', '%.300s') or other index extension operation", cn, tn, cn, in);
   tie = tb_find_tie (tb, col, in);
   if (!tie)
     sqlr_new_error ("42000", "IENIE", "No index extension %.300s for column %.300s in table %.300s", in, cn, tn);
@@ -755,10 +852,10 @@ bif_iext_op (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t tn = bif_string_arg (qst, args, 0, "iext_op");
   caddr_t cn = bif_string_arg (qst, args, 1, "iext_op");
   caddr_t in = bif_string_arg (qst, args, 2, "iext_op");
-  int is_del = bif_long_arg (qst, args, 3,  "iext_op");
+  int is_del = bif_long_arg (qst, args, 3, "iext_op");
   int64 id = bif_long_arg (qst, args, 4, "iext_op");
   caddr_t data = bif_arg (qst, args, 5, "iext_op");
-  tb_ext_inx_t * tie;
+  tb_ext_inx_t *tie;
   tie = iextt_find (tn, cn, in);
   iext_index_t ie;
   iext_txn_t ietx = NULL;
@@ -773,7 +870,8 @@ bif_iext_op (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     sqlr_new_error ("420000", "IESRN", "slice out of range for iext_op('%.300s', '%.300s', '%.300s')", tn, cn, in);
   ie = tie->tie_slices[slid];
   if (!ie)
-    sqlr_new_error ("ELASL", "ELASL", "No slice %d for iext_op('%.300s', '%.300s', '%.300s') on host %d", slid, tn, cn, in, local_cll.cll_this_host);
+    sqlr_new_error ("ELASL", "ELASL", "No slice %d for iext_op('%.300s', '%.300s', '%.300s') on host %d", slid, tn, cn, in,
+	local_cll.cll_this_host);
   if (is_del)
     tie->tie_iext->iext_delete (ie, ietx, 1, &id, &data, err_ret);
   else
@@ -791,7 +889,8 @@ tb_name_to_column_misc (dbe_table_t * tb, char *name)
 {
   dbe_column_t *col = tb_name_to_column (tb, name);
   if (!col
-      && sch_is_subkey_incl (/*isp_schema (db_main_tree->it_commit_space)*/ wi_inst.wi_schema, tb->tb_primary_key->key_id, entity_key_id))
+      && sch_is_subkey_incl ( /*isp_schema (db_main_tree->it_commit_space) */ wi_inst.wi_schema, tb->tb_primary_key->key_id,
+	  entity_key_id))
     {
       col = lt_xml_col (NULL, name);
       if (col && tb->tb_misc_id_to_col_id)
@@ -837,11 +936,7 @@ qi_sel_for_effect (query_instance_t * qi, char *str, int n_pars, ...)
     }
 
   err = qr_rec_exec (qr, qi->qi_client, &lc, qi, NULL, n_pars,
-		       a1[0], a2[0], a3[0],
-		       a1[1], a2[1], a3[1],
-		       a1[2], a2[2], a3[2],
-		       a1[3], a2[3], a3[3]
-    );
+      a1[0], a2[0], a3[0], a1[1], a2[1], a3[1], a1[2], a2[2], a3[2], a1[3], a2[3], a3[3]);
   if (err != (caddr_t) SQL_SUCCESS)
     return err;
   while (lc_next (lc))
@@ -861,9 +956,10 @@ qi_tb_xml_schema (query_instance_t * qi, char *read_tb)
   if (tb && !tb_name_to_column (tb, LAST_FTI_COL))
     return NULL;
 
-  err = qi_sel_for_effect (qi, "select __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS) "
-		     " from DB.DBA.SYS_VT_INDEX where VI_TABLE = ?", 1,
-		     ":0", read_tb, QRP_STR);
+  err =
+      qi_sel_for_effect (qi,
+      "select __vt_index (VI_TABLE, VI_INDEX, VI_COL, VI_ID_COL, VI_INDEX_TABLE, deserialize (VI_OFFBAND_COLS), VI_LANGUAGE, VI_ENCODING, deserialize (VI_ID_CONSTR), VI_OPTIONS) "
+      " from DB.DBA.SYS_VT_INDEX where VI_TABLE = ?", 1, ":0", read_tb, QRP_STR);
   if (err)
     return err;
   return NULL;
