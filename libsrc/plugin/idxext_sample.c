@@ -25,6 +25,9 @@
 #include "import_gate_virtuoso.h"
 #include "sqlver.h"
 
+#define NEW_VARZ(t, p) t * p = (t*)dk_alloc (sizeof (t)); memset (p, 0, sizeof (t))
+
+
 #define MAX_BIT 2000 
 
 
@@ -220,17 +223,28 @@ int
 bits_open (caddr_t * cfg, slice_id_t slid, iext_index_t * ret, caddr_t * err_ret)
 {
   char temp[MAX_BIT * 10];
-  char * fn;
+  char * fn = NULL;
   dk_session_t * dks;
-  int fd;
+  int fd, inx, n;
   bits_inst_t * bi = (bits_inst_t*)*ret;
   char fname[100];
   if (bi)
     return 0;
-  if (BOX_ELEMENTS (cfg) > 2)
-    fn = cfg[2];
-  else
-    fn = "bits";
+  n = BOX_ELEMENTS (cfg);
+  for (inx = 0; inx < n; inx += 2)
+    {
+      if (DV_STRINGP (cfg[inx]) && !strcmp (cfg[inx], "file"))
+	{
+	  fn = cfg[inx + 1];
+	  break;
+	}
+    }
+  if (!fn)
+    {
+      *err_ret = srv_make_new_error ("BINFI", "BINFI", "No file specified for bits index");
+      return -1;
+    }
+
   snprintf (fname, sizeof (fname), "%s.%d.bits", fn, slid);
   bi = (bits_inst_t*)dk_alloc (sizeof (bits_inst_t));
   memset (bi, 0, sizeof (bits_inst_t));
@@ -241,8 +255,9 @@ bits_open (caddr_t * cfg, slice_id_t slid, iext_index_t * ret, caddr_t * err_ret
   bi->bi_int_to_id->ht_rehash_threshold = 2;
   bi->bi_file = box_dv_short_string (fname);
   bi->bi_vecs = (int64 **)dk_alloc_box (sizeof (caddr_t) * MAX_BIT, DV_ARRAY_OF_POINTER);
+  memset (bi->bi_vecs, 0, box_length (bi->bi_vecs));
   *ret = bi;
-  fd = fd_open (bi->bi_file, O_RDWR | O_CREAT | O_BINARY);
+  fd = open (bi->bi_file, O_RDWR | O_CREAT);
   dks = dk_session_allocate (SESCLASS_TCPIP);
   tcpses_set_fd (dks->dks_session, fd);
   CATCH_READ_FAIL (dks)
@@ -273,7 +288,7 @@ bits_checkpoint (bits_inst_t * bi, int is_shutdown, caddr_t * err_ret)
   int fd;
   *err_ret = NULL;
   rwlock_rdlock (bi->bi_rw);
-  fd = fd_open (bi->bi_file, O_RDWR | O_CREAT | O_BINARY);
+  fd = open (bi->bi_file, O_RDWR | O_CREAT);
   ftruncate (fd, 0);
   DO_HT (ptrlong, id, ptrlong, int_id, bi->bi_id_to_int)
     {
