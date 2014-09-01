@@ -66,13 +66,13 @@ create procedure rnd_slide (in sid int, in xmax int, in ymax int, in n_features 
     };
   for vectored (in g any := geo, in b any := bits) {
       insert into feature (f_id, f_slide, f_geo, f_bitmap, f_p1, f_p2, f_x, f_y)
-	values (sequence_next ('s_seq'), sid, g, b, rnd (100), rnd (1000), st_xmin (geo), st_ymin (geo));
+	values (sequence_next ('s_seq'), sid, g, b, rnd (100), rnd (1000), st_xmin (g), st_ymin (g));
     }
 }
 
 
-
 rnd_slide (11, 10000, 10000, 500000, 70);
+rnd_slide (22, 10000, 10000, 500000, 70);
 
 
 init_cmp (22);
@@ -83,14 +83,14 @@ select count (*) from feature f1, feature f2 where
   f1.f_slide = 11 and f2.f_slide = 22 and st_intersects (f2.f_geo, f1.f_geo) option (order);
 
 
-select max (bm_cmp (cast (st_xmin (f1.f_geo) as int), cast (st_ymin (f1.f_geo) as int), cast (st_xmin (f2.f_geo) as int), cast (st_ymin (f2.f_geo) as int), f1.f_bitmap, f2.f_bitmap))
+select max (bm_cmp (f1.f_x, f1.f_y, f2.f_x, f2.f_y, f1.f_bitmap, f2.f_bitmap))
 from feature f1, feature f2 where 
   f1.f_slide = 11 and f2.f_slide = 22 and st_intersects (f2.f_geo, f1.f_geo) option (order);
 
 
 
 
-select f1.f_id, f2.f_id, bm_cmp (st_xmin (f1.f_geo), st_ymin (f1.f_geo), st_xmin (f2.f_geo), st_ymin (f2.f_geo), f1.f_bitmap, f2.f_bitmap) as sc, f1.f_p1, f2.f_p1
+select f1.f_id, f2.f_id, bm_cmp (f1.f_x, f1.f_y, f2.f_x, f2.f_y, f1.f_bitmap, f2.f_bitmap) as sc, f1.f_p1, f2.f_p1
   from feature f1, feature f2 where f1.f_slide = 11 and f2.f_slide = 22 and st_intersects (f2.f_geo, f1.f_geo)
 option (order);
 
