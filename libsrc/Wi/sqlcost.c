@@ -641,6 +641,12 @@ dfe_vec_index_unit (df_elt_t * dfe, float spacing)
     }
 }
 
+void
+dfe_cl_bottle_factor (df_elt_t * dfe, float *unit_ret)
+{
+}
+
+
 int enable_vec_cost = 1;
 extern int32 enable_dyn_batch_sz;
 #define dc_max_batch_sz_f (enable_dyn_batch_sz ? dc_max_batch_sz : dc_batch_sz)
@@ -650,7 +656,7 @@ dfe_vec_inx_cost (df_elt_t * dfe, index_choice_t * ic, int64 sample)
 {
   /* determine distance between consecutive hits.  If in order with previous, will be distance of previous times hanout of this if fanout > 1.
    * if not in order, will be card of the table as selected by leading constants divided by min of expected inputs and max vector size */
-  float sort_cost = 0;
+  float sort_cost = 0, inx_cost;
   df_elt_t *prev_tb;
   float card_between = 1;
   int eq_on_ordering = 0;
@@ -708,7 +714,9 @@ dfe_vec_inx_cost (df_elt_t * dfe, index_choice_t * ic, int64 sample)
   else
     dfe->_.table.is_cl_part_first = 0;
   ic->ic_spacing = dfe->_.table.hit_spacing;
-  return dfe_vec_index_unit (dfe, dfe->_.table.hit_spacing) + sort_cost;
+  inx_cost = dfe_vec_index_unit (dfe, dfe->_.table.hit_spacing) + sort_cost;
+  dfe_cl_bottle_factor (dfe, &inx_cost);
+  return inx_cost;
 }
 
 

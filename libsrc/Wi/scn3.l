@@ -28,9 +28,9 @@
 %option 8bit
 %option case-insensitive
 %option never-interactive
-/*%option noyyalloc
+%option noyyalloc
 %option noyyrealloc
-%option noyyfree*/
+%option noyyfree
 %option noyywrap
 %option reentrant
 %{
@@ -57,7 +57,36 @@ extern const struct keyword *lex_hash_kw (register const char *str, register uns
 
 struct yyguts_t;
 
-#ifndef SCN3SPLIT
+extern void *scn3yyalloc (yy_size_t ,yyscan_t yyscanner );
+extern void *scn3yyrealloc (void *,yy_size_t ,yyscan_t yyscanner );
+extern void scn3yyfree(void *ptr, yyscan_t scanner);
+
+#ifdef SCN3SPLIT
+#define scn3splityyalloc(sz,scanner) scn3yyalloc(sz,scanner)
+#define scn3splityyrealloc(ptr,sz,scanner) scn3yyrealloc(ptr,sz,scanner)
+#define scn3splityyfree(ptr,scanner) do { ; } while (0)
+#else
+
+void *
+scn3yyalloc (yy_size_t sz, yyscan_t scanner) {
+  return t_alloc_box (sz, DV_STRING); }
+
+void *
+scn3yyrealloc (void *ptr, yy_size_t sz, yyscan_t scanner) {
+  int old_sz = ((NULL == ptr) ? 0 : box_length (ptr));
+  if (old_sz < sz)
+    {
+      void *res = t_alloc_box (sz, DV_STRING);
+      memcpy (res, ptr, old_sz);
+      return res;
+    }
+  if (0 == sz)
+    return NULL;
+  return ptr;
+}
+
+void
+scn3yyfree(void *ptr, yyscan_t scanner) {}
 
 void
 scn3_pragma_line (char *text)
@@ -1085,7 +1114,7 @@ char *
 scn3_get_yytext (yyscan_t yyscanner)
 {
   struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-  return (size_t) yytext;
+  return yytext;
 }
 
 size_t

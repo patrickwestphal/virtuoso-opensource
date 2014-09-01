@@ -1415,6 +1415,19 @@ ks_cl_local_cast (key_source_t * ks, caddr_t * inst)
     }
 }
 
+
+extern long dbf_user_1, dbf_user_2;
+
+#ifndef NDEBUG
+#define PRE_MSG \
+  { if (dbf_user_1 == ts->src_gen.src_sets || dbf_user_2 == ts->src_gen.src_sets) {printf ("%d in %d s %d\n", ts->src_gen.src_sets, itc->itc_n_sets, qi->qi_slice);}}
+
+#define POST_MSG \
+  { if (dbf_user_1 == ts->src_gen.src_sets || dbf_user_2 == ts->src_gen.src_sets) {printf ("%d out %d s %d\n", ts->src_gen.src_sets, itc->itc_n_results, qi->qi_slice);}}
+#else
+#define PRE_MSG
+#define POST_MSG
+#endif
 void ts_top_oby_limit (table_source_t * ts, caddr_t * inst, it_cursor_t * itc);
 
 int enable_ro_rc = 1;
@@ -1574,7 +1587,9 @@ ks_start_search (key_source_t * ks, caddr_t * inst, caddr_t * state,
 	  return 2;		/* sdfg run to completion, return from the ts input */
 	itc->itc_n_results = 0;
 	ks_vec_new_results (ks, inst, itc);
+	PRE_MSG;
 	res = itc_vec_next (itc, &buf);
+	POST_MSG;
 	itc->itc_rows_selected += itc->itc_n_results;
 	if (itc->itc_n_results == itc->itc_batch_size && !(itc->itc_set == itc->itc_n_sets - 1 && DVC_GREATER == res))
 	  {

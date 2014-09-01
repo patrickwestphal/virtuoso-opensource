@@ -943,11 +943,9 @@ typedef struct stage_node_s
   state_slot_t *stn_slice_qis;	/* array of per slice qis */
   state_slot_t *stn_aq;		/* aq for running the per slice qis */
   state_slot_t *stn_bulk_input;	/* array of arrays of cms, nned to be divided among the stn inputs before use */
-  state_slot_t *stn_input;	/* array of cm clos that represent input from remote nodes for this stn */
+  state_slot_t *stn_rbuf;	/* rbuf of cm clos that represent input from remote nodes for this stn */
   state_slot_t *stn_dre;	/* array of dres marking place in input dcsin the current param cm */
   ssl_index_t stn_n_ins_in_out;	/* count of fully consumed in batches in present out batch */
-  ssl_index_t stn_input_fill;	/* qst int for last added in stn input array */
-  ssl_index_t stn_input_used;
   ssl_index_t stn_roj_outer;
   state_slot_t *stn_current_input;
   int stn_read_to;		/* qst int, position in current input for the next clo of input */

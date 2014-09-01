@@ -2987,7 +2987,7 @@ sqlo_select_scope (sqlo_t * so, ST ** ptree)
 
       int sqlo_is_unq_preserving (caddr_t name)
       {
-	return (SINV_DV_STRINGP (name) && (!stricmp (name, "__ID2I") || !stricmp (name, "__RO2SQ")));
+	return (SINV_DV_STRINGP (name) && (!stricmp (name, "__ID2I") || !stricmp (name, "__ID2In") || !stricmp (name, "__RO2SQ")));
       }
 
 

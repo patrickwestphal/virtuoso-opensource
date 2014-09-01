@@ -3756,6 +3756,7 @@ void
 srv_global_init (char *mode)
 {
 /* Sanity check for list, to detect errors like errors catched by AMD Opteron port */
+  int save_qp;
 #ifdef DEBUG
   caddr_t *probe = list (7, NULL, 1, 2, 3L, 4L, box_dv_short_string ("5"), box_dv_short_string ("6"));
   if (probe[0] != NULL)
@@ -3967,6 +3968,8 @@ srv_global_init (char *mode)
       LEAVE_TXN;
       return;
     }
+  save_qp = enable_qp;
+  enable_qp = 1;
   SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_IMMEDIATE_CLIENT, bootstrap_cli);
   ddl_scheduler_init ();
 
@@ -4009,6 +4012,7 @@ srv_global_init (char *mode)
   ddl_ensure_stat_tables ();
   SET_THR_ATTR (THREAD_CURRENT_THREAD, TA_IMMEDIATE_CLIENT, bootstrap_cli);
   bootstrap_cli->cli_user = sec_id_to_user (U_ID_DBA);
+  enable_qp = save_qp;
   if (!in_crash_dump)
     sql_code_global_init ();
   /* and a third time to process grants over the sqls_define procs */

@@ -489,16 +489,16 @@ bif_rdf_iext_insert_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args,
       SET_LOOP
       {
 	int dt = ((int64 *) dt_lang_dc->dc_values)[set] >> 16;
-	if (gethash ((void *) (ptrlong) dt, done))
-	  continue;
 	tie = rdf_type_iext.ht_count ? gethash ((void *) (ptrlong) dt, &rdf_type_iext) : NULL;
 	if (!tie)
 	  {
 	    ((int64 *) ret_dc->dc_values)[set] = 0;
 	    continue;
 	  }
+	if (gethash ((void *) tie, done))
+	  continue;
 	((int64 *) ret_dc->dc_values)[set] = 1;
-	if (!this_dt)
+	if (!this_tie)
 	  {
 	    this_dt = dt;
 	    this_tie = tie;
@@ -519,8 +519,10 @@ bif_rdf_iext_insert_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args,
       END_SET_LOOP;
       if (this_tie)
 	{
+	  tie = this_tie;
+	  sethash ((void *) this_tie, done, (void *) 1);
 	  if (!qi->qi_non_txn_insert && !ietx)
-	    ietx = lt_iext_txn (qi->qi_trx, tie, qi->qi_slice);
+	    ietx = lt_iext_txn (qi->qi_trx, this_tie, qi->qi_client->cli_slice);
 	  slid = qi->qi_client->cli_slice;
 	  if (QI_NO_SLICE == slid && CL_RUN_CLUSTER == cl_run_local_only)
 	    sqlr_new_error ("42000", "IENSL", "No slice set for iext_ rdf insert in cluster");

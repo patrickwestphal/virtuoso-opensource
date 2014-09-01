@@ -1281,10 +1281,10 @@ node_print_0 (data_source_t * node)
   else if (in == (qn_input_fn) setp_node_input)
     {
       setp_node_t *setp = (setp_node_t *) node;
-      char hf[40];
+      char hf[60];
       if (setp->setp_ha && HA_FILL == setp->setp_ha->ha_op)
-	snprintf (hf, sizeof (hf), "hf %d %s", setp->setp_ha->ha_tree->ssl_index,
-	    HS_CL_REPLICATED == setp->setp_cl_partition ? "replicated" : "");
+	snprintf (hf, sizeof (hf), "hf %d %s %9.2g rows", setp->setp_ha->ha_tree->ssl_index,
+	    HS_CL_REPLICATED == setp->setp_cl_partition ? "replicated" : "", (float) setp->setp_ha->ha_row_count);
       else
 	hf[0] = 0;
       stmt_printf (("%s %s", setp->setp_distinct ? "Distinct" : "Sort", hf));
@@ -1901,10 +1901,11 @@ node_print (data_source_t * node)
   else if (in == (qn_input_fn) setp_node_input)
     {
       setp_node_t *setp = (setp_node_t *) node;
-      char hf[40];
+      char hf[60];
       if (setp->setp_ha && HA_FILL == setp->setp_ha->ha_op)
-	snprintf (hf, sizeof (hf), "hf %d %s %s", setp->setp_ha->ha_tree->ssl_index,
-	    HS_CL_REPLICATED == setp->setp_cl_partition ? "replicated" : "", setp->setp_no_bloom ? "no bloom" : "");
+	snprintf (hf, sizeof (hf), "hf %d %s %s %9.2g rows", setp->setp_ha->ha_tree->ssl_index,
+	    HS_CL_REPLICATED == setp->setp_cl_partition ? "replicated" : "",
+	    setp->setp_no_bloom ? "no bloom" : "", (float) setp->setp_ha->ha_row_count);
       else
 	hf[0] = 0;
       stmt_printf (("%s %s", setp->setp_distinct ? "Distinct" : "Sort", hf));

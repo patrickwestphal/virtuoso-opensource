@@ -551,6 +551,7 @@ struct hash_index_s
   dp_addr_t *hi_buckets;
   dk_hash_t *hi_source_pages;
   index_tree_t *hi_source_tree;
+  ptrlong *hi_cl_to_free;	/* the cluster hosts listed here need an extra free message when dropping this  hi */
   char hi_lock_mode;
   char hi_isolation;
   char hi_memcache_from_mp;
@@ -1051,8 +1052,8 @@ struct it_cursor_s
     int rows_in_segs;
     dk_hash_t *cols;		/* hash from de_col_t to col_stat_t *for random sample col stats. */
     struct tb_sample_s *smp;
-    int n_rows_sampled;
-    int n_row_spec_matches;
+    uint64 n_rows_sampled;
+    uint64 n_row_spec_matches;
   } itc_st;
 
 };

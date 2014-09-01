@@ -60,6 +60,15 @@ extern long tc_dfg_coord_pause;
 extern long tc_dfg_more;
 
 
+int
+stn_n_input (stage_node_t * stn, caddr_t * inst)
+{
+  rbuf_t *rbuf = QST_BOX (rbuf_t *, inst, stn->stn_rbuf->ssl_index);
+  return rbuf ? rbuf->rb_count : 0;
+}
+
+
+
 
 
 stage_node_t *
@@ -77,7 +86,7 @@ stn_in_batch (stage_node_t * stn, caddr_t * inst, cl_message_t * cm, caddr_t in,
   /* add a batch string to the in queue of the stn */
   cl_op_t *clo = clo_allocate (CLO_STN_IN);
   cl_op_t *dfg_state;
-  caddr_t **q;
+  rbuf_t *rbuf = QST_BOX (rbuf_t *, inst, stn->stn_rbuf->ssl_index);
   int fill;
   clo->_.stn_in.in = in;
   clo->_.stn_in.read_to = read_to;
@@ -89,12 +98,14 @@ stn_in_batch (stage_node_t * stn, caddr_t * inst, cl_message_t * cm, caddr_t in,
       clo->_.stn_in.in_list = cm->cm_in_list;
       clo->_.stn_in.n_comp = cm->cm_n_comp_entries;
     }
-  q = (caddr_t **) & inst[stn->stn_input->ssl_index];
-  fill = QST_INT (inst, stn->stn_input_fill);
-  array_add (q, &fill, (caddr_t) clo);
-  QST_INT (inst, stn->stn_input_fill) = fill;
+  if (!rbuf)
+    {
+      QST_BOX (rbuf_t *, inst, stn->stn_rbuf->ssl_index) = rbuf = rbuf_allocate ();
+      rbuf->rb_free_func = (rbuf_free_t) dk_free_box;
+    }
+  rbuf_add (rbuf, (void *) clo);
   SRC_IN_STATE ((data_source_t *) stn, inst) = inst;
-  if (fill > 10)
+  if (rbuf->rb_count > 10)
     ((QI *) inst)->qi_slice_merits_thread = 1;
 }
 
@@ -248,6 +259,25 @@ stn_roj_outer (stage_node_t * stn, caddr_t * inst)
 }
 
 
+void
+stn_extend_batch (stage_node_t * stn, caddr_t * inst, itc_cluster_t * itcl, dc_read_t * dre)
+{
+  /* the output batch must be the whole input clo worth of values, the gby read node following dependds on this */
+  int batch = dre->dre_n_values, inx;
+  itcl->itcl_batch_size = batch;
+  QST_INT (inst, stn->src_gen.src_batch_size) = batch;
+  DO_BOX (state_slot_t *, ssl, inx, stn->stn_inner_params)
+  {
+    if (SSL_VEC == ssl->ssl_type)
+      {
+	data_col_t *dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
+	DC_CHECK_LEN (dc, batch);
+      }
+  }
+  END_DO_BOX;
+}
+
+
 int dfg_clo_mp_limit = 10000000;
 void
 stn_continue (stage_node_t * stn, caddr_t * inst)
@@ -260,6 +290,7 @@ stn_continue (stage_node_t * stn, caddr_t * inst)
   cl_ses_t clses;
   dk_session_t *ses = &clib.clib_in_strses;
   int ctr;
+  int no_dc_break = stn->stn_loc_ts->ts_order_ks->ks_is_flood && IS_QN (qn_next (stn), chash_read_input);
   cl_op_t *itcl_clo = (cl_op_t *) qst_get (inst, stn->clb.clb_itcl);
   itc_cluster_t *itcl = itcl_clo ? itcl_clo->_.itcl.itcl : NULL;
   stn_divide_bulk_input (stn, inst);
@@ -299,21 +330,15 @@ again:
       ITCL_TRACE (itcl);
       if (!in)
 	{
-	  int used;
-	  if ((used = QST_INT (inst, stn->stn_input_used)) < QST_INT (inst, stn->stn_input_fill))
+	  rbuf_t *rbuf = QST_BOX (rbuf_t *, inst, stn->stn_rbuf->ssl_index);
+	  if (rbuf && rbuf->rb_count)
 	    {
-	      cl_op_t **input = (cl_op_t **) qst_get (inst, stn->stn_input);
-	      qst_set (inst, stn->stn_current_input, (caddr_t) input[used]);
-	      in = input[used];
+	      in = rbuf_get (rbuf);
+	      qst_set (inst, stn->stn_current_input, (caddr_t) in);
 	      stn_in_uncompress (in);
-	      input[used] = NULL;
-	      QST_INT (inst, stn->stn_input_used)++;
 	    }
 	  else
 	    {
-	      qst_set (inst, stn->stn_input, NULL);
-	      QST_INT (inst, stn->stn_input_fill) = 0;
-	      QST_INT (inst, stn->stn_input_used) = 0;
 	      QST_INT (inst, stn->stn_state) = STN_INIT;
 	      if (!itcl->itcl_n_results)
 		SRC_IN_STATE ((data_source_t *) stn, inst) = NULL;
@@ -331,7 +356,7 @@ again:
 			      qi->qi_slice, stn->stn_nth, dummy));
 		      ITCL_TRACE (itcl);
 		    }
-		  if (QST_INT (inst, stn->stn_input_fill))
+		  if (stn_n_input (stn, inst))
 		    dfg_printf (("host %d slice %d  stage %d queued input for self\n", local_cll.cll_this_host, qi->qi_slice,
 			    stn->stn_nth));
 		  continue;	/* go check if this stn got input from queue */
@@ -353,6 +378,7 @@ again:
 	    if ((dre = (dc_read_t *) QST_GET_V (inst, stn->stn_dre)) && dre->dre_pos < dre->dre_n_values)
 	      {
 		stn_check_dcs (stn, inst);
+	      more_from_dre:
 		clib_vec_read_into_slots (&clib, inst, stn->stn_in_slots);
 		stn_check_dcs (stn, inst);
 		ITCL_TRACE (itcl);
@@ -362,6 +388,13 @@ again:
 		    qst_set (inst, stn->stn_current_input, NULL);
 		    CL_ONLY (dfg_state->_.dfg_stat.batches_consumed++);
 		    QST_INT (inst, stn->stn_n_ins_in_out)++;
+		  }
+		else if (no_dc_break)
+		  {
+		    /* a dfg can begin with a partitioned gby reader.  If so, the first stage is a broadcast from coord and if the gby is multistate this has a vector size equal to the number of sets in the gby.
+		     * The stn in this case must produce a single batch of with one row per set in the gby, so adjust the batch size to be more than this */
+		    stn_extend_batch (stn, inst, itcl, dre);
+		    goto more_from_dre;
 		  }
 		if (itcl->itcl_batch_size == itcl->itcl_n_results)
 		  goto full_batch;
@@ -375,6 +408,7 @@ again:
 		stn_new_in_batch (stn, inst, &clib.clib_first);
 		clib.clib_dc_read = QST_BOX (dc_read_t *, inst, stn->stn_dre->ssl_index);
 		stn_check_dcs (stn, inst);
+	      more_from_dre2:
 		clib_vec_read_into_slots (&clib, inst, stn->stn_in_slots);
 		stn_check_dcs (stn, inst);
 		dre = QST_BOX (dc_read_t *, inst, stn->stn_dre->ssl_index);
@@ -384,6 +418,13 @@ again:
 		    CL_ONLY (dfg_state->_.dfg_stat.batches_consumed++);
 		    QST_INT (inst, stn->stn_n_ins_in_out)++;
 		    qst_set (inst, stn->stn_current_input, NULL);
+		  }
+		else if (no_dc_break)
+		  {
+		    /* a dfg can begin with a partitioned gby reader.  If so, the first stage is a broadcast from coord and if the gby is multistate this has a vector size equal to the number of sets in the gby.
+		     * The stn in this case must produce a single batch of with one row per set in the gby, so adjust the batch size to be more than this */
+		    stn_extend_batch (stn, inst, itcl, dre);
+		    goto more_from_dre2;
 		  }
 		if (itcl->itcl_n_results >= itcl->itcl_batch_size)
 		  goto full_batch;
@@ -1759,7 +1800,7 @@ cont_innermost_loop:
 	stn_divide_bulk_input (stnck, inst);
 	if (!qi->qi_dfg_anytimed)
 	  {
-	    if ((QST_INT (inst, stnck->clb.clb_fill) || QST_INT (inst, stnck->stn_input_fill)) && !SRC_IN_STATE (stnck, inst))
+	    if ((QST_INT (inst, stnck->clb.clb_fill) || stn_n_input (stnck, inst)) && !SRC_IN_STATE (stnck, inst))
 	      GPF_T1 ("stn has fill but not continuable");
 	    if (STN_RUN == QST_INT (inst, stnck->stn_state) && !SRC_IN_STATE (stnck, inst))
 	      GPF_T1 ("stn in run state but not continuable");

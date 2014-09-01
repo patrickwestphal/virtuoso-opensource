@@ -341,7 +341,7 @@ long dbf_clop_enter_wait;
 long dbf_cl_skip_wait_notify;
 long dbf_cpt_rb;
 long dbf_cl_blob_autosend_limit = 2000000;
-long dbf_no_sample_timeout = 0;
+long dbf_no_sample_timeout = 1;
 extern int dbf_compress_mask;
 extern int dbf_ce_insert_mask;
 extern int dbf_ce_del_mask;
@@ -1413,7 +1413,9 @@ extern long srv_cpu_count;
 extern int32 col_seg_max_bytes;
 extern int32 col_seg_max_rows;
 
-
+#ifdef MALLOC_DEBUG
+extern long slow_malloc_debug;
+#endif
 
 stat_desc_t stat_descs[] = {
   {"main_bufs", (long *) &main_bufs, SD_INT32},
@@ -1748,6 +1750,10 @@ stat_desc_t stat_descs[] = {
   {"col_ac_last_duration", (long *) &col_ac_last_duration, SD_INT32},
   {"col_ins_error", (long *) &col_ins_error, SD_INT32},
   {"cl_rdf_inf_inited", (long *) &cl_rdf_inf_inited, SD_INT32},
+
+#ifdef MALLOC_DEBUG
+  {"slow_malloc_debug", &slow_malloc_debug, NULL},
+#endif
   {NULL, NULL, NULL}
 };
 
@@ -1888,6 +1894,11 @@ stat_desc_t dbf_descs[] = {
 #endif
   {"enable_rdf_box_const", &enable_rdf_box_const, SD_INT32},
   {"col_seg_max_rows", &col_seg_max_rows, SD_INT32},
+  {"dk_n_allocs", &dk_n_allocs},
+  {"dk_n_free", &dk_n_free},
+  {"dk_n_total", &dk_n_total},
+  {"dk_n_nosz_free", &dk_n_nosz_free},
+  {"dk_n_bytes", &dk_n_bytes},
 
   {NULL, NULL, NULL}
 };
@@ -2008,7 +2019,7 @@ bif_sys_stat (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t name = bif_string_arg (qst, args, 0, "sys_stat");
   caddr_t res = sys_stat_impl (name);
   if (NULL == res)
-    sqlr_new_error ("42S22", "SR242", "No system status variable %s", name);
+    sqlr_new_error ("42S22", "SR242", "No system status variable '%.300s'", name);
   return res;
 }
 
@@ -2022,7 +2033,7 @@ bif_dbf_set (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   sec_check_dba ((query_instance_t *) qst, "__dbf_set");
   place = (stat_desc_t **) id_hash_get (sd_hash, (caddr_t) & name);
   if (!place)
-    sqlr_new_error ("42000", "SR...", "sys_stat_set, parameter does not exist");
+    sqlr_new_error ("42000", "SR...", "sys_stat parameter '%.300s' does not exist and can not be set by __dbf_set()", name);
 
 
   sd = *place;
@@ -2039,7 +2050,7 @@ bif_dbf_set (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       return (box_num (ov));
     }
   else
-    sqlr_new_error ("42000", "SR...", "sys_stat_set, parameter not settable");
+    sqlr_new_error ("42000", "SR...", "sys_stat parameter '%.300s' is read-only, not settable by __dbf_set()", name);
   return NULL;			/*dummy */
 }
 

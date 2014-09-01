@@ -181,10 +181,10 @@ void sqlp_pragma_line (char *text);
 #define SQL_GPF_T1(cc, tx) GPF_T1(tx)
 #else
 #define SQL_GPF_T(cc)   sqlc_new_error (cc, "37000", "SQ155", \
-    "sqlo error in %.200s:%d.\n" \
+    "General internal Optimized compiler error in %.200s:%d.\n" \
     "Please report the statement compiled.", __FILE__, __LINE__)
 #define SQL_GPF_T1(cc, tx)   sqlc_new_error (cc, "37000", "SQ156", \
-    "sqlo: %.200s in %.200s:%d.\n" \
+    "Internal Optimized compiler error : %.200s in %.200s:%d.\n" \
     "Please report the statement compiled.", tx, __FILE__, __LINE__)
 #endif
 
@@ -200,8 +200,6 @@ ST **sqlp_wrapper_sqlxml (ST ** selection);
 ST *sqlp_wrapper_sqlxml_assign (ST * tree);
 
 int sqlp_tree_has_fun_ref (ST * tree);
-
-extern scn3_include_fragment_t scn3_include_stack[MAX_INCLUDE_DEPTH];
 
 /*! Nonzero if graph-level security bans the read from graphs by default so raw access to data should be prohibited */
 extern int rdf_raw_access_control;
@@ -220,8 +218,8 @@ extern int scn3splityylex (YYSTYPE * yylval, yyscan_t yyscanner);
 #endif
 #endif
 extern int scn3yylex_init (yyscan_t * scanner);
-void scn3yyrestart (FILE * in, yyscan_t yyscanner);
-void scn3splityyrestart (FILE * in, yyscan_t yyscanner);
+/* No need as soon as thing is reentrant: void scn3yyrestart (FILE * in, yyscan_t yyscanner); */
+/* No need as soon as thing is reentrant: void scn3splityyrestart (FILE * in, yyscan_t yyscanner); */
 extern void sql_yy_reset (yyscan_t yyscanner);
 extern void scn3split_yy_reset (yyscan_t yyscanner);
 extern void sql_pop_all_buffers (yyscan_t yyscanner);

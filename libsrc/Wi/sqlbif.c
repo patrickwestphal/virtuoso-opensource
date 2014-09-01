@@ -7724,7 +7724,7 @@ sql_lex_analyze (const char *str2, caddr_t * qst, int max_lexems, int use_strval
 	  int lextype, olex = -1;
 	  long n_lexem;
 	  sql_yy_reset (scanner);
-	  scn3yyrestart (NULL, scanner);
+	  /* No need as soon as thing is reentrant: scn3yyrestart (NULL, scanner); */
 	  for (n_lexem = 0;;)
 	    {
 	      YYSTYPE yylval;
@@ -7784,6 +7784,7 @@ bif_sql_lex_analyze (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 #define SQL_SPLIT_TEXT_KEEP_EMPTY_STATEMENTS 0x2
 #define SQL_SPLIT_TEXT_VERBOSE 0x4
 
+
 caddr_t
 sql_split_text (const char *str2, caddr_t * qst, int flags)
 {
@@ -7816,7 +7817,7 @@ sql_split_text (const char *str2, caddr_t * qst, int flags)
       caddr_t full_text, descr;
       size_t full_text_blen;
       scn3split_yy_reset (scanner);
-      scn3splityyrestart (NULL, scanner);
+      /* No need as soon as thing is reentrant: scn3splityyrestart (NULL, scanner); */
       global_scs->scs_scn3c.split_ses = strses_allocate ();
       has_useful_lexems = 0;
       start_lineno = global_scs->scs_scn3c.lineno;
@@ -7885,8 +7886,9 @@ cleanup:
   dk_free_box (global_scs->scs_scn3c.split_ses);	/* must be released inside semaphore */
   global_scs->scs_scn3c.split_ses = NULL;
   SCS_STATE_POP;
+  //dk_free_box (scn3split_ses); /* must be released inside semaphore */
+  //scn3split_ses = NULL;
   parse_leave ();
-  MP_DONE ();
   sc_free (&sc);
   dk_free_box (start_filename);
   return revlist_to_array (res);
@@ -9380,6 +9382,22 @@ bif_mem_leaks (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     fclose (fd);
   return NULL;
 }
+
+caddr_t
+bif_all_allocs_at_line (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t fname = bif_string_arg (qst, args, 0, "all_allocs_at_line");
+  int line = bif_long_arg (qst, args, 1, "all_allocs_at_line");
+  return box_num (all_allocs_at_line (fname, line));
+}
+
+caddr_t
+bif_new_allocs_after (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  int prev_res_no = bif_long_arg (qst, args, 0, "new_allocs_after");
+  return box_num (new_allocs_after (prev_res_no));
+}
+
 #endif
 
 
@@ -16475,6 +16493,8 @@ sql_bif_init (void)
   bif_define ("mem_all_in_use", bif_mem_all_in_use);
   bif_define ("mem_new_in_use", bif_mem_new_in_use);
   bif_define ("mem_leaks", bif_mem_leaks);
+  bif_define ("all_allocs_at_line", bif_all_allocs_at_line);
+  bif_define ("new_allocs_after", bif_new_allocs_after);
 #endif
   bif_define_ex ("mem_get_current_total", bif_mem_get_current_total, BMD_RET_TYPE, &bt_integer, BMD_DONE);
   bif_define ("mem_summary", bif_mem_summary);
@@ -16672,7 +16692,7 @@ bif_need_enlist (bif_t bif)
   int fl;
   bif_metadata_t *bmd = find_bif_metadata_by_bif (bif);
   if (NULL == bmd)
-    GPF_T;
+    return 0;			/*GPF_T; */
   fl = bmd->bmd_no_cluster;
   return fl & BIF_ENLIST;
 }

@@ -35,6 +35,21 @@
 
 
 
+void *
+dfr_gethash (void *k, id_hash_t * ht)
+{
+  void **place = id_hash_get (ht, (caddr_t) & k);
+  return place ? *place : NULL;
+}
+
+
+void
+dfr_sethash (void *k, id_hash_t * ht, void *d)
+{
+  t_id_hash_set (ht, (caddr_t) & k, (caddr_t) & d);
+}
+
+
 int
 sqlo_pred_is_range (ST * pred, ST ** col, ST ** lower, ST ** upper)
 {
@@ -336,10 +351,10 @@ dfe_cn_normalize (sql_comp_t * sc, op_table_t * ot1, op_table_t * ot2, dfe_reuse
   if (!sc->sc_cn_normalize)
     sc->sc_cn_normalize = hash_table_allocate (11);
   if (!dfr->dfr_cn_map)
-    dfr->dfr_cn_map = hash_table_allocate (11);
+    dfr->dfr_cn_map = t_id_hash_allocate (11, sizeof (ptrlong), sizeof (ptrlong), boxint_hash, boxint_hashcmp);
   sethash ((void *) (ptrlong) cn1, sc->sc_cn_normalize, (void *) (ptrlong) norm);
   sethash ((void *) (ptrlong) (cn2 + CN_NN_STEP), sc->sc_cn_normalize, (void *) (ptrlong) norm);
-  sethash ((void *) (ptrlong) cn2, dfr->dfr_cn_map, (void *) (ptrlong) cn1);
+  dfr_sethash ((void *) (ptrlong) cn2, dfr->dfr_cn_map, (void *) (ptrlong) cn1);
 }
 
 
@@ -461,7 +476,7 @@ sqlo_dfe_in_reuse (sqlo_t * so, df_elt_t * ref, dfe_reuse_t * dfr)
   if (!dfr)
     return ref;
   rep = (ST *) t_box_copy_tree ((caddr_t) ref->dfe_tree);
-  DO_HT (ptrlong, ref_cn, ptrlong, reuse_cn, dfr->dfr_cn_map)
+  DO_IDHASH (ptrlong, ref_cn, ptrlong, reuse_cn, dfr->dfr_cn_map)
   {
     char old[10];
     char np[10];
@@ -502,7 +517,7 @@ sqlo_shared_hash_fill_col (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * dfe)
   cn = OT_NO (dfe->dfe_tree->_.col_ref.prefix);
   if (!dfr->dfr_cn_map)
     return dfe;
-  int_cn = (ptrlong) gethash ((void *) cn, dfr->dfr_cn_map);
+  int_cn = (ptrlong) dfr_gethash ((void *) cn, dfr->dfr_cn_map);
   snprintf (pref2, sizeof (pref2), "t%d", (int) int_cn);
   tree = t_listst (3, COL_DOTTED, t_box_string (pref2), dfe->dfe_tree->_.col_ref.name);
   return sqlo_df (so, tree);
@@ -521,13 +536,4 @@ dfr_done (sqlo_t * so, dfe_reuse_t * dfr)
 void
 sc_dfr_free (sql_comp_t * sc)
 {
-  DO_SET (dfe_reuse_t *, dfr, &sc->sc_dfe_reuses)
-  {
-    if (dfr->dfr_cn_map)
-      {
-	hash_table_free (dfr->dfr_cn_map);
-	dfr->dfr_cn_map = NULL;
-      }
-  }
-  END_DO_SET ();
 }

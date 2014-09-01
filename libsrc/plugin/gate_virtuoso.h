@@ -78,6 +78,6 @@
 #include "../Wi/2pc.h"
 #include "../Wi/geo.h"
 #include "../Wi/rdf_core.h"
-
+#include "../Wi/idxext.h"
 
 #include "gate_virtuoso_stubs.h"

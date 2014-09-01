@@ -1469,7 +1469,8 @@ next_batch:
       mp_free (hi->hi_pool);
       hi->hi_pool = NULL;
     }
-  SRC_IN_STATE ((data_source_t *) ts, inst) = NULL;
+  if (branch == inst)		/* if reading cluster branch, the calling chash reader decides when at end */
+    SRC_IN_STATE ((data_source_t *) ts, inst) = NULL;
   ts_always_null (ts, inst);
   if (QST_INT (inst, ts->src_gen.src_out_fill))
     qn_ts_send_output ((data_source_t *) ts, inst, ts->ts_after_join_test);

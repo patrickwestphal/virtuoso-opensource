@@ -61,8 +61,8 @@
 #define obe_keyword_to_bif_fun_name(X) ((X))
 
 #ifdef DEBUG
-#define yyerror(scanner,strg) yyerror_1(scanner, yystate, yyssa, yyssp, strg)
-#define yyfatalerror(strg) yyfatalerror_1(yystate, yyssa, yyssp, strg)
+#define yyerror(scanner,strg) yyerror_1(/* no scanner */ yystate, yyssa, yyssp, strg)
+#define yyfatalerror(strg) yyfatalerror_1(/* no scanner */ yyssa, yyssp, strg)
 #endif
 
 #define assert_ms_compat(text)

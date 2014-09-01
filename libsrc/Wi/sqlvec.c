@@ -1726,6 +1726,8 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
 	filter_done:;
 	}
       sqlg_vec_ref_ssls (sc, setp->setp_ha->ha_slots);
+      if (HA_DISTINCT == ha->ha_op)
+	cv_deduplicate_param_ssls (sc->sc_cc, setp->setp_ha->ha_slots);
       prev_tree_type = setp->setp_ha->ha_tree->ssl_type;
       ASG_SSL_AGG (NULL, NULL, setp->setp_ha->ha_tree);
       if (setp->setp_set_no_in_key || !setp->setp_ssa.ssa_set_no)
@@ -3368,7 +3370,7 @@ sqlg_vec_hs (sql_comp_t * sc, hash_source_t * hs)
       }
     DO_BOX (state_slot_t *, ref, inx, hs->hs_ref_slots)
     {
-      state_slot_t *effective_ref = ssl_or_shadow (sc, ref);
+      state_slot_t *effective_ref = ref;	/*ssl_or_shadow (sc, ref); */
       if (pred == gethash ((void *) effective_ref, sc->sc_vec_ssl_def))
 	{
 	  any_key = 1;

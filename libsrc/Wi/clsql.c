@@ -1799,13 +1799,11 @@ stn_init (sql_comp_t * sc, stage_node_t * stn)
   stn->stn_dfg_state = ssl_new_variable (sc->sc_cc, "dfg_state", DV_ANY);
   stn->clb.clb_itcl = ssl_new_variable (sc->sc_cc, "stn_itcl", DV_ANY);
   stn->stn_reset_ctr = cc_new_instance_slot (sc->sc_cc);
-  stn->stn_input_fill = cc_new_instance_slot (sc->sc_cc);
-  stn->stn_input_used = cc_new_instance_slot (sc->sc_cc);
   stn->stn_read_to = cc_new_instance_slot (sc->sc_cc);
   stn->stn_state = cc_new_instance_slot (sc->sc_cc);
   stn->stn_n_ins_in_out = cc_new_instance_slot (sc->sc_cc);
   /* the state slots at higher inx so that the remote qf inst len is not too short, it comes from the inx of the last ssl */
-  stn->stn_input = ssl_new_variable (sc->sc_cc, "stn_in", DV_ANY);
+  stn->stn_rbuf = ssl_new_variable (sc->sc_cc, "stn_in", DV_ANY);
   stn->stn_current_input = ssl_new_variable (sc->sc_cc, "stn_c_in", DV_ANY);
   stn->stn_dre = ssl_new_variable (sc->sc_cc, "stn_dre", DV_ANY);
 }

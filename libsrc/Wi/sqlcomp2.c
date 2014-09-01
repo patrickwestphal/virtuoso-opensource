@@ -1025,7 +1025,7 @@ sql_stmt_comp (sql_comp_t * sc, ST ** ptree)
 
 dk_mutex_t *parse_mtx;
 du_thread_t *parse_mtx_owner;
-int enable_parse_mtx = 0;
+int enable_parse_mtx = 1;
 
 void
 parse_enter ()
@@ -1467,7 +1467,7 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
 	    if (0 == setjmp_splice (&(global_scs->parse_reset)))
 	      {
 		sql_yy_reset (scanner);
-		scn3yyrestart (NULL, scanner);
+		/* No need as soon as thing is reentrant: scn3yyrestart (NULL, scanner); */
 		scn3yyparse (scanner);
 	      }
 	    else

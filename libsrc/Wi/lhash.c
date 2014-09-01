@@ -4534,8 +4534,14 @@ cha_hs_cmp (hash_source_t * hs, caddr_t * inst, chash_t * cha, int set, int64 * 
 
 
 #define HI_CHA(cha, qi, hi)						\
-  {if (HS_PER_SLICE (hs->hs_cl_partition))				\
-   {if (QI_NO_SLICE == qi->qi_client->cli_slice) GPF_T1 ("must have qi slice set for sliced cha");  cha = &hi->hi_slice_chash[qi->qi_client->cli_slice]; }  \
+{ \
+  if (HS_PER_SLICE (hs->hs_cl_partition)) {				\
+    if (QI_NO_SLICE == qi->qi_client->cli_slice) GPF_T1 ("must have qi slice set for sliced cha"); \
+    if (hi->hi_slice_chash)  \
+      cha = &hi->hi_slice_chash[qi->qi_client->cli_slice]; \
+      else  \
+	cha = NULL; \
+}						\
    else  cha = hi->hi_chash;}
 
 
@@ -4595,6 +4601,8 @@ hash_source_chash_input (hash_source_t * hs, caddr_t * inst, caddr_t * state)
     return;
   hi = it->it_hi;
   HI_CHA (cha, qi, hi);
+  if (!cha)
+    return;			/* can be there is a main tree to represent all slices but slice is not present if cha is bloom only without any local slices with content */
   if (state)
     {
       n_sets = HS_N_SETS;
@@ -5476,10 +5484,13 @@ cha_ins_aq_func (caddr_t av, caddr_t * err_ret)
 }
 
 
+#define ROW_BF_BYTES(n_rows) \
+  _RNDUP_PWR2 (((uint64)(_RNDUP_PWR2 (n_rows + 1, 32) * chash_bloom_bits / 8)), 64)
+
 void
 cha_alloc_bloom (chash_t * cha, int64 n_rows)
 {
-  int64 bytes = _RNDUP_PWR2 (((uint64) (_RNDUP_PWR2 (n_rows, 32) * chash_bloom_bits / 8)), 64);
+  int64 bytes = ROW_BF_BYTES (n_rows);
   if (!chash_bloom_bits || !bytes)
     return;
   if (bytes < sizeof (cha->cha_bloom[0]))
@@ -7565,9 +7576,9 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
 	      best = inx;
 	      tree = qst_get_chash (inst, hrng->hrng_ht, hrng->hrng_ht_id, NULL);
 	      cha = tree ? tree->it_hi->hi_chash : NULL;
-	      if (!cha || !cha->cha_distinct_count)
+	      if (!cha || (!cha->cha_distinct_count && !cha->cha_n_bloom))
 		{
-		  /* join with empty chash is like null in search params, always empty */
+		  /* join with empty chash is like null in search params, always empty. Empty chash can have replicated bloom though  which still makes it valid  */
 		  key_free_trail_specs (sp_copy_1);
 		  return 1;
 		}
@@ -7642,7 +7653,7 @@ fref_hash_partitions_left (fun_ref_node_t * fref, caddr_t * inst)
 
 
 void
-cl_chash_fill_init (fun_ref_node_t * fref, caddr_t * inst)
+cl_chash_fill_init (fun_ref_node_t * fref, caddr_t * inst, index_tree_t * tree)
 {
   int64 id, ssl_id;
   QNCAST (QI, qi, inst);
@@ -7661,6 +7672,7 @@ cl_chash_fill_init (fun_ref_node_t * fref, caddr_t * inst)
       id = (int64) (qi->qi_client->cli_cl_stack[0].clst_req_no) | ((int64) local_cll.cll_this_host << 32) | ssl_id;
       qst_set (inst, setp->setp_chash_clrg, (caddr_t) clrg);
       qst_set (inst, setp->setp_ht_id, box_num (id));
+      tree->it_hi->hi_cl_id = id;
     }
 }
 
@@ -7688,25 +7700,34 @@ fref_hash_is_first_partition (fun_ref_node_t * fref, caddr_t * inst)
 
 
 int64
-cha_bytes_est (hash_area_t * ha, int64 * card_ret)
+cha_bytes_est (setp_node_t * setp, int64 * card_ret, int consider_part)
 {
+  hash_area_t *ha = setp->setp_ha;
   state_slot_t *k1;
   dbe_column_t *col;
+  int64 n_rows = ha->ha_row_count;
   int64 tcard;
   int64 nw;
   float n_reps;
   *card_ret = ha->ha_row_count;
+  if (consider_part && CL_RUN_LOCAL != cl_run_local_only && setp->setp_loc_ts
+      && (HS_CL_PART == setp->setp_cl_partition || HS_CL_COLOCATED == setp->setp_cl_partition))
+    {
+      n_rows /= BOX_ELEMENTS (setp->setp_loc_ts->ts_order_ks->ks_key->key_partition->kpd_map->clm_hosts);
+      if (n_rows < 1)
+	n_rows = 1;
+    }
   k1 = ha->ha_slots[0];
   if (SSL_REF == k1->ssl_type)
     k1 = ((state_slot_ref_t *) k1)->sslr_ssl;
   col = k1->ssl_column;
   if (ha->ha_n_keys > 1 || !col || !col->col_defined_in || (col->col_defined_in && TB_IS_RQ (col->col_defined_in)))
     {
-      return sizeof (int64) * ha->ha_row_count * (ha->ha_n_keys + ha->ha_n_deps);
+      return sizeof (int64) * n_rows * (ha->ha_n_keys + ha->ha_n_deps);
     }
   tcard = dbe_key_count (col->col_defined_in->tb_primary_key);
   n_reps = tcard / (float) col->col_n_distinct;
-  nw = ((1.0 / n_reps) + (ha->ha_n_deps + 1)) * ha->ha_row_count;
+  nw = ((1.0 / n_reps) + (ha->ha_n_deps + 1)) * n_rows;
   return nw * sizeof (int64);
 }
 
@@ -7758,7 +7779,7 @@ chash_fill_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
       if (state)
 	{
 	  int64 card;
-	  int64 size_est = cha_bytes_est (ha, &card);
+	  int64 size_est = cha_bytes_est (setp, &card, 1);
 	  if (fref->fnr_is_chash_in)
 	    {
 	      size_est = 0;

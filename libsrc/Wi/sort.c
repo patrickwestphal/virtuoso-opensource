@@ -215,7 +215,7 @@ top_print (caddr_t * val, char *text)
 
 
 #define MV(to, from) \
-  {if (copy) to = box_copy_tree ((caddr_t)from); else { to = from; from = NULL;}}
+  {if (copy) to = box_mt_copy_tree ((caddr_t)from); else { to = from; from = NULL;}}
 
 
 int
@@ -238,7 +238,7 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
       if (clo->_.top.is_full && top_is_better (last, (caddr_t) top_clo->_.top.values, clo->_.top.cmp))
 	{
 	  caddr_t oldv = (caddr_t) top_clo->_.top.values;
-	  top_clo->_.top.values = (caddr_t *) box_copy_tree (last);
+	  top_clo->_.top.values = (caddr_t *) box_mt_copy_tree (last);
 	  top_print (top_clo->_.top.values, "update full");
 	  changed = 1;
 	  setp_top_change (setp, inst, top_clo, ser);
@@ -251,7 +251,7 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
     {
       caddr_t oldv = (caddr_t) top_clo->_.top.values;
       top_clo->_.top.is_full = 1;
-      top_clo->_.top.values = box_copy_tree ((caddr_t) clo->_.top.values);
+      top_clo->_.top.values = box_mt_copy_tree ((caddr_t) clo->_.top.values);
       top_print (top_clo->_.top.values, "first full");
       changed = 1;
       setp_top_change (setp, inst, top_clo, ser);
@@ -432,7 +432,7 @@ setp_top_k_limit (setp_node_t * setp, caddr_t * inst, caddr_t * ret_box)
       mutex_leave (&top_clo->_.top.mtx);
       return 0;
     }
-  *ret_box = box_copy_tree (top_clo->_.top.values);
+  *ret_box = box_mt_copy_tree (top_clo->_.top.values);
   mutex_leave (&top_clo->_.top.mtx);
   return 1;
 }
@@ -1502,11 +1502,20 @@ sort_read_vec_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
   ptrlong top = unbox (qst_get (inst, setp->setp_top));
   ptrlong skip = setp->setp_top_skip ? unbox (qst_get (inst, setp->setp_top_skip)) : 0;
   ptrlong fill;
-  int set, n_sets = QST_INT (inst, ts->src_gen.src_prev->src_out_fill);
+  int set, n_sets;
   if (setp->setp_partitioned)
     {
       top += skip;
       skip = 0;
+    }
+  if (ts->src_gen.src_prev)
+    n_sets = QST_INT (inst, ts->src_gen.src_prev->src_out_fill);
+  else
+    {
+      if (SSL_VEC == setp->setp_sorted->ssl_type)
+	n_sets = QST_BOX (data_col_t *, inst, setp->setp_sorted->ssl_index)->dc_n_values;
+      else
+	n_sets = 1;
     }
   if (state)
     {

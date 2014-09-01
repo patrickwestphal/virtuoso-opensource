@@ -1080,6 +1080,11 @@ int itc_insert_rd (it_cursor_t * itc, row_delta_t * rd, buffer_desc_t ** unq_buf
 int itc_rd_cluster_blobs (it_cursor_t * itc, row_delta_t * rd, mem_pool_t * ins_mp);
 
 
+
+/*analytics*/
+index_tree_t *cha_bloom_only (uint64 id, uint64 bloom_bytes);
+
+
 /**add vec */
 
 void clo_free_from_in_parsed (cl_op_t * clo);
