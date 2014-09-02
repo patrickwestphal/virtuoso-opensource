@@ -4594,6 +4594,7 @@ sparp_validate_options_of_tree (sparp_t * sparp, SPART * tree, SPART ** options)
   int has_geo = 0;
   int has_inference = 0;
   int has_transitive = 0;
+  int has_custom = 0;
   int needs_transitive = 0;
   int has_service = 0;
   SPART **subq_orig_retvals = NULL;
@@ -4637,6 +4638,9 @@ sparp_validate_options_of_tree (sparp_t * sparp, SPART * tree, SPART ** options)
 	  has_inference = 1;
 	  continue;
 	case TABLE_OPTION_L:
+	  continue;
+	case CUSTOM_L:
+	  has_custom = 1;
 	  continue;
 	case TRANSITIVE_L:
 	  has_transitive = 1;
@@ -4717,18 +4721,18 @@ sparp_validate_options_of_tree (sparp_t * sparp, SPART * tree, SPART ** options)
     case SPAR_GP:
       if (has_inference)
 	spar_error (sparp, "Inference options can be specified only for plain triple patterns, not for group patterns");
-      if (has_ft || has_geo)
+      if (has_ft || has_geo || has_custom)
 	spar_error (sparp, "%s options can be specified only for triple patterns with special predicates, not for group patterns",
-	    (has_ft ? "Free-text" : "Spatial"));
+	    (has_custom ? "Custom" : (has_ft ? "Free-text" : "Spatial")));
       if (needs_transitive && !has_transitive)
 	spar_error (sparp, "Transitive-specific options are used without TRANSITIVE option");
       break;
     case SPAR_TRIPLE:
       if (needs_transitive || has_transitive)
 	spar_error (sparp, "Transitive-specific options can be specified only for group patterns, not for triple patterns");
-      if (has_ft || has_geo)
+      if (has_ft || has_geo || has_custom)
 	spar_error (sparp, "%s options can be specified only for triple patterns with special predicates, not for plain patterns",
-	    (has_ft ? "Free-text" : "Spatial"));
+	    (has_custom ? "Custom" : (has_ft ? "Free-text" : "Spatial")));
       if (has_service)
 	spar_internal_error (sparp, "Triple pattern has SERVICE invocation options, probably due to invalid optimization");
       break;
@@ -4945,6 +4949,8 @@ spart_dump_opname (ptrlong opname, int is_op)
       return "CONSTRUCT result-mode";
     case CREATE_L:
       return "quad mapping name";
+    case CUSTOM_L:
+      return "CUSTOM";
     case DATATYPE_L:
       return "DATATYPE builtin";
     case DEFAULT_L:

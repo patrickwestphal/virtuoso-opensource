@@ -610,6 +610,8 @@ bif_vt_index (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (!id_key)
     sqlr_error ("S0022", "no index in vt_index");
   id_col = tb_name_to_column (tb, id_col_name);
+  if (tb_is_rdf_quad (tb))
+    text_col_name = "O";
   text_col = tb_name_to_column (tb, text_col_name);
   if (!text_col)
     {
@@ -835,6 +837,8 @@ iextt_find (caddr_t tn, caddr_t cn, caddr_t in)
   if (!tb)
     sqlr_new_error ("42000", "IEXNT",
 	"No table %.300s for iext_op('%.300s', '%.300s', '%.300s') or other index extension operation", tn, tn, cn, in);
+  if (tb_is_rdf_quad (tb))
+    cn = "O";
   col = tb_name_to_column (tb, cn);
   if (!col)
     sqlr_new_error ("42000", "IENCO",

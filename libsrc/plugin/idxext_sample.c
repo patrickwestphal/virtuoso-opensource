@@ -25,6 +25,7 @@
 #include "import_gate_virtuoso.h"
 #include "sqlver.h"
 
+#undef NEW_VARZ
 #define NEW_VARZ(t, p) t * p = (t*)dk_alloc (sizeof (t)); memset (p, 0, sizeof (t))
 
 
@@ -257,7 +258,7 @@ bits_open (caddr_t * cfg, slice_id_t slid, iext_index_t * ret, caddr_t * err_ret
   bi->bi_vecs = (int64 **)dk_alloc_box (sizeof (caddr_t) * MAX_BIT, DV_ARRAY_OF_POINTER);
   memset (bi->bi_vecs, 0, box_length (bi->bi_vecs));
   *ret = bi;
-  fd = open (bi->bi_file, O_RDWR | O_CREAT);
+  fd = open (bi->bi_file, O_RDWR | O_CREAT, S_IRWXU);
   dks = dk_session_allocate (SESCLASS_TCPIP);
   tcpses_set_fd (dks->dks_session, fd);
   CATCH_READ_FAIL (dks)
@@ -363,6 +364,16 @@ bits_exec (bits_inst_t * bi, iext_txn_t txn, bits_cr_t ** cr_ret, struct client_
   NEW_VARZ (bits_cr_t, cr);
   cr->bcr_bi = bi;
   cr->bcr_pos = BCR_INIT;
+  if ('['== str[0])
+    {
+      str = strchr (str, ']');
+      if (!str)
+	{
+	  *err_ret = srv_make_new_error ("37000", "BITSN", "Umbalanced [] in bits search text");
+	  return -1;
+	}
+      str++;
+    }
   if ('O'== str[0] || 'o' == str[0])
     {
       cr->bcr_mode = BCR_OR;

@@ -4027,6 +4027,7 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
       REF_SSL (res, txs->txs_init_id);
       REF_SSL (res, txs->txs_end_id);
       REF_SSL (res, txs->txs_ext_fti);
+      ASG_SSL (res, all_res, txs->txs_iext_sets_ret);
       REF_SSL (res, txs->txs_precision);
       ASG_SSL (res, all_res, txs->txs_main_range_out);
       ASG_SSL (res, all_res, txs->txs_attr_range_out);

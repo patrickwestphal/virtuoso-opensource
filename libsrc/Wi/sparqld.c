@@ -262,6 +262,8 @@ ssg_sd_opname (sparp_t * sparp, ptrlong opname, int is_op)
     case CONSTRUCT_L:
       return "CONSTRUCT";
       /*case CREATE_L: return "quad mapping name"; */
+    case CUSTOM_L:
+      return "CUSTOM";
     case DATATYPE_L:
       return "DATATYPE";
     case DESC_L:

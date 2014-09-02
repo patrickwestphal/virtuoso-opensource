@@ -625,6 +625,7 @@ sparp_gp_trav_cu_in_options (sparp_t * sparp, SPART * gp, SPART * curr, SPART **
 	case SAME_AS_S_O_L:
 	case GEO_L:
 	case PRECISION_L:
+	case CUSTOM_L:
 	case SCORE_LIMIT_L:
 	case T_MIN_L:
 	case T_MAX_L:

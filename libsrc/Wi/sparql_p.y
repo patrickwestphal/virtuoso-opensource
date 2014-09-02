@@ -39,7 +39,7 @@ Whitespaces in all other places, including two whitespaces after "::=" in BNF co
 %pure_parser
 %parse-param {sparp_t * sparp_arg}
 %lex-param {sparp_t * sparp_arg}
-%expect 14
+%expect 15
 
 %{
 #include "libutil.h"
@@ -163,6 +163,7 @@ int sparyylex_from_sparp_bufs (caddr_t *yylval, sparp_t *sparp)
 %token COUNT_L		/* Fake, used only in sparqlwords.gperf */
 %token COUNT_LPAR		/*:: PUNCT("COUNT ("), SPAR, LAST1("COUNT ()"), LAST1("COUNT\r\n()"), LAST1("COUNT #qq\r\n()"), ERR("COUNT"), ERR("COUNT bad") ::*/
 %token COUNT_DISTINCT_L		/*:: PUNCT("COUNT DISTINCT"), SPAR, LAST("COUNT DISTINCT"), LAST("COUNT\r\nDISTINCT"), LAST("COUNT #qq\r\nDISTINCT"), ERR("COUNT"), ERR("COUNT bad") ::*/
+%token CUSTOM_L		/*:: PUNCT_SPAR_LAST("CUSTOM") ::*/
 %token DATA_L		/*:: PUNCT_SPAR_LAST("DATA") ::*/
 %token DATATYPE_L	/*:: PUNCT_SPAR_LAST("DATATYPE") ::*/
 %token DEFAULT_L	/*:: PUNCT_SPAR_LAST("DEFAULT") ::*/
@@ -427,6 +428,7 @@ int sparyylex_from_sparp_bufs (caddr_t *yylval, sparp_t *sparp)
 %type <trees> spar_triple_inference_option
 %type <trees> spar_triple_freetext_option
 %type <trees> spar_triple_geo_option
+%type <trees> spar_triple_optionlist_tail_commalist
 %type <trees> spar_triple_transit_option
 %type <backstack> spar_triple_option_var_commalist
 %type <token_type> spar_same_as_option
@@ -1586,7 +1588,7 @@ spar_ograph_node	/* [Virt]	ObjGraphNode	 ::=  GraphNode TripleOptions?	*/
 		spar_gp_add_triplelike (sparp_arg, NULL, NULL, NULL, $1, NULL, $2, 0x0); }
 	;
 
-spar_triple_optionlist_opt	/* [Virt]	TripleOptions	 ::=  'OPTION' '(' TripleOption ( ',' TripleOption )? ')'	*/
+spar_triple_optionlist_opt	/* [Virt]	TripleOptions	 ::=  'OPTION' '(' TripleOption ( ',' TripleOption )? ( ',' Expn )* ')'	*/
 	: /* empty */	{ $$ = NULL; }
 	| TABID_L SPARQL_PLAIN_ID { $$ = (SPART **)t_list (2, TABID_L, $2); }
 	| OPTION_L _LPAR {
@@ -1601,6 +1603,12 @@ spar_triple_optionlist_opt	/* [Virt]	TripleOptions	 ::=  'OPTION' '(' TripleOpti
 spar_triple_option_commalist
 	: spar_triple_option	{ $$ = NULL; t_set_push (&($$), ((SPART **)($1))[0]); t_set_push (&($$), ((SPART **)($1))[1]); }
 	| spar_triple_option_commalist _COMMA spar_triple_option	{ $$ = $1;  t_set_push (&($$), ((SPART **)($3))[0]); t_set_push (&($$), ((SPART **)($3))[1]); }
+	| spar_triple_option_commalist _COMMA spar_triple_optionlist_tail_commalist {
+		SPART *lst = spartlist (sparp_arg, 2, SPAR_LIST, t_revlist_to_array ($3));
+		SPAR_ERROR_IF_UNSUPPORTED_SYNTAX (SSG_SD_VIRTSPECIFIC, "custom option");
+		$$ = $1;
+		t_set_push (&($$), (ptrlong)CUSTOM_L);
+		t_set_push (&($$), lst); }
 	;
 
 spar_triple_option	/* [Virt]	TripleOption	 ::=  'TABLE_OPTION' SPARQL_STRING	*/
@@ -1610,6 +1618,10 @@ spar_triple_option	/* [Virt]	TripleOption	 ::=  'TABLE_OPTION' SPARQL_STRING	*/
 	| TABID_L SPARQL_PLAIN_ID	{
 		SPAR_ERROR_IF_UNSUPPORTED_SYNTAX (SSG_SD_VIRTSPECIFIC, "TABID OPTION hint for using in SQL code");
 		$$ = (SPART **)t_list (2, (ptrlong)TABID_L, $2); }
+	| CUSTOM_L _LPAR spar_triple_optionlist_tail_commalist _RPAR {
+		SPART *lst = spartlist (sparp_arg, 2, SPAR_LIST, t_revlist_to_array ($3));
+		SPAR_ERROR_IF_UNSUPPORTED_SYNTAX (SSG_SD_VIRTSPECIFIC, "CUSTOM option");
+		$$ = t_list (2, (ptrlong)CUSTOM_L, list); }
 	| spar_triple_inference_option	{
 		SPAR_ERROR_IF_UNSUPPORTED_SYNTAX (SSG_SD_VIRTSPECIFIC, "inference option");
 		$$ = $1; }
@@ -1622,6 +1634,13 @@ spar_triple_option	/* [Virt]	TripleOption	 ::=  'TABLE_OPTION' SPARQL_STRING	*/
 	| spar_triple_transit_option	{
 		SPAR_ERROR_IF_UNSUPPORTED_SYNTAX (SSG_SD_TRANSIT, "TRANSITIVE and related options");
 		$$ = $1; }
+	;
+
+spar_triple_optionlist_tail_commalist
+	: spar_expn	{ $$ = NULL; t_set_push (&($$), $1); }
+	| spar_triple_optionlist_tail_commalist _COMMA spar_expn	{ $$ = $1; t_set_push (&($$), $3); }
+	| spar_triple_optionlist_tail_commalist _COMMA spar_triple_option {
+		sparyyerror (sparp_arg, "Keyword-value options are not allowed in a list of custom options"); }
 	;
 
 spar_triple_inference_option

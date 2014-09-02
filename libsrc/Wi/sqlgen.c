@@ -916,13 +916,15 @@ sqlg_text_node (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic)
   txs->txs_cached_string = ssl_new_variable (sc->sc_cc, "text_search_cached_exp_string", DV_SHORT_STRING);
   txs->txs_cached_compiled_tree = ssl_new_variable (sc->sc_cc, "text_search_cached_tree", DV_ARRAY_OF_POINTER);
   txs->txs_cached_dtd_config = ssl_new_variable (sc->sc_cc, "text_search_dtd_config", DV_ARRAY_OF_POINTER);
+  if (ot->ot_table && tb_is_rdf_quad (ot->ot_table))
+    txs->txs_is_rdf = 1;
   txs->txs_tie = text_pred->_.text.tie;
   if (txs->txs_tie)
     {
       txs->txs_iext_cr = ssl_new_variable (sc->sc_cc, "ext_inx", DV_ARRAY_OF_POINTER);
+      txs->txs_lin_ids = ssl_new_vec (sc->sc_cc, "linids", DV_LONG_INT);
       if (!tb_dfe->_.table.is_text_order)
 	{
-	  txs->txs_lin_ids = ssl_new_vec (sc->sc_cc, "linids", DV_LONG_INT);
 	  txs->txs_lin_qr = ssl_new_vec (sc->sc_cc, "linqr", DV_LONG_INT);
 	  txs->txs_iext_sets_ret = ssl_new_vec (sc->sc_cc, "linqr", DV_LONG_INT);
 	}
@@ -933,9 +935,6 @@ sqlg_text_node (sqlo_t * so, df_elt_t * tb_dfe, index_choice_t * ic)
     txs->txs_table = text_key->key_text_table;
   txs->txs_d_id = text_id;
   txs->txs_is_driving = tb_dfe->_.table.is_text_order;
-  if (ot->ot_table && (0 == stricmp (ot->ot_table->tb_name, "DB.DBA.RDF_QUAD")
-	  || 0 == stricmp (ot->ot_table->tb_name, "DB.DBA.R2")))
-    txs->txs_is_rdf = 1;
   if (ot->ot_geo)
     txs->txs_geo = sqlc_geo_op (sc, ot->ot_geo);
   if (ctype == 'x')

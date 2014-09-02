@@ -3951,6 +3951,7 @@ txs_ext_fti_next (text_node_t * txs, caddr_t * qst, int first_time)
 void
 txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
 {
+  state_slot_t *d_id_out_ssl = txs->txs_is_rdf ? txs->txs_lin_ids : txs->txs_d_id;
   int64 *scores = NULL;
   int out_fill, inx, n_sets_ret;
   QNCAST (query_instance_t, qi, inst);
@@ -4069,7 +4070,7 @@ again:
 		}
 
 	    }
-	  id_dc = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
+	  id_dc = QST_BOX (data_col_t *, inst, d_id_out_ssl->ssl_index);
 	  DC_CHECK_LEN (id_dc, batch_sz - 1);
 	  scores = score_dc ? (int64 *) score_dc->dc_values : NULL;
 	  out_fill = QST_INT (inst, txs->src_gen.src_out_fill);
@@ -4080,6 +4081,32 @@ again:
 	  id_dc->dc_n_values += n_sets_ret;
 	  if (score_dc)
 	    score_dc->dc_n_values += n_sets_ret;
+	  if (txs->txs_is_rdf)
+	    {
+	      data_col_t *rdf_dc = QST_BOX (data_col_t *, inst, txs->txs_d_id->ssl_index);
+	      dc_reset (rdf_dc);
+	      DC_CHECK_LEN (rdf_dc, n_sets_ret - 1);
+	      dc_reset (rdf_dc);
+	      for (inx = 0; inx < n_sets_ret; inx++)
+		{
+		  dtp_t temp[10];
+		  int l;
+		  uint64 id = ((uint64 *) id_dc->dc_values)[inx];
+		  if (id > INT32_MAX || id < INT32_MIN)
+		    {
+		      temp[0] = DV_RDF_ID_8;
+		      INT64_SET_NA (&temp[1], id);
+		      l = 9;
+		    }
+		  else
+		    {
+		      temp[0] = DV_RDF_ID;
+		      LONG_SET_NA (&temp[1], id);
+		      l = 5;
+		    }
+		  dc_append_bytes (rdf_dc, temp, l, NULL, 0);
+		}
+	    }
 	  for (inx = 0; inx < n_sets_ret; inx++)
 	    qn_result ((data_source_t *) txs, inst, nth_set);
 	  if (n_sets_ret == batch_sz - out_fill)

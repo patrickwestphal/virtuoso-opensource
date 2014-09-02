@@ -8995,6 +8995,20 @@ END_DO_SET ()from_printed:
 		  case PRECISION_L:
 		    ssg_puts (", PRECISION, ");
 		    goto contains_print_scalar;	/* see below */
+		  case CUSTOM_L:
+		    {
+		      SPART *lst = args[argctr + 1];
+		      int ctr;
+		      if (SPAR_LIST != SPART_TYPE (lst))
+			spar_internal_error (ssg->ssg_sparp, "Wrond content of CUSTOM option");
+		      DO_BOX_FAST (SPART *, memb, ctr, lst->_.list.items)
+		      {
+			ssg_puts (", ");
+			ssg_print_scalar_expn (ssg, memb, SSG_VALMODE_SQLVAL, NULL);
+		      }
+		      END_DO_BOX_FAST;
+		      continue;
+		    }
 		  default:
 		    if (SPAR_FT_TYPE_IS_GEO (ft_type))
 		      {
