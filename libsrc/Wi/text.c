@@ -4006,7 +4006,7 @@ txs_ext_fti_vec_input (text_node_t * txs, caddr_t * inst, caddr_t * state)
       data_col_t *sets_ret = QST_BOX (data_col_t *, inst, txs->txs_iext_sets_ret->ssl_index);
       if (txs->txs_score)
 	{
-	  data_col_t *scores = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
+	  data_col_t *score_dc = QST_BOX (data_col_t *, inst, txs->txs_score->ssl_index);
 	  DC_CHECK_LEN (score_dc, n_sets);
 	  scores = (int64 *) score_dc->dc_values;
 	}

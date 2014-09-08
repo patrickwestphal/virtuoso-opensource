@@ -95,12 +95,22 @@ bits_read_line (dk_session_t * ses, char *buf, int max)
 
 
 int *
-bits_parse (char * str)
+bits_parse (char * str, caddr_t * err_ret)
 {
   int * bits;
   int res[MAX_BIT];
   int i, n = -1, fill = 0;
-    for (i = 0; str[i]; i++)
+  if ('['== str[0])
+    {
+      str = strchr (str, ']');
+      if (!str)
+	{
+	  *err_ret = srv_make_new_error ("37000", "BITSN", "Umbalanced [] in bits search text");
+	  return NULL;
+	}
+      str++;
+    }
+  for (i = 0; str[i]; i++)
     {
       char c = str[i];
       if (!is_digit (c))
@@ -362,6 +372,7 @@ int
 bits_exec (bits_inst_t * bi, iext_txn_t txn, bits_cr_t ** cr_ret, struct client_connection_s * cli, char * str, void * params, caddr_t * err_ret)
 {
   NEW_VARZ (bits_cr_t, cr);
+  *err_ret = NULL;
   cr->bcr_bi = bi;
   cr->bcr_pos = BCR_INIT;
   if ('['== str[0])
@@ -393,7 +404,9 @@ bits_exec (bits_inst_t * bi, iext_txn_t txn, bits_cr_t ** cr_ret, struct client_
     {
       cr->bcr_mode = BCR_AND;
     }
-  cr->bcr_bits = bits_parse  (str);
+  cr->bcr_bits = bits_parse  (str, err_ret);
+  if (*err_ret)
+    return -1;
   cr->bcr_n_bits = box_length (cr->bcr_bits) / sizeof (int);
   if (!cr->bcr_n_bits)
     goto err;
@@ -482,16 +495,19 @@ bits_is_match (bits_inst_t * bi, iext_txn_t * txn, char ** query, void * params,
   int64 int_id;
   int fill = 0, inx, b;
   int * bits = NULL;
+  *err_ret = NULL;
   for (inx = 0; inx < n_matches; inx++)
     {
       int n_bits;
       if (!inx)
-	bits = bits_parse (query[0]);
+	bits = bits_parse (query[0], err_ret);
       else if (query[inx - 1] != query[inx] && 0 != strcmp (query[inx - 1], query[inx]))
 	{
 	  dk_free_box (bits);
-	  bits = bits_parse (query[inx]);
+	  bits = bits_parse (query[inx], err_ret);
 	}
+      if (*err_ret)
+	return;
       int_id = (int64)gethash ((void*)ids[inx], bi->bi_id_to_int);
       n_bits = box_length (bits) / sizeof (int);
       for (b = 0; b < n_bits; b++)

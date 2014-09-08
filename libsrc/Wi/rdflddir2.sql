@@ -45,7 +45,7 @@ insert soft DB.DBA.LDLOCK values (0)
 
 
 create procedure
-ld_dir (in path varchar, in mask varchar, in graph varchar)
+									ld_dir (in path varchar, in mask varchar, in graph varchar, in txn int := 1)
 {
   declare ls any;
   declare inx int;
@@ -74,8 +74,8 @@ ld_dir (in path varchar, in mask varchar, in graph varchar)
 		  insert into DB.DBA.LOAD_LIST (ll_file, ll_graph) values (path || '/' || ls[inx], ngraph);
 		}
 	    }
-
-	  commit work;
+	  if (txn)
+	    commit work;
 	}
     }
 }
