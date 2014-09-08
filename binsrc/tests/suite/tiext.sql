@@ -70,11 +70,11 @@ select count (*), count (TB_COMMENT) from DB.DBA.T_BITS where contains (TB_BITS,
 ttlp ('<xx> <xx> "1234"^^<bits> .', '', 'xx');
 
 insert into sys_vt_index (VI_TABLE, VI_INDEX, VI_COL,  VI_ID_COL,  VI_INDEX_TABLE, VI_ID_IS_PK, VI_OPTIONS)
-values ('DB.DBA.RDF_OBJ', 'RDF_OBJ',  'RO_VAL', 'RO_ID', 'DB.DBA.RDF_OBJ', 1,  
+values ('DB.DBA.RDF_QUAD', 'RDF_QUAD_OP',  'O1', 'O', 'DB.DBA.RDF_QUAD', 1,  
 serialize (vector ('index', 'bits', 'rdf', (select rdt_twobyte from rdf_datatype where rdt_qname = 'bits'),
 'file', 'rdf_bitsfile')));
 
-__ddl_changed ('DB.DBA.RDF_OBJ');
+__ddl_changed ('DB.DBA.RDF_QUAD');
 
 
 
@@ -86,6 +86,13 @@ ttlp ('<bits1> <bits> "1 2 3 44 100"^^<bits> .
   <bits4> <bits> "2 3 4 400" .',
  '', 'bits'); 
 
+checkpoint;
 
-sparql select * where { ?s <bits> ?b . ?b bif:contains "2" option ("index", "bits")};
+sparql select * where { ?s <bits> ?b . ?b bif:contains "2" option (score ?sc, "index", "bits")};
+echo both $if $equ $rowcnt 4  "PASSED" "***FAILED";
+echo both ": bits rdf 1\n";
+
+sparql select * where { ?s <bits> ?b . ?b bif:contains "200" option (score ?sc, "index", "bits")};
+echo both $if $equ $rowcnt 1  "PASSED" "***FAILED";
+echo both ": bits rdf 2\n";
 
