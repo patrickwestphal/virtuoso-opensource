@@ -1609,7 +1609,6 @@ sqlg_stream_gb (sql_comp_t * sc, setp_node_t * setp)
   END_DO_BOX;
   if (setp->setp_is_streaming)
     {
-      query_t *qr = setp->src_gen.src_query;
       data_source_t *next_qn;
       setp->setp_ha->ha_row_count = 3 * dc_batch_sz;	/* card now has a cap, not the whole table in there */
       if (!dk_set_member (sc->sc_vec_pred, outer))
@@ -1618,7 +1617,7 @@ sqlg_stream_gb (sql_comp_t * sc, setp_node_t * setp)
       outer->ts_stream_setp = setp;
       outer->ts_stream_flush_only = cc_new_instance_slot (sc->sc_cc);
       setp->setp_last_streaming_value = ssl_new_vec (sc->sc_cc, "last_gby_ord_value", setp->setp_streaming_ssl->ssl_sqt.sqt_dtp);
-      setp->setp_stream_col_pos = box_position_no_tag (setp->setp_keys_box, setp->setp_streaming_ssl);
+      setp->setp_stream_col_pos = box_position_no_tag ((caddr_t *) setp->setp_keys_box, (caddr_t) setp->setp_streaming_ssl);
       if (-1 == setp->setp_stream_col_pos)
 	sqlc_new_error (sc->sc_cc, "STRGB", "STRGB",
 	    "In ordered group by, the ordering col is not in the grouping keys, internal, support");
@@ -1677,6 +1676,12 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
   REF_SSL (res, setp->setp_top);
   REF_SSL (res, setp->setp_top_skip);
   REF_SSL (res, setp->setp_top_id);
+  if ((FNR_STREAM_TOP & setp->setp_is_streaming))
+    {
+      setp_node_t *next_setp = (setp_node_t *) qn_next_qn (qn_next ((data_source_t *) setp), (qn_input_fn) setp_node_input);
+      if (next_setp)
+	REF_SSL (res, next_setp->setp_top_id);
+    }
   REF_SSL (res, setp->setp_ssa.ssa_set_no);
   if (setp->setp_ha)
     {

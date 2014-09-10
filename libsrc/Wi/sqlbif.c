@@ -7891,6 +7891,7 @@ cleanup:
   parse_leave ();
   sc_free (&sc);
   dk_free_box (start_filename);
+  MP_DONE ();
   return revlist_to_array (res);
 }
 

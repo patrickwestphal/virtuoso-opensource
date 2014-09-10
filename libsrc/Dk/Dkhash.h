@@ -37,7 +37,19 @@
  */
 
 
-#define ht_alloc(ht, sz) dk_alloc (sz)
+#ifdef USE_TLSF
+#ifdef MALLOC_DEBUG
+#define dbg_ht_alloc(ht,sz) dbg_tlsf_id_alloc (file, line, sz, ht->ht_tlsf_id)
+#else
+#define ht_alloc(ht,sz) tlsf_id_alloc (sz, ht->ht_tlsf_id)
+#endif
+#else
+#ifdef MALLOC_DEBUG
+#define dbg_ht_alloc(ht,sz) dbg_dk_alloc (file, line, sz)
+#else
+#define ht_alloc(ht,sz) dk_alloc (sz)
+#endif
+#endif
 
 typedef void (*maphash_func) (const void *k, void *data);
 typedef void (*maphash3_func) (const void *k, void *data, void *env);
@@ -56,7 +68,8 @@ typedef struct
   hash_elt_t *	ht_elements;
   uint32 	ht_count;
   uint32 	ht_actual_size;
-  uint32 	ht_rehash_threshold;
+  short		ht_tlsf_id;
+  unsigned char 	ht_rehash_threshold;
 #ifdef MTX_DEBUG
   dk_mutex_t *	ht_required_mtx;
 #endif
@@ -133,6 +146,14 @@ typedef struct
 /* Dkhash.c */
 extern uint32 hash_nextprime (uint32 n);
 
+EXE_EXPORT (dk_hash_t *,hash_table_allocate, (uint32 size));
+EXE_EXPORT (void, hash_table_init, (dk_hash_t * ht, int size));
+EXE_EXPORT (void, hash_table_free, (dk_hash_t * table));
+EXE_EXPORT (void *,sethash, (const void *key, dk_hash_t * ht, void *data));
+EXE_EXPORT (int, remhash, (const void *key, dk_hash_t * ht));
+EXE_EXPORT (void, clrhash, (dk_hash_t * table));
+EXE_EXPORT (void, dk_rehash, (dk_hash_t * ht, uint32 new_sz));
+
 #ifdef MALLOC_DEBUG
 extern dk_hash_t *dbg_hash_table_allocate (const char *file, int line, uint32 size);
 extern void dbg_hash_table_init (const char *file, int line, dk_hash_t * ht, int size);
@@ -157,16 +178,16 @@ extern int remhash (const void *key, dk_hash_t * ht);
 extern void clrhash (dk_hash_t * table);
 extern void dk_rehash (dk_hash_t * ht, uint32 new_sz);
 #endif
-void hash_table_destroy (dk_hash_t * ht);
+EXE_EXPORT (void, hash_table_destroy, (dk_hash_t * ht));
 
-extern void *gethash (const void *key, dk_hash_t * ht);
-extern void maphash (maphash_func func, dk_hash_t * table);
-extern void maphash3 (maphash3_func func, dk_hash_t * table, void *env);
-extern void **hash_list_keys (dk_hash_t * table);
-extern void maphash_no_remhash (maphash_func func, dk_hash_t * table);
-extern void dk_hash_iterator (dk_hash_iterator_t * hit, dk_hash_t * ht);
-extern int dk_hit_next (dk_hash_iterator_t * hit, void **key, void **data);
-extern void dk_hash_set_rehash (dk_hash_t * ht, uint32 ov_per_bucket);
+EXE_EXPORT (void *, gethash, (const void *key, dk_hash_t * ht));
+EXE_EXPORT (void, maphash, (maphash_func func, dk_hash_t * table));
+EXE_EXPORT (void, maphash3, (maphash3_func func, dk_hash_t * table, void *env));
+EXE_EXPORT (void **, hash_list_keys, (dk_hash_t * table));
+EXE_EXPORT (void, maphash_no_remhash, (maphash_func func, dk_hash_t * table));
+EXE_EXPORT (void, dk_hash_iterator, (dk_hash_iterator_t * hit, dk_hash_t * ht));
+EXE_EXPORT (int, dk_hit_next, (dk_hash_iterator_t * hit, void **key, void **data));
+EXE_EXPORT (void, dk_hash_set_rehash, (dk_hash_t * ht, uint32 ov_per_bucket));
 
 typedef int32 (*box_hash_func_t) (caddr_t);
 typedef int (*box_hash_cmp_func_t) (ccaddr_t, ccaddr_t);

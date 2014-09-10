@@ -1081,6 +1081,7 @@ create procedure
 
   cert_auth:;
 
+  --VOS-START
   -- We only check ACLs for non-admins and cert-auth
   if (DB.DBA.ACLS_ENABLED_FOR_SCOPE ('http://www.openlinksw.com/ontology/acl#Query', 'http://www.openlinksw.com/ontology/acl#SqlRealm')
       and (
@@ -1254,6 +1255,7 @@ create procedure
         maxRows
       );
     }
+    --VOS-END
 
   -- normal verification (only if rc != 0 which means "no access")
 normal_auth:

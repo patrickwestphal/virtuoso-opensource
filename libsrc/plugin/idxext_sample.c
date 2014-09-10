@@ -507,7 +507,7 @@ bits_is_match (bits_inst_t * bi, iext_txn_t * txn, char ** query, void * params,
 	  bits = bits_parse (query[inx], err_ret);
 	}
       if (*err_ret)
-	return;
+	return -1;
       int_id = (int64)gethash ((void*)ids[inx], bi->bi_id_to_int);
       n_bits = box_length (bits) / sizeof (int);
       for (b = 0; b < n_bits; b++)

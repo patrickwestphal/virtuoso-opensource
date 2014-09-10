@@ -6508,427 +6508,576 @@ bif_iri_name_id (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return box_num (LONG_REF_NA (name));
 }
 
-void
-sparql_construct2_triple (caddr_t * qst, caddr_t * err_ret, id_hash_t * ht, caddr_t * triple_op, caddr_t * vars,
-    caddr_t ** blank_iids_ptr)
-{
-  caddr_t *triple;
-  int fld_ctr, fld_count;
-  int var_count = BOX_ELEMENTS (vars);
-  ptrlong one = 1;
-  switch (BOX_ELEMENTS (triple_op))
-    {
-    case 8:
-      fld_count = 4;
-      triple = (caddr_t *) list (4, NULL, NULL, NULL, NULL);
-      break;
-    case 6:
-      fld_count = 3;
-      triple = (caddr_t *) list (3, NULL, NULL, NULL);
-      break;
-    default:
-      goto bad_op;		/* see below */
-    }
-  for (fld_ctr = fld_count; fld_ctr--; /* no step */ )
-    {
-      ptrlong op = unbox (triple_op[fld_ctr * 2]);
-      caddr_t arg = triple_op[fld_ctr * 2 + 1];
-      caddr_t val;
-      switch (op)
-	{
-	case 1:
-	  {
-	    ptrlong var_idx = unbox (arg);
-	    if ((0 > var_idx) || (var_idx >= var_count))
-	      goto bad_op;	/* see below */
-	    val = vars[var_idx];
-	    break;
-	  }
-	case 2:
-	  {
-	    int idx;
-	    int old_bnode_count = BOX_ELEMENTS_0 (blank_iids_ptr[0]);
-	    if ((1 == fld_ctr) || (3 == fld_ctr))
-	      goto bad_op;
-	    if (DV_LONG_INT != DV_TYPE_OF (arg))
-	      goto bad_op;
-	    idx = unbox (arg);
-	    if (idx > 1000)
-	      goto bad_op;
-	    if (idx >= old_bnode_count)
-	      {
-		int new_bnode_count = old_bnode_count + idx + 1;	/* this at least doubles the length */
-		caddr_t *new_iids = dk_alloc_list_zero (new_bnode_count);
-		memcpy (new_iids, blank_iids_ptr[0], old_bnode_count * sizeof (caddr_t));
-		dk_free_box ((caddr_t) (blank_iids_ptr[0]));
-		blank_iids_ptr[0] = new_iids;
-	      }
-	    if (NULL == blank_iids_ptr[0][idx])
-	      {
-		static caddr_t seq_name = NULL;
-		if (NULL == seq_name)
-		  seq_name = box_dv_short_string ("RDF_URL_IID_BLANK");
-		blank_iids_ptr[0][idx] = box_num (sequence_next_inc_and_log ((query_instance_t *) qst, err_ret, seq_name, 1, 1000));
-	      }
-	    val = blank_iids_ptr[0][idx];
-	    break;
-	  }
-	case 3:
-	  {
-	    val = arg;
-	    break;
-	  }
-	default:
-	  goto bad_op;
-	}
-      switch (DV_TYPE_OF (val))
-	{
-	case DV_DB_NULL:
-	  dk_free_tree ((caddr_t) triple);
-	  return;
-	case DV_IRI_ID:
-	  if ((((iri_id_t *) val)[0] >= min_bnode_iri_id ()) && ((1 == fld_ctr) || (3 == fld_ctr)))
-	    {
-	      dk_free_tree ((caddr_t) triple);
-	      sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: blank node can not be used as %s",
-		  ((1 == fld_ctr) ? "predicate" : "graph"));
-	    }
-	  break;
-	case DV_UNAME:
-	  break;
-	case DV_STRING:
-	  if (!(box_flags (val) & BF_IRI) && (2 != fld_ctr))
-	    {
-	      dk_free_tree ((caddr_t) triple);
-	      sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: string can not be used as %s",
-		  ((0 == fld_ctr) ? "subject" : ((1 == fld_ctr) ? "predicate" : "graph")));
-	    }
-	  break;
-	default:
-	  if (2 != fld_ctr)
-	    {
-	      dk_free_tree ((caddr_t) triple);
-	      sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: literals can not be used as %s",
-		  ((0 == fld_ctr) ? "subject" : ((1 == fld_ctr) ? "predicate" : "graph")));
-	    }
-	  break;
-	}
-      triple[fld_ctr] = box_copy_tree (val);
-    }
-  id_hash_set (ht, (caddr_t) (&triple), (caddr_t) (&one));
-  return;
-bad_op:
-  dk_free_tree ((caddr_t) (blank_iids_ptr[0]));
-  blank_iids_ptr[0] = NULL;
-  sqlr_new_error ("22023", "SR657", "Invalid opcode list in triple constructor");
-}
-
 caddr_t
-bif_sparql_construct2_acc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+rdf_make_long_of_typedsqlval_strings (caddr_t * qst, caddr_t strval, caddr_t dt_iri, caddr_t lang_str)
 {
-  const char *fname = "sparql_construct2_acc";
-  ptrlong use_dict_limit = bif_long_arg (qst, args, 4, fname);
-  caddr_t env = bif_arg_nochecks (qst, args, 0);
-  caddr_t **opcodes = (caddr_t **) bif_array_of_pointer_arg (qst, args, 1, fname);
-  caddr_t *vars = bif_array_of_pointer_arg (qst, args, 2, fname);
-  caddr_t stats = bif_array_or_null_arg (qst, args, 3, fname);
-  id_hash_iterator_t *hit;
-  id_hash_t *ht;
-  int opcode_ctr, opcodes_len = BOX_ELEMENTS (opcodes);
-  caddr_t *blank_iids = NULL;
-  if (DV_DICT_ITERATOR != DV_TYPE_OF (env))
+  static query_t *make_log_qr = NULL;
+  local_cursor_t *lc = NULL;
+  caddr_t err;
+  if (NULL == make_log_qr)
     {
-      long size = 31, mmem = 0, ment = 0;
-      int stat_ctr, stats_len = (DV_ARRAY_OF_POINTER == DV_TYPE_OF (stats) ? BOX_ELEMENTS (stats) : 0);
-      if (use_dict_limit)
+      err = NULL;
+      make_log_qr = sql_compile_static ("DB.DBA.RDF_MAKE_LONG_OF_TYPEDSQLVAL_STRINGS (?, ?, ?)", bootstrap_cli, &err, SQLC_DEFAULT);
+      if (NULL != err)
+	sqlr_resignal (err);
+    }
+  err = qr_quick_exec (make_log_qr, ((query_instance_t *) qst)->qi_client, NULL, &lc, 3,
+      ":0", box_copy (strval), QRP_RAW,
+      ":1", (NULL == dt_iri) ? NEW_DB_NULL : box_copy (dt_iri), QRP_RAW,
+      ":2", (NULL == lang_str) ? NEW_DB_NULL : box_copy (lang_str), QRP_RAW);
+  if (NULL != err)
+    sqlr_resignal (err);
+  if (lc)
+    {
+      caddr_t res;
+      if (IS_BOX_POINTER (lc->lc_proc_ret) && 1 < BOX_ELEMENTS (lc->lc_proc_ret))
 	{
-	  ment = unbox (sys_stat_impl ("sparql_result_set_max_rows"));
-	  mmem = unbox (sys_stat_impl ("sparql_max_mem_in_use"));
+	  res = ((caddr_t *) lc->lc_proc_ret)[1];
+	  ((caddr_t *) lc->lc_proc_ret)[1] = NULL;
 	}
-      ht = (id_hash_t *) box_dv_dict_hashtable (size);
-      ht->ht_rehash_threshold = 120;
-      if (ment > 0)
-	ht->ht_dict_max_entries = ment;
-      if (mmem > 0)
-	ht->ht_dict_max_mem_in_use = mmem;
-      hit = (id_hash_iterator_t *) box_dv_dict_iterator ((caddr_t) ht);
-      env = (caddr_t) hit;
-      qst_set (qst, args[0], env);
-      if (0 != stats_len)
+      else
+	res = NEW_DB_NULL;
+      lc_free (lc);
+      return res;
+    }
+  return NEW_DB_NULL;
+#if 0
+  if (NULL != dt_iri)
+    {
+      int dt_id;
+      if (NULL != lang_str)
+	goto bad_op;
+      if (DV_UNAME != DV_TYPE_OF (dt_iri))
+	goto bad_op;
+      if (!strcmp (pref, "http://www.opengis.net/ont/geosparql#wktLiteral"))
+	dt_id = RDF_BOX_GEO_TYPE;
+      else
 	{
-	  for (stat_ctr = 0; stat_ctr < stats_len; stat_ctr++)
+
+	parsed:= __xqf_str_parse_to_rdf_box (o, o_type, 1);
+	  if (parsed is not null)
+	    return parsed;
+
+
+
+	  dt_id = nic_name_id (rdf_type_cache, dt_iri);
+	  if (0 == dt_id)
 	    {
-	      sparql_construct2_triple (qst, err_ret, ht, ((caddr_t **) stats)[stat_ctr], vars, &blank_iids);
-	      if (NULL != err_ret[0])
-		{
-		  dk_free_tree ((caddr_t) blank_iids);
-		  return NULL;
-		}
+/* TBD: call rdf_type_id (dt_iri) */
 	    }
-	  dk_free_tree ((caddr_t) blank_iids);
-	  blank_iids = NULL;
 	}
-    }
-  else
-    {
-      hit = (id_hash_iterator_t *) env;
-      ht = hit->hit_hash;
-    }
-  for (opcode_ctr = 0; opcode_ctr < opcodes_len; opcode_ctr++)
-    {
-      sparql_construct2_triple (qst, err_ret, ht, opcodes[opcode_ctr], vars, &blank_iids);
-      if (NULL != err_ret[0])
+
+      name_id_cache_t *cache = mode[0] == 'p' ? iri_prefix_cache
+	  : mode[0] == 'l' ? rdf_lang_cache : mode[0] == 't' ? rdf_type_cache : mode[0] == 'i' ? iri_name_cache : NULL;
+      if ('t' == mode[0] &&)
+	return box_num (256);
+      if (!cache)
+	sqlr_new_error ("42000", "RDF..", "bad mode for rdf_cache_id");
+      if (is_set)
 	{
-	  dk_free_tree ((caddr_t) blank_iids);
-	  return NULL;
+	  if (is_txn && (cache == iri_name_cache || cache == iri_prefix_cache))
+	    lt_nic_set (qi->qi_trx, cache, pref, new_id);
+	  else
+	    nic_set (cache, pref, new_id);
+	  return 0;
 	}
+      if (cache == iri_name_cache || cache == iri_prefix_cache)
+	return box_num (lt_nic_name_id (qi->qi_trx, cache, pref));
+      else
+	return box_num (nic_name_id (cache, pref));
+
+
+      else
+    if (2 = o_flags)
+      {
+      lid:= rdf_cache_id ('l', lower (o_type));
+	if (lid = 0)
+	  {
+	    if (is_local)
+	    lid:= rdf_rl_lang_id (lower (o_type));
+	    else
+	    lid:= rdf_lang_id (lower (o_type));
+	  }
+	if (is_text and 246 = __tag (o))
+	  rdf_box_set_is_text (o, 1);
+	return rdf_box (o, 257, lid, 0, 1);
+      }
+    else if (3 = o_flags)
+      {
+      lid:= 257;
+	declare parsed any array;
+      parsed:= __xqf_str_parse_to_rdf_box (o, o_type, 1);
+	if (parsed is not null)
+	  return parsed;
+	else
+	  {
+	  tid:= rdf_cache_id ('t', o_type);
+	    if (tid = 0)
+	      {
+		if (is_local)
+		tid:= rdf_rl_type_id (o_type);
+		else
+		tid:= rdf_type_id (o_type);
+	      }
+	  rb:= rdf_box (o, tid, 257, 0, 1);
+	    if (is_text and 246 = __tag (o))
+	      rdf_box_set_is_text (o, 1);
+	    return rb;
+	  }
+#endif
+      }
+
+      void
+	sparql_construct2_triple (caddr_t * qst, caddr_t * err_ret, id_hash_t * ht, caddr_t * triple_op, caddr_t * vars,
+	caddr_t ** blank_iids_ptr)
+    {
+      caddr_t *triple;
+      int fld_ctr, fld_count;
+      int var_count = BOX_ELEMENTS (vars);
+      ptrlong one = 1;
+      switch (BOX_ELEMENTS (triple_op))
+	{
+	case 8:
+	  fld_count = 4;
+	  triple = (caddr_t *) list (4, NULL, NULL, NULL, NULL);
+	  break;
+	case 6:
+	  fld_count = 3;
+	  triple = (caddr_t *) list (3, NULL, NULL, NULL);
+	  break;
+	default:
+	  goto bad_op;		/* see below */
+	}
+      for (fld_ctr = fld_count; fld_ctr--; /* no step */ )
+	{
+	  ptrlong op = unbox (triple_op[fld_ctr * 2]);
+	  caddr_t arg = triple_op[fld_ctr * 2 + 1];
+	  caddr_t val;
+	  int val_is_temp = 0;
+	  switch (op)
+	    {
+	    case 1:
+	      {
+		ptrlong var_idx = unbox (arg);
+		if ((0 > var_idx) || (var_idx >= var_count))
+		  goto bad_op;	/* see below */
+		val = vars[var_idx];
+		break;
+	      }
+	    case 2:
+	      {
+		int idx;
+		int old_bnode_count = BOX_ELEMENTS_0 (blank_iids_ptr[0]);
+		if ((1 == fld_ctr) || (3 == fld_ctr))
+		  goto bad_op;
+		if (DV_LONG_INT != DV_TYPE_OF (arg))
+		  goto bad_op;
+		idx = unbox (arg);
+		if (idx > 1000)
+		  goto bad_op;
+		if (idx >= old_bnode_count)
+		  {
+		    int new_bnode_count = old_bnode_count + idx + 1;	/* this at least doubles the length */
+		    caddr_t *new_iids = dk_alloc_list_zero (new_bnode_count);
+		    memcpy (new_iids, blank_iids_ptr[0], old_bnode_count * sizeof (caddr_t));
+		    dk_free_box ((caddr_t) (blank_iids_ptr[0]));
+		    blank_iids_ptr[0] = new_iids;
+		  }
+		if (NULL == blank_iids_ptr[0][idx])
+		  {
+		    static caddr_t seq_name = NULL;
+		    if (NULL == seq_name)
+		      seq_name = box_dv_short_string ("RDF_URL_IID_BLANK");
+		    blank_iids_ptr[0][idx] =
+			box_num (sequence_next_inc_and_log ((query_instance_t *) qst, err_ret, seq_name, 1, 1000));
+		  }
+		val = blank_iids_ptr[0][idx];
+		break;
+	      }
+	    case 3:
+	      {
+		if (DV_ARRAY_OF_POINTER == DV_TYPE_OF (arg))	/* A special case for data that comes from SPARQL INSERT DATA with define sql:big-data-const not set to zero */
+		  {
+		    caddr_t strval, dt_iri, lang_str;
+		    if (3 != BOX_ELEMENTS (arg))
+		      goto bad_op;
+		    strval = ((caddr_t *) arg)[0];
+		    dt_iri = ((caddr_t *) arg)[1];
+		    lang_str = ((caddr_t *) arg)[2];
+		    if (NULL != dt_iri)
+		      {
+			if (NULL != lang_str)
+			  goto bad_op;
+			if (DV_UNAME != DV_TYPE_OF (dt_iri))
+			  goto bad_op;
+		      }
+		    else if (NULL != lang_str)
+		      {
+			if (DV_STRING != DV_TYPE_OF (lang_str))
+			  goto bad_op;
+			if (DV_STRING != DV_TYPE_OF (strval))
+			  goto bad_op;
+		      }
+		    val = rdf_make_long_of_typedsqlval_strings (qst, strval, dt_iri, lang_str);
+		    val_is_temp = 1;
+		  }
+		else
+		  val = arg;
+		break;
+	      }
+	    default:
+	      goto bad_op;
+	    }
+	  switch (DV_TYPE_OF (val))
+	    {
+	    case DV_DB_NULL:
+	      dk_free_tree ((caddr_t) triple);
+	      return;
+	    case DV_IRI_ID:
+	      if ((((iri_id_t *) val)[0] >= min_bnode_iri_id ()) && ((1 == fld_ctr) || (3 == fld_ctr)))
+		{
+		  dk_free_tree ((caddr_t) triple);
+		  sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: blank node can not be used as %s",
+		      ((1 == fld_ctr) ? "predicate" : "graph"));
+		}
+	      break;
+	    case DV_UNAME:
+	      break;
+	    case DV_STRING:
+	      if (!(box_flags (val) & BF_IRI) && (2 != fld_ctr))
+		{
+		  dk_free_tree ((caddr_t) triple);
+		  sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: string can not be used as %s",
+		      ((0 == fld_ctr) ? "subject" : ((1 == fld_ctr) ? "predicate" : "graph")));
+		}
+	      break;
+	    default:
+	      if (2 != fld_ctr)
+		{
+		  dk_free_tree ((caddr_t) triple);
+		  sqlr_new_error ("RDF01", "SR658", "Bad variable value in CONSTRUCT: literals can not be used as %s",
+		      ((0 == fld_ctr) ? "subject" : ((1 == fld_ctr) ? "predicate" : "graph")));
+		}
+	      break;
+	    }
+	  if (val_is_temp)
+	    triple[fld_ctr] = val;
+	  else
+	    triple[fld_ctr] = box_copy_tree (val);
+	}
+      id_hash_set (ht, (caddr_t) (&triple), (caddr_t) (&one));
+      return;
+    bad_op:
+      dk_free_tree ((caddr_t) (blank_iids_ptr[0]));
+      dk_free_tree ((caddr_t) triple);
+      blank_iids_ptr[0] = NULL;
+      sqlr_new_error ("22023", "SR657", "Invalid opcode list in triple constructor");
     }
-  dk_free_tree ((caddr_t) blank_iids);
-  return NULL;
-}
+
+    caddr_t bif_sparql_construct2_acc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+    {
+      const char *fname = "sparql_construct2_acc";
+      ptrlong use_dict_limit = bif_long_arg (qst, args, 4, fname);
+      caddr_t env = bif_arg_nochecks (qst, args, 0);
+      caddr_t **opcodes = (caddr_t **) bif_array_of_pointer_arg (qst, args, 1, fname);
+      caddr_t *vars = bif_array_of_pointer_arg (qst, args, 2, fname);
+      caddr_t stats = bif_array_or_null_arg (qst, args, 3, fname);
+      id_hash_iterator_t *hit;
+      id_hash_t *ht;
+      int opcode_ctr, opcodes_len = BOX_ELEMENTS (opcodes);
+      caddr_t *blank_iids = NULL;
+      if (DV_DICT_ITERATOR != DV_TYPE_OF (env))
+	{
+	  long size = 31, mmem = 0, ment = 0;
+	  int stat_ctr, stats_len = (DV_ARRAY_OF_POINTER == DV_TYPE_OF (stats) ? BOX_ELEMENTS (stats) : 0);
+	  if (use_dict_limit)
+	    {
+	      ment = unbox (sys_stat_impl ("sparql_result_set_max_rows"));
+	      mmem = unbox (sys_stat_impl ("sparql_max_mem_in_use"));
+	    }
+	  ht = (id_hash_t *) box_dv_dict_hashtable (size);
+	  ht->ht_rehash_threshold = 120;
+	  if (ment > 0)
+	    ht->ht_dict_max_entries = ment;
+	  if (mmem > 0)
+	    ht->ht_dict_max_mem_in_use = mmem;
+	  hit = (id_hash_iterator_t *) box_dv_dict_iterator ((caddr_t) ht);
+	  env = (caddr_t) hit;
+	  qst_set (qst, args[0], env);
+	  if (0 != stats_len)
+	    {
+	      for (stat_ctr = 0; stat_ctr < stats_len; stat_ctr++)
+		{
+		  sparql_construct2_triple (qst, err_ret, ht, ((caddr_t **) stats)[stat_ctr], vars, &blank_iids);
+		  if (NULL != err_ret[0])
+		    {
+		      dk_free_tree ((caddr_t) blank_iids);
+		      return NULL;
+		    }
+		}
+	      dk_free_tree ((caddr_t) blank_iids);
+	      blank_iids = NULL;
+	    }
+	}
+      else
+	{
+	  hit = (id_hash_iterator_t *) env;
+	  ht = hit->hit_hash;
+	}
+      for (opcode_ctr = 0; opcode_ctr < opcodes_len; opcode_ctr++)
+	{
+	  sparql_construct2_triple (qst, err_ret, ht, opcodes[opcode_ctr], vars, &blank_iids);
+	  if (NULL != err_ret[0])
+	    {
+	      dk_free_tree ((caddr_t) blank_iids);
+	      return NULL;
+	    }
+	}
+      dk_free_tree ((caddr_t) blank_iids);
+      return NULL;
+    }
 
 #if 0
 
-create procedure DB.DBA.
-SPARQL_CONSTRUCT_ACC (inout _env any, in opcodes any, in vars any, in stats any, in use_dict_limit integer)
-{
-  declare triple_ctr integer;
-  declare blank_ids any;
-  if (214 <> __tag (_env))
+    create procedure DB.DBA.SPARQL_CONSTRUCT_ACC (inout _env any, in opcodes any, in vars any, in stats any,
+	in use_dict_limit integer)
     {
-      if (use_dict_limit)
-      _env:= dict_new (31, sys_stat ('sparql_result_set_max_rows'), sys_stat ('sparql_max_mem_in_use'));
-      else
-      _env:= dict_new (31);
-      if (0 < length (stats))
-	DB.DBA.SPARQL_CONSTRUCT_ACC (_env, stats, vector (), vector (), use_dict_limit);
-    }
-blank_ids:= 0;
-for (triple_ctr: = length (opcodes) - 1; triple_ctr >= 0; triple_ctr:= triple_ctr - 1)
-    {
-      declare fld_ctr, fld_count integer;
-      declare triple_vec any;
-      declare g_opcode integer;
-    g_opcode:= aref_or_default (opcodes, triple_ctr, 6, null);
-      if (g_opcode is null)
+      declare triple_ctr integer;
+      declare blank_ids any;
+      if (214 <> __tag (_env))
 	{
-	fld_count:= 3;
-	triple_vec:= vector (0, 0, 0);
+	  if (use_dict_limit)
+	  _env:= dict_new (31, sys_stat ('sparql_result_set_max_rows'), sys_stat ('sparql_max_mem_in_use'));
+	  else
+	  _env:= dict_new (31);
+	  if (0 < length (stats))
+	    DB.DBA.SPARQL_CONSTRUCT_ACC (_env, stats, vector (), vector (), use_dict_limit);
 	}
-      else
+    blank_ids:= 0;
+    for (triple_ctr: = length (opcodes) - 1; triple_ctr >= 0; triple_ctr:= triple_ctr - 1)
 	{
-	fld_count:= 4;
-	triple_vec:= vector (0, 0, 0, 0);
-	}
-      --dbg_obj_princ ('opcodes[triple_ctr]=', opcodes[triple_ctr]);
-    for (fld_ctr: = fld_count - 1; fld_ctr >= 0; fld_ctr:= fld_ctr - 1)
-	{
-	  declare op integer;
-	  declare arg any;
-	op:= opcodes[triple_ctr][fld_ctr * 2];
-	arg:= opcodes[triple_ctr][fld_ctr * 2 + 1];
-	  if (1 = op)
+	  declare fld_ctr, fld_count integer;
+	  declare triple_vec any;
+	  declare g_opcode integer;
+	g_opcode:= aref_or_default (opcodes, triple_ctr, 6, null);
+	  if (g_opcode is null)
 	    {
-	      declare i any;
-	    i:= vars[arg];
-	      if (i is null)
-		goto end_of_adding_triple;
-	      if (isiri_id (i))
-		{
-		  if (fld_ctr in (1, 3) and is_bnode_iri_id (i))
-		    signal ('RDF01', 'Bad variable value in CONSTRUCT: blank node can not be used as predicate or graph');
-		}
-	      else if ((isstring (i) and (1 = __box_flags (i))) or (217 = __tag (i)))
-		{
-		  if (fld_ctr in (1, 3) and (i like 'bnode://%'))
-		    signal ('RDF01', 'Bad variable value in CONSTRUCT: blank node can not be used as predicate or graph');
-		i:= iri_to_id (i);
-		}
-	      else if (2 <> fld_ctr)
-		signal ('RDF01',
-		    sprintf
-		    ('Bad variable value in CONSTRUCT: "%.100s" (tag %d box flags %d) is not a valid %s, only object of a triple can be a literal',
-			__rdf_strsqlval (i), __tag (i), __box_flags (i), case (fld_ctr) when 1 then 'predicate'
-			else
-			'subject' end));
-	    triple_vec[fld_ctr]:= i;
-	    }
-	  else if (2 = op)
-	    {
-	      if (isinteger (blank_ids))
-	      blank_ids:= vector (iri_id_from_num (sequence_next ('RDF_URL_IID_BLANK')));
-	      while (arg >= length (blank_ids))
-	      blank_ids:= vector_concat (blank_ids,
-		    vector (iri_id_from_num (sequence_next ('RDF_URL_IID_BLANK'))));
-	      if (fld_ctr in (1, 3))
-		signal ('RDF01', 'Bad triple for CONSTRUCT: blank node can not be used as predicate or graph');
-	    triple_vec[fld_ctr]:= blank_ids[arg];
-	    }
-	  else if (3 = op)
-	    {
-	      if (arg is null)
-		goto end_of_adding_triple;
-	      if (isiri_id (arg))
-		{
-		  if (fld_ctr in (1, 3) and is_bnode_iri_id (arg))
-		    signal ('RDF01', 'Bad const value in CONSTRUCT: blank node can not be used as predicate or graph');
-		}
-	      else if ((isstring (arg) and (1 = __box_flags (arg))) or (217 = __tag (arg)))
-		{
-		  if (fld_ctr in (1, 3) and (arg like 'bnode://%'))
-		    signal ('RDF01', 'Bad const value in CONSTRUCT: blank node can not be used as predicate or graph');
-		arg:= iri_to_id (arg);
-		}
-	      else if (2 <> fld_ctr)
-		signal ('RDF01',
-		    sprintf
-		    ('Bad const value in CONSTRUCT: "%.100s" (tag %d box flags %d) is not a valid %s, only object of a triple can be a literal',
-			__rdf_strsqlval (arg), __tag (arg), __box_flags (arg), case (fld_ctr) when 1 then 'predicate'
-			else
-			'subject' end));
-	      else if (__tag of vector = __tag (arg))
-	      arg:= DB.DBA.RDF_MAKE_LONG_OF_TYPEDSQLVAL_STRINGS (arg[0], arg[1], arg[2]);
-	    triple_vec[fld_ctr]:= arg;
+	    fld_count:= 3;
+	    triple_vec:= vector (0, 0, 0);
 	    }
 	  else
-	    signal ('RDFXX', 'Bad opcode in DB.DBA.SPARQL_CONSTRUCT()');
+	    {
+	    fld_count:= 4;
+	    triple_vec:= vector (0, 0, 0, 0);
+	    }
+	  --dbg_obj_princ ('opcodes[triple_ctr]=', opcodes[triple_ctr]);
+	for (fld_ctr: = fld_count - 1; fld_ctr >= 0; fld_ctr:= fld_ctr - 1)
+	    {
+	      declare op integer;
+	      declare arg any;
+	    op:= opcodes[triple_ctr][fld_ctr * 2];
+	    arg:= opcodes[triple_ctr][fld_ctr * 2 + 1];
+	      if (1 = op)
+		{
+		  declare i any;
+		i:= vars[arg];
+		  if (i is null)
+		    goto end_of_adding_triple;
+		  if (isiri_id (i))
+		    {
+		      if (fld_ctr in (1, 3) and is_bnode_iri_id (i))
+			signal ('RDF01', 'Bad variable value in CONSTRUCT: blank node can not be used as predicate or graph');
+		    }
+		  else if ((isstring (i) and (1 = __box_flags (i))) or (217 = __tag (i)))
+		    {
+		      if (fld_ctr in (1, 3) and (i like 'bnode://%'))
+			signal ('RDF01', 'Bad variable value in CONSTRUCT: blank node can not be used as predicate or graph');
+		    i:= iri_to_id (i);
+		    }
+		  else if (2 <> fld_ctr)
+		    signal ('RDF01',
+			sprintf
+			('Bad variable value in CONSTRUCT: "%.100s" (tag %d box flags %d) is not a valid %s, only object of a triple can be a literal',
+			    __rdf_strsqlval (i), __tag (i), __box_flags (i), case (fld_ctr) when 1 then 'predicate'
+			    else
+			    'subject' end));
+		triple_vec[fld_ctr]:= i;
+		}
+	      else if (2 = op)
+		{
+		  if (isinteger (blank_ids))
+		  blank_ids:= vector (iri_id_from_num (sequence_next ('RDF_URL_IID_BLANK')));
+		  while (arg >= length (blank_ids))
+		  blank_ids:= vector_concat (blank_ids,
+			vector (iri_id_from_num (sequence_next ('RDF_URL_IID_BLANK'))));
+		  if (fld_ctr in (1, 3))
+		    signal ('RDF01', 'Bad triple for CONSTRUCT: blank node can not be used as predicate or graph');
+		triple_vec[fld_ctr]:= blank_ids[arg];
+		}
+	      else if (3 = op)
+		{
+		  if (arg is null)
+		    goto end_of_adding_triple;
+		  if (isiri_id (arg))
+		    {
+		      if (fld_ctr in (1, 3) and is_bnode_iri_id (arg))
+			signal ('RDF01', 'Bad const value in CONSTRUCT: blank node can not be used as predicate or graph');
+		    }
+		  else if ((isstring (arg) and (1 = __box_flags (arg))) or (217 = __tag (arg)))
+		    {
+		      if (fld_ctr in (1, 3) and (arg like 'bnode://%'))
+			signal ('RDF01', 'Bad const value in CONSTRUCT: blank node can not be used as predicate or graph');
+		    arg:= iri_to_id (arg);
+		    }
+		  else if (2 <> fld_ctr)
+		    signal ('RDF01',
+			sprintf
+			('Bad const value in CONSTRUCT: "%.100s" (tag %d box flags %d) is not a valid %s, only object of a triple can be a literal',
+			    __rdf_strsqlval (arg), __tag (arg), __box_flags (arg), case (fld_ctr) when 1 then 'predicate'
+			    else
+			    'subject' end));
+		  else if (__tag of vector = __tag (arg))
+		  arg:= DB.DBA.RDF_MAKE_LONG_OF_TYPEDSQLVAL_STRINGS (arg[0], arg[1], arg[2]);
+		triple_vec[fld_ctr]:= arg;
+		}
+	      else
+		signal ('RDFXX', 'Bad opcode in DB.DBA.SPARQL_CONSTRUCT()');
+	    }
+	  --dbg_obj_princ ('generated triple:', triple_vec);
+	  dict_put (_env, triple_vec, 0);
+	end_of_adding_triple:;
 	}
-      --dbg_obj_princ ('generated triple:', triple_vec);
-      dict_put (_env, triple_vec, 0);
-    end_of_adding_triple:;
     }
-}
 #endif
 
-extern box_tmp_copy_f box_tmp_copier[256];
-void bif_ro2lo_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
-void bif_ro2sq_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
-void bif_ro2lo_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
-void bif_str_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
+    extern box_tmp_copy_f box_tmp_copier[256];
+    void bif_ro2lo_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
+    void bif_ro2sq_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
+    void bif_ro2lo_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
+    void bif_str_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_slot_t * ret);
 
 
-void
-rdf_box_init ()
-{
-  dk_mem_hooks (DV_RDF, (box_copy_f) rb_copy, (box_destr_f) rb_free, 1);
-  box_tmp_copier[DV_RDF] = (box_tmp_copy_f) rb_tmp_copy;
-  PrpcSetWriter (DV_RDF, (ses_write_func) rb_serialize);
-  dk_dtp_register_hash (DV_RDF, rdf_box_hash, rdf_box_hash_cmp, rdf_box_hash_strong_cmp);
-  boxed_zero_iid = box_iri_id (0);
-  boxed_8k_iid = box_iri_id (8192);
-  boxed_nobody_uid = box_num (U_ID_NOBODY);
-  MAKE_RDF_GRAPH_DICT (rdf_graph_iri2id_dict);
-  rdf_graph_iri2id_dict_htable->ht_hash_func = strhash;
-  rdf_graph_iri2id_dict_htable->ht_cmp = strhashcmp;
-  MAKE_RDF_GRAPH_DICT (rdf_graph_id2iri_dict);
-  MAKE_RDF_GRAPH_DICT (rdf_graph_group_dict);
-  MAKE_RDF_GRAPH_DICT (rdf_graph_public_perms_dict);
-  MAKE_RDF_GRAPH_DICT (rdf_graph_group_of_privates_dict);
-  MAKE_RDF_GRAPH_DICT (rdf_graph_default_world_perms_of_user_dict);
-  MAKE_RDF_GRAPH_DICT (rdf_graph_default_private_perms_of_user_dict);
-  bif_define_ex ("__rdf_set_bnode_t_treshold", bif_rdf_set_bnode_t_treshold, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_set_uses_index (bif_rdf_set_bnode_t_treshold);
-  bif_define ("rdf_box", bif_rdf_box);
-  bif_define ("rdf_box_from_ro_id", bif_rdf_box_from_ro_id);
-  bif_define ("ro_digest_from_parts", bif_ro_digest_from_parts);
-  bif_define_ex ("is_rdf_box", bif_is_rdf_box, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_set_data", bif_rdf_box_set_data, BMD_RET_TYPE, &bt_any, BMD_DONE);
-  bif_define ("rdf_box_data", bif_rdf_box_data);
-  bif_define_ex ("rdf_box_data_tag", bif_rdf_box_data_tag, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_ro_id", bif_rdf_box_ro_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("ro_digest_id", bif_ro_digest_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define ("rdf_box_set_ro_id", bif_rdf_box_set_ro_id);
-  bif_define_ex ("rdf_box_lang", bif_rdf_box_lang, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_type", bif_rdf_box_type, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_dt_and_lang", bif_rdf_box_dt_and_lang, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define ("rdf_box_set_type", bif_rdf_box_set_type);
-  bif_define ("rdf_box_chksum", bif_rdf_box_chksum);
-  bif_define_ex ("rdf_box_is_text", bif_rdf_box_is_text, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define ("rdf_box_set_is_text", bif_rdf_box_set_is_text);
-  bif_define_ex ("rdf_box_is_complete", bif_rdf_box_is_complete, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  /*bif_define_ex ("rdf_box_set_is_complete", bif_rdf_box_set_is_complete, BMD_RET_TYPE, &bt_integer, BMD_DONE); */
-  bif_define_ex ("rdf_box_is_storeable", bif_rdf_box_is_storeable, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_needs_digest", bif_rdf_box_needs_digest, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_strcmp", bif_rdf_box_strcmp, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("rdf_box_migrate_after_06_02_3129", bif_rdf_box_migrate_after_06_02_3129, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("__rdf_long_of_obj", bif_rdf_long_of_obj, BMD_ALIAS, "__ro2lo", BMD_VECTOR_IMPL, bif_ro2lo_vec, BMD_RET_TYPE,
-      &bt_any_box, BMD_USES_INDEX, BMD_DONE);
-  bif_define_ex ("__rdf_box_make_complete", bif_rdf_box_make_complete, BMD_RET_TYPE, &bt_integer, BMD_USES_INDEX, BMD_DONE);
-  bif_define_ex ("__rdf_box_to_ro_id_search_fields", bif_rdf_box_to_ro_id_search_fields, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("__rdf_sqlval_of_obj", bif_rdf_sqlval_of_obj, BMD_ALIAS, "__ro2sq", BMD_VECTOR_IMPL, bif_ro2sq_vec, BMD_RET_TYPE,
-      &bt_any, BMD_USES_INDEX, BMD_DONE);
-  bif_define_ex ("__rdf_strsqlval", bif_rdf_strsqlval, BMD_VECTOR_IMPL, bif_str_vec, BMD_RET_TYPE, &bt_varchar, BMD_USES_INDEX,
-      BMD_DONE);
-  bif_define_ex ("__rdf_long_to_ttl", bif_rdf_long_to_ttl, BMD_RET_TYPE, &bt_any, BMD_DONE);
-  bif_set_uses_index (bif_rdf_long_to_ttl);
-  bif_define_ex ("__rq_iid_of_o", bif_rq_iid_of_o, BMD_RET_TYPE, &bt_any, BMD_DONE);
-  bif_define ("__rdf_long_from_batch_params", bif_rdf_long_from_batch_params);
-  bif_define_ex ("__rdf_dist_ser_long", bif_rdf_dist_ser_long, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
-  bif_define_ex ("__rdf_dist_deser_long", bif_rdf_dist_deser_long, BMD_ALIAS, "__rdf_redu_deser_long", BMD_RET_TYPE, &bt_any,
-      BMD_DONE);
-  bif_define_ex ("__rdf_redu_ser_long", bif_rdf_redu_ser_long, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
-  bif_define ("http_sys_find_best_sparql_accept", bif_http_sys_find_best_sparql_accept);
-  bif_define ("http_ttl_prefixes", bif_http_ttl_prefixes);
-  bif_set_uses_index (bif_http_ttl_prefixes);
-  bif_define ("http_ttl_triple", bif_http_ttl_triple);
-  bif_set_uses_index (bif_http_ttl_triple);
-  bif_define ("http_nt_triple", bif_http_nt_triple);
-  bif_set_uses_index (bif_http_nt_triple);
-  bif_define ("http_nquad", bif_http_nquad);
-  bif_set_uses_index (bif_http_nquad);
-  bif_define ("http_rdfxml_p_ns", bif_http_rdfxml_p_ns);
-  bif_set_uses_index (bif_http_rdfxml_p_ns);
-  bif_define ("http_rdfxml_triple", bif_http_rdfxml_triple);
-  bif_set_uses_index (bif_http_rdfxml_triple);
-  bif_define ("http_talis_json_triple", bif_http_talis_json_triple);
-  bif_set_uses_index (bif_http_talis_json_triple);
-  bif_define ("http_ld_json_triple", bif_http_ld_json_triple);
-  bif_set_uses_index (bif_http_ld_json_triple);
-  bif_define ("http_ttl_value", bif_http_ttl_value);
-  bif_set_uses_index (bif_http_ttl_value);
-  bif_define ("http_nt_object", bif_http_nt_object);
-  bif_set_uses_index (bif_http_nt_object);
-  bif_define ("http_rdf_object", bif_http_rdf_object);
-  bif_set_uses_index (bif_http_rdf_object);
-  bif_define_ex ("sparql_rset_ttl_write_row", bif_sparql_rset_ttl_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("sparql_rset_nt_write_row", bif_sparql_rset_nt_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("sparql_rset_json_write_row", bif_sparql_rset_json_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("sparql_rset_xml_write_row", bif_sparql_rset_xml_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define ("sparql_iri_split_rdfa_qname", bif_sparql_iri_split_rdfa_qname);
-  bif_define_ex ("__rdf_graph_id2iri_dict", bif_rdf_graph_id2iri_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("__rdf_graph_iri2id_dict", bif_rdf_graph_iri2id_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("__rdf_graph_group_dict", bif_rdf_graph_group_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("__rdf_graph_public_perms_dict", bif_rdf_graph_public_perms_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("__rdf_graph_group_of_privates_dict", bif_rdf_graph_group_of_privates_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER,
-      BMD_DONE);
-  bif_define_ex ("__rdf_graph_default_perms_of_user_dict", bif_rdf_graph_default_perms_of_user_dict, BMD_IS_DBA_ONLY,
-      BMD_NO_CLUSTER, BMD_DONE);
-  bif_define_ex ("__rdf_graph_default_perms_enable_raw_access_check", bif_rdf_graph_default_perms_enable_raw_access_check,
-      BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
-  bif_define ("__rdf_cli_mark_qr_to_recompile", bif_rdf_cli_mark_qr_to_recompile);
-  bif_define ("__rdf_graph_approx_perms", bif_rdf_graph_approx_perms);
-  bif_define ("__rdf_graph_specific_perms_of_user", bif_rdf_graph_specific_perms_of_user);
-  bif_define ("__rgs_assert", bif_rgs_assert);
-  bif_define ("__rgs_assert_cbk", bif_rgs_assert_cbk);
-  bif_set_uses_index (bif_rgs_assert_cbk);
-  bif_define ("__rgs_ack", bif_rgs_ack);
-  bif_define_ex ("__rgs_ack_cbk", bif_rgs_ack_cbk, BMD_USES_INDEX, BMD_DONE);
-  bif_define_ex ("__rgs_user_perms_clo", bif_rgs_user_perms_clo, BMD_DONE);
-  bif_define_ex ("__rdf_repl_uid", bif_rdf_repl_uid, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  bif_define_ex ("__rgs_prepare_del_or_ins", bif_rgs_prepare_del_or_ins, BMD_RET_TYPE, &bt_integer, BMD_USES_INDEX, BMD_DONE);
-  repl_pub_name = box_dv_short_string ("__rdf_repl");
-  text5arg = box_dv_short_string ("__rdf_repl_action (?, ?, ?, ?, ?)");
-  text6arg = box_dv_short_string ("__rdf_repl_action (?, ?, ?, ?, ?, ?)");
-  bif_define ("__rdf_graph_is_in_enabled_repl", bif_rdf_graph_is_in_enabled_repl);
-  bif_set_uses_index (bif_rdf_graph_is_in_enabled_repl);
-  bif_define ("__rdf_repl_quad", bif_rdf_repl_quad);
-  bif_define ("__rdf_repl_action", bif_rdf_repl_action);
-  bif_set_uses_index (bif_rdf_repl_action);
-  bif_define ("__rdf_repl_flush_queue", bif_rdf_repl_flush_queue);
-  bif_set_uses_index (bif_rdf_repl_flush_queue);
-  bif_define ("__rdf_range_check", bif_rdf_range_check);
-  bif_set_uses_index (bif_rdf_range_check);
-  bif_define_ex ("iri_name_id", bif_iri_name_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
-  rdf_sec_init ();
-  bif_define_ex ("sparql_construct2_acc", bif_sparql_construct2_acc, BMD_DONE);
-}
+    void rdf_box_init ()
+    {
+      dk_mem_hooks (DV_RDF, (box_copy_f) rb_copy, (box_destr_f) rb_free, 1);
+      box_tmp_copier[DV_RDF] = (box_tmp_copy_f) rb_tmp_copy;
+      PrpcSetWriter (DV_RDF, (ses_write_func) rb_serialize);
+      dk_dtp_register_hash (DV_RDF, rdf_box_hash, rdf_box_hash_cmp, rdf_box_hash_strong_cmp);
+      boxed_zero_iid = box_iri_id (0);
+      boxed_8k_iid = box_iri_id (8192);
+      boxed_nobody_uid = box_num (U_ID_NOBODY);
+      MAKE_RDF_GRAPH_DICT (rdf_graph_iri2id_dict);
+      rdf_graph_iri2id_dict_htable->ht_hash_func = strhash;
+      rdf_graph_iri2id_dict_htable->ht_cmp = strhashcmp;
+      MAKE_RDF_GRAPH_DICT (rdf_graph_id2iri_dict);
+      MAKE_RDF_GRAPH_DICT (rdf_graph_group_dict);
+      MAKE_RDF_GRAPH_DICT (rdf_graph_public_perms_dict);
+      MAKE_RDF_GRAPH_DICT (rdf_graph_group_of_privates_dict);
+      MAKE_RDF_GRAPH_DICT (rdf_graph_default_world_perms_of_user_dict);
+      MAKE_RDF_GRAPH_DICT (rdf_graph_default_private_perms_of_user_dict);
+      bif_define_ex ("__rdf_set_bnode_t_treshold", bif_rdf_set_bnode_t_treshold, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_set_uses_index (bif_rdf_set_bnode_t_treshold);
+      bif_define ("rdf_box", bif_rdf_box);
+      bif_define ("rdf_box_from_ro_id", bif_rdf_box_from_ro_id);
+      bif_define ("ro_digest_from_parts", bif_ro_digest_from_parts);
+      bif_define_ex ("is_rdf_box", bif_is_rdf_box, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_set_data", bif_rdf_box_set_data, BMD_RET_TYPE, &bt_any, BMD_DONE);
+      bif_define ("rdf_box_data", bif_rdf_box_data);
+      bif_define_ex ("rdf_box_data_tag", bif_rdf_box_data_tag, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_ro_id", bif_rdf_box_ro_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("ro_digest_id", bif_ro_digest_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define ("rdf_box_set_ro_id", bif_rdf_box_set_ro_id);
+      bif_define_ex ("rdf_box_lang", bif_rdf_box_lang, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_type", bif_rdf_box_type, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_dt_and_lang", bif_rdf_box_dt_and_lang, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define ("rdf_box_set_type", bif_rdf_box_set_type);
+      bif_define ("rdf_box_chksum", bif_rdf_box_chksum);
+      bif_define_ex ("rdf_box_is_text", bif_rdf_box_is_text, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define ("rdf_box_set_is_text", bif_rdf_box_set_is_text);
+      bif_define_ex ("rdf_box_is_complete", bif_rdf_box_is_complete, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      /*bif_define_ex ("rdf_box_set_is_complete", bif_rdf_box_set_is_complete, BMD_RET_TYPE, &bt_integer, BMD_DONE); */
+      bif_define_ex ("rdf_box_is_storeable", bif_rdf_box_is_storeable, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_needs_digest", bif_rdf_box_needs_digest, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_strcmp", bif_rdf_box_strcmp, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("rdf_box_migrate_after_06_02_3129", bif_rdf_box_migrate_after_06_02_3129, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("__rdf_long_of_obj", bif_rdf_long_of_obj, BMD_ALIAS, "__ro2lo", BMD_VECTOR_IMPL, bif_ro2lo_vec, BMD_RET_TYPE,
+	  &bt_any_box, BMD_USES_INDEX, BMD_DONE);
+      bif_define_ex ("__rdf_box_make_complete", bif_rdf_box_make_complete, BMD_RET_TYPE, &bt_integer, BMD_USES_INDEX, BMD_DONE);
+      bif_define_ex ("__rdf_box_to_ro_id_search_fields", bif_rdf_box_to_ro_id_search_fields, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("__rdf_sqlval_of_obj", bif_rdf_sqlval_of_obj, BMD_ALIAS, "__ro2sq", BMD_VECTOR_IMPL, bif_ro2sq_vec,
+	  BMD_RET_TYPE, &bt_any, BMD_USES_INDEX, BMD_DONE);
+      bif_define_ex ("__rdf_strsqlval", bif_rdf_strsqlval, BMD_VECTOR_IMPL, bif_str_vec, BMD_RET_TYPE, &bt_varchar, BMD_USES_INDEX,
+	  BMD_DONE);
+      bif_define_ex ("__rdf_long_to_ttl", bif_rdf_long_to_ttl, BMD_RET_TYPE, &bt_any, BMD_DONE);
+      bif_set_uses_index (bif_rdf_long_to_ttl);
+      bif_define_ex ("__rq_iid_of_o", bif_rq_iid_of_o, BMD_RET_TYPE, &bt_any, BMD_DONE);
+      bif_define ("__rdf_long_from_batch_params", bif_rdf_long_from_batch_params);
+      bif_define_ex ("__rdf_dist_ser_long", bif_rdf_dist_ser_long, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
+      bif_define_ex ("__rdf_dist_deser_long", bif_rdf_dist_deser_long, BMD_ALIAS, "__rdf_redu_deser_long", BMD_RET_TYPE, &bt_any,
+	  BMD_DONE);
+      bif_define_ex ("__rdf_redu_ser_long", bif_rdf_redu_ser_long, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
+      bif_define ("http_sys_find_best_sparql_accept", bif_http_sys_find_best_sparql_accept);
+      bif_define ("http_ttl_prefixes", bif_http_ttl_prefixes);
+      bif_set_uses_index (bif_http_ttl_prefixes);
+      bif_define ("http_ttl_triple", bif_http_ttl_triple);
+      bif_set_uses_index (bif_http_ttl_triple);
+      bif_define ("http_nt_triple", bif_http_nt_triple);
+      bif_set_uses_index (bif_http_nt_triple);
+      bif_define ("http_nquad", bif_http_nquad);
+      bif_set_uses_index (bif_http_nquad);
+      bif_define ("http_rdfxml_p_ns", bif_http_rdfxml_p_ns);
+      bif_set_uses_index (bif_http_rdfxml_p_ns);
+      bif_define ("http_rdfxml_triple", bif_http_rdfxml_triple);
+      bif_set_uses_index (bif_http_rdfxml_triple);
+      bif_define ("http_talis_json_triple", bif_http_talis_json_triple);
+      bif_set_uses_index (bif_http_talis_json_triple);
+      bif_define ("http_ld_json_triple", bif_http_ld_json_triple);
+      bif_set_uses_index (bif_http_ld_json_triple);
+      bif_define ("http_ttl_value", bif_http_ttl_value);
+      bif_set_uses_index (bif_http_ttl_value);
+      bif_define ("http_nt_object", bif_http_nt_object);
+      bif_set_uses_index (bif_http_nt_object);
+      bif_define ("http_rdf_object", bif_http_rdf_object);
+      bif_set_uses_index (bif_http_rdf_object);
+      bif_define_ex ("sparql_rset_ttl_write_row", bif_sparql_rset_ttl_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("sparql_rset_nt_write_row", bif_sparql_rset_nt_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("sparql_rset_json_write_row", bif_sparql_rset_json_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("sparql_rset_xml_write_row", bif_sparql_rset_xml_write_row, BMD_USES_INDEX, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define ("sparql_iri_split_rdfa_qname", bif_sparql_iri_split_rdfa_qname);
+      bif_define_ex ("__rdf_graph_id2iri_dict", bif_rdf_graph_id2iri_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("__rdf_graph_iri2id_dict", bif_rdf_graph_iri2id_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("__rdf_graph_group_dict", bif_rdf_graph_group_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("__rdf_graph_public_perms_dict", bif_rdf_graph_public_perms_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("__rdf_graph_group_of_privates_dict", bif_rdf_graph_group_of_privates_dict, BMD_IS_DBA_ONLY, BMD_NO_CLUSTER,
+	  BMD_DONE);
+      bif_define_ex ("__rdf_graph_default_perms_of_user_dict", bif_rdf_graph_default_perms_of_user_dict, BMD_IS_DBA_ONLY,
+	  BMD_NO_CLUSTER, BMD_DONE);
+      bif_define_ex ("__rdf_graph_default_perms_enable_raw_access_check", bif_rdf_graph_default_perms_enable_raw_access_check,
+	  BMD_IS_DBA_ONLY, BMD_NO_CLUSTER, BMD_DONE);
+      bif_define ("__rdf_cli_mark_qr_to_recompile", bif_rdf_cli_mark_qr_to_recompile);
+      bif_define ("__rdf_graph_approx_perms", bif_rdf_graph_approx_perms);
+      bif_define ("__rdf_graph_specific_perms_of_user", bif_rdf_graph_specific_perms_of_user);
+      bif_define ("__rgs_assert", bif_rgs_assert);
+      bif_define ("__rgs_assert_cbk", bif_rgs_assert_cbk);
+      bif_set_uses_index (bif_rgs_assert_cbk);
+      bif_define ("__rgs_ack", bif_rgs_ack);
+      bif_define_ex ("__rgs_ack_cbk", bif_rgs_ack_cbk, BMD_USES_INDEX, BMD_DONE);
+      bif_define_ex ("__rgs_user_perms_clo", bif_rgs_user_perms_clo, BMD_DONE);
+      bif_define_ex ("__rdf_repl_uid", bif_rdf_repl_uid, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      bif_define_ex ("__rgs_prepare_del_or_ins", bif_rgs_prepare_del_or_ins, BMD_RET_TYPE, &bt_integer, BMD_USES_INDEX, BMD_DONE);
+      repl_pub_name = box_dv_short_string ("__rdf_repl");
+      text5arg = box_dv_short_string ("__rdf_repl_action (?, ?, ?, ?, ?)");
+      text6arg = box_dv_short_string ("__rdf_repl_action (?, ?, ?, ?, ?, ?)");
+      bif_define ("__rdf_graph_is_in_enabled_repl", bif_rdf_graph_is_in_enabled_repl);
+      bif_set_uses_index (bif_rdf_graph_is_in_enabled_repl);
+      bif_define ("__rdf_repl_quad", bif_rdf_repl_quad);
+      bif_define ("__rdf_repl_action", bif_rdf_repl_action);
+      bif_set_uses_index (bif_rdf_repl_action);
+      bif_define ("__rdf_repl_flush_queue", bif_rdf_repl_flush_queue);
+      bif_set_uses_index (bif_rdf_repl_flush_queue);
+      bif_define ("__rdf_range_check", bif_rdf_range_check);
+      bif_set_uses_index (bif_rdf_range_check);
+      bif_define_ex ("iri_name_id", bif_iri_name_id, BMD_RET_TYPE, &bt_integer, BMD_DONE);
+      rdf_sec_init ();
+      bif_define_ex ("sparql_construct2_acc", bif_sparql_construct2_acc, BMD_USES_INDEX, BMD_DONE);
+    }
