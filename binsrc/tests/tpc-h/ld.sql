@@ -15,6 +15,21 @@ log_enable (2); insert into region select * from region_f &
 
 wait_for_children;
 status ('');
-cl_exec ('checkpoint');
+
+select curdatetime ();
+ECHOLN BOTH $LAST[1] "START COUNT";
+
+select count(*) from REGION table option (check) &
+select count(*) from NATION table option (check) &
+select count(*) from SUPPLIER table option (check) &
+select count(*) from CUSTOMER table option (check) &
+select count(*) from PART table option (check) &
+select count(*) from PARTSUPP  table option (check) &
+select count(*) from LINEITEM table option (check) &
+select count(*) from ORDERS table option (check) &
+cl_exec ('checkpoint') &
+wait_for_children;
+
+
 
 select curdatetime ();

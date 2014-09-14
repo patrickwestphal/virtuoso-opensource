@@ -486,7 +486,7 @@ create procedure get_start_load (in _mode integer, in _all any)
   if (_mode = 1)
     _what := 'LOADING TPC-H DATA ';
   else
-    _what := 'FINISHED LOADING TPC-H DATA ';
+    _what := 'FINISHED LOADING TPC-H DATA';
 
    for (declare x any, x := 0; x < length (_all); x := x + 1)
       {
