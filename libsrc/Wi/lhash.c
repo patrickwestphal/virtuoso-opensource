@@ -3935,7 +3935,7 @@ chash_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
   chash_page_t *chp;
   int n_results = 0, last_set, row, is_next_branch = 0;
   int set, n_sets = ts->src_gen.src_prev ? QST_INT (inst, ts->src_gen.src_prev->src_out_fill) : qi->qi_n_sets;
-  char all_survived = 1;
+  char all_survived = 1, any_result = 0;
   chash_read_setp (ts, inst, &setp, &ha, &tree, &cha);
   if (!ha)
     {
@@ -3950,6 +3950,7 @@ chash_read_input (table_source_t * ts, caddr_t * inst, caddr_t * state)
   if (ks->ks_set_no_col_ssl || SSL_VEC != ha->ha_tree->ssl_type)
     n_sets = 1;
   if (SSL_VEC == ha->ha_tree->ssl_type)
+
     {
       data_col_t *dc = QST_BOX (data_col_t *, inst, ha->ha_tree->ssl_index);
       n_sets = dc->dc_n_values;
@@ -4076,6 +4077,7 @@ next_batch:
 		  int64 *ent = (int64 *) & chp->chp_data[row];
 		  if (ha->ha_top_gby && GB_IS_NULL (ha, ent, n_cols))
 		    continue;
+		  any_result = 1;
 		  if (setp && has_surviving && cha_check_survival (cha, inst, setp, ent, surviving))
 		    continue;
 		  all_survived = 0;
@@ -4119,7 +4121,7 @@ next_batch:
 	      row = 0;
 	    }
 	}
-      if (!all_survived)
+      if (!all_survived || !any_result)
 	{
 	  int64 *save_survival = (int64 *) cha->cha_bloom;
 	  cha->cha_bloom = NULL;

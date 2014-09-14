@@ -4690,14 +4690,6 @@ sqlg_vec_ts (sql_comp_t * sc, table_source_t * ts)
       for (sp = ks->ks_row_spec; sp; sp = sp->sp_next)
 	{
 	  sc->sc_vec_current_col = sch_id_to_col (wi_inst.wi_schema, sp->sp_cl.cl_col_id);
-	  if (ks->ks_key->key_is_col)
-	    {
-	      dtp_t min_op = sp->sp_min_op, max_op = sp->sp_max_op;
-	      if (!sp->sp_col_filter)
-		sp->sp_col_filter = col_find_op (CE_OP_CODE (sp->sp_min_op, sp->sp_max_op));
-	      if (!sp->sp_col_filter && (CMP_GT == min_op || CMP_GTE == min_op || CMP_LT == max_op || CMP_LTE == max_op))
-		sp->sp_col_filter = col_find_op (CE_ALL_LTGT);
-	    }
 	  if (sp->sp_min_ssl)
 	    {
 	      sql_type_t target_sqt = sp->sp_cl.cl_sqt;
@@ -4722,6 +4714,17 @@ sqlg_vec_ts (sql_comp_t * sc, table_source_t * ts)
 	    }
 	}
       sc->sc_vec_current_col = NULL;
+    }
+  if (ks->ks_key->key_is_col)
+    {
+      for (sp = ks->ks_row_spec; sp; sp = sp->sp_next)
+	{
+	  dtp_t min_op = sp->sp_min_op, max_op = sp->sp_max_op;
+	  if (!sp->sp_col_filter)
+	    sp->sp_col_filter = col_find_op (CE_OP_CODE (sp->sp_min_op, sp->sp_max_op));
+	  if (!sp->sp_col_filter && (CMP_GT == min_op || CMP_GTE == min_op || CMP_LT == max_op || CMP_LTE == max_op))
+	    sp->sp_col_filter = col_find_op (CE_ALL_LTGT);
+	}
     }
   sqlg_may_count_scan (sc, ts);
   sc->sc_vec_first_of_qf = NULL;

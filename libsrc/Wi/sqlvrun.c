@@ -3360,7 +3360,7 @@ itc_may_count_scan (it_cursor_t * itc)
 {
   dbe_key_t *key = itc->itc_insert_key;
   dbe_table_t *tb = key->key_table;
-  if (!key->key_is_primary || key->key_not_null)
+  if (!key->key_is_primary || key->key_not_null || CL_RUN_LOCAL != cl_run_local_only)
     return;
   if (DBE_NO_STAT_DATA == key->key_table->tb_count)
     {
