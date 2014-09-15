@@ -26,7 +26,7 @@
  *  
 */
 
-#include "thread_int.h"
+#include "Dk.h"
 
 
 void
@@ -91,4 +91,79 @@ thr_set_error_code (thread_t *thr, caddr_t err)
 #endif
   dk_free_tree (thr->thr_reset_code);
   thr->thr_reset_code = err;
+}
+
+
+int
+thread_parse_cpu_set (dk_cpu_set_t * cpu_set, char * str2)
+{
+#ifdef linux
+  caddr_t  str = box_dv_short_string (str2);
+  char * s;
+  char * id;
+  CPU_ZERO (cpu_set);
+  id = strtok_r (str, " ", &s);
+  while (id)
+    {
+      char * dash;
+      if ((dash = strchr (id, '-')))
+	{
+	  int n, l, h = atoi (dash + 1);
+	  *dash = 0;
+	  l = atoi (id);
+	  if (h >= CPU_SETSIZE)
+	    return -1;
+	  for (n = l; n <= h; n++)
+	    CPU_SET (n, cpu_set);
+	}
+      else 
+	{
+	  int n = atoi (id);
+	  if (n >= CPU_SETSIZE)
+	    return -1;
+	  CPU_SET (n, cpu_set);
+	}
+      id = strtok_r (NULL, " ", &s);
+    }
+  dk_free_box (str);
+#endif
+  return 0;
+}
+
+
+#ifdef linux
+#include <sys/syscall.h>
+#endif
+
+int
+thread_set_affinity (dk_cpu_set_t * cpu_set)
+{
+#ifdef linux
+  int tid = syscall (SYS_gettid);
+  return sched_setaffinity (tid, sizeof (cpu_set_t), cpu_set);
+#else
+  return 0;
+#endif
+}
+
+dk_cpu_set_t thr_default_affinity;
+int thr_is_default_affinity;
+
+void 
+thread_set_default_affinity (dk_cpu_set_t * cpu_set)
+{
+  if (!cpu_set)
+    thr_is_default_affinity = 0;
+  else
+    {
+      thr_default_affinity = *cpu_set;
+      thr_is_default_affinity = 1;
+    }
+}
+
+
+void
+longjmp_brk (jmp_buf b, int rc)
+{
+  longjmp (b, rc);
 }

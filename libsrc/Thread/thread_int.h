@@ -55,6 +55,14 @@
 /* Thread attributes hash table size */
 #define THREAD_ATTRIBUTE_HASH	17
 
+
+#if defined (linux) 
+#include <sched.h>
+typedef cpu_set_t dk_cpu_set_t;
+#else
+typedef struct _dkcpusets { int64 bits[16]; } dk_cpu_set_t;
+#endif
+
 typedef struct thread_hdr_s	thread_hdr_t;
 typedef struct thread_queue_s	thread_queue_t;
 
@@ -83,10 +91,11 @@ struct thread_s
 
     /* running status, see below */
     int			thr_status;
-
+  
     /* current priority */
     int			thr_priority;
-
+  char			thr_has_affinity;
+  dk_cpu_set_t		thr_affinity;
     /* thread specific attributes (thread local storage) */
     void *		thr_attributes;
 
@@ -131,6 +140,8 @@ struct thread_s
     semaphore_t	*	thr_schedule_sem;
     void *		thr_client_data;
     void *		thr_alloc_cache;
+  struct TLSF_struct *	thr_tlsf;
+  struct TLSF_struct *	thr_own_tlsf;
   /* preallocated thread attributes */
   jmp_buf_splice *	thr_reset_ctx;
   caddr_t		thr_reset_code;
@@ -140,8 +151,6 @@ struct thread_s
   int                   thr_attached;
   caddr_t		thr_dbg;
   struct lock_trx_s *	thr_lt; /* use to access lt during checkpoint wait */
-  void *		thr_tlsf;
-  void * 		thr_own_tlsf;
 #ifndef NDEBUG
   void *		thr_pg_dbg;
 #endif  
@@ -259,8 +268,14 @@ thread_t *thread_queue_remove (thread_queue_t *thq, thread_t *thr);
 thread_t *thread_queue_from (thread_queue_t *thq);
 
 /* thread_attr.c */
+
+extern dk_cpu_set_t thr_default_affinity;
+extern int thr_is_default_affinity;
 void _thread_init_attributes (thread_t *self);
 void _thread_free_attributes (thread_t *self);
+int thread_parse_cpu_set (dk_cpu_set_t * cpu_set, char * str2);
+void thread_set_default_affinity (dk_cpu_set_t * cpu_set);
+int thread_set_affinity (dk_cpu_set_t * cpu_set);
 
 /* fiberXXX.c */
 void _fiber_boot (thread_t * volatile self);

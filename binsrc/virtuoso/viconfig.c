@@ -3,11 +3,13 @@
  *
  *  $Id$
  *
+ *  !Change above line and this line!
+ *
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
- *  
+ *
  *  Copyright (C) 1998-2014 OpenLink Software
- *  
+ *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
  *  Free Software Foundation; only version 2 of the License, dated June 1991.
@@ -21,7 +23,8 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- */
+ *
+*/
 
 /*#define WIN95COMPAT*/ /*!!! To avoid using SetAffinityMask() */
 
@@ -68,13 +71,19 @@
 #include <sys/file.h>
 #endif
 
+
 extern PCONFIG pconfig;     /* configuration file */
 
 /* Globals for libwi */
 void it_make_buffer_list (index_tree_t * it, int n);
 
+extern dk_cpu_set_t wi_affinity;
+extern dk_cpu_set_t wi_cl_listener_affinity;
+extern int wi_is_cl_listener_affinity;
+extern int32 cp_unremap_quota;
 extern int correct_parent_links;
 extern long repl_queue_max;
+extern int32 repl_write_timeout;
 extern int main_bufs;
 extern long file_extend;
 extern char *db_name;
@@ -112,6 +121,7 @@ extern char *http_cli_proxy_server;
 extern char *http_cli_proxy_except;
 extern int32 http_enable_client_cache;
 extern int32 log_proc_overwrite;
+extern char * backup_ignore_keys;
 
 #ifdef _SSL
 extern char *https_port;
@@ -135,6 +145,9 @@ extern int spotlight_integration;
 #ifdef BIF_XML
 #ifdef _IMSG
 extern int pop3_port;
+extern int32 pop3s_port;
+extern int imap_port;
+extern int32 imaps_port;
 extern int nntp_port;
 extern int ftp_port;
 extern int ftp_server_timeout;
@@ -180,11 +193,10 @@ extern int uriqa_dynamic_local;
 extern int lite_mode;
 extern int rdf_obj_ft_rules_size;
 extern int it_n_maps;
-extern int32 rdf_shorten_long_iri;
 extern int32 ric_samples_sz;
 extern int32 enable_p_stat;
 extern int aq_max_threads;
-extern int c_compress_mode;
+extern int32 c_compress_mode;
 
 char * http_log_file_check (struct tm *now); /* http log name checking */
 
@@ -192,6 +204,8 @@ int32 c_txn_after_image_limit;
 int32 c_n_fds_per_file;
 int32 c_syslog = 0;
 char *c_syslog_facility = NULL;
+int32 c_growl;
+int32 c_growl_log_level;
 /* These are the config variables as read here */
 char *c_error_log_file;
 char *c_database_file;
@@ -201,6 +215,8 @@ char *c_serverport;
 char *http_log_file = NULL;
 extern FILE *http_log;
 extern char *http_log_name;
+extern char *http_log_format;
+char *c_http_log_format;
 int32 c_error_log_level;
 int32 c_server_threads;
 int32 c_number_of_buffers;
@@ -301,6 +317,7 @@ char *c_https_client_verify_file = 0;
 #endif
 #ifdef _IMSG
 int32 c_pop3_port = 0;
+int32 c_imap_port = 0;
 int32 c_nntp_port = 0;
 int32 c_ftp_port = 0;
 int32 c_ftp_server_timeout = 0;
@@ -464,7 +481,6 @@ extern char * c_query_log_file;
 extern int64 chash_space_avail;
 extern size_t c_max_large_vec;
 extern int32 mon_enable;
-
 
 /* for use in bif_servers */
 int
@@ -649,44 +665,56 @@ cfg_open_syslog (int level, char *c_facility)
 	}
     }
 
-      return log_open_syslog ("Virtuoso",
-	  LOG_CONS | LOG_NOWAIT | LOG_PID,
+  return log_open_syslog ("Virtuoso",
+      LOG_CONS | LOG_NOWAIT | LOG_PID,
       facility, level,
 	L_MASK_ALL,
 	f_debug ? L_STYLE_LEVEL | L_STYLE_GROUP : L_STYLE_GROUP);
 #else
-      return NULL;
+  return NULL;
 #endif
 }
 
 int cfg_getsize (PCONFIG pc, char * sec, char * attr, size_t * sz);
-int cfg2_getsize (PCONFIG pc,  char * sec, char * attr, size_t * sz);
+int   cfg2_getsize (PCONFIG pc, PCONFIG pc_g, char * sec, char * attr, size_t * sz);
 
 extern LOG *virtuoso_log;
 static char *prefix;
 int
 cfg_setup (void)
 {
+  PCONFIG pconfig_g = NULL;
   char *savestr;
   char *section;
   int32 long_helper;
+  char * f_config_g_file = NULL;
 
   if (f_config_file == NULL)
     f_config_file = "virtuoso.ini";
 
   f_config_file = s_strdup (setext (f_config_file, "ini", EXT_ADDIFNONE));
+  f_config_g_file = s_strdup (setext (f_config_file, "", EXT_REMOVE));
+  f_config_g_file = s_strdup (setext (f_config_g_file, "global.ini", EXT_SET));
+
 
   if (cfg_init (&pconfig, f_config_file) == -1)
     {
       log (L_ERR, "There is no configuration file %s", f_config_file);
       return -1;
     }
+  cfg_init (&pconfig_g, f_config_g_file);
+#undef cfg_getlong
+#undef cfg_getstring
+#define cfg_getlong(pc, sect, name, ret) cfg2_getlong (pc, pconfig_g, sect, name, ret)
+#define cfg_getstring(pc, sect, name, ret) cfg2_getstring (pc, pconfig_g, sect, name, ret)
+#define cfg_getsize(pc, sect, name, ret) cfg2_getsize (pc, pconfig_g, sect, name, ret)
 #ifndef WIN32
   {
     /* Do this early, before the log file is created */
     unsigned int mask = 022;
     char *value;
-    if (cfg_getstring (pconfig, "Parameters", "CreateMask", &value) == -1 || sscanf (value, "%o", &mask) == 0)
+    if (cfg_getstring (pconfig, "Parameters", "CreateMask", &value) == -1 ||
+	sscanf (value, "%o", &mask) == 0)
       {
 	mask = 022;
       }
@@ -708,7 +736,6 @@ cfg_setup (void)
    *  Parse [Database] section
    */
   section = "Database";
-
   /* just for check in use */
   if (cfg_getstring (pconfig, section, "DatabaseFile", &c_database_file) == -1)
     c_database_file = s_strdup (setext (prefix, "db", EXT_SET));
@@ -743,7 +770,9 @@ cfg_setup (void)
 
   /* Now setup the log so that other errors go into the file as well */
   virtuoso_log = log_open_file (c_error_log_file, c_error_log_level, L_MASK_ALL,
-      f_debug ? L_STYLE_LEVEL | L_STYLE_GROUP | L_STYLE_TIME : L_STYLE_GROUP | L_STYLE_TIME);
+	f_debug ?
+	    L_STYLE_LEVEL | L_STYLE_GROUP | L_STYLE_TIME :
+	    L_STYLE_GROUP | L_STYLE_TIME);
   if (startup_log)
     log_close (startup_log);
   startup_log = NULL;
@@ -758,7 +787,6 @@ cfg_setup (void)
    *  Parse [Parameters] section
    */
   section = "Parameters";
-
   if (cfg_getstring (pconfig, section, "ServerPort", &c_serverport) == -1)
     c_serverport = "1111";
 
@@ -780,7 +808,7 @@ cfg_setup (void)
     c_ssl_server_key = NULL;
 
   if (cfg_getstring (pconfig, section, "SSLExtraChainCertificate", &c_ssl_server_extra_certs) == -1)
-    c_ssl_server_extra_certs = NULL;
+      c_ssl_server_extra_certs = NULL;
 
   if (cfg_getlong (pconfig, section, "X509ClientVerify", &ssl_server_verify) == -1)
     ssl_server_verify = 0;
@@ -803,16 +831,35 @@ cfg_setup (void)
     c_number_of_buffers = 2000;
   if (c_number_of_buffers < 20000)
     c_number_of_buffers = 20000;
-
   if (cfg_getlong (pconfig, section, "LockInMem", &c_lock_in_mem) == -1)
     c_lock_in_mem = 0;
 
+  {
+    char * affinity;
+    if (0 == cfg_getstring (pconfig, section,  "Affinity", &affinity))
+      {
+	if (0 == thread_parse_cpu_set (&wi_affinity, affinity))
+	  {
+	    thread_set_default_affinity (&wi_affinity);
+	    thread_set_affinity (&wi_affinity);
+	  }
+	else
+	  log_error ("Bad cpu affinity spec %s", affinity);
+      }
+    if (0 == cfg_getstring (pconfig, section,  "ListenerAffinity", &affinity))
+      {
+	if (0 != thread_parse_cpu_set (&wi_cl_listener_affinity, affinity))
+	  log_error ("Bad cpu affinity spec %s", affinity);
+	else
+	  wi_is_cl_listener_affinity = 1;
+      }
+  }
   if (cfg_getlong (pconfig, section, "MaxDirtyBuffers", &c_max_dirty_buffers) == -1)
     c_max_dirty_buffers = 0;
 
   if (cfg_getlong (pconfig, section, "UnremapQuota", &cp_unremap_quota) == -1)
     cp_unremap_quota = 0;
-  else 
+  else
     cp_unremap_quota_is_set = 1;
 #if 0 /*GK: obosolete */
   if (cfg_getlong (pconfig, section, "AtomicDive", &c_atomic_dive) == -1)
@@ -865,7 +912,7 @@ cfg_setup (void)
   if (cfg_getlong (pconfig, section, "SchedulerInterval", &c_scheduler_period) == -1)
     {
       if (cfg_getlong (pconfig, section, "Scheduler interval", &c_scheduler_period) == -1)
-	c_scheduler_period = 0;
+  c_scheduler_period = 0;
     }
 
   if (cfg_getstring (pconfig, section, "TraceOn", &c_init_trace) == -1)
@@ -886,6 +933,9 @@ cfg_setup (void)
 
   if (cfg_getstring (pconfig, section, "BackupDirs", &c_backup_dirs) == -1)
     c_backup_dirs = 0;
+
+  if (cfg_getstring (pconfig, section, "BackupIgnoreKeys", &backup_ignore_keys) == -1)
+    backup_ignore_keys = 0;
 
   if (cfg_getstring (pconfig, section, "SafeExecutables", &c_safe_execs) == -1)
     c_safe_execs = 0;
@@ -908,9 +958,9 @@ cfg_setup (void)
     c_server_thread_sz = 60000;
 
   if (cfg_getlong (pconfig, section, "MainThreadSize", &c_main_thread_sz) == -1)
-    c_main_thread_sz = 140000;	/* was 100000 */
-  if (c_main_thread_sz < 140000)	/* was 100000 */
-    c_main_thread_sz = 140000;	/* was 100000 */
+    c_main_thread_sz = 140000; /* was 100000 */
+  if (c_main_thread_sz < 140000) /* was 100000 */
+    c_main_thread_sz = 140000; /* was 100000 */
 
   if (cfg_getlong (pconfig, section, "FutureThreadSize", &c_future_thread_sz) == -1)
     c_future_thread_sz = 140000;
@@ -961,7 +1011,7 @@ cfg_setup (void)
   if (cfg_getstring (pconfig, section, "TestCoverage", &c_pl_debug_cov_file) == -1)
     c_pl_debug_cov_file = NULL;
 
-  /*if (cfg_getlong (pconfig, section, "SQLOptimizer", &c_sqlo_enable) == -1) */
+  /*if (cfg_getlong (pconfig, section, "SQLOptimizer", &c_sqlo_enable) == -1)*/
 /*    c_sqlo_enable = 1;*/
 
   if (cfg_getlong (pconfig, section, "SQLOptimizeConstantConditions", &sql_const_cond_opt) == -1)
@@ -988,7 +1038,6 @@ cfg_setup (void)
 
   if (cfg_getlong (pconfig, section, "MaxOptimizeLayouts", &c_sqlo_max_layouts) == -1)
     c_sqlo_max_layouts = 1000;
-
   if (cfg_getlong (pconfig, section, "StopCompilerWhenXOverRunTime", &sqlo_compiler_exceeds_run_factor) == -1)
     sqlo_compiler_exceeds_run_factor = 0;
 
@@ -1032,18 +1081,15 @@ cfg_setup (void)
 
   if (cfg_getlong (pconfig, section, "ColumnStore", &c_col_by_default) == -1)
     c_col_by_default = 0;
-
   if (0 != cfg_getsize (pconfig, section, "MaxQueryMem", &c_max_large_vec))
     c_max_large_vec = 0;
-
   if (0 != cfg_getsize (pconfig, section, "HashJoinSpace", &chash_space_avail))
     chash_space_avail = MAX (1000000000, main_bufs * 1000);
-
   if (cfg_getlong (pconfig, section, "UseAIO", &c_c_use_aio) == -1)
     c_c_use_aio = 0;
 
   if (cfg_getlong (pconfig, section, "AsyncQueueMaxThreads", &c_aq_max_threads) == -1)
-    c_aq_max_threads = 10;
+    c_aq_max_threads = 48;
 
   if (cfg_getlong (pconfig, section, "BuffersAllocation", &malloc_bufs) == -1)
     malloc_bufs = 0;
@@ -1053,18 +1099,17 @@ cfg_setup (void)
 
   /*  ExtentReadThreshold, ExtentReadWindow, ExtentReadStartupThreshold, ExtentReadStartupWindow */
   if (cfg_getlong (pconfig, section, "ExtentReadThreshold", &em_ra_threshold) == -1)
-    em_ra_threshold = 2;
+   em_ra_threshold = 2;
   if (cfg_getlong (pconfig, section, "ExtentReadWindow", &em_ra_window) == -1)
     em_ra_window = 1000;
   if (cfg_getlong (pconfig, section, "ExtentReadStartupThreshold", &em_ra_startup_threshold) == -1)
     em_ra_startup_threshold = 0;
   if (cfg_getlong (pconfig, section, "ExtentReadStartupWindow", &em_ra_startup_window) == -1)
-    em_ra_startup_window = 40000;
+   em_ra_startup_window = 40000;
 
   if (cfg_getlong (pconfig, section, "LogProcOverwrite", &log_proc_overwrite) == -1)
     log_proc_overwrite = 1;
-
-  if (cfg_getlong (pconfig, section, "PageCompress", (int32 *) &c_compress_mode) == -1)
+  if (cfg_getlong (pconfig, section, "PageCompress", &c_compress_mode) == -1)
     c_compress_mode = 0;
 
 
@@ -1073,33 +1118,36 @@ cfg_setup (void)
     dk_set_t bd = NULL;
 
     old_backup_dirs = NULL;
-    for (nbdirs = 1;; nbdirs++)
+    for (nbdirs = 1; ; nbdirs++)
       {
-	struct stat s;
+        struct stat s;
 
-	char keyname[32];
-	char *c_backup_dir;
+        char keyname[32];
+        char *c_backup_dir;
 
-	sprintf (keyname, "BackupDir%d", nbdirs);
-	if (cfg_getstring (pconfig, section, keyname, &c_backup_dir) != 0)
-	  break;
+        sprintf (keyname, "BackupDir%d", nbdirs);
+        if (cfg_getstring (pconfig, section, keyname, &c_backup_dir) != 0)
+          break;
 
-	/* sanity checks */
-	if (stat (c_backup_dir, &s) < 0)
+        /* sanity checks */
+        if (stat (c_backup_dir, &s) < 0)
 	  {
-	    log_warning ("BackupDir: %s: %s -- ignored", c_backup_dir, strerror (errno));
-	    continue;
-	  }
-	if (!S_ISDIR (s.st_mode))
+            log_warning ("BackupDir: %s: %s -- ignored",
+              c_backup_dir, strerror(errno));
+            continue;
+          }
+        if (!S_ISDIR (s.st_mode))
 	  {
-	    log_warning ("BackupDir: %s: Not a directory -- ignored", c_backup_dir);
-	    continue;
-	  }
-	/* append */
+            log_warning ("BackupDir: %s: Not a directory -- ignored",
+              c_backup_dir);
+            continue;
+          }
+        /* append */
 #if 0
-	log_debug ("BackupDir: '%s' added", c_backup_dir);
+        log_debug ("BackupDir: '%s' added", c_backup_dir);
 #endif
-	old_backup_dirs = dk_set_conc (old_backup_dirs, dk_set_cons ((caddr_t) c_backup_dir, NULL));
+        old_backup_dirs = dk_set_conc (
+          old_backup_dirs, dk_set_cons ((caddr_t) c_backup_dir, NULL));
       }
 
     /*
@@ -1109,9 +1157,9 @@ cfg_setup (void)
     if ((bd = dk_set_last (old_backup_dirs)) == NULL)
       {
 #if 0
-	log_debug ("BackupDir: '.' added (default)");
+        log_debug ("BackupDir: '.' added (default)");
 #endif
-	bd = old_backup_dirs = dk_set_cons ((caddr_t) ".", NULL);
+        bd = old_backup_dirs = dk_set_cons ((caddr_t) ".", NULL);
       }
     bd->next = old_backup_dirs;
 
@@ -1120,37 +1168,36 @@ cfg_setup (void)
     do
       {
 #if 0
-	log_debug ("backup directory: [%s]", bd->data);
+        log_debug ("backup directory: [%s]", bd->data);
 #endif
-	bd = bd->next;
+        bd = bd->next;
       }
     while (bd != old_backup_dirs);
   }
-
 #ifndef WIN95COMPAT
 #ifdef WIN32
   if (cfg_getlong (pconfig, section, "SingleCPU", &c_single_processor) == -1)
     c_single_processor = 0;
   if (c_single_processor)
     {
-      if (!SetProcessAffinityMask (GetCurrentProcess (), 1))
-	{
-	  LPVOID lpMsgBuf;
-	  FormatMessage (
-	      FORMAT_MESSAGE_ALLOCATE_BUFFER |
-	      FORMAT_MESSAGE_FROM_SYSTEM |
-	      FORMAT_MESSAGE_IGNORE_INSERTS,
-	      NULL,
-	      GetLastError (),
-	      MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
-	      (LPTSTR) & lpMsgBuf,
-	      0,
-	      NULL);
-	  log_error ("Error setting single CPU mode :%s", (char *) lpMsgBuf);
-	  LocalFree (lpMsgBuf);
-	}
+      if (!SetProcessAffinityMask (GetCurrentProcess(), 1))
+  {
+    LPVOID lpMsgBuf;
+    FormatMessage (
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        GetLastError (),
+        MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR) &lpMsgBuf,
+        0,
+        NULL);
+    log_error ("Error setting single CPU mode :%s", (char *) lpMsgBuf);
+    LocalFree (lpMsgBuf);
+  }
       else
-	log_info ("Running in single CPU mode");
+  log_info ("Running in single CPU mode");
     }
 #endif
 #endif
@@ -1179,12 +1226,14 @@ cfg_setup (void)
 #ifndef WIN32
   if (cfg_getlong (pconfig, section, "MinSignalHandling", &c_min_signal_handling) == -1)
     c_min_signal_handling = 0;
-  min_signal_handling = c_min_signal_handling;	/* must be here because of init order */
+  min_signal_handling = c_min_signal_handling; /* must be here because of init order */
 #endif
 
   if (cfg_getlong (pconfig, section, "SqlWarningMode", &c_sql_warning_mode) == -1)
     c_sql_warning_mode = SQW_ON;
-  if (c_sql_warning_mode != SQW_ON && c_sql_warning_mode != SQW_OFF && c_sql_warning_mode != SQW_ERROR)
+  if (c_sql_warning_mode != SQW_ON &&
+      c_sql_warning_mode != SQW_OFF &&
+      c_sql_warning_mode != SQW_ERROR)
     c_sql_warning_mode = SQW_ON;
 
   if (cfg_getlong (pconfig, section, "SqlWarningsToSyslog", &c_sql_warnings_to_syslog) == -1)
@@ -1193,7 +1242,7 @@ cfg_setup (void)
     c_sql_warnings_to_syslog = 0;
 
   if (cfg_getlong (pconfig, section, "TempDBSize", &c_temp_db_size) == -1)
-    c_temp_db_size = 10;	/* in MB */
+    c_temp_db_size = 10; /* in MB */
   if (c_temp_db_size < 0)
     c_temp_db_size = 10;
 
@@ -1204,7 +1253,7 @@ cfg_setup (void)
     c_iri_cache_size = 0;
 
   if (cfg_getlong (pconfig, section, "IRIRangeSize", &iri_range_size) == -1)
-    iri_range_size = 11 * 256 * 709;	/* far enough so as not to fall in same row wise leaf page and not a multiple of common slice count  so consecutive usually come on different host */
+    iri_range_size = 11 * 256 * 709; /* far enough so as not to fall in same row wise leaf page and not a multiple of common slice count  so consecutive usually come on different host */
 
   if (cfg_getlong (pconfig, section, "LiteMode", &c_lite_mode) == -1)
     c_lite_mode = 0;
@@ -1231,12 +1280,10 @@ cfg_setup (void)
     c_query_log = 0;
   else
     c_query_log = 1;
-
   if (cfg_getlong (pconfig, section, "ThreadsPerQuery", &enable_qp) == -1)
     {
-      enable_qp = 8;
+      enable_qp = 16;
     }
-
   if (cfg_getlong (pconfig, section, "MaxVectorSize", &dc_max_q_batch_sz) == -1)
     dc_max_q_batch_sz = 1000000;
   /*
@@ -1245,20 +1292,32 @@ cfg_setup (void)
   */
   if (dc_max_q_batch_sz > dc_max_batch_sz)
     dc_max_batch_sz = dc_max_q_batch_sz;
-
   if (cfg_getlong (pconfig, section, "VectorSize", &dc_batch_sz) == -1)
     dc_batch_sz = 10000;
-
   if (cfg_getlong (pconfig, section, "AdjustVectorSize", &enable_dyn_batch_sz) == -1)
     enable_dyn_batch_sz = 1;
-
   if (cfg_getlong (pconfig, section, "EnableMonitor", &mon_enable) == -1)
     mon_enable = 1;
 
+  section = "Flags";
+  {
+    stat_desc_t *sd = &dbf_descs[0];
+    int32 v;
+    while (sd->sd_name)
+      {
+	if (cfg_getlong (pconfig, section, sd->sd_name, &v) != -1)
+	  {
+	    if ((ptrlong)SD_INT32 == (ptrlong) sd->sd_str_value)
+	      *((int32*)sd->sd_value) = v;
+	    else if (sd->sd_value)
+	      *(sd->sd_value) = (long) v;
+	    else
+	      log_error ("Cannot set flag %s", sd->sd_name);
+	  }
+	sd ++;
+      }
+  }
 
-  /*
-   *  Parse [HTTPServer] section
-   */
   section = "HTTPServer";
 
   if (cfg_getstring (pconfig, section, "ServerPort", &c_http_port) == -1)
@@ -1267,26 +1326,33 @@ cfg_setup (void)
   if (cfg_getstring (pconfig, section, "HTTPLogFile", &http_log_file) == -1)
     http_log_file = NULL;
 
+  if (cfg_getstring (pconfig, section, "HTTPLogFormat", &c_http_log_format) != -1)
+    http_log_format = c_http_log_format;
+
   if (cfg_getstring (pconfig, section, "ServerRoot", &www_root) == -1)
     www_root = ".";
 
-  if (cfg_getstring (pconfig, section, "ServerIdString", &http_server_id_string) == -1)
+  if (cfg_getstring (pconfig, section, "ServerIdString",
+         &http_server_id_string) == -1)
     http_server_id_string = NULL;
 
   if (http_server_id_string && strlen (http_server_id_string) > 32)
     http_server_id_string = "Virtuoso";
 
-  if (cfg_getstring (pconfig, section, "ClientIdString", &http_client_id_string) == -1)
+  if (cfg_getstring (pconfig, section, "ClientIdString",
+         &http_client_id_string) == -1)
     http_client_id_string = "Mozilla/4.0 (compatible; Virtuoso)";
 
   if (strlen (http_client_id_string) > 64)
     http_client_id_string = "Mozilla/4.0 (compatible; Virtuoso)";
 
-  if (cfg_getstring (pconfig, section, "SOAPClientIdString", &http_soap_client_id_string) == -1)
+  if (cfg_getstring (pconfig, section, "SOAPClientIdString",
+         &http_soap_client_id_string) == -1)
     http_soap_client_id_string = "OpenLink Virtuoso SOAP";
 
   if (strlen (http_soap_client_id_string) > 64)
     http_soap_client_id_string = "OpenLink Virtuoso SOAP";
+
 
   if (cfg_getstring (pconfig, section, "DavRoot", &c_dav_root) == -1)
     c_dav_root = NULL;
@@ -1307,7 +1373,7 @@ cfg_setup (void)
     c_gzip_enabled = (long) long_helper;
 
   if (cfg_getlong (pconfig, section, "HttpSessionSize", &long_helper) == -1)
-    c_http_ses_size = 10 * 1024 * 1024;
+    c_http_ses_size = 10*1024*1024;
   else
     c_http_ses_size = (long) long_helper;
 
@@ -1324,7 +1390,7 @@ cfg_setup (void)
       int i, len = (int) strlen (c_ws_default_charset_name);
 
       for (i = 0; i < len; i++)
-	c_ws_default_charset_name[i] = toupper (c_ws_default_charset_name[i]);
+  c_ws_default_charset_name[i] = toupper (c_ws_default_charset_name[i]);
     }
 
 #ifdef _IMSG
@@ -1340,6 +1406,7 @@ cfg_setup (void)
 
   if (cfg_getlong (pconfig, section, "FTPServerTimeout", &c_ftp_server_timeout) == -1)
     c_ftp_server_timeout = 600;
+
 #endif
 
 #ifdef _SSL
@@ -1351,7 +1418,7 @@ cfg_setup (void)
       c_https_cert = NULL;
 
   if (cfg_getstring (pconfig, section, "SSLExtraChainCertificate", &https_extra) == -1)
-    https_extra = NULL;
+      https_extra = NULL;
 
   if (cfg_getstring (pconfig, section, "SSLPrivateKey", &c_https_key) == -1)
     c_https_key = NULL;
@@ -1376,16 +1443,24 @@ cfg_setup (void)
   if (cfg_getlong (pconfig, section, "MaxRestrictedThreads", &http_limited) == -1)
     http_limited = c_http_threads;
 
-  if (cfg_getlong (pconfig, section, "MaxKeepAlives", &c_http_max_keep_alives) == -1)
+  if (cfg_getlong (pconfig, section,
+       "MaxKeepAlives",
+       &c_http_max_keep_alives) == -1)
     c_http_max_keep_alives = 10;
 
-  if (cfg_getlong (pconfig, section, "KeepAliveTimeout", &c_http_keep_alive_timeout) == -1)
+  if (cfg_getlong (pconfig, section,
+       "KeepAliveTimeout",
+       &c_http_keep_alive_timeout) == -1)
     c_http_keep_alive_timeout = 10;
 
-  if (cfg_getlong (pconfig, section, "MaxCachedProxyConnections", &c_http_max_cached_proxy_connections) == -1)
+  if (cfg_getlong (pconfig, section,
+       "MaxCachedProxyConnections",
+       &c_http_max_cached_proxy_connections) == -1)
     c_http_max_cached_proxy_connections = 0;
 
-  if (cfg_getlong (pconfig, section, "ProxyConnectionCacheTimeout", &c_http_proxy_connection_cache_timeout) == -1)
+  if (cfg_getlong (pconfig, section,
+       "ProxyConnectionCacheTimeout",
+       &c_http_proxy_connection_cache_timeout) == -1)
     c_http_proxy_connection_cache_timeout = 0;
 
   if (cfg_getlong (pconfig, section, "HTTPThreadSize", &c_http_thread_sz) == -1)
@@ -1396,6 +1471,7 @@ cfg_setup (void)
     c_http_thread_sz = c_future_thread_sz;
   if (c_http_thread_sz > c_future_thread_sz)
     c_future_thread_sz = c_http_thread_sz;
+
 
   if (cfg_getlong (pconfig, section, "PersistentHostingModules", &c_http_keep_hosting) == -1)
     c_http_keep_hosting = 0;
@@ -1425,6 +1501,7 @@ cfg_setup (void)
 
   if (cfg_getlong (pconfig, section, "HTTPClientCache", &http_enable_client_cache) == -1)
     http_enable_client_cache = 0;
+
   /*
    * FIXME: set meaningful default for c_http_proxy_connection_cache_timeout
    * if c_http_max_cached_proxy_connections is set to something whenever
@@ -1436,28 +1513,23 @@ cfg_setup (void)
    *  Parse [AutoRepair] section
    */
   section = "AutoRepair";
-
   if (cfg_getlong (pconfig, section, "BadParentLinks", &c_bad_parent_links) == -1)
     c_bad_parent_links = 0;
-
   if (cfg_getlong (pconfig, section, "DuplicateCheckpointRemaps", &cpt_remap_recovery) == -1)
     cpt_remap_recovery = 0;
-
   if (cfg_getlong (pconfig, section, "CheckExtentFreePages", &dbs_check_extent_free_pages) == -1)
     dbs_check_extent_free_pages = 1;
 
 
-#if 0				/*obsoleted */
+#if 0/*obsoleted*/
   if (cfg_getlong (pconfig, section, "BadDTP", &c_bad_dtp) == -1)
     c_bad_dtp = 0;
 #endif
-
 
   /*
    *  Parse [Client] section
    */
   section = "Client";
-
   if (cfg_getlong (pconfig, section, "SQL_PREFETCH_ROWS", &cli_prefetch) == -1)
     cli_prefetch = 2000;
 
@@ -1488,14 +1560,9 @@ cfg_setup (void)
     {
       switch (c_cli_encryption_on_password)
 	{
-	case 1:
-	  c_cli_encryption_on_password = 2;
-	  break;
-	case 0:
-	  c_cli_encryption_on_password = 1;
-	  break;
-	default:
-	  c_cli_encryption_on_password = 0;
+	  case 1 : c_cli_encryption_on_password = 2; break;
+	  case 0 : c_cli_encryption_on_password = 1; break;
+	  default: c_cli_encryption_on_password = 0;
 	}
     }
 
@@ -1504,12 +1571,12 @@ cfg_setup (void)
    *  Parse [Zero Config] section
    */
   section = "Zero Config";
-
   if (cfg_find (pconfig, section, "ServerName") == 0)
     {
       NEW_VARZ (zeroconfig_t, zc);
       zc->zc_name = box_string (pconfig->value);
-      zc->zc_dsn = box_string (cfg_find (pconfig, section, "ServerDSN") == 0 ? pconfig->value : "");
+      zc->zc_dsn = box_string (
+	  cfg_find (pconfig, section, "ServerDSN") == 0 ? pconfig->value : "");
       zc->zc_port = atoi (c_serverport);
       dk_set_push (&zeroconfig_entries, zc);
     }
@@ -1518,7 +1585,8 @@ cfg_setup (void)
     {
       NEW_VARZ (zeroconfig_t, zc);
       zc->zc_name = box_string (pconfig->value);
-      zc->zc_dsn = box_string (cfg_find (pconfig, section, "SSLServerDSN") == 0 ? pconfig->value : "");
+      zc->zc_dsn = box_string (
+	      cfg_find (pconfig, section, "SSLServerDSN") == 0 ? pconfig->value : "");
       zc->zc_port = atoi (c_ssl_server_port);
       zc->zc_ssl = 1;
       dk_set_push (&zeroconfig_entries, zc);
@@ -1527,44 +1595,26 @@ cfg_setup (void)
 
 #endif
 
-  /*
-   *  Parse [URIQA] section
-   */
   section = "URIQA";
-
   if (cfg_getlong (pconfig, section, "DynamicLocal", &c_uriqa_dynamic_local) == -1)
     c_uriqa_dynamic_local = 0;
 
-
-  /*
-   *  Parse [SPARQL] section
-   */
   section = "SPARQL";
-
   if (cfg_getlong (pconfig, section, "ResultSetMaxRows", &c_sparql_result_set_max_rows) == -1)
     c_sparql_result_set_max_rows = 0;
-
   if (cfg_getlong (pconfig, section, "MaxMemInUse", &c_sparql_max_mem_in_use) == -1)
     c_sparql_max_mem_in_use = 0;
-
   if (cfg_getlong (pconfig, section, "CreateGraphKeywords", &c_rdf_create_graph_keywords) == -1)
     c_rdf_create_graph_keywords = 0;
-
   if (cfg_getlong (pconfig, section, "QueryGraphKeywords", &c_rdf_query_graph_keywords) == -1)
     c_rdf_query_graph_keywords = 0;
-
   if (cfg_getlong (pconfig, section, "TransitivityCacheEnabled", &tn_cache_enable) == -1)
     tn_cache_enable = 0;
-
-  if (cfg_getlong (pconfig, section, "ShortenLongURIs", &rdf_shorten_long_iri) == -1)
-    rdf_shorten_long_iri = 1;
-
   if (cfg_getlong (pconfig, section, "EnablePstats", &enable_p_stat) == -1)
     enable_p_stat = 2;
 
   /* Initialize OpenSSL engines */
   ssl_engine_startup ();
-#if 0
   if (cfg_find (pconfig, "SSLEngines", NULL) == 0)
     {
       while (cfg_nextentry (pconfig) == 0)
@@ -1580,12 +1630,11 @@ cfg_setup (void)
 	    }
 	}
     }
-#endif
 
   /* Now open the HTTP log */
   if (http_log_file)
     {
-      char *new_name;
+      char * new_name;
       time_t now;
       struct tm *tm;
       time (&now);
@@ -1604,49 +1653,34 @@ cfg_setup (void)
    */
   if (cfg_getlong (pconfig, "VDB", "ArrayOptimization", &c_use_array_params) == -1)
     c_use_array_params = 0;
-
   if (cfg_getlong (pconfig, "VDB", "NumArrayParameters", &c_num_array_params) == -1)
     c_num_array_params = 10;
-
   if (cfg_getlong (pconfig, "VDB", "VDBDisconnectTimeout", &c_rds_disconnect_timeout) == -1)
     c_rds_disconnect_timeout = 1000;
-
   if (cfg_getlong (pconfig, "VDB", "VDBOracleCatalogFix", &c_vdb_oracle_catalog_fix) == -1)
     c_vdb_oracle_catalog_fix = 0;
-
   if (cfg_getlong (pconfig, "VDB", "AttachInAutoCommit", &c_vdb_attach_autocommit) == -1)
     c_vdb_attach_autocommit = 0;
-
   if (cfg_getlong (pconfig, "VDB", "ReconnectOnFailure", &c_vdb_reconnect_on_vdb_error) == -1)
     c_vdb_reconnect_on_vdb_error = 1;
-
   if (cfg_getlong (pconfig, "VDB", "KeepConnectionOnFixedThread", &c_vdb_client_fixed_thread) == -1)
     c_vdb_client_fixed_thread = 1;
-
   if (cfg_getlong (pconfig, "VDB", "PrpcBurstTimeoutMsecs", &c_prpc_burst_timeout_msecs) == -1)
     prpc_burst_timeout_msecs = 100;
-
   if (cfg_getlong (pconfig, "VDB", "SerializeConnect", &c_vdb_serialize_connect) == -1)
     c_vdb_serialize_connect = 1;
-
   if (cfg_getlong (pconfig, "VDB", "DisableStmtCache", &c_vdb_no_stmt_cache) == -1)
     c_vdb_no_stmt_cache = 0;
-
   if (cfg_getstring (pconfig, "VDB", "SQLStateMap", &c_vdb_odbc_error_file) == -1)
     c_vdb_odbc_error_file = NULL;
-
   if (cfg_getlong (pconfig, "VDB", "SkipDMLPrimaryKey", &c_skip_dml_primary_key) == -1)
     c_skip_dml_primary_key = 0;
-
   if (cfg_getlong (pconfig, "VDB", "RemotePKNotUnique", &c_remote_pk_not_unique) == -1)
     c_remote_pk_not_unique = 0;
-
   if (cfg_getlong (pconfig, "VDB", "UseGlobalPool", &c_vdb_use_global_pool) == -1)
     c_vdb_use_global_pool = 0;
-
   if (cfg_getstring (pconfig, "VDB", "TrimTrailingSpacesForDSN", &c_vdb_trim_trailing_spaces))
     c_vdb_trim_trailing_spaces = NULL;
-
   if (cfg_getlong (pconfig, "VDB", "DisableVDBStatisticsRefresh", &c_cfg_disable_vdb_stat_refresh) == -1)
     c_cfg_disable_vdb_stat_refresh = 0;
 
@@ -1660,6 +1694,8 @@ cfg_setup (void)
   if (msdtc_plugin)
     c_vd_use_mts = 1;
 #endif
+
+
 
   if (c_rds_disconnect_timeout < 1)
     c_rds_disconnect_timeout = 1;
@@ -1693,98 +1729,94 @@ cfg_setup (void)
     {
       int loadctr;
       for (loadctr = 1; loadctr < 100; loadctr++)
-	{
-	  char keyname[32];
-	  char *ucm_file, *ucm_names;
-	  char ucm_path[PATH_MAX];
-	  encoding_handler_t *new_eh;
-	  sprintf (keyname, "Ucm%d", loadctr);
-	  if (cfg_find (pconfig, section, keyname) != 0)
-	    continue;
-	  if (2 != cslnumentries (pconfig->value))
-	    {
-	      log_error ("Ucm%d value is invalid and ignored; UCM file name and name(s) of encoding are expected", loadctr);
-	      continue;
-	    }
-	  ucm_file = cslentry (pconfig->value, 1);
-	  ucm_names = cslentry (pconfig->value, 2);
-	  if (strlen (c_ucm_load_path) + 1 + strlen (ucm_file) >= PATH_MAX)
-	    {
-	      log_error ("UCM file name %s/%s is too long, skipped.", c_ucm_load_path, ucm_file);
-	    }
-	  else
-	    {
-	      sprintf (ucm_path, "%s/%s", c_ucm_load_path, ucm_file);
-	      new_eh =
-		  eh_create_ucm_handler (ucm_names, ucm_path, (eh_ucm_log_callback *) log_info, (eh_ucm_log_callback *) log_error);
-	      if (NULL != new_eh)
-		eh_load_handler (new_eh);
-	    }
-	  free (ucm_file);
-	  free (ucm_names);
-	}
+  {
+    char keyname[32];
+    char *ucm_file, *ucm_names;
+    char ucm_path[PATH_MAX];
+    encoding_handler_t *new_eh;
+    sprintf (keyname, "Ucm%d", loadctr);
+    if (cfg_find (pconfig, section, keyname) != 0)
+      continue;
+    if (2 != cslnumentries (pconfig->value))
+      {
+        log_error ("Ucm%d value is invalid and ignored; UCM file name and name(s) of encoding are expected", loadctr);
+        continue;
+      }
+    ucm_file = cslentry (pconfig->value, 1);
+    ucm_names = cslentry (pconfig->value, 2);
+    if (strlen (c_ucm_load_path) + 1 + strlen(ucm_file) >= PATH_MAX)
+      {
+        log_error ("UCM file name %s/%s is too long, skipped.", c_ucm_load_path, ucm_file);
+      }
+    else
+      {
+        sprintf(ucm_path, "%s/%s", c_ucm_load_path, ucm_file);
+        new_eh = eh_create_ucm_handler (ucm_names, ucm_path, (eh_ucm_log_callback *) log_info, (eh_ucm_log_callback *) log_error);
+        if (NULL != new_eh)
+    eh_load_handler (new_eh);
+      }
+    free (ucm_file);
+    free (ucm_names);
+  }
     }
-
 
   /* Initialization of national filesystems */
 
   section = "I18N";
-
   if (cfg_getlong (pconfig, section, "XAnyNormalization", &c_lh_xany_normalization_flags) == -1)
     c_lh_xany_normalization_flags = 0;
-
   if (cfg_getlong (pconfig, section, "WideFileNames", &c_i18n_wide_file_names) == -1)
     c_i18n_wide_file_names = 0;
-
   if (cfg_getstring (pconfig, section, "VolumeEncoding", &c_i18n_volume_encoding) == -1)
     c_i18n_volume_encoding = NULL;
-
   if (cfg_getstring (pconfig, section, "VolumeEmergencyEncoding", &c_i18n_volume_emergency_encoding) == -1)
     c_i18n_volume_emergency_encoding = NULL;
 
 
+  /* Initialization of plugins */
 
-  /*
-   *  Parse [Plugins] section
-   */
   section = "Plugins";
-
   if (cfg_getstring (pconfig, section, "LoadPath", &c_plugin_load_path) == -1)
     c_plugin_load_path = 0;
-
-  /* Initialization of plugins */
-  srv_plugins_init ();
+  srv_plugins_init();
   if (!c_lite_mode && c_plugin_load_path)
     {
       int loadctr;
       for (loadctr = 1; loadctr < 100; loadctr++)
-	{
-	  char keyname[32];
-	  char *plugin_type, *plugin_dll;
-	  sprintf (keyname, "Load%d", loadctr);
-	  if (cfg_find (pconfig, section, keyname) != 0)
-	    continue;
-	  if (2 != cslnumentries (pconfig->value))
-	    {
-	      log_error ("Load%d value is invalid and ignored; type and name of plugin expected", loadctr);
-	      continue;
-	    }
-	  plugin_type = cslentry (pconfig->value, 1);
-	  plugin_dll = cslentry (pconfig->value, 2);
-	  plugin_load (plugin_type, plugin_dll, c_plugin_load_path, loadctr, (plugin_log_callback *) log_info,
-	      (plugin_log_callback *) log_error);
-	  /*free (plugin_type); */
-	  /*free (plugin_dll); */
-	  if (msdtc_plugin)
-	    c_vd_use_mts = 1;
-	}
+  {
+    char keyname[32];
+    char *plugin_type, *plugin_dll;
+    sprintf (keyname, "Load%d", loadctr);
+    if (cfg_find (pconfig, section, keyname) != 0)
+      continue;
+    if (2 != cslnumentries (pconfig->value))
+      {
+        log_error ("Load%d value is invalid and ignored; type and name of plugin expected", loadctr);
+        continue;
+      }
+    plugin_type = cslentry (pconfig->value, 1);
+    plugin_dll = cslentry (pconfig->value, 2);
+    plugin_load (plugin_type, plugin_dll, c_plugin_load_path, loadctr, (plugin_log_callback *) log_info, (plugin_log_callback *) log_error);
+    /*free (plugin_type);*/
+    /*free (plugin_dll);*/
+    if (msdtc_plugin)
+      c_vd_use_mts = 1;
+  }
     }
 
-
   /* Finalization */
-  PrpcSetThreadParams (c_server_thread_sz, c_main_thread_sz, c_future_thread_sz, c_server_threads);
+
+
+  PrpcSetThreadParams (c_server_thread_sz, c_main_thread_sz,
+  c_future_thread_sz, c_server_threads);
 
   return 0;
+#undef cfg_getlong
+#undef cfg_getstring
+#undef cfg_getsize
+#define cfg_getstring 	OPL_Cfg_getstring
+#define cfg_getlong	OPL_Cfg_getlong
+
 }
 
 
@@ -1891,7 +1923,7 @@ new_db_read_cfg (dbe_storage_t * ignore, char *mode)
   allowed_dirs = c_allowed_dirs;
   denied_dirs = c_denied_dirs;
   if (!recover_file_prefix) /* when recovering, we use backup_dirs passed from command line */
-  backup_dirs = c_backup_dirs;
+    backup_dirs = c_backup_dirs;
   safe_execs = c_safe_execs;
   dba_execs = c_dba_execs;
   temp_dir = c_temp_dir;
@@ -2029,14 +2061,14 @@ new_db_read_cfg (dbe_storage_t * ignore, char *mode)
     i18n_volume_emergency_encoding = &eh__ISO8859_1;
 }
 
-/*
- * Parses string like "42K" which mean size of DB element (file, stripe etc).
+/** Parses string like "42K" which mean size of DB element (file, stripe etc).
  * On return sets `size', if stated, `modifier', if stated, and `n_pages', if stated.
- * returns 0 on success, nonzero on error.
- */
+ * returns 0 on success, nonzero on error. */
 int
 cfg_parse_size_with_modifier (const char *valstr, unsigned long *size, char *modifier, unsigned long *n_pages)
 {
+  /*valstr = ltrim (rtrim (valstr));*/
+
   unsigned long size_ = 0;
   char modifier_ = 0;
   unsigned long n_pages_ = 0;
@@ -2044,7 +2076,7 @@ cfg_parse_size_with_modifier (const char *valstr, unsigned long *size, char *mod
   if (!valstr)
     GPF_T;
 
-  size_ = (unsigned long) atol (valstr);
+  size_ = (unsigned long)atol (valstr);
   if (size_ == 0)
     {
       return -1;
@@ -2070,7 +2102,7 @@ cfg_parse_size_with_modifier (const char *valstr, unsigned long *size, char *mod
       break;
     default:
       if (!isdigit (modifier_))
-	return -1;
+        return -1;
     }
 
   if (size)
@@ -2093,6 +2125,18 @@ cfg_getsize (PCONFIG pc, char * sec, char * attr, size_t * sz)
     return -1;
   return 0;
 }
+
+int
+cfg2_getsize (PCONFIG pc, PCONFIG pc_g, char * sec, char * attr, size_t * sz)
+{
+  char * str;
+  if (-1 == cfg2_getstring (pc, pc_g, sec, attr, &str))
+    return -1;
+  if (-1 == cfg_parse_size_with_modifier (str, sz, NULL, NULL))
+    return -1;
+  return 0;
+}
+
 
 #define cslentry dk_cslentry
 #define csl_free(f) dk_free_box (f)
@@ -2154,25 +2198,25 @@ new_dbs_read_cfg (dbe_storage_t * dbs, char *ignore_file_name)
 	  if (cfg_find (pconfig, section, keyname) != 0)
 	    break;
 
-	  if (sscanf (pconfig->value, "%s %s", s_name, keyname) != 2)
-	    {
-	      log_error ("The values for log segment %d are invalid", nlog_segments);
-	      exit (-1);
-	    }
+	  if (sscanf (pconfig->value, "%s %s", s_name, keyname)!=2)
+            {
+              log_error ("The values for log segment %d are invalid", nlog_segments);
+              exit (-1);
+            }
 
 	  if (cfg_parse_size_with_modifier (keyname, &llen, NULL, NULL))
-	    {
-	      log_error ("The values for log segment %d are invalid", nlog_segments);
-	      exit (-1);
-	    }
+            {
+              log_error ("The values for log segment %d are invalid", nlog_segments);
+              exit (-1);
+            }
 
-	  {
-	    NEW_VARZ (log_segment_t, ls);
-	    ls->ls_file = box_string (s_name);
-	    ls->ls_bytes = llen;
-	    *last_log = ls;
-	    last_log = &ls->ls_next;
-	  }
+	    {
+	      NEW_VARZ (log_segment_t, ls);
+	      ls->ls_file = box_string (s_name);
+	      ls->ls_bytes = llen;
+	      *last_log = ls;
+	      last_log = &ls->ls_next;
+	    }
 	}
 
       if (nlog_segments == 1)
@@ -2220,18 +2264,18 @@ new_dbs_read_cfg (dbe_storage_t * dbs, char *ignore_file_name)
 	  n_stripes = cslnumentries (pconfig->value) - 1;
 	  segszstr = cslentry (pconfig->value, 1);
 
-	  if (cfg_parse_size_with_modifier (segszstr, &segszvalue, &modifier, &n_pages))
-	    {
-	      log_error ("The size for strip segment %d is invalid", nsegs);
+          if (cfg_parse_size_with_modifier (segszstr, &segszvalue, &modifier, &n_pages))
+            {
+              log_error ("The size for strip segment %d is invalid", nsegs);
               csl_free (segszstr);
-	      return;
-	    }
-	  if (modifier == 'K' && segszvalue % KILOS_PER_PAGE)
-	    {
-	      log_error ("The size for stripe segment %d must be a multiple of %d", nsegs, PAGE_SZ);
+              return;
+            }
+          if (modifier == 'K' && segszvalue % KILOS_PER_PAGE)
+            {
+              log_error ("The size for stripe segment %d must be a multiple of %d", nsegs, PAGE_SZ);
               csl_free (segszstr);
-	      return;
-	    }
+              return;
+            }
 	  if ((n_pages / n_stripes) > (LONG_MAX / PAGE_SZ))
 	    {
 #if (!defined (FILE64) && !defined (WIN32))
@@ -2298,7 +2342,7 @@ new_dbs_read_cfg (dbe_storage_t * dbs, char *ignore_file_name)
 	  return;
 	}
     }
-  else				/* no striping, imitate 1 segment, 1 stripe, with parameters taken from [XXXDatabase] section. */
+  else /* no striping, imitate 1 segment, 1 stripe, with parameters taken from [XXXDatabase] section. */
     {
       disk_segment_t *seg = (disk_segment_t *) dk_alloc (sizeof (disk_segment_t));
       disk_stripe_t *dst;
@@ -2374,7 +2418,6 @@ db_lck_lock_fd (int fd, char *name)
   fl.l_whence = SEEK_SET;
   fl.l_start = 0;
   fl.l_len = 0;
-  fl.l_pid = getpid ();
 
   if (fcntl (fd, F_SETLK, &fl) < 0)
     {
@@ -2408,7 +2451,6 @@ db_lck_unlock_fd (int fd, char *name)
   fl.l_whence = SEEK_SET;
   fl.l_start = 0;
   fl.l_len = 0;
-  fl.l_pid = getpid ();
 
   if (fcntl (fd, F_SETLK, &fl) < 0)
     log (L_WARNING, "Unable to unlock %s (%m)", name);

@@ -1802,6 +1802,7 @@ stat_desc_t dbf_descs[] = {
   {"tc_qrc_miss", &tc_qrc_miss, NULL},
   {"tc_qrc_recompile", &tc_qrc_recompile, NULL},
   {"tc_qrc_plan_miss", &tc_qrc_plan_miss, NULL},
+  {"enable_dfg", (long *) &enable_dfg, SD_INT32},
   {"enable_at_print", (long *) &enable_at_print, SD_INT32},
   {"enable_min_card", (long *) &enable_min_card},
   {"enable_distinct_sas", (long *) &enable_distinct_sas, SD_INT32},

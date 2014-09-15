@@ -27,7 +27,7 @@
 */
 
 #include <pthread.h>
-#include "thread_int.h"
+#include "Dk.h"
 
 #if defined(linux) && defined(VIRT_GPROF)
 #define pthread_create gprof_pthread_create
@@ -72,6 +72,7 @@ static char _ev_never;
 dk_mutex_t * all_mtxs_mtx;
 #ifdef MTX_METER
 dk_hash_t * all_mtxs = NULL;
+
 #endif
 
 static void
@@ -79,7 +80,7 @@ _pthread_call_failed (const char *file, int line, int error)
 {
   char msgbuf[200];
 
-  snprintf (msgbuf, sizeof (msgbuf), "pthread operation failed (%d) %s", error, strerror (error));
+  snprintf (msgbuf, sizeof (msgbuf), "pthread operation failed (%d) %d %s", error, errno, strerror (errno));
 #ifdef MTX_DEBUG
   gpf_notice (file, line, msgbuf);
 #else
@@ -192,6 +193,7 @@ thread_initial (unsigned long stack_size)
   rc = pthread_setspecific (_key_current, NULL);
   CKRET (rc);
 
+
   /*
    *  Initialize default thread/mutex attributes
    */
@@ -252,6 +254,7 @@ thread_initial (unsigned long stack_size)
   stack_size = ((stack_size / 8192) + 1) * 8192;
 
   thr->thr_stack_size = stack_size;
+  thr->thr_stack_base = (void *) &stack_size;
   thr->thr_status = RUNNING;
   thr->thr_cv = _alloc_cv ();
   thr->thr_sem = semaphore_allocate (0);
@@ -282,6 +285,11 @@ _thread_boot (void *arg)
   thread_t *thr = (thread_t *) arg;
   int rc;
 
+  if (thr->thr_has_affinity)
+    {
+      rc = thread_set_affinity (&thr->thr_affinity);
+      CKRET (rc);
+    }
   rc = pthread_setspecific (_key_current, thr);
   CKRET (rc);
 
@@ -321,6 +329,7 @@ thread_alloc ()
   return thr;
 }
 
+pthread_attr_t * thread_default_pthread_attr;
 
 thread_t *
 thread_create (
@@ -408,6 +417,7 @@ thread_create (
 	    stack_size = thr->thr_stack_size = ((unsigned long) os_stack_size) - 4 * 8192;
 	}
 #endif
+
 #ifdef HPUX_ITANIUM64
       if (stack_size > PTHREAD_STACK_MIN)
         {
@@ -420,8 +430,14 @@ thread_create (
 	  thr->thr_stack_size /= 2;
 	}
 #endif
-
-      rc = pthread_create ((pthread_t *) thr->thr_handle, &_thread_attr,
+      if (thr_is_default_affinity)
+	{
+	  thr->thr_has_affinity = 1;
+	  thr->thr_affinity = thr_default_affinity;
+	}
+      else
+	thr->thr_has_affinity = 0;
+      rc = pthread_create ((pthread_t *) thr->thr_handle, thread_default_pthread_attr ? thread_default_pthread_attr : &_thread_attr,
 	  _thread_boot, thr);
       CKRET (rc);
 
@@ -468,6 +484,7 @@ thread_create (
   return thr;
 
 failed:
+  log_error ("Failed creating a thread errno %d", errno);
   if (thr->thr_status == RUNNABLE)
     {
       _thread_free_attributes (thr);
@@ -873,6 +890,7 @@ thread_sleep (TVAL timeout)
  *
  ******************************************************************************/
 
+
 semaphore_t *
 semaphore_allocate (int entry_count)
 {
@@ -1071,18 +1089,18 @@ mutex_allocate_typed (int type)
     {
       pthread_spin_init (&mtx->l.spinl, 0);
     }
-  else
+  else 
 #endif
     {
       memset ((void *) &mtx->mtx_mtx, 0, sizeof (pthread_mutex_t));
 #ifndef OLD_PTHREADS
-      if (!is_initialized)
+      if (!is_initialized) 
 	{
 	  pthread_mutexattr_init (&_mutex_attr);
 #if defined (PTHREAD_PROCESS_PRIVATE) && !defined(oldlinux) && !defined (__FreeBSD__)	  
 	  rc = pthread_mutexattr_setpshared (&_mutex_attr, PTHREAD_PROCESS_PRIVATE);
 	  CKRET (rc);
-#endif
+#endif	  
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 	  rc = pthread_mutexattr_settype (&_mutex_attr, PTHREAD_MUTEX_ADAPTIVE_NP);
@@ -1129,7 +1147,7 @@ dk_mutex_init (dk_mutex_t * mtx, int type)
     {
       pthread_spin_init (&mtx->l.spinl, 0);
     }
-  else
+  else 
 #endif
     {
             memset ((void *) &mtx->mtx_mtx, 0, sizeof (pthread_mutex_t));
@@ -1190,7 +1208,7 @@ mutex_free (dk_mutex_t *mtx)
     {
       pthread_mutex_destroy ((pthread_mutex_t*) &mtx->mtx_mtx);
     }
-#ifdef MTX_DEBUG
+#if defined (MTX_DEBUG) || defined (MTX_METER)
   dk_free_box (mtx->mtx_name);
 #endif
 #ifdef MTX_METER
@@ -1459,7 +1477,7 @@ mutex_leave (dk_mutex_t *mtx)
 void
 mutex_stat ()
 {
-  #ifdef MTX_METER
+#ifdef MTX_METER
   DO_HT (dk_mutex_t *, mtx, void*, ign, all_mtxs)
     {
       if (!mtx->mtx_enters)
@@ -1474,7 +1492,7 @@ mutex_stat ()
 #endif
     }
   END_DO_SET();
-  #else
+#else
   printf ("Mutex stats not enabled.}\n");
 #endif
 }
