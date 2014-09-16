@@ -56,7 +56,7 @@
 #define THREAD_ATTRIBUTE_HASH	17
 
 
-#if defined (linux) 
+#if defined (linux) && !defined (NO_THREAD)
 #include <sched.h>
 typedef cpu_set_t dk_cpu_set_t;
 #else
