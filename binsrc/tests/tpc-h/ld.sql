@@ -18,8 +18,8 @@ status ('');
 
 select curdatetime ();
 ECHOLN BOTH $LAST[1] "START statistics";
-load ldstat.sql &
 cl_exec ('checkpoint') &
+load ldstat.sql;
 wait_for_children;
 
 
