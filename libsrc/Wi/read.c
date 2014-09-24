@@ -338,7 +338,7 @@ itc_prefetch_col_leaf_page (it_cursor_t * itc, buffer_desc_t * buf)
       cr->cr_is_prefetched = 0;
   }
   END_DO_BOX;
-  if (!itc->itc_ks || itc->itc_ks->ks_is_deleting)
+  if (!itc->itc_ks || itc->itc_ks->ks_is_deleting || itc->itc_ks->ks_check)
     {
       int n_parts = itc->itc_insert_key->key_n_parts - itc->itc_insert_key->key_n_significant;
       for (inx = 0; inx < n_parts; inx++)
