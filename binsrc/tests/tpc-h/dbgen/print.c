@@ -46,12 +46,23 @@
 #include "dss.h"
 #include "dsstypes.h"
 #include <string.h>
+#include "zlib.h"
+#include "zutil.h"
 
 /*
  * Function Prototypes
  */
 FILE *print_prep PROTO((int table, int update));
 int pr_drange PROTO((int tbl, DSS_HUGE min, DSS_HUGE cnt, long num));
+
+void
+close_file (void * f)
+{
+  if (gzip)
+    gzclose (f);
+  else
+    fclose (f);
+}
 
 FILE *
 print_prep(int table, int update)
@@ -100,52 +111,67 @@ print_prep(int table, int update)
 }
 
 int
-dbg_print(int format, FILE *target, void *data, int len, int sep)
+dbg_print(int format, void *file, void *data, int len, int sep)
 {
-	int dollars,
+	long dollars,
 		cents;
+	char target[65536];
 
 	switch(format)
 	{
 	case DT_STR:
-		fprintf(target, "%s", (char *)data);
+		sprintf(target, "%s", (char *)data);
 		break;
 #ifdef MVS
 	case DT_VSTR:
 		/* note: only used in MVS, assumes columnar output */
-		fprintf(target, "%c%c%-*s", 
+		sprintf(target, "%c%c%-*s", 
 			(len >> 8) & 0xFF, len & 0xFF, len, (char *)data);
 		break;
 #endif /* MVS */
 	case DT_INT:
-		fprintf(target, "%ld", (long)data);
+		sprintf(target, "%ld", (long)data);
 		break;
 	case DT_HUGE:
-		fprintf(target, HUGE_FORMAT, *(DSS_HUGE *)data);
+		sprintf(target, HUGE_FORMAT, *(DSS_HUGE *)data);
 		break;
 	case DT_KEY:
-		fprintf(target, "%ld", (long)data);
+		sprintf(target, "%ld", (long)data);
 		break;
 	case DT_MONEY:
-		cents = (int)*(DSS_HUGE *)data;
-		if (cents < 0)
-			{
-			fprintf(target, "-");
+		  {
+		    char *sign = "";
+		    cents = (int)*(DSS_HUGE *)data;
+		    if (cents < 0)
+		      {
+			sign = "-";
 			cents = -cents;
-			}
-		dollars = cents / 100;
-		cents %= 100;
-		fprintf(target, "%ld.%02ld", dollars, cents);
-		break;
+		      }
+		    dollars = cents / 100;
+		    cents %= 100;
+		    sprintf(target, "%s%ld.%02ld", sign, dollars, cents);
+		    break;
+		  }
 	case DT_CHR:
-		fprintf(target, "%c", *(char *)data);
+		sprintf(target, "%c", *(char *)data);
 		break;
 	}
+
+	if (gzip)
+	  gzwrite (file, target, strlen (target));
+	else
+	  fprintf (file, "%s", target);
 
 #ifdef EOL_HANDLING
 	if (sep)
 #endif /* EOL_HANDLING */
-	fprintf(target, "%c", SEPARATOR);
+	  {
+	    sprintf(target, "%c", SEPARATOR);
+	    if (gzip)
+	      gzwrite (file, target, strlen (target));
+	    else
+	      fprintf (file, "%s", target);
+	  }
 	
 	return(0);
 }
@@ -153,10 +179,10 @@ dbg_print(int format, FILE *target, void *data, int len, int sep)
 int
 pr_cust(customer_t *c, int mode)
 {
-static FILE *fp = NULL;
+static void *fp = NULL;
         
    if (fp == NULL)
-        fp = print_prep(CUST, 0);
+     fp = print_prep(CUST, 0);
 
    PR_STRT(fp);
    PR_HUGE(fp, &c->custkey);
@@ -187,7 +213,7 @@ pr_order(order_t *o, int mode)
     if (fp_o == NULL || mode != last_mode)
         {
         if (fp_o) 
-            fclose(fp_o);
+            close_file(fp_o);
         fp_o = print_prep(ORDER, mode);
         last_mode = mode;
         }
@@ -219,7 +245,7 @@ pr_line(order_t *o, int mode)
     if (fp_l == NULL || mode != last_mode)
         {
         if (fp_l) 
-            fclose(fp_l);
+            close_file(fp_l);
         fp_l = print_prep(LINE, mode);
         last_mode = mode;
         }
@@ -403,7 +429,7 @@ pr_drange(int tbl, DSS_HUGE min, DSS_HUGE cnt, long num)
     if (last_num != num)
         {
         if (dfp)
-            fclose(dfp);
+            close_file(dfp);
         dfp = print_prep(tbl, -num);
         if (dfp == NULL)
             return(-1);
@@ -423,7 +449,7 @@ pr_drange(int tbl, DSS_HUGE min, DSS_HUGE cnt, long num)
 				rows_per_segment = (cnt / delete_segments) + 1;
 			if((++rows_this_segment) > rows_per_segment)
 			{
-				fclose(dfp);
+				close_file(dfp);
 				dfp = print_prep(tbl, -num);
 				if (dfp == NULL) return(-1);
 				last_num = num;

@@ -83,6 +83,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "zlib.h"
+#include "zutil.h"
 
 #define  NONE		-1
 #define  PART		0
@@ -193,6 +195,10 @@ typedef struct SEED_T {
 #endif
 	} seed_t;
 
+typedef struct fd_list_s {
+      void * fp;
+      void * next;
+    } fd_list_t;
 
 #if defined(__STDC__)
 #define PROTO(s) s
@@ -207,7 +213,7 @@ void     a_rnd PROTO((int min, int max, int column, char *dest));
 int     tx_rnd PROTO((long min, long max, long column, char *tgt));
 long	julian PROTO((long date));
 long	unjulian PROTO((long date));
-FILE	*tbl_open PROTO((int tbl, char *mode));
+void	*tbl_open PROTO((int tbl, char *mode));
 long	dssncasecmp PROTO((char *s1, char *s2, int n));
 long	dsscasecmp PROTO((char *s1, char *s2));
 int		pick_str PROTO((distribution * s, int c, char *target));
@@ -279,6 +285,8 @@ EXTERN long children;
 EXTERN int  step;
 EXTERN int	set_seeds;
 EXTERN char *d_path;
+EXTERN long gzip;
+EXTERN fd_list_t * gzfds;
 
 /* added for segmented updates */
 EXTERN int insert_segments;
@@ -468,7 +476,7 @@ extern tdef tdefs[];
 #define DT_MONEY	5
 #define DT_CHR		6
 
-int dbg_print(int dt, FILE *tgt, void *data, int len, int eol);
+int dbg_print(int dt, void *tgt, void *data, int len, int eol);
 #define PR_STR(f, str, len)		dbg_print(DT_STR, f, (void *)str, len, 1)
 #define PR_VSTR(f, str, len) 	dbg_print(DT_VSTR, f, (void *)str, len, 1)
 #define PR_VSTR_LAST(f, str, len) 	dbg_print(DT_VSTR, f, (void *)str, len, 0)
@@ -478,7 +486,12 @@ int dbg_print(int dt, FILE *tgt, void *data, int len, int eol);
 #define PR_MONEY(f, str) 		dbg_print(DT_MONEY, f, (void *)str, 0, 1)
 #define PR_CHR(f, str)	 		dbg_print(DT_CHR, f, (void *)str, 0, 1)
 #define  PR_STRT(fp)   /* any line prep for a record goes here */
-#define  PR_END(fp)    fprintf(fp, "\n")   /* finish the record here */
+#define  PR_END(fp)    do { \
+  if (gzip) \
+    gzwrite (fp, "\n", 1); \
+  else \
+  fprintf(fp, "\n");   /* finish the record here */ \
+} while (0)
 #ifdef MDY_DATE
 #define  PR_DATE(tgt, yr, mn, dy)	\
    sprintf(tgt, "%02d-%02d-19%02d", mn, dy, yr)

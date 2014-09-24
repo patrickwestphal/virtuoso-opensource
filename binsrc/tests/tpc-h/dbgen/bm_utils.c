@@ -106,7 +106,6 @@
 /* End of lines added by Chuck McDevitt for WIN32 support */
 #include "dsstypes.h"
 
-
 static char alpha_num[65] =
 "0123456789abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ,";
 
@@ -379,12 +378,12 @@ long      weight,
  * standard file open with life noise
  */
 
-FILE     *
+void     *
 tbl_open(int tbl, char *mode)
 {
     char      prompt[256];
     char      fullpath[256];
-    FILE     *f;
+    void     *f;
     struct stat fstats;
     int      retcode;
 
@@ -415,7 +414,21 @@ tbl_open(int tbl, char *mode)
         f = fdopen(retcode, mode);
         }
     else
-        f = fopen(fullpath, mode);
+      {
+	if (gzip)
+	  {
+	    int inx;
+	    fd_list_t * new = malloc (sizeof (fd_list_t));
+	    memset (new, 0, sizeof (fd_list_t));
+	    f = gzopen(fullpath, mode);
+	    new->fp = f;
+	    if (!gzfds) gzfds = new;
+	    else { new->next = gzfds; gzfds = new; }
+	   
+	  }
+	else
+	  f = fopen(fullpath, mode);
+      }
     OPEN_CHECK(f, fullpath);
 
     return (f);

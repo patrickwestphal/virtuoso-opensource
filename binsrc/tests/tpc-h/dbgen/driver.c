@@ -451,7 +451,7 @@ process_options (int count, char **vector)
 	FILE *pF;
 	
 	while ((option = getopt (count, vector,
-		"b:C:d:fi:hO:P:qs:S:T:U:v")) != -1)
+		"b:C:d:fi:hO:P:qs:S:T:U:vz")) != -1)
 	switch (option)
 	{
 		case 'b':				/* load distributions from named file */
@@ -588,6 +588,9 @@ process_options (int count, char **vector)
 				usage ();
 				exit (1);
 			}
+			break;
+		case 'z':				/* use gzip compression */
+			gzip = 1;
 			break;
 		default:
 			printf ("ERROR: option '%c' unknown.\n",
@@ -795,6 +798,16 @@ main (int ac, char **av)
 					fprintf (stderr, "done.\n");
 			}
 		}
-			
+
+      if (gzfds)
+        {
+	  fd_list_t * itm = gzfds;
+	  while (itm)
+	    {
+	      close_file (itm->fp);
+	      itm = itm->next;
+	    }
+	  gzfds = NULL;
+	}	  
 		return (0);
 }

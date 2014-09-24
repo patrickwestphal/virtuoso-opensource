@@ -110,13 +110,13 @@ DATABASE= VIRTUOSO
 MACHINE = LINUX
 WORKLOAD = TPCH
 #
-CFLAGS	= -g -DDBNAME=\"dss\" -D$(MACHINE) -D$(DATABASE) -D$(WORKLOAD) -DRNG_TEST -D_FILE_OFFSET_BITS=64 
-LDFLAGS = -O
+CFLAGS	= -g -DDBNAME=\"dss\" -D$(MACHINE) -D$(DATABASE) -D$(WORKLOAD) -DRNG_TEST -D_FILE_OFFSET_BITS=64 -I$(HOME)/libsrc/zlib
+LDFLAGS = -O 
 # The OBJ,EXE and LIB macros will need to be changed for compilation under
 #  Windows NT
 OBJ     = .o
 EXE     =
-LIBS    = -lm
+LIBS    = -lm -lz
 #
 # NO CHANGES SHOULD BE NECESSARY BELOW THIS LINE
 ###############
