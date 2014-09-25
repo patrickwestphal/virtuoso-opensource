@@ -907,6 +907,24 @@ lt_ack_close (lock_trx_t * lt)
 
 
 void
+lt_bust_main_lt (lock_trx_t * lt)
+{
+  ptrlong plt;
+  lock_trx_t *main_lt;
+  ASSERT_IN_TXN;
+  if (!lt->lt_rc_w_id || lt->lt_w_id == lt->lt_rc_w_id)
+    return;
+  gethash_64 (plt, lt->lt_rc_w_id, local_cll.cll_w_id_to_trx);
+  main_lt = (lock_trx_t *) plt;
+  if (main_lt && LT_DELTA_ROLLED_BACK != main_lt->lt_status)
+    {
+      main_lt->lt_error = lt->lt_error;
+      main_lt->lt_error_detail = box_copy_tree (lt->lt_error_detail);
+      lt_kill_other_trx (main_lt, NULL, NULL, LT_KILL_ROLLBACK);
+    }
+}
+
+void
 itc_bust_main_lt (it_cursor_t * itc)
 {
   ptrlong plt;
@@ -930,6 +948,8 @@ itc_bust_this_trx (it_cursor_t * it, buffer_desc_t ** buf, int may_ret)
    * Otherwise this function must rollback the transaction and throw to the itc reset context */
   lock_trx_t *lt = it->itc_ltrx;
   int is_rb = may_ret == ITC_BUST_THROW;
+  if (dbf_user_1)
+    bing ();
   if (it->itc_is_col)
     itc_col_leave (it, 0);
   if (LT_FREEZE != lt->lt_status)
@@ -1007,6 +1027,8 @@ lt_rollback_other (lock_trx_t * lt)
 void
 lt_kill_other_trx (lock_trx_t * lt, it_cursor_t * itc, buffer_desc_t * buf, int may_freeze)
 {
+  if (dbf_user_1)
+    bing ();
   ASSERT_IN_TXN;
   if (itc)
     {

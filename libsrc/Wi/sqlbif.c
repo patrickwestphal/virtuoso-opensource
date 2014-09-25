@@ -7886,12 +7886,10 @@ cleanup:
   dk_free_box (global_scs->scs_scn3c.split_ses);	/* must be released inside semaphore */
   global_scs->scs_scn3c.split_ses = NULL;
   SCS_STATE_POP;
-  //dk_free_box (scn3split_ses); /* must be released inside semaphore */
-  //scn3split_ses = NULL;
   parse_leave ();
+  MP_DONE ();
   sc_free (&sc);
   dk_free_box (start_filename);
-  MP_DONE ();
   return revlist_to_array (res);
 }
 

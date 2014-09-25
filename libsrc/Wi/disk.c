@@ -294,7 +294,8 @@ page_set_check (db_buf_t page)
     {
       log_error ("page set checksum ck=%x pck=%x xor = %x", (void *) (uptrlong) ck, (void *) (uptrlong) pck,
 	  (void *) (uptrlong) (ck ^ pck));
-      GPF_T1 ("page set checksum error");
+      sethash ((void *) page, page_set_checksums, (void *) (unsigned ptrlong) pck);
+      /*GPF_T1 ("page set checksum error"); */
     }
 no_cksum:;
 }

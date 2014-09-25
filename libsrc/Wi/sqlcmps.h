@@ -226,6 +226,7 @@ typedef struct sql_comp_s
   int sc_is_update;
   char sc_parallel_dml;
   char sc_need_pk;
+  char sc_need_enlist;
   char sc_is_union;
   char sc_order;		/* If order of result rows is not important, like in filling a hash */
   char sc_any_clb;		/* any multi-state cluster node with a clb */

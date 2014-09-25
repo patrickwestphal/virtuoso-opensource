@@ -5401,7 +5401,7 @@ ssg_triple_retval_alias (spar_sqlgen_t * ssg, SPART * triple, int field_idx, int
 		t--;
 	      tail = t;
 	    }
-	  full_vname = t_box_sprintf (210, "%lx~%.100s", box_hash_cut (v, 1), tail);
+	  full_vname = t_box_sprintf (210, "%lx~%.100s", box_hash_cut ((caddr_t) v, 1), tail);
 	}
       else
 	{

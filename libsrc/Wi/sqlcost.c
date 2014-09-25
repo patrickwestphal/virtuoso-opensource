@@ -152,6 +152,8 @@ dbe_key_count (dbe_key_t * key)
     }
   if (key->key_table->tb_count != DBE_NO_STAT_DATA)
     return MAX (1, key->key_table->tb_count);
+  else if (tb->tb_ft)
+    return 100000;		/* Assume unknown file tb large enough to warrant parallel exec */
   else if (tb->tb_count_estimate == DBE_NO_STAT_DATA
       || ABS (tb->tb_count_delta / key_n_partitions (tb->tb_primary_key)) > tb->tb_count_estimate / 5)
     {
@@ -4557,7 +4559,12 @@ dfe_table_cost_ic_1 (df_elt_t * dfe, index_choice_t * ic, int inx_only)
     {
       col_cost *= 0.6;		/* cols packed closer together, more per page in bm inx */
     }
-  if (dfe->_.table.key->key_is_col)
+  if (dfe->_.table.ot->ot_table->tb_ft)
+    {
+      /* file table has high cost per row, reads all */
+      total_cost = inx_cost + inx_arity * 0.01 * dk_set_length (dfe->_.table.key->key_parts);
+    }
+  else if (dfe->_.table.key->key_is_col)
     {
       total_cost = inx_cost + dfe_cs_row_cost (dfe, inx_arity, col_arity);
     }

@@ -342,6 +342,7 @@ long dbf_cl_skip_wait_notify;
 long dbf_cpt_rb;
 long dbf_cl_blob_autosend_limit = 2000000;
 long dbf_no_sample_timeout = 1;
+int cl_slice_sample_pct = 10;
 extern int dbf_compress_mask;
 extern int dbf_ce_insert_mask;
 extern int dbf_ce_del_mask;
@@ -1772,6 +1773,7 @@ stat_desc_t dbf_descs[] = {
   {"cl_no_auto_remove", (long *) &cl_no_auto_remove, SD_INT32},
   {"dbf_cl_blob_autosend_limit", &dbf_cl_blob_autosend_limit, NULL},
   {"dbf_no_sample_timeout", &dbf_no_sample_timeout, NULL},
+  {"cl_slice_sample_pct", &cl_slice_sample_pct, SD_INT32},
   {"dbf_fast_cpt", (long *) &dbf_fast_cpt, SD_INT32},
   {"enable_flush_all", &enable_flush_all, SD_INT32},
   {"cl_req_batch_size", (long *) &cl_req_batch_size, SD_INT32},
@@ -1987,9 +1989,10 @@ sys_stat_impl (const char *name)
     return dbs_list ();
   if (0 == strcmp ("backup_last_date", name))
     return (bp_curr_date ());
-  if (!sd_hash)
+  if (!sd_hash || sd_hash->ht_count < 100)
     {
-      sd_hash = id_str_hash_create (201);
+      if (!sd_hash)
+	sd_hash = id_str_hash_create (201);
       for (sd_arrays_tail = sd_arrays; NULL != sd_arrays_tail[0]; sd_arrays_tail++)
 	{
 	  stat_desc_t *sd;
@@ -2013,6 +2016,24 @@ sys_stat_impl (const char *name)
 	return (box_dv_short_string (*(sd->sd_str_value)));
     }
   return NULL;
+}
+
+
+
+void
+mtx_sys_stat (dk_mutex_t * mtx)
+{
+#ifdef MTX_METER
+  NEW_VARZ (stat_desc_t, sd);
+  char tmp[100];
+  if (!sd_hash)
+    sd_hash = id_str_hash_create (201);
+  snprintf (tmp, sizeof (tmp) - 1, "%s_clk", mtx->mtx_name);
+  sd->sd_name = box_string (tmp);
+  sd->sd_value = &mtx->mtx_wait_clocks;
+  sd->sd_str_value = SD_INT64;
+  id_hash_set (sd_hash, (caddr_t) & sd->sd_name, (caddr_t) & sd);
+#endif
 }
 
 caddr_t
@@ -4739,7 +4760,7 @@ bif_stat_import (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     key = tb_name_to_key (tb, ks[1], 0);
     if (!key)
       continue;
-    key->key_table->tb_count_estimate = unbox (ks[1]);
+    key->key_table->tb_count_estimate = unbox (ks[2]);
     if (ps)
       {
 	DO_BOX (caddr_t *, p, inx2, ps)

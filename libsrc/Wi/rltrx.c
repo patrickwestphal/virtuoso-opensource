@@ -1666,6 +1666,8 @@ lt_transact (lock_trx_t * lt, int op)
       /* non main branches may have some state if the main was gone by the time the state was acquired.  These will not commit */
       op = SQL_ROLLBACK;
     }
+  if (dbf_user_1 && SQL_ROLLBACK == op && !IS_MT_BRANCH (lt))
+    bing ();
   if (SQL_ROLLBACK == op && QFID_HOST (lt->lt_w_id) == local_cll.cll_this_host)
     {
       rdbg_printf (("Host %d:  Own rollback with lte=%d of %d:%d\n", local_cll.cll_this_host, lt->lt_error, LT_W_NO (lt)));

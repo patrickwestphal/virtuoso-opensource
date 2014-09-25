@@ -1673,7 +1673,11 @@ sqlo_cl_locatable (ST * tree, int level)
     }
   if (enable_rec_qf && (ST_P (tree, UPDATE_SRC) || ST_P (tree, UPDATE_POS) || ST_P (tree, DELETE_SRC) || ST_P (tree, DELETE_POS)
 	  || ST_P (tree, INSERT_STMT)))
-    sqlc_need_enlist (sqlc_current_sc);
+    {
+      sql_comp_t *sc = sqlc_current_sc;
+      sc->sc_need_enlist = 1;
+      sqlc_need_enlist (sc);
+    }
   return sqlo_array_cl_locatable (tree, level);
 }
 
@@ -1688,6 +1692,8 @@ sqlo_proc_cl_locatable (caddr_t name, int level, query_t ** qr_ret)
   caddr_t full_name = sch_full_proc_name (wi_inst.wi_schema, name,
       cli_qual (cli), CLI_OWNER (cli));
   query_t *qr = full_name ? sch_proc_def (wi_inst.wi_schema, full_name) : NULL;
+  sql_comp_t *sc = sqlc_current_sc;
+  char save_enl = sc ? sc->sc_need_enlist : 0;
   if (!qr)
     return 0;
   if (qr_ret)
@@ -1695,7 +1701,11 @@ sqlo_proc_cl_locatable (caddr_t name, int level, query_t ** qr_ret)
   if (CL_LOCATABLE_PENDING == qr->qr_cl_locatable)
     return !level;
   if (CL_COLOCATABLE == qr->qr_cl_locatable)
-    return 1;
+    {
+      if (qr->qr_need_enlist)
+	sqlc_need_enlist (sqlc_current_sc);
+      return 1;
+    }
   if (CL_LOCAL == qr->qr_cl_locatable)
     return 0;
   if (!qr->qr_text)		/* inside module */
@@ -1717,7 +1727,13 @@ sqlo_proc_cl_locatable (caddr_t name, int level, query_t ** qr_ret)
       return 0;
     }
   qr->qr_cl_locatable = CL_LOCATABLE_PENDING;
+  if (sc)
+    sc->sc_need_enlist = 0;
   rc = sqlo_cl_locatable (tree, level + 1);
+  if (sc && sc->sc_need_enlist)
+    qr->qr_need_enlist = 1;
+  if (sc)
+    sc->sc_need_enlist = save_enl | qr->qr_need_enlist;
   dk_free_tree ((caddr_t) tree);
   qr->qr_cl_locatable = rc ? CL_COLOCATABLE : CL_LOCAL;
   return rc;

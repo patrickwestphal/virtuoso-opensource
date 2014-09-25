@@ -1141,6 +1141,8 @@ delete_node_vec_run (delete_node_t * del, caddr_t * inst, caddr_t * state, int i
     END_DO_BOX;
   }
   END_DO_BOX;
+  if (in_update && enable_mt_txn)
+    return;
   cl_local_deletes (del, inst, clrg ? clrg->clrg_inst : inst);
   if (!in_update && qi->qi_client->cli_row_autocommit)
     qi->qi_client->cli_n_to_autocommit += n_sets;

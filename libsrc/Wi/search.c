@@ -4093,7 +4093,7 @@ itc_local_sample (it_cursor_t * itc)
     {
       res = itc_sample_1 (itc, &buf, &n_leaves, -1);
       itc_page_leave (itc, buf);
-      if (n_leaves < 2)
+      if (n_leaves < 2 || 1 == dbf_max_itc_samples)
 	return res;
       if (itc->itc_row_specs)
 	{

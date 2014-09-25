@@ -21,14 +21,54 @@ extern long strses_file_wait_msec;
 #define dks_copy_buf(ses) ((ses)->dks_out_buffer)
 
 #define FT_MAX_FIELD 4000000
+#include "zlib.h"
+#include "zutil.h"
 
+void fileses_set_gzip (session_t * ses, void *gzfile);
+int fileses_is_gzip (session_t * ses);
+OFF_T fileses_seek (session_t * ses, OFF_T offset, int whence);
+
+size_t
+gzip_read (void *file, char *buffer, int bytes)
+{
+  return gzread (file, buffer, bytes);
+}
+
+OFF_T
+gzip_lseek (void *file, OFF_T offset, int whence)
+{
+#if 0
+  if (whence == SEEK_END)
+    {
+      char *buf[DKSES_IN_BUFFER_LENGTH];
+      OFF_T rc, len = 0;
+      gzseek (file, 0, SEEK_SET);
+      do
+	{
+	  rc = gzread (file, buf, DKSES_IN_BUFFER_LENGTH);
+	  if (rc > 0)
+	    len += rc;
+	}
+      while (rc > 0);
+      return len;
+    }
+#endif
+  return gzseek (file, offset, whence);
+}
+
+void
+gzip_close (void *file)
+{
+  gzclose (file);
+}
 
 char *
 dks_get_copy (dk_session_t * ses, int min_len, int *len_ret, int off)
 {
   caddr_t copy = dks_copy_buf (ses);
   if (min_len > FT_MAX_FIELD)
-    sqlr_new_error ("42000", "FTMAX", "CSV file table field length over %d, offset %ld", FT_MAX_FIELD, off + dks_prev_recd (ses));
+    sqlr_new_error ("42000", "FTMAX", "CSV file table field length over %d, offset " BOXINT_FMT, FT_MAX_FIELD,
+	off + dks_prev_recd (ses));
   if (!copy)
     {
       int len = MAX (1000, 2 * min_len);
@@ -55,7 +95,8 @@ dks_extend_copy (dk_session_t * ses, int *len_ret, int off)
   caddr_t copy = ses->dks_out_buffer;
   caddr_t nc;
   if (ses->dks_out_length > FT_MAX_FIELD)
-    sqlr_new_error ("42000", "FTMAX", "CSV file table field length over %d, offset %ld", FT_MAX_FIELD, off + dks_prev_recd (ses));
+    sqlr_new_error ("42000", "FTMAX", "CSV file table field length over %d, offset " BOXINT_FMT, FT_MAX_FIELD,
+	off + dks_prev_recd (ses));
   nc = dk_alloc (2 * ses->dks_out_length);
   memcpy_16 (nc, copy, ses->dks_out_length);
   dk_free (copy, ses->dks_out_length);
@@ -110,7 +151,6 @@ fs_field (file_source_t * fs, dk_session_t * ses, char **field_ret, int *len_ret
   char esc = fs->fs_escape;
   char delim = fs->fs_delim;
   DKS_VARS (ses) char *init_str = str;
-  int init_fill = fill;
   need_copy = 1;
   for (;;)
     {
@@ -238,14 +278,14 @@ fs_field_numeric (file_source_t * fs, char *field, int field_len, char *is_null,
     }
   n = numeric_allocate ();
   field[field_len] = 0;
-  rc = numeric_from_string (&n, field);
+  rc = numeric_from_string (n, field);
   if (NUMERIC_STS_SUCCESS != rc)
     {
       dk_free_box ((caddr_t) n);
       *is_null = 1;
       return NULL;
     }
-  return n;
+  return (caddr_t) n;
 }
 
 
@@ -283,6 +323,7 @@ fs_field_float (file_source_t * fs, char *field, int field_len, char *is_null, c
 }
 
 
+void iso8601_or_odbc_string_to_dt_1 (const char *str, char *dt, int dtflags, int dt_type, caddr_t * err_msg_ret);
 
 void
 dc_append_field (file_source_t * fs, data_col_t * dc, dbe_column_t * col, char *field, int field_len, caddr_t * err_ret)
@@ -324,7 +365,6 @@ dc_append_field (file_source_t * fs, data_col_t * dc, dbe_column_t * col, char *
 	dtp_t dt[DT_LENGTH];
 	if (!field_len)
 	  {
-	    caddr_t err_str = NULL;
 	    is_null = 1;
 	    break;
 	  }
@@ -346,7 +386,7 @@ dc_append_field (file_source_t * fs, data_col_t * dc, dbe_column_t * col, char *
 	  }
 	field[field_len] = 0;
 
-	iso8601_or_odbc_string_to_dt_1 (field, dt, 0x31ff, dt_type, &err_str);
+	iso8601_or_odbc_string_to_dt_1 (field, (char *) dt, 0x31ff, dt_type, &err_str);
 	if (err_str)
 	  {
 	    is_null = 1;
@@ -734,10 +774,18 @@ fs_set_range (file_source_t * fs, caddr_t * inst, int n_slices, int nth_slice)
 {
   dk_session_t *ses = (dk_session_t *) QST_GET_V (inst, fs->fs_ses);
   int fd = tcpses_get_fd (ses->dks_session);
-  int64 len = LSEEK (fd, 0, SEEK_END);
+  int64 len;
   int64 low = unbox (qst_get (inst, fs->fs_start_offset));
   int64 high = unbox (qst_get (inst, fs->fs_limit));
   int64 size, slice, low2, rc;
+
+  if (fileses_is_gzip (ses->dks_session))
+    {
+      ses->dks_limit = INT64_MAX - 10;
+      return 1;
+    }
+
+  len = fileses_seek (ses->dks_session, 0, SEEK_END);
   if (-1 == high)
     high = len;
   if (high > len)
@@ -750,7 +798,7 @@ fs_set_range (file_source_t * fs, caddr_t * inst, int n_slices, int nth_slice)
   slice = size / n_slices;
   low2 = low + (slice * nth_slice);
   rc;
-  rc = LSEEK (fd, low2, SEEK_SET);
+  rc = fileses_seek (ses->dks_session, low2, SEEK_SET);
   ses->dks_bytes_received = 0;
   ses->dks_in_fill = 0;
   ses->dks_in_read = 0;
@@ -837,6 +885,7 @@ ft_ts_start_search (table_source_t * ts, caddr_t * inst)
   file_table_t *ft = tb->tb_ft;
   caddr_t file_name;
   int fd, inx;
+  char magic[2] = { 0, 0 };
   qi->qi_set = 0;
   file_name = fs->fs_file_name ? qst_get (inst, fs->fs_file_name) : ft->ft_file;
   ITC_INIT (itc, NULL, NULL);
@@ -880,8 +929,16 @@ ft_ts_start_search (table_source_t * ts, caddr_t * inst)
 	sqlr_new_error ("42000", "FTOPE", "Cannot open file %s for file table read", file_name);
       return 0;
     }
+  read (fd, magic, 2);
+  LSEEK (fd, 0, SEEK_SET);
   ses = dk_session_alloc_box (SESCLASS_TCPIP, fs_file_in_buf_len);
   tcpses_set_fd (ses->dks_session, fd);
+  if (magic[0] == '\x1f' && magic[1] == '\x8b')	/* gzip */
+    {
+      void *gz;
+      gz = gzdopen (fd, "r");
+      fileses_set_gzip (ses->dks_session, gz);
+    }
   qst_set (inst, fs->fs_ses, (caddr_t) ses);
   if (fs->fs_nth_slice && (is_cl || unbox (qst_get (inst, fs->fs_nth_slice))))
     {
@@ -997,8 +1054,13 @@ ft_ts_split (table_source_t * ts, caddr_t * inst, int n_sets)
   if (QI_NO_SLICE != qi->qi_client->cli_slice && !ts->ts_aq)
     return 1;			/* cluster slice, fd already positioned */
   ses = (dk_session_t *) QST_GET_V (inst, fs->fs_ses);
+  if (fileses_is_gzip (ses->dks_session))
+    {
+      n_slices = 1;
+      goto nosplit;
+    }
   fd = tcpses_get_fd (ses->dks_session);
-  len = LSEEK (fd, 0, SEEK_END);
+  len = fileses_seek (ses->dks_session, 0, SEEK_END);
   low = unbox (qst_get (inst, fs->fs_start_offset));
   high = unbox (qst_get (inst, fs->fs_limit));
   if (-1 == high)
@@ -1016,6 +1078,7 @@ ft_ts_split (table_source_t * ts, caddr_t * inst, int n_sets)
       n_slices = MIN (enable_qp, high - low);
       n_slices = 1 + qi_inc_branch_count (qi, enable_qp, n_slices - 1);
     }
+nosplit:
   qst_set_long (inst, fs->fs_n_slices, n_slices);
   fs_set_range (fs, inst, n_slices, 0);
   for (nth = 1; nth < n_slices; nth++)

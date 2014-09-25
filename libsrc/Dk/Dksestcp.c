@@ -1103,6 +1103,58 @@ tcpses_is_write_ready (session_t * ses, timeout_t * to)
   return SER_SUCC;
 }
 
+#ifndef NO_THREAD
+size_t gzip_read (void * file, char * buffer, int bytes);
+OFF_T gzip_lseek (void * file, OFF_T offset, int whence);
+void gzip_close (void * file);
+
+void
+fileses_set_gzip (session_t * ses, void * gzfile)
+{
+  gzbuffer (gzfile, 1024 * 128);
+  ses->ses_device->dev_connection->con_gzfile = gzfile;
+}
+
+int
+fileses_is_gzip (session_t * ses)
+{
+  return ses->ses_device->dev_connection->con_gzfile ? 1 : 0;
+}
+
+OFF_T
+fileses_seek (session_t * ses, OFF_T offset, int whence)
+{
+  OFF_T rc;
+  if (!ses->ses_device->dev_connection->con_gzfile)
+    rc = LSEEK (ses->ses_device->dev_connection->con_s, offset, whence);
+  else
+    {
+#if 0
+      if (whence == SEEK_END)
+	{
+	  char buf[4];
+	  OFF_T cur = LSEEK (ses->ses_device->dev_connection->con_s, 0, SEEK_CUR);
+	  LSEEK (ses->ses_device->dev_connection->con_s, -4, SEEK_END);
+	  read (ses->ses_device->dev_connection->con_s, buf, 4);
+	  LSEEK (ses->ses_device->dev_connection->con_s, cur, SEEK_SET);
+	  rc = LONG_REF_BE (buf);
+	}
+      else
+#endif
+	rc = gzip_lseek (ses->ses_device->dev_connection->con_gzfile, offset, whence);
+    }
+  return rc;
+}
+#endif
+
+void
+fileses_close (session_t * ses)
+{
+#ifndef NO_THREAD
+  if (ses->ses_device->dev_connection->con_gzfile)
+    gzip_close (ses->ses_device->dev_connection->con_gzfile);
+#endif
+}
 
 int
 fileses_read (session_t * ses, char *buffer, int n_bytes)
@@ -1114,7 +1166,14 @@ fileses_read (session_t * ses, char *buffer, int n_bytes)
   SESSTAT_CLR (ses, SST_BROKEN_CONNECTION);
   SESSTAT_CLR (ses, SST_BLOCK_ON_READ);
 
+#ifndef NO_THREAD
+  if (!ses->ses_device->dev_connection->con_gzfile)
+    n_in = read (ses->ses_device->dev_connection->con_s, buffer, n_bytes);
+  else
+    n_in = gzip_read (ses->ses_device->dev_connection->con_gzfile, buffer, n_bytes);
+#else
   n_in = read (ses->ses_device->dev_connection->con_s, buffer, n_bytes);
+#endif
 
   if (n_in <= 0)
     {
@@ -1140,6 +1199,10 @@ fileses_write (session_t * ses, char *buffer, int n_bytes)
   SESSTAT_CLR (ses, SST_BLOCK_ON_READ);
   SESSTAT_CLR (ses, SST_BROKEN_CONNECTION);
 
+#ifndef NO_THREAD
+  if (ses->ses_device->dev_connection->con_gzfile)
+    return -1;
+#endif
   n_out = write (ses->ses_device->dev_connection->con_s, buffer, n_bytes);
 
   if (n_out <= 0)
@@ -2330,8 +2393,17 @@ sslses_read (session_t * ses, char *buffer, int n_bytes)
   n_in = SSL_read ((SSL *) (ses->ses_device->dev_connection->ssl), buffer, n_bytes);
   if (n_in <= 0)
     {
-      SESSTAT_CLR (ses, SST_OK);
-      SESSTAT_SET (ses, SST_BROKEN_CONNECTION);
+      int error_code = SSL_get_error ((SSL *) (ses->ses_device->dev_connection->ssl), n_in);
+      if (SSL_ERROR_WANT_READ == error_code || SSL_ERROR_WANT_WRITE == error_code)
+	{
+	  SESSTAT_CLR (ses, SST_OK);
+	  SESSTAT_SET (ses, SST_BLOCK_ON_READ);
+	}
+      else
+	{
+	  SESSTAT_CLR (ses, SST_OK);
+	  SESSTAT_SET (ses, SST_BROKEN_CONNECTION);
+	}
     }
   ses->ses_bytes_read = n_in;
   return (n_in);
@@ -2344,17 +2416,26 @@ sslses_write (session_t * ses, char *buffer, int n_bytes)
   int n_out;
   if (ses->ses_class == SESCLASS_UNIX)
     {
-      SESSTAT_CLR (ses, SST_OK);
-      SESSTAT_SET (ses, SST_BROKEN_CONNECTION);
+      SESSTAT_W_CLR (ses, SST_OK);
+      SESSTAT_W_SET (ses, SST_BROKEN_CONNECTION);
       return 0;
     }
-  SESSTAT_SET (ses, SST_OK);
-  SESSTAT_CLR (ses, SST_BLOCK_ON_WRITE);
+  SESSTAT_W_SET (ses, SST_OK);
+  SESSTAT_W_CLR (ses, SST_BLOCK_ON_WRITE);
   n_out = SSL_write ((SSL *) (ses->ses_device->dev_connection->ssl), buffer, n_bytes);
   if (n_out <= 0)
     {
-      SESSTAT_CLR (ses, SST_OK);
-      SESSTAT_SET (ses, SST_BROKEN_CONNECTION);
+      int error_code = SSL_get_error ((SSL *) (ses->ses_device->dev_connection->ssl), n_out);
+      if (SSL_ERROR_WANT_READ == error_code || SSL_ERROR_WANT_WRITE == error_code)
+	{
+	  SESSTAT_W_CLR (ses, SST_OK);
+	  SESSTAT_W_SET (ses, SST_BLOCK_ON_WRITE);
+	}
+      else
+	{
+	  SESSTAT_W_CLR (ses, SST_OK);
+	  SESSTAT_W_SET (ses, SST_BROKEN_CONNECTION);
+	}
     }
   ses->ses_bytes_written = n_out;
   return (n_out);

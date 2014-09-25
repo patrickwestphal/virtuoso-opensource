@@ -1482,11 +1482,11 @@ query_t *DBG_NAME (sql_compile_1) (DBG_PARAMS const char *string2, client_connec
 	    sqlc_set_client (old_cli);
 	    sql_pop_all_buffers (scanner);
 	    scn3yylex_destroy (scanner);
+	    SCS_STATE_POP;
 	    if (!nested_sql_comp)
 	      {
 		MP_DONE ();
 	      }
-	    SCS_STATE_POP;
 	    if (inside_sem)
 	      parse_leave ();
 	    POP_CATCH;

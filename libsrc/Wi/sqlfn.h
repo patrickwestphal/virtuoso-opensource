@@ -836,6 +836,7 @@ void repl_serv_init (int make_thr);
 
 /* srvstat.c */
 
+void mtx_sys_stat (dk_mutex_t * mtx);
 void da_string (db_activity_t * da, char *out, int len);
 void srv_ip (char *ip_addr, size_t max_ip_addr, char *host);
 
@@ -1602,7 +1603,7 @@ caddr_t cl_vec_exec (query_t * qr, client_connection_t * cli, mem_pool_t * mp, c
 void sqlg_ks_col_alter (key_source_t * ks);
 int sqlg_fref_n_grouping_sets (fun_ref_node_t * fref);
 setp_node_t *sqlg_qf_nth_setp (query_frag_t * qf, int nth);
-
+extern long dbf_user_1, dbf_user_2;
 #define CAR(dt,x)	(x ? ((dt) ((x)->data)) : 0)
 #define CDR(x)		(x ? (x)->next : NULL)
 #define CONS(car,cdr)	dk_set_cons ((caddr_t) car, (dk_set_t) cdr)

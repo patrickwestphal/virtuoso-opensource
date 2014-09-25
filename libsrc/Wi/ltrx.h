@@ -581,7 +581,7 @@ void rbe_page_row (rb_entry_t * rbe, row_delta_t * rd);
 #define TRX_CONT_LT_LEAVE 2
 
 void lt_clear_waits (lock_trx_t * lt);
-
+void lt_bust_main_lt (lock_trx_t * lt);
 void itc_bust_this_trx (it_cursor_t * it, buffer_desc_t ** buf, int may_return);
 #define ITC_BUST_THROW 0
 #define ITC_BUST_CONTINUABLE 1

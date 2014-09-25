@@ -29,10 +29,10 @@
 #include "../Dk/Dkhash64.h"
 #include "clq.h"
 
+
 typedef struct cl_message_s cl_message_t;
 
 #ifdef MTX_METER
-#define CM_TRACE
 #endif
 
 
@@ -408,8 +408,9 @@ struct cl_thread_s
   int64 clt_sample_total;
   dk_hash_t *clt_col_stat;
   cl_thread_t *clt_top_clt;	/* a recursive cm on a aq thread on non top coord must feed from a real clt, to which the recursive req is bound.  This is the clt for a temp clt 2nd rec clt */
-  int clt_n_sample_rows;
-  int clt_n_row_spec_matches;
+  int64 clt_n_sample_rows;
+  int64 clt_n_rows_sampled;
+  int64 clt_n_row_spec_matches;
   uint32 clt_start_time;	/* approx time, use for keep alive */
   uint32 clt_reply_req_no;	/* use for req no in reply if dissociated from the pending cm, as in recursive dfg */
   int clt_id;
@@ -493,6 +494,7 @@ typedef struct cll_in_box_s
   struct itc_cluster_s *clib_itcl;
   dk_session_t clib_in_strses;
   scheduler_io_data_t clib_in_siod;
+  cl_message_t *clib_dbg_reply;
 } cll_in_box_t;
 
 #define clib_has_data(clib) \
@@ -523,6 +525,7 @@ typedef struct cl_req_group_s
   bitf_t clrg_no_txn:1;		/* for clrg call, do not enlist */
   bitf_t clrg_retriable:2;
   bitf_t clrg_best_effort:1;
+  char clrg_keep_dbg_reply;
   char clrg_cm_control;		/* send ops with this ored to cm_enlist, e.g. cm_control, cm_start_atomic */
   short clrg_dbg_qf;
   uint32 clrg_send_buffered;	/* total waiting send in clibs */
@@ -558,6 +561,7 @@ typedef struct cl_req_group_s
   dk_set_t clrg_last;
   cucurbit_t *clrg_cu;
   dk_set_t clrg_vec_clos;
+  float clrg_sample_pct;
  MTX_TS_T (clrg_wait_ts)} cl_req_group_t;
 
 #define CLRG_RETRY_SINGLY 1	/* clibs can be retried individually */
@@ -1217,7 +1221,7 @@ void cli_cl_push (client_connection_t * cli, int host, int req_no);
 void cli_cl_pop (client_connection_t * cli);
 void cli_free_stack (client_connection_t * cli);
 void cl_serialize_st_cols (dk_session_t * ses, dk_hash_t * cols);
-caddr_t clo_detach_error (cl_op_t * clo);
+caddr_t clo_detach_error (cl_req_group_t * clrg, cl_op_t * clo);
 int qi_n_cl_aq_threads (query_instance_t * qi);
 int clo_frag_n_sets (cl_op_t * clo);
 void cl_fref_local_result (query_instance_t * qi, query_frag_t * qf, state_slot_t * slice_qis, int is_final);
@@ -1257,6 +1261,8 @@ int clt_is_update_replica (cl_thread_t * clt);
 void ik_ins_del_partition (cl_req_group_t * clrg, ins_key_t * ik, int op, caddr_t * inst);
 cl_req_group_t *dml_clrg (delete_node_t * del, caddr_t * inst);
 int cl_dml_send (cl_req_group_t * clrg);
+int cl_mt_dml (cl_req_group_t * clrg);
+int cl_mt_dml_sync (cl_req_group_t * clrg);
 
 void itc_local_partition_param_sort (key_source_t * ks, it_cursor_t * itc, ins_key_t * ik, slice_id_t slid, caddr_t * part_inst,
     int n_sets);
