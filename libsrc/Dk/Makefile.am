@@ -106,7 +106,7 @@ libdk1t_nc_la_SOURCES = \
 	Dksesinp.c \
 	Dksession.c \
 	Dksesstr.c \
-	Dksestcp.c \
+	Dksttcp.c \
 	Dksets.c \
 	Dkpool.c \
 	Dkutil.c \
