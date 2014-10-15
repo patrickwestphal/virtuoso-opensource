@@ -366,6 +366,11 @@ typedef struct cl_op_s
       void *cr;
       void (*free_cb) (void *);
     } iext;
+    struct
+    {
+      uint64 g_wr_id;
+      index_tree_t *g_wr;
+    } sec;
   } _;
 } cl_op_t;
 
@@ -398,6 +403,7 @@ struct cl_thread_s
   dk_session_t *clt_reply_ses;	/* if a batch sends multiple reply messages, they are all on this ses to keep order */
   dk_mutex_t clt_reply_mtx;	/* multiple dfg threads need to share one clt reply ses to send to coordinator, needed for message ordering.  Serialize on this */
   cl_host_t *clt_disconnected;	/* when set by listener, this clt is expected to finish and free all things and threads associated with the disconnected host */
+  char clt_no_compress;
   char clt_is_error;		/* Will  the reply message be with error flag set */
   char clt_commit_scheduled;	/* if a 2pc final is scheduled on this thread, set this flag to mark that this must complete even if the client disconnected */
   char clt_is_recursive;
@@ -882,6 +888,7 @@ typedef struct cl_self_message_s
 #define CLO_CONTROL			32
 #define CLO_TOP 33
 #define CLO_IEXT_CR 35		/* cursor on index extension */
+#define CLO_SEC_TOKEN 36
 
 /* action codes for ddl messages */
 #define CLO_DDL_TABLE 1
@@ -930,7 +937,7 @@ struct cl_message_s
   uint32 cm_dfg_agg_req_no;	/* 2nd req no for dfg agg reply when first req no is set to a dfg req no */
   int cm_n_comp_entries;
   char cm_enlist;		/* the trx id is to be handled with 2pc.  The lt is for use with this id only */
-  char cm_req_flags;
+  short cm_req_flags;
   char cm_cancelled;		/* must read the incoming stuff from cm_client but must not do anything else */
   char cm_registered;		/*if suspended waiting for CL_MORE */
   char cm_res_type;		/* whether more is coming from same server */
@@ -954,6 +961,7 @@ struct cl_message_s
   dk_session_t *cm_client;	/* the client detached from served set, worker thread must read the stuff and return this to served set */
   lock_trx_t *cm_lt;		/* While registered, remember the lt so that continuable qi's and itc's keep the lt across transacts */
   cl_thread_t *cm_clt;		/* for dbg, if reg'd cm running on a clt */
+  cl_op_t *cm_sec;
   cl_message_t **cm_extra_cm;	/* when many consec cms together because of dfg follows, this is the array of non first cms */
   int cm_n_extra;
    MTX_TS_T (cm_queue_ts) MTX_TS_T (cm_dfg_detach_ts) MTX_TS_T (cm_dfg_skip_ts) MTX_TS_T (cm_dfg_reg_ts)
@@ -983,7 +991,7 @@ struct cl_message_s
 #define CMR_MARKED_REC 32
 #define CMR_FWD_NO_STACK_TOP 64
 #define CMR_ROJ_OUTER 128
-
+#define CMR_NO_COMPRESS 0x8000
 #define CL_REC_RUNNING 1	/* or'ed to entry in cll_rec_dfg to indicate a thread presently executing for the rec batch */
 #define CL_REC_CANCEL 2		/* or'ed to entry in cll_rec_dfg to indicate cancellation of running recursive batch */
 
@@ -1059,8 +1067,10 @@ extern int64 cl_cum_wait_msec;
 cl_op_t *cl_deserialize_cl_op_t (dk_session_t * in);
 cl_req_group_t *cl_req_group (lock_trx_t * lt);
 int clrg_result_array (cl_req_group_t * clrg, cl_op_t ** res, int *fill_ret, int max, caddr_t * qst);
-
+cl_op_t *sec_copy (cl_op_t * sec);
+void cli_set_sec (client_connection_t * cli, cl_op_t * clo);
 /*
+
 resource_t * cl_str_1;
 
 resource_t * cl_str_2;
@@ -1262,7 +1272,7 @@ void ik_ins_del_partition (cl_req_group_t * clrg, ins_key_t * ik, int op, caddr_
 cl_req_group_t *dml_clrg (delete_node_t * del, caddr_t * inst);
 int cl_dml_send (cl_req_group_t * clrg);
 int cl_mt_dml (cl_req_group_t * clrg);
-int cl_mt_dml_sync (cl_req_group_t * clrg);
+int cl_mt_dml_sync (caddr_t * inst, state_slot_t * ssl, cl_req_group_t * clrg);
 
 void itc_local_partition_param_sort (key_source_t * ks, it_cursor_t * itc, ins_key_t * ik, slice_id_t slid, caddr_t * part_inst,
     int n_sets);
@@ -1435,6 +1445,10 @@ extern dk_hash_64_t *cl_w_id_to_ctrx;
 extern cl_host_t *cl_master;
 
 
+void cl_break_hit (int nth, char *msg);
+extern dk_hash_t cl_break;
+#define CL_BREAKPOINT(nth, msg) \
+  {if (cl_break.ht_count && gethash ((void*)(ptrlong)nth, &cl_break)) cl_break_hit (nth, msg);}
 #ifdef CM_TRACE
 
 void cm_record_send (cl_message_t * cm, int to);

@@ -1916,6 +1916,8 @@ setp_ahash_run (setp_node_t * setp, caddr_t * inst, chash_t * cha)
   dtp_t nulls[CHASH_GB_MAX_KEYS][ARTM_VEC_LEN];
   int first_set, limit;
   /*dcckz (ha, inst, n_sets); */
+  if (setp->setp_any_distinct_gos)
+    return -1;
   for (first_set = 0; first_set < n_sets; first_set += ARTM_VEC_LEN)
     {
       int any_temp_fill = 0;
@@ -2288,7 +2290,7 @@ cha_ahash_n_part (setp_node_t * setp, chash_t * cha)
   int64 scale = 1;
   ha_key_range_t *kr = setp->setp_ahash_kr;
   for (n = 0; n < setp->setp_ha->ha_n_keys; n++)
-    scale *= kr[n].kr_max - kr[n].kr_min;
+    scale *= MAX (2, kr[n].kr_max - kr[n].kr_min);
   scale = _RNDUP (scale, chash_part_size);
   return scale / chash_part_size;
 }
@@ -2788,7 +2790,7 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
 	    continue;
 	  goto no;
 	}
-      if (go && go->go_distinct_ha)
+      if (go && go->go_distinct_ha && top_tree)
 	setp_dist_type_check (setp, inst, go, top_tree);
       dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
       if (cha && inx < cha->cha_n_keys && dc->dc_dtp != cha->cha_sqt[inx].sqt_dtp && DV_ANY != cha->cha_sqt[inx].sqt_dtp)
@@ -2835,7 +2837,7 @@ setp_chash_group (setp_node_t * setp, caddr_t * inst)
       return 1;
     }
   if (cha->cha_pool->mp_bytes > cha_max_gb_bytes && (cha->cha_pool->mp_bytes + mp_large_in_use) > c_max_large_vec
-      && !setp->setp_is_streaming)
+      && !setp->setp_is_streaming && !setp->setp_any_user_aggregate_gos)
     cha->cha_oversized = 1;
   if (setp->setp_top_gby && setp->setp_top_id && cha->cha_distinct_count > prev_cnt && !setp->setp_ssa.ssa_set_no)
     setp_chash_changed (setp, inst, cha);
@@ -3324,7 +3326,7 @@ cha_ord_cmp (db_buf_t * k1, db_buf_t * k2, dtp_t dtp, int non_null, int null1, i
     }
   if (DV_DATETIME == dtp)
     {
-      return dt_compare (*(caddr_t *) k1, *(caddr_t *) k2);
+      return dt_compare (*(caddr_t *) k1, *(caddr_t *) k2, 0);
     }
   else if (DV_LONG_INT == dtp)
     return NUM_COMPARE (*(int64 *) k1, *(int64 *) k2);
@@ -6302,6 +6304,11 @@ hash_source_roj_input (hash_source_t * hs, caddr_t * inst, caddr_t * state)
   index_tree_t *it = NULL;
   uint32 nth_part, nth_bit;
   it = (index_tree_t *) qst_get_chash (inst, ha->ha_tree, hs->hs_cl_id, NULL);
+  if (!it)
+    {
+      SRC_IN_STATE (hs, inst) = NULL;
+      return;
+    }
   hi = it->it_hi;
   HI_CHA (cha, qi, hi);
 
@@ -7438,6 +7445,45 @@ found:
 }
 
 
+int
+cha_check_1_int (chash_t * cha, int64 offset)
+{
+  caddr_t *inst;
+  int64 *ent;
+  uint64 h = 1;
+  int64 **array, k;
+  int pos1_1, ctr, e;
+  chash_t *cha_p;
+  k = offset;
+  MHASH_STEP_1 (h, k);
+  cha_p = CHA_PARTITION (cha, h);
+  array = cha_p->cha_array;
+  pos1_1 = CHA_LIN_POS (cha_p, h);
+  if (CHA_EMPTY == k)
+    goto exc;
+  for (ctr = 0; ctr < 8; ctr++)
+    {
+      if (CHA_EMPTY == (int64) array[pos1_1])
+	goto not_found;
+      if (k == ((int64 *) array)[pos1_1])
+	goto found;
+      INC_LOW_3 (pos1_1);
+    }
+exc:
+  for (e = 0; e < cha_p->cha_exception_fill; e++)
+    {
+      if (k == ((int64 *) cha_p->cha_exceptions)[e])
+	goto found;
+    }
+  goto not_found;
+
+not_found:;
+  return 0;
+found:
+  return 1;
+}
+
+
 
 
 int
@@ -7520,6 +7566,13 @@ sp_copy (search_spec_t * sp)
 }
 
 
+index_tree_t *
+qi_g_wr_tree (caddr_t * inst, state_slot_t * ht)
+{
+  return NULL;
+}
+
+
 #define IS_PARTITIONED(inst, hrng) \
   (QST_INT (inst, hrng->hrng_min) != 0 || (uint32)QST_INT (inst, hrng->hrng_max) != (uint32)0xffffffff)
 
@@ -7541,6 +7594,12 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
     if (((HR_RANGE_ONLY | HR_NO_BLOOM) & hrng->hrng_flags)
 	&& 0 == QST_INT (inst, hrng->hrng_min) && 0xffffffff == (uint32) QST_INT (inst, hrng->hrng_max))
       continue;			/* no partition, no merged hash join */
+    if ((HRNG_SEC & hrng->hrng_flags))
+      {
+	if (!((QI *) inst)->qi_client->cli_sec)
+	  continue;
+	itc->itc_sec_hash_spec = 1;
+      }
     sps[fill++] = sp;
     if (fill > 255)
       sqlr_new_error ("420000", "CHA..", "Not more than 255 hash joins allowed per fact table");
@@ -7576,12 +7635,18 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
 	  if (!hs)
 	    {
 	      best = inx;
-	      tree = qst_get_chash (inst, hrng->hrng_ht, hrng->hrng_ht_id, NULL);
+	      if ((HRNG_SEC & hrng->hrng_flags))
+		tree = qi_g_wr_tree (inst, hrng->hrng_ht);
+	      else
+		tree = qst_get_chash (inst, hrng->hrng_ht, hrng->hrng_ht_id, NULL);
 	      cha = tree ? tree->it_hi->hi_chash : NULL;
 	      if (!cha || (!cha->cha_distinct_count && !cha->cha_n_bloom))
 		{
 		  /* join with empty chash is like null in search params, always empty. Empty chash can have replicated bloom though  which still makes it valid  */
 		  key_free_trail_specs (sp_copy_1);
+		  if ((HRNG_SEC & hrng->hrng_flags))
+		    sqlr_trx_error (((QI *) inst)->qi_trx, LT_BLOWN_OFF, LTE_NO_PERM, "42000", "RGSEC",
+			"Writable graphs set is empty");
 		  return 1;
 		}
 	      break;

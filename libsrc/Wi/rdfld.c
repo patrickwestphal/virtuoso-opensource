@@ -433,6 +433,8 @@ cu_rl_cols (cucurbit_t * cu, caddr_t g_iid)
     rdf_repl_gs_batch (qi, (caddr_t *) list_to_array (dk_set_nreverse (set)), 1);
 
   cu->cu_cd = (caddr_t *) mp_alloc_box (clrg->clrg_pool, sizeof (caddr_t) * dk_set_length (quad_tb->tb_keys), DV_BIN);
+
+  rdf_g_sec_check (inst, (iri_id_t *) g_dc->dc_values, g_dc->dc_n_values);
   DO_SET (dbe_key_t *, key, &quad_tb->tb_keys)
   {
     int n_parts = dk_set_length (key->key_parts);
@@ -734,6 +736,25 @@ return_error:
   dk_free_box (name_to_delete);
   dk_free_box (box_to_delete);
   return list (2, NULL, box_num (1));
+}
+
+void
+rdf_g_sec_check (caddr_t * inst, iri_id_t * g, int n_g)
+{
+  QNCAST (QI, qi, inst);
+  index_tree_t *tree;
+  int inx;
+  if (!qi->qi_client->cli_sec)
+    return;
+  tree = qi_g_wr_tree (inst, NULL);
+  if (!tree || !tree->it_hi || !tree->it_hi->hi_chash)
+    goto no;
+  for (inx = 0; inx < n_g; inx++)
+    if (!cha_check_1_int (tree->it_hi->hi_chash, g[inx]))
+      goto no;
+  return;
+no:
+  sqlr_trx_error (qi->qi_trx, LT_BLOWN_OFF, LTE_NO_PERM, "42000", "RPERM", "No permission to insert into graph");
 }
 
 

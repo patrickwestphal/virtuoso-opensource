@@ -1572,6 +1572,7 @@ uint32 ac_cpu_time;
 uint32 ac_real_time;
 int ac_n_times;
 dk_mutex_t *dp_compact_mtx;
+extern int bp_no_buffers;
 
 caddr_t
 ac_aq_func (caddr_t av, caddr_t * err_ret)
@@ -1587,6 +1588,8 @@ ac_aq_func (caddr_t av, caddr_t * err_ret)
   int is_col;
   *err_ret = NULL;
   dk_free_tree ((caddr_t) args);
+  if (bp_no_buffers)
+    return NULL;
   ITC_INIT (itc, NULL, NULL);
   itc_from_it (itc, it);
   is_col = itc->itc_insert_key->key_is_col;
@@ -1719,6 +1722,8 @@ it_check_compact (index_tree_t * it, int age_limit)
       mutex_enter (&itm->itm_mtx);
       DO_HT (void *, ignore, buffer_desc_t *, buf, &itm->itm_dp_to_buf)
       {
+	if (bp_no_buffers)
+	  break;
 	if (buf->bd_pool && BUF_AC_AGE (buf) && !buf->bd_being_read && !buf->bd_is_write && !buf->bd_readers)
 	  {
 	    short flags = SHORT_REF (buf->bd_buffer + DP_FLAGS);

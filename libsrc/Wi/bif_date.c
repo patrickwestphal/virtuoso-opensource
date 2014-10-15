@@ -186,7 +186,9 @@ dt_print_to_buffer (char *buf, caddr_t arg, int mode)
 	    res += sprintf (buf + res, ".%03d", (int) (ts.fraction / 1000000));
 	}
     }
-  if (DT_PRINT_MODE_XML & mode)
+  if (DT_TZL (arg))
+    return res;
+  else if (DT_PRINT_MODE_XML & mode)
     {
       strcpy (buf + res, "Z");
       return res + 1;
@@ -373,6 +375,7 @@ scan_tz:
       return 0;
     }
   dt_ret[0] = dk_alloc_box (DT_LENGTH, DV_DATETIME);
+  DT_ZAP (dt_ret[0]);
   {
     uint32 day;
     day = date2num (ts.year, ts.month, ts.day);
@@ -381,8 +384,10 @@ scan_tz:
     DT_SET_MINUTE (dt_ret[0], ts.minute);
     DT_SET_SECOND (dt_ret[0], ts.second);
     DT_SET_FRACTION (dt_ret[0], ts.fraction);
-    DT_SET_TZ (dt_ret[0], dt_local_tz);
+    DT_SET_TZ (dt_ret[0], 0);	/* was DT_SET_TZ (dt_ret[0], dt_local_tz);  before TZL patch */
   }
+  if (!ymd_found)
+    DT_SET_DAY (dt_ret[0], DAY_ZERO);
   SET_DT_TYPE_BY_DTP (dt_ret[0], (ymd_found ? (hms_found ? DV_DATETIME : DV_DATE) : DV_TIME));
   return (tail - buf);
 }
@@ -577,10 +582,52 @@ bif_##part (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args) \
 
 
 DT_PART (month) DT_PART (day) DT_PART (hour) DT_PART (minute) DT_PART (second) caddr_t
+bif_is_timezoneless (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t arg = bif_date_arg (qst, args, 0, "is_timezoneless");
+  return box_num (DT_TZL (arg));
+}
+
+caddr_t
 bif_timezone (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t arg = bif_date_arg (qst, args, 0, "timezone");
+  int ignore_tzl = ((1 < BOX_ELEMENTS (args)) && bif_long_arg (qst, args, 1, "timezone"));
+  if (DT_TZL (arg) && !ignore_tzl)
+    return NEW_DB_NULL;
   return box_num (DT_TZ (arg));
+}
+
+caddr_t
+bif_adjust_timezone (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t arg = bif_date_arg (qst, args, 0, "adjust_timezone");
+  long tzmin = bif_long_range_arg (qst, args, 1, "adjust_timezone", -14 * 60, 14 * 60);
+  int ignore_tzl = ((2 < BOX_ELEMENTS (args)) && bif_long_arg (qst, args, 2, "adjust_timezone"));
+  if (DT_TZL (arg) && !ignore_tzl)
+    sqlr_new_error ("22023", "SR636", "Timezoneless argument of adjust_timezone()");
+  arg = box_copy (arg);
+  DT_SET_TZL (arg, 0);
+  DT_SET_TZ (arg, tzmin);
+  return arg;
+}
+
+caddr_t
+bif_forget_timezone (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t arg = bif_date_arg (qst, args, 0, "forget_timezone");
+  int ignore_timezone = ((1 < BOX_ELEMENTS (args)) && bif_long_arg (qst, args, 1, "forget_timezone"));
+  int tzmin = DT_TZ (arg);
+  GMTIMESTAMP_STRUCT ts;
+  arg = box_copy (arg);
+  if (tzmin && !ignore_timezone)
+    {
+      dt_to_GMTimestamp_struct (arg, &ts);
+      ts_add (&ts, tzmin, "minute");
+      GMTimestamp_struct_to_dt (&ts, arg);
+    }
+  DT_SET_TZL (arg, 1);
+  return arg;
 }
 
 #define NASA_TJD_OFFSET (2440000 - 1721423)
@@ -649,6 +696,7 @@ bif_dateadd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
   GMTimestamp_struct_to_dt (&ts, res);
   DT_SET_TZ (res, DT_TZ (dt));
+  DT_SET_TZL (res, DT_TZL (dt));
   if (DT_TYPE_DATE == dt_type && (0 == stricmp (part, "year") || 0 == stricmp (part, "month") || 0 == stricmp (part, "day")))
     DT_SET_DT_TYPE (res, dt_type);
   DT_AUDIT_FIELDS (dt);
@@ -662,12 +710,20 @@ bif_datediff (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t unit = bif_string_arg (qst, args, 0, "datediff");
   caddr_t dt1 = bif_date_arg (qst, args, 1, "datediff");
   caddr_t dt2 = bif_date_arg (qst, args, 2, "datediff");
-  boxint s1 = DT_CAST_TO_TOTAL_SECONDS (dt1);
-  boxint s2 = DT_CAST_TO_TOTAL_SECONDS (dt2);
+  TIMESTAMP_STRUCT ts1;
+  TIMESTAMP_STRUCT ts2;
+  boxint day1, day2;
+  boxint s1, s2;
+  int tz_tweak;
   int frac1, frac2;
   int diffyear, diffmonth;
   if (0 == stricmp (unit, "day"))
     return box_num ((boxint) DT_DAY (dt2) - (boxint) DT_DAY (dt1));
+  if ((DT_TZL (dt1) != DT_TZL (dt2)) && stricmp (unit, "month") && stricmp (unit, "year"))
+    sqlr_new_error ("22023", "DT013", "Mixed timezoned and timezoneless arguments in datediff");
+  s1 = DT_CAST_TO_TOTAL_SECONDS (dt1);
+  s2 = DT_CAST_TO_TOTAL_SECONDS (dt2);
+  tz_tweak = DT_TZ (dt1);
   if (0 == stricmp (unit, "hour"))
     return box_num ((s2 - s1) / (60 * 60));
   if (0 == stricmp (unit, "minute"))
@@ -748,6 +804,7 @@ bif_timestampadd (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
   GMTimestamp_struct_to_dt (&ts, res);
   DT_SET_TZ (res, saved_tz);
+  DT_SET_TZL (res, DT_TZL (dt));
   return res;
 }
 
@@ -767,6 +824,9 @@ bif_timestampdiff (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   if (0 == stricmp (unit, "day"))
     return box_num ((boxint) DT_DAY (dt2) - (boxint) DT_DAY (dt1));
+
+  if ((DT_TZL (dt1) != DT_TZL (dt2)) && stricmp (unit, "month") && stricmp (unit, "year"))
+    sqlr_new_error ("22023", "DT014", "Mixed timezoned and timezoneless arguments in timestampdiff");
 
   if (0 == stricmp (unit, "hour"))
     return box_num ((s2 - s1) / (60 * 60));
@@ -960,6 +1020,35 @@ bif_curdatetime (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return res;
 }
 
+caddr_t
+bif_curdatetimeoffset (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  long fract = 0;
+  caddr_t res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
+  dt_now_GMT (res);
+  if (args && BOX_ELEMENTS (args) > 0)
+    {
+      fract = (long) bif_long_arg (qst, args, 0, "curdatetimeoffset");
+      DT_SET_FRACTION (res, fract);
+    }
+  DT_SET_TZL (res, 0);
+  DT_SET_TZ (res, dt_local_tz_for_logs);
+  return res;
+}
+
+caddr_t
+bif_curutcdatetime (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  long fract = 0;
+  caddr_t res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
+  dt_now_GMT (res);
+  if (args && BOX_ELEMENTS (args) > 0)
+    {
+      fract = (long) bif_long_arg (qst, args, 0, "curutcdatetime");
+      DT_SET_FRACTION (res, fract);
+    }
+  return res;
+}
 
 caddr_t
 bif_curdate (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
@@ -1044,6 +1133,7 @@ arithm_dt_add_num (ccaddr_t box1, ccaddr_t box2, int subtraction, caddr_t * err_
   res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
   GMTimestamp_struct_to_dt (&ts, res);
   DT_SET_TZ (res, DT_TZ (box1));
+  DT_SET_TZL (res, DT_TZL (box1));
   if ((DT_TYPE_DATE == dt_type) && (0 == (((whole_seconds * 1000000000L) + nanoseconds) % (SPERDAY * 1000000000L))))
     DT_SET_DT_TYPE (res, dt_type);
   DT_AUDIT_FIELDS (dt);
@@ -1133,14 +1223,19 @@ bif_date_init ()
   bif_define_ex ("minute", bif_minute, BMD_ALIAS, "rdf_minutes_impl", BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("week", bif_week, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("second", bif_second, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("is_timezoneless", bif_is_timezoneless, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("timezone", bif_timezone, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("adjust_timezone", bif_adjust_timezone, BMD_RET_TYPE, &bt_datetime, BMD_IS_PURE, BMD_DONE);
+  bif_define_ex ("forget_timezone", bif_forget_timezone, BMD_RET_TYPE, &bt_datetime, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("nasa_tjd_number", bif_nasa_tjd_number, BMD_RET_TYPE, &bt_integer, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("nasa_tjd_fraction", bif_nasa_tjd_fraction, BMD_RET_TYPE, &bt_double, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("merge_nasa_tjd_to_datetime", bif_merge_nasa_tjd_to_datetime, BMD_RET_TYPE, &bt_datetime, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("now", bif_timestamp, BMD_ALIAS, "getdate", BMD_ALIAS, "rdf_now_impl", BMD_ALIAS, "get_timestamp", BMD_ALIAS, "current_timestamp", BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* This is standard name */
   bif_define_ex ("curdate", bif_curdate, BMD_ALIAS, "current_date", BMD_RET_TYPE, &bt_date, /*BMD_IS_PURE, */ BMD_DONE);	/* This is standard fun. */
   bif_define_ex ("curtime", bif_curtime, BMD_ALIAS, "current_time", BMD_RET_TYPE, &bt_time, /*BMD_IS_PURE, */ BMD_DONE);	/* This is standard fun. */
-  bif_define_ex ("curdatetime", bif_curdatetime, BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* This is our own. */
+  bif_define_ex ("curdatetime", bif_curdatetime, BMD_ALIAS, "sysdatetime", BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* curdatetime() is our own, sysdatetime() is MS SQL */
+  bif_define_ex ("curdatetimeoffset", bif_curdatetimeoffset, BMD_ALIAS, "sysdatetimeoffset", BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* curdatetimeoffset() is our own, sysdatetimeoffset() is MS SQL */
+  bif_define_ex ("curutcdatetime", bif_curutcdatetime, BMD_ALIAS, "sysutcdatetime", BMD_RET_TYPE, &bt_timestamp, /*BMD_IS_PURE, */ BMD_DONE);	/* curutcdatetime() is our own, sysutcdatetime() is MS SQL */
   bif_define_ex ("datestring", bif_date_string, BMD_RET_TYPE, &bt_varchar, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("datestring_GMT", bif_date_string_GMT, BMD_RET_TYPE, &bt_varchar, BMD_IS_PURE, BMD_DONE);
   bif_define_ex ("stringdate", bif_string_timestamp, BMD_ALIAS, "ts", BMD_RET_TYPE, &bt_datetime, BMD_IS_PURE, BMD_DONE);

@@ -482,6 +482,9 @@ extern int64 chash_space_avail;
 extern size_t c_max_large_vec;
 extern int32 mon_enable;
 
+extern int timezoneless_datetimes;
+int c_timezoneless_datetimes;
+
 /* for use in bif_servers */
 int
 virtuoso_cfg_getstring (char *section, char * key, char **pret)
@@ -1298,6 +1301,8 @@ cfg_setup (void)
     enable_dyn_batch_sz = 1;
   if (cfg_getlong (pconfig, section, "EnableMonitor", &mon_enable) == -1)
     mon_enable = 1;
+  if (cfg_getlong (pconfig, section, "TimezonelessDatetimes", &c_timezoneless_datetimes) == -1)
+    c_timezoneless_datetimes = -1; /* temporary value to be reset on reading dataabse config page or before writing it */
 
   section = "Flags";
   {
@@ -2011,6 +2016,7 @@ new_db_read_cfg (dbe_storage_t * ignore, char *mode)
   iri_cache_size = c_iri_cache_size;
   lite_mode = c_lite_mode;
   rdf_obj_ft_rules_size = c_rdf_obj_ft_rules_size;
+  timezoneless_datetimes = c_timezoneless_datetimes;
   if (rdf_obj_ft_rules_size < 10)
     rdf_obj_ft_rules_size = lite_mode ? 10 : 100;
   it_n_maps = c_it_n_maps;

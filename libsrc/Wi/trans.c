@@ -75,7 +75,8 @@ int
 lc_set_no (srv_stmt_t * lc)
 {
   QNCAST (query_instance_t, lc_qi, lc->sst_qst);
-  return qst_vec_get_int64 (lc->sst_qst, lc->sst_query->qr_select_node->sel_set_no, lc_qi->qi_set);
+  return lc->sst_query->qr_select_node->sel_set_no ? qst_vec_get_int64 (lc->sst_qst, lc->sst_query->qr_select_node->sel_set_no,
+      lc_qi->qi_set) : 0;
 }
 
 

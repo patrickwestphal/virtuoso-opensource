@@ -5,26 +5,26 @@
  *
  *  OpenLink Virtuoso DBMS Server
  *  Main code for Win32
- *  
+ *
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
- *  
+ *
  *  Copyright (C) 1998-2014 OpenLink Software
- *  
+ *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
  *  Free Software Foundation; only version 2 of the License, dated June 1991.
- *  
+ *
  *  This program is distributed in the hope that it will be useful, but
  *  WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  *  General Public License for more details.
- *  
+ *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- *  
- *  
+ *
+ *
 */
 
 #ifndef IN_LIBUTIL
@@ -1209,29 +1209,6 @@ wisvc_send_wait_hint (unsigned long every_n_msec, unsigned long wait_n_secs)
 }
 
 
-#ifndef PACKAGE_NAME
-
-/* Virtuoso */
-# define PACKAGE_NAME		DBMS_SRV_NAME
-
-# ifdef OEM_BUILD
-#  define PACKAGE_FIBER		"(OEM Lite Edition)"
-#  define PACKAGE_THREAD	"(OEM Enterprise Edition)"
-# else 
-#  define PACKAGE_FIBER		"(Lite Edition)"
-#  define PACKAGE_THREAD	"(Enterprise Edition)"
-# endif
-
-#else
-
-/* VOS */
-#define PACKAGE_FIBER		"(fibers)"
-#define PACKAGE_THREAD		"(multi threaded)"
-
-#endif
-
-
-
 /*
  *  Display the normal commandline usage and
  *  the +service usage; then dies
@@ -1243,23 +1220,27 @@ usage (void)
   char version[400];
   char line[200];
   char *p;
-#if LICENSE
-  int lic;
-#endif
 
-  sprintf (line, "%s %s\n", PACKAGE_NAME,
-	build_thread_model[0] == '-' && build_thread_model[1] == 'f' ?
-	PACKAGE_FIBER : PACKAGE_THREAD);
+  sprintf (line, "%s (%s%s%s)\n", PACKAGE_NAME[0] ? PACKAGE_NAME : DBMS_SRV_NAME,
+#if defined (OEM_BUILD)
+      "OEM ",
+#else
+      "",
+#endif
+      build_thread_model[0] == '-' && build_thread_model[1] == 'f' ? "Lite " : "",
+      "Enterprise Edition"
+      );
+
   p = stpcpy (version, line);
 
-  sprintf (line, "Version %s.%s%s%s as of %s\n",
-      PACKAGE_VERSION, DBMS_SRV_GEN_MAJOR, DBMS_SRV_GEN_MINOR, build_thread_model, build_date);
+  sprintf (line, "Version %s%s as of %s\n",
+      DBMS_SRV_VER, build_thread_model, build_date);
   p = stpcpy (p, line);
 
   sprintf (line, "Compiled for %s (%s)\n", build_opsys_id, build_host_id);
   p = stpcpy (p, line);
 
-  if (build_special_server_model && strlen(build_special_server_model) > 1)
+  if (0 != build_special_server_model[0])
     {
       sprintf (line, "Hosted Runtime Environments: %s\n", build_special_server_model);
       p = stpcpy (p, line);
@@ -1274,13 +1255,13 @@ usage (void)
   fprintf (stderr, "\n"
     "The argument to the +service option can be one of the following options:\n");
 
-      for (pCmd = service_commands; pCmd->cmdName; pCmd++)
-	fprintf (stderr, "  %-14.14s%s\n", pCmd->cmdName, pCmd->cmdHelp);
+  for (pCmd = service_commands; pCmd->cmdName; pCmd++)
+    fprintf (stderr, "  %-14.14s%s\n", pCmd->cmdName, pCmd->cmdHelp);
 
   fprintf (stderr, "\n"
     "To create a windows service 'MyService' using the configuration file "
     "c:\\database\\virtuoso.ini:\n"
-	  "  %s +service create +instance MyService +configfile c:\\database\\virtuoso.ini\n"
+    "  %s +service create +instance MyService +configfile c:\\database\\virtuoso.ini\n"
     "\n"
     "To start this service, use 'sc start MyService' or:\n"
     "  %s +service start +instance MyService\n",
@@ -1500,13 +1481,13 @@ ApplicationMain (int argc, char **argv)
     }
 
   /* begin normal server operation */
-      if (!f_foreground && !f_debug)
-	{
-	  if (stderr_log)
-	    log_close (stderr_log);
-	  FreeConsole ();
-	  debugFlag = 0;
-	}
+  if (!f_foreground && !f_debug)
+    {
+      if (stderr_log)
+	log_close (stderr_log);
+      FreeConsole ();
+      debugFlag = 0;
+    }
 
 
   /* open database, do roll forward */

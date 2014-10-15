@@ -1088,6 +1088,7 @@ key_source_t *sqlg_key_source_create (sqlo_t * so, df_elt_t * tb_dfe, dbe_key_t 
 void sqlg_non_index_ins (sql_comp_t * sc, df_elt_t * tb_dfe, key_source_t * ks);
 void sqlg_is_text_only (sqlo_t * so, df_elt_t * tb_dfe, table_source_t * ts);
 data_source_t *sqlg_make_path_ts (sqlo_t * so, df_elt_t * tb_dfe);
+int sqlg_rdf_del_ck (sql_comp_t * sc, table_source_t * ts);
 int dfe_is_eq_pred (df_elt_t * pred);
 float sqlo_index_path_cost (dk_set_t path, float *cost_ret, float *card_ret, char *sure_ret, df_elt_t * tb_dfe);
 data_source_t *sqlg_make_ts (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code);

@@ -680,6 +680,7 @@ client_connection_free (client_connection_t * cli)
       dk_free (cli->cli_ns_2dict, sizeof (xml_ns_2dict_t));
       cli->cli_ns_2dict = NULL;
     }
+  cli_set_sec (cli, NULL);
   dk_free_box ((caddr_t) cli->cli_ql_strses);
   dk_free ((caddr_t) cli, sizeof (client_connection_t));
 }
@@ -4251,7 +4252,9 @@ srv_make_trx_error (int code, caddr_t detail)
       err = srv_make_new_error ("40007", "CLPNC",
 	  "Transaction prepared but not committed.  Probably dropped commit message.  The branch will automatically query coordinator for the final status.  The situation will reset itself in a few seconds");
       break;
-
+    case LTE_NO_PERM:
+      err = srv_make_new_error ("42000", "RPERM", "No permission to delete from given graph");
+      break;
     default:
       err = srv_make_new_error ("4000X", "SR177", "Misc Transaction Error%s%s", detail ? " : " : "", detail ? detail : "");
       break;

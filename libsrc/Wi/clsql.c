@@ -234,8 +234,21 @@ qf_params_any_vec (dk_set_t params)
   return 0;
 }
 
+
+state_slot_t *
+sqlg_top_set_no (sql_comp_t * sc)
+{
+  /* return top set ctr for use as only param if no other qf params.  Top sc can be a procedure, so the set no is in the outermost sc that has one */
+  state_slot_t *set = NULL;
+  for (sc = sc; sc; sc = sc->sc_super)
+    if (sc->sc_set_no_ssl)
+      set = sc->sc_set_no_ssl;
+  return set;
+}
+
+
 void
-cl_qn_set_save (data_source_t * qn, state_slot_t ** env)
+cl_qn_set_save (sql_comp_t * sc, data_source_t * qn, state_slot_t ** env)
 {
 #if 0				/* no clb saves in vectored exec but itcl_params is still used for the clo  */
   if (IS_TS (((table_source_t *) qn)))
@@ -310,7 +323,7 @@ cl_qn_set_save (data_source_t * qn, state_slot_t ** env)
       stn->clb.clb_save = (state_slot_t **) list_to_array (save);
       /*in a top level qr with no params the set no is optimized away but at least one vector param must exist, so if nothing else, have the set no */
       if (!qf_params_any_vec (params))
-	dk_set_push (&params, (void *) top_sc->sc_set_no_ssl);
+	dk_set_push (&params, (void *) sqlg_top_set_no (sc));
       stn->stn_params = (state_slot_t **) list_to_array (params);
       dk_free_box ((caddr_t) env);
     }
@@ -543,6 +556,11 @@ sqlg_qf_ctx (sql_comp_t * sc, query_frag_t * qf, dk_hash_t * local_refs, dk_hash
 		sethash ((void *) txs->txs_d_id, refs, (void *) (ptrlong) 1);
 	      }
 	  }
+	if (IS_QN (ts, select_node_input_subq))
+	  {
+	    /* a flttened dt in a qf.  The ordering cols inside may not be in scope for the rest, so ignore */
+	    break;
+	  }
       }
       END_DO_SET ();
       if (sets_order)
@@ -765,7 +783,7 @@ sqlg_qn_ctx (sql_comp_t * sc, data_source_t * qn, dk_hash_t * refs)
     {
       QNCAST (table_source_t, ts, qn);
       if (!IS_TS (ts) || (ts->clb.clb_fill))
-	cl_qn_set_save (qn, (state_slot_t **) ht_keys_to_array (refs));
+	cl_qn_set_save (sc, qn, (state_slot_t **) ht_keys_to_array (refs));
     }
   cv_refd_slots (sc, qn->src_pre_code, refs, NULL, &cl_flag);
 }

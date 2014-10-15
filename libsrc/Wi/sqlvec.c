@@ -2013,6 +2013,53 @@ sqlg_del_ik (sql_comp_t * sc, delete_node_t * del1, dbe_key_t * key)
 }
 
 
+
+
+int
+sqlg_rdf_del_ck (sql_comp_t * sc, table_source_t * ts)
+{
+  dbe_column_t *g_col = NULL;
+  key_source_t *ks = ts->ts_order_ks;
+  if (ks->ks_is_deleting && tb_is_rdf_quad (ks->ks_key->key_table))
+    {
+      dbe_key_t *key = ks->ks_key;
+      DO_SET (dbe_column_t *, col, &key->key_parts)
+      {
+	if ('G' == toupper (col->col_name[0]))
+	  {
+	    g_col = col;
+	    break;
+	  }
+      }
+      END_DO_SET ();
+      if (g_col)
+	{
+	  dtp_t dtp;
+	  hash_range_spec_t *hrng = (hash_range_spec_t *) dk_alloc (sizeof (hash_range_spec_t));
+	  NEW_VARZ (search_spec_t, sp);
+	  memset (hrng, 0, sizeof (hash_range_spec_t));
+	  sp->sp_min_op = CMP_HASH_RANGE;
+	  sp->sp_col_filter = ce_op_hash;
+	  sp->sp_min_ssl = (state_slot_t *) hrng;
+	  hrng->hrng_ht = ssl_new_variable (sc->sc_cc, "rdf_perm", DV_INDEX_TREE);
+	  hrng->hrng_ht_id = ssl_new_variable (sc->sc_cc, "rdf_perm_id", DV_LONG_INT);
+	  sp->sp_col = g_col;
+	  if (ks->ks_key->key_is_col)
+	    sp->sp_cl = *cl_list_find (ks->ks_key->key_row_var, g_col->col_id);
+	  else
+	    sp->sp_cl = *key_find_cl (ks->ks_key, g_col->col_id);
+	  dtp = g_col->col_sqt.sqt_col_dtp;
+	  hrng->hrng_flags = HRNG_IN | HRNG_SEC;
+	  hrng->hrng_dc = ssl_new_vec (sc->sc_cc, "hrng_tmp", dtp);
+	  dk_set_push (&ks->ks_hash_spec, (void *) sp);
+	  return 1;
+	}
+    }
+  return 0;
+}
+
+
+
 void
 sqlg_set_ts_delete (sql_comp_t * sc, table_source_t * ts)
 {
@@ -2029,6 +2076,7 @@ sqlg_set_ts_delete (sql_comp_t * sc, table_source_t * ts)
       dk_free_box ((caddr_t) om);
     }
   ks->ks_is_deleting = 1;
+  sqlg_rdf_del_ck (sc, ts);
 }
 
 

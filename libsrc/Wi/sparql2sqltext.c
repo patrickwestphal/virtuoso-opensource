@@ -976,11 +976,8 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 		asname_printed);
 	  if (IS_BOX_POINTER (asname))
 	    {
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*as-name*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "as-name");
+	      ssg_putchar (' ');
 	      ssg_prin_id (ssg, asname);
 	    }
 	  asname_printed = 1;
@@ -993,11 +990,8 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 	    {
 	      char buf[60];
 	      snprintf (buf, sizeof (buf), "%s~%d", asname, 0);
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*as-name-0*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "as-name-0");
+	      ssg_putchar (' ');
 	      ssg_prin_id (ssg, buf);
 	      asname_printed = 1;
 	    }
@@ -1010,11 +1004,8 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 	    {
 	      char buf[60];
 	      snprintf (buf, sizeof (buf), "%s~%d", asname, 1);
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*as-name-0*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "as-name-1");
+	      ssg_putchar (' ');
 	      ssg_prin_id (ssg, buf);
 	      asname_printed = 1;
 	    }
@@ -1027,11 +1018,8 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 	    spar_sqlprint_error2 ("ssg_" "print_tmpl(): can't use ^{as-name-dt}^ inside a loop", asname_printed);
 	  if (IS_BOX_POINTER (asname))
 	    {
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*as-name-dt*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "as-name-dt");
+	      ssg_putchar (' ');
 	      ssg_prin_id_with_suffix (ssg, asname, "_dt");
 	    }
 	  asname_printed = 1;
@@ -1044,11 +1032,8 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 	    spar_sqlprint_error2 ("ssg_" "print_tmpl(): can't use ^{as-name-lang}^ inside a loop", asname_printed);
 	  if (IS_BOX_POINTER (asname))
 	    {
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*as-name-lang*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "as-name-lang");
+	      ssg_putchar (' ');
 	      ssg_prin_id_with_suffix (ssg, asname, "_lang");
 	    }
 	  asname_printed = 1;
@@ -1064,11 +1049,8 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 	    {
 	      char buf[60];
 	      snprintf (buf, sizeof (buf), "%s~%d", asname, col_idx);
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*as-name-N*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "as-name-N");
+	      ssg_putchar (' ');
 	      ssg_prin_id (ssg, buf);
 	      asname_printed = 1;
 	    }
@@ -1342,9 +1324,7 @@ ssg_print_tmpl_phrase (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, const ch
 	      qm_fmt->qmfCustomString1, 2, (unsigned char *) qm_fmt->qmfArgDtps);
 	  dk_free_tree (err);
 	  if ((DV_ARRAY_OF_POINTER != DV_TYPE_OF (res)) || (col_idx > BOX_ELEMENTS (res)))
-	    {
-	      ssg_puts (" NULL /* failed spfinv */ ");
-	    }
+	    ssg_puts_with_comment (" NULL", "failed spfinv");
 	  ssg_print_box_as_sql_atom (ssg, res[col_idx], SQL_ATOM_NARROW_OR_WIDE);
 	  dk_free_tree (res);
 	}
@@ -1440,11 +1420,8 @@ ssg_print_tmpl (struct spar_sqlgen_s *ssg, qm_format_t * qm_fmt, ccaddr_t tmpl, 
   asname_printed = ssg_print_tmpl_phrase (ssg, qm_fmt, tmpl, tmpl_end, alias, qm_val, tree, -1, asname);
   if (IS_BOX_POINTER (asname) && !asname_printed)
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*tmpl*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "tmpl");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
 }
@@ -2747,20 +2724,24 @@ ssg_print_box_as_sql_atom (spar_sqlgen_t * ssg, ccaddr_t box, int mode)
 #endif
     case DV_DATETIME:
       {
+	const char *cast_strg;
 	const char *as_strg;
 	switch (DT_DT_TYPE (box))
 	  {
 	  case DT_TYPE_DATE:
-	    as_strg = "' AS DATE)";
+	    cast_strg = "CAST ('";
+	    as_strg = (DT_TZL (box) ? "T' AS DATE)" : "' AS DATE)");
 	    break;
 	  case DT_TYPE_TIME:
+	    cast_strg = (DT_TZL (box) ? "CAST ('T" : "CAST ('");
 	    as_strg = "' AS TIME)";
 	    break;
 	  default:
+	    cast_strg = "CAST ('";
 	    as_strg = "' AS DATETIME)";
 	    break;
 	  }
-	ssg_puts ("CAST ('");
+	ssg_puts (cast_strg);
 	dt_to_iso8601_string (box, tmpbuf, buflen);
 	ssg_puts (tmpbuf);
 	ssg_puts (as_strg);
@@ -3016,11 +2997,8 @@ ssg_print_equiv (spar_sqlgen_t * ssg, caddr_t selectid, sparp_equiv_t * eq, ccad
     }
   if (IS_BOX_POINTER (asname) && ((NULL == name_as_expn) || strcmp (asname, name_as_expn)))
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*equiv*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "equiv");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
 }
@@ -3147,11 +3125,8 @@ ssg_print_tr_var_expn (spar_sqlgen_t * ssg, SPART * var, ssg_valmode_t needed, c
 	    {
 	      char buf[210];
 	      snprintf (buf, sizeof (buf), "%.100s~%d", asname, col_ctr);
-#ifdef NDEBUG
-	      ssg_puts (" AS ");
-#else
-	      ssg_puts (" AS /*tr_var_expn*/ ");
-#endif
+	      ssg_puts_with_comment (" AS", "tr_var_expn");
+	      ssg_putchar (' ');
 	      ssg_prin_id (ssg, buf);
 	    }
 	}
@@ -4041,7 +4016,7 @@ ssg_print_builtin_expn (spar_sqlgen_t * ssg, SPART * tree, int top_filter_op, ss
 	    switch (arg1_native->qmfColumnCount)
 	      {
 	      case 0:
-		ssg_puts ("1 /* zero cols */");
+		ssg_puts_with_comment (" 1", "zero cols");
 		break;
 	      case 1:
 		ssg_print_scalar_expn (ssg, arg1, arg1_native, NULL_ASNAME);
@@ -4671,11 +4646,8 @@ ssg_print_builtin_expn (spar_sqlgen_t * ssg, SPART * tree, int top_filter_op, ss
 print_asname:
   if (IS_BOX_POINTER (asname))
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*builtin*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "builtin");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
 }
@@ -5251,7 +5223,7 @@ ssg_print_valmoded_scalar_expn (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t
 	}
       if (SSG_VALMODE_LANGUAGE == needed)
 	{
-	  ssg_puts (" NULL /* lang of bool */");
+	  ssg_puts_with_comment (" NULL", "lang of bool");
 	  return;
 	}
       native = SSG_VALMODE_LONG;
@@ -5928,11 +5900,8 @@ ssg_print_scalar_expn (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t needed, 
 print_asname:
   if (IS_BOX_POINTER (asname))
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*scalar*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "scalar");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
 }
@@ -5942,22 +5911,17 @@ ssg_print_procview_rset_item (spar_sqlgen_t * ssg, caddr_t selid, int pos, const
     caddr_t e_varname)
 {
   char buf[50];
-#ifdef NDEBUG
+  ssg_puts_comment ("procview[");
   ssg_putchar (' ');
-#else
-  ssg_puts (" /*procview[*/ ");
-#endif
   if (-1 == pos)
-    ssg_puts (" NULL ");
+    ssg_puts ("NULL");
   else
     {
       ssg_prin_id (ssg, selid);
       sprintf (buf, view_cn_trick ? ".%s%d " : ".%s[%d] ", colname, pos);
       ssg_puts (buf);
     }
-#ifndef NDEBUG
-  ssg_puts ("/*]procview*/ ");
-#endif
+  ssg_puts_comment ("]procview");
 }
 
 void
@@ -6014,11 +5978,8 @@ ssg_print_retval (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t vmode, const 
   if (IS_BOX_POINTER (vmode) && (1 < vmode->qmfColumnCount) && (IS_BOX_POINTER (asname) || (NULL == asname)))
     {
       int colctr;
-#ifdef NDEBUG
+      ssg_puts_comment ("retval-list[");
       ssg_putchar (' ');
-#else
-      ssg_puts (" /*retval-list[*/ ");
-#endif
       for (colctr = 0; colctr < vmode->qmfColumnCount; colctr++)
 	{
 	  char buf[210];
@@ -6043,19 +6004,13 @@ ssg_print_retval (spar_sqlgen_t * ssg, SPART * tree, ssg_valmode_t vmode, const 
 	      ssg_prin_id (ssg, buf);
 	    }
 	}
-#ifdef NDEBUG
+      ssg_puts_comment ("]retval-list");
       ssg_putchar (' ');
-#else
-      ssg_puts (" /*]retval-list*/ ");
-#endif
       return;
     }
 retval_without_var:
-#ifdef NDEBUG
+  ssg_puts_comment ("retval[");
   ssg_putchar (' ');
-#else
-  ssg_puts (" /*retval[*/ ");
-#endif
   if (NULL != tree->_.retval.tabid)
     {
       if (0 > dk_set_position_of_string (ssg->ssg_valid_ret_tabids, tree->_.retval.tabid))
@@ -6075,11 +6030,7 @@ retval_without_var:
   if ((NULL == asname) || IS_BOX_POINTER (asname))
     {
       ssg_prin_id (ssg, full_vname);
-#ifndef NDEBUG
-      ssg_puts (" /* ");
-      ssg_puts (e_varname);
-      ssg_puts (" */");
-#endif
+      ssg_puts_comment3 ("", e_varname, "");
     }
   else
     {
@@ -6087,28 +6038,15 @@ retval_without_var:
       char buf[210];
       snprintf (buf, sizeof (buf), "%.100s~%d", full_vname, col_idx);
       ssg_prin_id (ssg, buf);
-#ifndef NDEBUG
       if (0 == col_idx)
-	{
-	  ssg_puts (" /* ");
-	  ssg_puts (e_varname);
-	  ssg_puts (" */");
-	}
-#endif
+	ssg_puts_comment3 ("", e_varname, "");
     }
-#ifdef NDEBUG
-  ssg_putchar (' ');
-#else
-  ssg_puts (" /*]retval*/ ");
-#endif
+  ssg_puts_comment ("]retval");
 print_asname:
   if (IS_BOX_POINTER (asname))
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*retval*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "retval");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
 }
@@ -6191,15 +6129,11 @@ ssg_print_where_or_and (spar_sqlgen_t * ssg, const char *location)
 	}
     }
   ssg->ssg_where_l_printed = 1;
-#ifndef NDEBUG
   if (NULL != location)
     {
-      ssg_puts (" /* ");
-      ssg_puts (location);
-      ssg_puts (" */ ");
+      ssg_puts_comment3 ("", location, "");
       ssg_newline (1);
     }
-#endif
 }
 
 void
@@ -6679,20 +6613,14 @@ ssg_print_equiv_retval_expn (spar_sqlgen_t * ssg, SPART * gp, sparp_equiv_t * eq
     }
   if (SPART_VARR_CONFLICT & eq->e_rvr.rvrRestrictions)
     {
-#ifdef NDEBUG
-      ssg_puts (" NULL");
-#else
       ssg_puts (" NULL /* due to conflict on ");
       ssg_puts (eq->e_varnames[0]);
       ssg_puts (" */");
-#endif
       goto write_assuffix;
     }
 #if 0				/* no longer needed */
   if (SSG_VALMODE_LONG == needed)
-    {
-      ssg_puts (" /* LONG retval */");
-    }
+    ssg_puts_comment ("LONG retval");
 #endif
   if (SPARP_EQ_IS_FIXED_AND_NOT_NULL (eq) && (!(flags & SSG_RETVAL_OPTIONAL_MAKES_NULLABLE)))
     {
@@ -7044,11 +6972,8 @@ try_write_null:
 write_assuffix:
   if (IS_BOX_POINTER (asname) && ((NULL == name_as_expn) || strcmp (asname, name_as_expn)))
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*eqretval*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "eqretval");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
   return 1;
@@ -7522,10 +7447,8 @@ ghost variable can be used as a sample variable only in absence of plain vars */
 	sample_global_rv_native = sparp_expn_native_valmode (ssg->ssg_sparp, sample_global_rv);
 	sub_native = sparp_equiv_native_valmode (ssg->ssg_sparp, sub_gp, sub_eq);
 	common_native = ssg_largest_eq_valmode (sample_global_rv_native, sub_native);
-#ifdef DEBUG
 	if (SSG_VALMODE_LONG == common_native)
-	  ssg_puts (" /* note SSG_VALMODE_LONG: */");
-#endif
+	  ssg_puts_comment ("note SSG_VALMODE_LONG:");
 	if ((IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native))
 	    && !SPART_VARNAME_IS_GLOB (sample_global_rv->_.retval.vname))
 	  {			/* Note special zeropart case below */
@@ -7642,10 +7565,8 @@ or when only one source of eq is fixed and not null but the join with other sour
 	  var_native = sparp_expn_native_valmode (ssg->ssg_sparp, var);
 	  var2_native = sparp_expn_native_valmode (ssg->ssg_sparp, var2);
 	  common_native = ssg_largest_eq_valmode (var_native, var2_native);
-#ifdef DEBUG
 	  if (SSG_VALMODE_LONG == common_native)
-	    ssg_puts (" /* note SSG_VALMODE_LONG: */");
-#endif
+	    ssg_puts_comment ("note SSG_VALMODE_LONG:");
 	  if (IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native))
 	    {			/* Note special zeropart case below */
 	      qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var, 1);
@@ -7748,10 +7669,8 @@ or when only one source of eq is fixed and not null but the join with other sour
 	  var_native = sparp_expn_native_valmode (ssg->ssg_sparp, var);
 	  sub2_native = sparp_equiv_native_valmode (ssg->ssg_sparp, sub2_gp, sub2_eq);
 	  common_native = ssg_largest_eq_valmode (var_native, sub2_native);
-#ifdef DEBUG
 	  if (SSG_VALMODE_LONG == common_native)
-	    ssg_puts (" /* note SSG_VALMODE_LONG: */");
-#endif
+	    ssg_puts_comment ("note SSG_VALMODE_LONG:");
 	  if (IS_BOX_POINTER (common_native) || (SSG_VALMODE_AUTO == common_native))
 	    {			/* Note special zeropart case below */
 	      qm_value_t *qmv = sparp_find_qmv_of_var_or_retval (ssg->ssg_sparp, NULL, eq->e_gp, var, 1);
@@ -7861,11 +7780,8 @@ print_sub_eq_sub:
 	    common_native = sub_native;	/* Note that sub_native == sub2_native in this case */
 	  else if (IS_BOX_POINTER (common_native) && !(common_native->qmfIsBijection))
 	    common_native = SSG_VALMODE_SQLVAL;
-
-#ifdef DEBUG
 	  if (SSG_VALMODE_LONG == common_native)
-	    ssg_puts (" /* note SSG_VALMODE_LONG: */");
-#endif
+	    ssg_puts_comment ("note SSG_VALMODE_LONG:");
 	  col_count = ((IS_BOX_POINTER (common_native)) ? common_native->qmfColumnCount : 1);
 	  ssg_print_where_or_and (ssg, "two retvals belong to same equiv");
 	  sub_is_nullable_inline = (
@@ -8011,13 +7927,7 @@ ssg_print_sparul_run_call (spar_sqlgen_t * ssg, SPART * gp, SPART * tree, int co
     }
   ssg_puts (")");
   if (compose_report)
-    {
-#ifdef NDEBUG
-      ssg_puts (", 1");
-#else
-      ssg_puts (", 1 /* to compose report */");
-#endif
-    }
+    ssg_puts_with_comment (", 1 ", "to compose report");
   ssg_puts (")");
   ssg->ssg_indent -= 2;
 
@@ -8238,11 +8148,8 @@ ssg_print_retval_simple_expn (spar_sqlgen_t * ssg, SPART * gp, SPART * tree, ssg
 print_asname:
   if (IS_BOX_POINTER (asname))
     {
-#ifdef NDEBUG
-      ssg_puts (" AS ");
-#else
-      ssg_puts (" AS /*retsimple*/ ");
-#endif
+      ssg_puts_with_comment (" AS", "retsimple");
+      ssg_putchar (' ');
       ssg_prin_id (ssg, asname);
     }
 }
@@ -8411,11 +8318,7 @@ ssg_print_retval_expn (spar_sqlgen_t * ssg, SPART * gp, SPART * ret_column, int 
     }
   if (IS_BOX_POINTER (needed) && (0 == needed->qmfColumnCount))
     {
-#ifdef NDEBUG
-      ssg_puts (" 1");
-#else
-      ssg_puts (" 1 /*fake*/");
-#endif
+      ssg_puts_with_comment (" 1", "fake");
       ssg_print_asname_tail ("retexpn", asname);
       return;
     }
@@ -9175,11 +9078,7 @@ ssg_print_subquery_table_exp (spar_sqlgen_t * ssg, SPART * wrapping_gp)
   sql_comp_t subq_sc;
   caddr_t wrapping_selid = wrapping_gp->_.gp.selid;
   t_NEW_VARZ (spar_sqlgen_t, subq_ssg);
-#ifdef NDEBUG
-  ssg_puts (" (");
-#else
-  ssg_puts (" ( /* subq begin */ ");
-#endif
+  ssg_puts_with_comment (" (", "subq begin");
   ssg->ssg_indent++;
   ssg_newline (1);
   ssg->ssg_nested_ssg = subq_ssg;
@@ -9204,14 +9103,12 @@ ssg_print_subquery_table_exp (spar_sqlgen_t * ssg, SPART * wrapping_gp)
     }
   if ((NULL != wrapping_gp) && (NULL != wrapping_gp->_.gp.options))
     sparp_set_valmodes_of_t_inouts (ssg->ssg_sparp, sub_sparp, wrapping_gp);
+  subq_ssg->ssg_comment_sql = ssg->ssg_comment_sql;
   ssg_make_sql_query_text (subq_ssg, 0);
   ssg_free_internals (subq_ssg);
   ssg_newline (1);
-#ifdef NDEBUG
-  ssg_puts (" ) AS ");
-#else
-  ssg_puts (" /* subq end */ ) AS ");
-#endif
+  ssg_puts_with_comment (" ) AS", "subq end");
+  ssg_putchar (' ');
   ssg->ssg_indent--;
   ssg_prin_id (ssg, wrapping_selid);
   t_set_push (&(ssg->ssg_valid_ret_selids), wrapping_selid);
@@ -9422,7 +9319,7 @@ ssg_print_binv_table_exp (spar_sqlgen_t * ssg, SPART * wrapping_gp, int pass)
     {
       if (0 == binv->_.binv.rows_in_use)
 	{
-	  ssg_puts (" DB.DBA.SYS_IDONLY_EMPTY as ");
+	  ssg_puts (" DB.DBA.SYS_IDONLY_EMPTY AS ");
 	  ssg_prin_id (ssg, wrapping_gp->_.gp.selid);
 	}
       else
@@ -9432,11 +9329,11 @@ ssg_print_binv_table_exp (spar_sqlgen_t * ssg, SPART * wrapping_gp, int pass)
 	  ssg_newline (0);
 	  if (SPAR_MAX_BINDINGS_VIEW_CN >= width)
 	    {
-	      snprintf (buf, sizeof (buf), " DB.DBA.SPARQL_BINDINGS_VIEW_C_%d as ", width);
+	      snprintf (buf, sizeof (buf), " DB.DBA.SPARQL_BINDINGS_VIEW_C_%d AS ", width);
 	      ssg_puts (buf);
 	    }
 	  else
-	    ssg_puts (" DB.DBA.SPARQL_BINDINGS_VIEW as ");
+	    ssg_puts (" DB.DBA.SPARQL_BINDINGS_VIEW AS ");
 	  ssg_prin_id (ssg, wrapping_gp->_.gp.selid);
 	  snprintf (buf, sizeof (buf), " TABLE OPTION (EST_SIZE %ld, EST_TIME %ld)", (long) (binv->_.binv.rows_in_use),
 	      (long) (binv->_.binv.rows_in_use * 5));
@@ -9632,11 +9529,7 @@ ssg_print_scalar_subquery_exp (spar_sqlgen_t * ssg, SPART * sub_req_top, SPART *
   sparp_t *sub_sparp = (sparp_t *) t_box_copy ((caddr_t) (ssg->ssg_sparp));
   sql_comp_t subq_sc;
   t_NEW_VARZ (spar_sqlgen_t, subq_ssg);
-#ifdef NDEBUG
-  ssg_puts (" ( ");
-#else
-  ssg_puts (" ( /* scalar subq begin */ ");
-#endif
+  ssg_puts_with_comment (" (", "scalar subq begin");
   ssg->ssg_indent++;
   ssg_newline (1);
   ssg->ssg_nested_ssg = subq_ssg;
@@ -9664,6 +9557,7 @@ ssg_print_scalar_subquery_exp (spar_sqlgen_t * ssg, SPART * sub_req_top, SPART *
       subq_sc.sc_client = sub_sparp->sparp_sparqre->sparqre_cli;
       subq_ssg->ssg_sc = &subq_sc;
     }
+  subq_ssg->ssg_comment_sql = ssg->ssg_comment_sql;
   ssg_make_sql_query_text (subq_ssg, 0);
   ssg_free_internals (subq_ssg);
   ssg_newline (1);
@@ -9909,11 +9803,7 @@ ssg_print_breakup_in_union (spar_sqlgen_t * ssg, SPART * gp, SPART ** retlist, i
 	continue;
       if (0 != left_tc)
 	{
-#ifdef NDEBUG
-	  ssg_putchar (',');
-#else
-	  ssg_puts (", /* table list of next triple starts here */ ");
-#endif
+	  ssg_puts_with_comment (",", "table list of next triple starts here");
 	  ssg_newline (0);
 	}
       selected_triples_count = 0;
@@ -10891,7 +10781,7 @@ ssg_make_sql_query_text (spar_sqlgen_t * ssg, int some_top_retval_flags)
 	  ssg_newline (0); ssg_puts ("GROUP BY"); gby_printed = 1; ssg->ssg_indent++;}
 	  if (grouping_is_weird)
 	  {
-	  ssg_puts (" 0.0 /* fake, instead of grouping by other const */"); fake_gby_expn_printed = 1; continue;}
+	  ssg_puts_with_comment (" 0.0", "fake, instead of grouping by other const"); fake_gby_expn_printed = 1; continue;}
 	  native = sparp_expn_native_valmode (ssg->ssg_sparp, grouping);
 	  if (IS_BOX_POINTER (native) && native->qmfIsBijection) needed = native;
 	  else

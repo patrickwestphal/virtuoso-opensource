@@ -733,6 +733,8 @@ bif_geo_pred (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, char *f, i
   int srid1, srid2;
   if (BOX_ELEMENTS (args) > 2)
     prec = bif_double_arg (qst, args, 2, f);
+  if ((NULL == g1) || (NULL == g2))
+    return box_num (geo_pred (g1, g2, op, prec));
   srid1 = GEO_SRID (g1->geo_srcode);
   srid2 = GEO_SRID (g2->geo_srcode);
   if (srid2 != srid1)

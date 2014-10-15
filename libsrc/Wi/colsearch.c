@@ -1882,7 +1882,7 @@ spst_cmp (const void *s1, const void *s2)
 void
 itc_sp_stat_check (it_cursor_t * itc)
 {
-  int n_orderable = itc->itc_n_row_specs - itc->itc_value_ret_hash_spec;
+  int n_orderable = itc->itc_n_row_specs - itc->itc_value_ret_hash_spec - itc->itc_sec_hash_spec;
   int n;
   int n_in = itc->itc_sp_stat[0].spst_in;
   if (!enable_sp_stat)
@@ -2684,6 +2684,15 @@ int non_unq_printed = 0;
     GPF_T1 ("for unique ts, getting range with more than 1 rows"); \
 }
 
+void
+itc_g_no_perm (it_cursor_t * itc, buffer_desc_t * buf)
+{
+  itc->itc_ltrx->lt_error = LTE_NO_PERM;
+  itc->itc_ltrx->lt_status = LT_BLOWN_OFF;
+  itc_bust_this_trx (itc, &buf, ITC_BUST_THROW);
+}
+
+
 extern int dbf_ignore_uneven_col;
 
 int
@@ -2892,6 +2901,10 @@ itc_col_seg (it_cursor_t * itc, buffer_desc_t * buf, int is_singles, int n_sets_
 	next_page:;
 	}
     next_spec:
+      if (CMP_HASH_RANGE == sp->sp_min_op && (HRNG_SEC & ((hash_range_spec_t *) sp->sp_min_ssl)->hrng_flags)
+	  && (itc->itc_n_matches ? itc->itc_match_out != itc->itc_n_matches : itc->itc_match_out !=
+	      cpo.cpo_range->r_end - cpo.cpo_range->r_first))
+	itc_g_no_perm (itc, buf);
       if (sp->sp_is_reverse && CMP_LIKE != sp->sp_min_op)
 	itc_cp_negate (itc, nth_sp, rows_in_seg, prev_matches, &cpo);
       if (do_sp_stat)

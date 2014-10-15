@@ -898,6 +898,7 @@ del_vec_log (delete_node_t * del, ins_key_t * ik, it_cursor_t * itc)
 }
 
 
+
 #if 0				/* check consistent delete */
 #define RQ_CHECK_TEXT "select count (*) from orders a table option (index c_o_ck) where not exists (select 1 from orders b table option (loop, index orders)  where a.o_orderkey = b.o_orderkey)"
 
@@ -1137,11 +1138,15 @@ delete_node_vec_run (delete_node_t * del, caddr_t * inst, caddr_t * state, int i
 		}
 	    }
 	}
+      if (ik->ik_key->key_is_primary && tb_is_rdf_quad (ik->ik_key->key_table) &&
+	  !stricmp (((dbe_column_t *) dk_set_nth (ik->ik_key->key_parts, inx2))->col_name, "G"))
+	rdf_g_sec_check (inst, (iri_id_t *) (target_dc ? target_dc->dc_values : source_dc->dc_values),
+	    target_dc ? target_dc->dc_n_values : source_dc->dc_n_values);
     }
     END_DO_BOX;
   }
   END_DO_BOX;
-  if (in_update && enable_mt_txn)
+  if (in_update && enable_mt_txn && CL_RUN_CLUSTER == cl_run_local_only)
     return;
   cl_local_deletes (del, inst, clrg ? clrg->clrg_inst : inst);
   if (!in_update && qi->qi_client->cli_row_autocommit)

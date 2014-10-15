@@ -136,6 +136,7 @@ aq_thread_func (aq_thread_t * aqt)
 	  aqt->aqt_cli->cli_trx->lt_thr = self;
 	  aqt->aqt_cli->cli_trx->lt_main_trx_no = aq->aq_main_trx_no;
 	  aqt->aqt_cli->cli_trx->lt_rc_w_id = aq->aq_rc_w_id;
+	  cli_set_sec (aqt->aqt_cli, sec_copy (aqt->aqt_aq->aq_sec));
 	  lt_enter_anyway (aqt->aqt_cli->cli_trx);
 	  memcpy (aqt->aqt_cli->cli_trx->lt_timestamp, aq->aq_lt_timestamp, DT_LENGTH);
 	}
@@ -217,6 +218,7 @@ aq_thread_func (aq_thread_t * aqt)
 	  continue;
 	}
       LEAVE_AQ;
+      cli_set_sec (aqt->aqt_cli, NULL);
       TC (tc_aq_sleep);
       resource_store (aq_threads, (void *) aqt);
       semaphore_enter (self->thr_sem);
@@ -779,6 +781,7 @@ aq_allocate (client_connection_t * cli, int n_threads)
   aq->aq_requests->ht_required_mtx = aq->aq_mtx;
 #endif
   aq->aq_cl_stack = (cl_call_stack_t *) box_copy ((caddr_t) cli->cli_cl_stack);
+  aq->aq_sec = sec_copy (cli->cli_sec);
   aq->aq_main_trx_no = cli->cli_trx->lt_main_trx_no ? cli->cli_trx->lt_main_trx_no : cli->cli_trx->lt_trx_no;
   aq->aq_max_threads = n_threads;
   aq->aq_user = cli->cli_user;
@@ -857,6 +860,7 @@ aq_free (async_queue_t * aq)
   hash_table_free (aq->aq_requests);
   dk_free_tree (aq->aq_qualifier);
   dk_free_box ((caddr_t) aq->aq_cl_stack);
+  dk_free_box ((caddr_t) aq->aq_sec);
   return 0;
 }
 

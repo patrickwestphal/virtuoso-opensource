@@ -47,6 +47,7 @@
 
 #undef DBG_PRINTF
 #define NO_DBG_PRINTF
+#include "datesupp.h"
 #include "libutil.h"
 #include "wi.h"
 #include "sqlver.h"
@@ -1118,6 +1119,7 @@ extern uint32 col_ac_last_time;
 extern uint32 col_ac_last_duration;
 int col_ac_is_due (uint32 now);
 int enable_flush_all = 1;
+int bp_no_buffers;
 
 void
 bp_flush_thread_func (void *arg)
@@ -1152,6 +1154,7 @@ bp_flush_thread_func (void *arg)
 	  }
 	  END_DO_BOX;
 	}
+      bp_no_buffers = 0;
       mutex_enter (&bp_flush_mtx);
       DO_SET (du_thread_t *, waiting, &bp_waiting_flush)
       {
@@ -1228,7 +1231,6 @@ bp_n_being_written (buffer_pool_t * bp)
 }
 
 long tc_bp_wait_flush;
-
 void
 bp_wait_flush (buffer_pool_t * bp)
 {
@@ -1239,6 +1241,7 @@ bp_wait_flush (buffer_pool_t * bp)
 #ifndef NDEBUG
   int first_n = n;
 #endif
+  bp_no_buffers = 1;
   limit = MAX (limit, n / 2);
   while (n > limit)
     {
@@ -3842,7 +3845,9 @@ dbs_write_cfg_page (dbe_storage_t * dbs, int is_first)
     dbs_init_id (dbs->dbs_id);
   memcpy (db.db_id, dbs->dbs_id, sizeof (db.db_id));
   memcpy (db.db_cpt_dt, dbs->dbs_cfg_page_dt, DT_LENGTH);
-
+  if (-1 == timezoneless_datetimes)
+    timezoneless_datetimes = DT_TZL_PREFER;
+  db.db_timezoneless_datetimes = timezoneless_datetimes;
   LSEEK (fd, 0, SEEK_SET);
   memcpy (zero, &db, sizeof (db));
   rc = write (fd, zero, PAGE_SZ);
@@ -4281,6 +4286,17 @@ dbs_read_cfg_page (dbe_storage_t * dbs, wi_database_t * cfg_page)
       log_error ("Please use a newer server.");
       call_exit (-1);
     }
+  if (cfg_page->db_timezoneless_datetimes != timezoneless_datetimes)
+    {
+      if (-1 != timezoneless_datetimes)
+	{
+	  log_error
+	      ("The database you are opening has TimezonelessDatetimes set to %d whereas the value in configuration file is %d.",
+	      cfg_page->db_timezoneless_datetimes != timezoneless_datetimes);
+	  log_error ("The value from configuration file is ignored.");
+	}
+      timezoneless_datetimes = cfg_page->db_timezoneless_datetimes;
+    }
   if (cfg_page->db_byte_order != DB_ORDER_UNKNOWN && cfg_page->db_byte_order != DB_SYS_BYTE_ORDER)
     {
 #ifdef BYTE_ORDER_REV_SUPPORT
@@ -4528,6 +4544,20 @@ _cfg_read_storages (caddr_t ** temp_storage)
   return res;
 }
 
+void
+clm_default_storage (cluster_map_t * clm, dbe_storage_t * dbs)
+{
+  if (!clm->clm_id_to_slice)
+    return;
+  DO_HT (ptrlong, id, cl_slice_t *, csl, clm->clm_id_to_slice)
+  {
+    if (csl->csl_is_local)
+      csl->csl_storage = dbs;
+  }
+  END_DO_HT;
+}
+
+
 
 void
 wi_open_dbs ()
@@ -4549,6 +4579,10 @@ wi_open_dbs ()
   this_wd->wd_primary_dbs = master_dbs;
   /* dk_set_push (&this_wd->wd_storage, (void*) master_dbs); */
   master_dbs->dbs_db = this_wd;
+  if (CL_RUN_LOCAL != cl_run_local_only)
+    {
+      clm_default_storage (clm_replicated, master_dbs);
+    }
   storages = dbs_read_storages (&temp_file);
   DO_SET (caddr_t *, storage, &storages)
   {

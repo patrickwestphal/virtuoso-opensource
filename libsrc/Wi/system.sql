@@ -5479,6 +5479,45 @@ create procedure cl_sys_stat (in x varchar, in  k varchar := null, in fl varchar
 }
 ;
 
+
+create procedure CL_RUSAGE_SRV (in x int)
+{
+    return getrusage ();
+}
+;
+
+create procedure cl_rusage ()
+{
+  declare daq, r any;
+  declare res any;
+ res := null;
+  if (1 = sys_stat ('cl_run_local_only'))
+    return getrusage ();
+  daq := daq (0);
+  daq_call (daq, 'DB.DBA.SYS_COLS', 'SYS_COLS_BY_NAME', 'DB.DBA.CL_RUSAGE_SRV', vector ('1'), 1);
+  while (r:= daq_next (daq))
+    {
+      if (length (r) >2 and isarray (r[2]) and r[2][0] = 3)
+	{
+	  declare err any;
+	err := r[2][1];
+	  if (isarray (err))
+	    signal (err[2], err[2]);
+	}
+      if (res is null)
+      res := r[2][1];
+      else
+	{
+	  declare added, inx any;
+	added := r[2][1];
+	  for (inx := 0; inx < length (added); inx := inx + 1)
+	    res[inx] := res[inx] + added[inx];
+	}
+    }
+  return res;
+}
+;
+
 create procedure IF_CLUSTER (in str varchar)
 {
   if (sys_stat ('cl_run_local_only') <> 2) return;

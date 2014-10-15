@@ -623,7 +623,10 @@ sqlo_is_col_placed (sqlo_t * so, df_elt_t * super, df_elt_t * col)
     return 1;
   def_ot = (op_table_t *) col->dfe_tables->data;
   if (!def_ot->ot_table || def_ot->ot_table->tb_ft)
-    return 1;			/* derived tables, filte table have no late proj */
+    {
+      t_set_pushnew (&so->so_lp_deps, (void *) col);
+      return 1;			/* derived tables, filte table have no late proj */
+    }
   if (sqlo_col_in_lp (so, col))
     return 1;
   prev_lp = so->so_lp_cols;

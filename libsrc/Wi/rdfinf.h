@@ -199,6 +199,14 @@ struct trans_node_s
   int tn_nth_cache_result;
   ssl_index_t tn_d0_sent;	/* set if input is part of output and has been passed on when first recd */
   char tn_step_qr_id;
+
+  /* dfg implementation */
+  char tn_is_mt_out;		/* in single server, separate continue exec in each qi slice from the trans. true if trans is first in parallel ts seq */
+  state_slot_t *tn_set_no;	/* if multistate, the external set no */
+  state_slot_t *tn_int_set_no;	/* the set no in the tn step */
+  stage_node_t *tn_init_stn;
+  state_slot_t *tn_superstep;
+  state_slot_t *tn_named_tree;
 };
 
 #define TN_DEFAULT_MAX_MEMORY tn_max_memory

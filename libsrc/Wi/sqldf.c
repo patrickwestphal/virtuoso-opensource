@@ -1515,6 +1515,7 @@ sqlo_hash_fill_dt_place_col (df_elt_t * dt_dfe, df_elt_t * col)
   df_elt_t *defd = dfe_hash_fill_defines (dt_dfe, col);
   df_elt_t *ref_dfe;
   int inx;
+  caddr_t name;
   if (!defd)
     SQL_GPF_T1 (so->so_sc->sc_cc, "col is supposed to be defd in hash fill dt but is not");
   snprintf (tmp, sizeof (tmp), "%s.%s", col->dfe_tree->_.col_ref.prefix, col->dfe_tree->_.col_ref.name);
@@ -1527,7 +1528,11 @@ sqlo_hash_fill_dt_place_col (df_elt_t * dt_dfe, df_elt_t * col)
       }
   }
   END_DO_BOX;
-  ref_dfe = sqlo_df (so, t_listst (3, COL_DOTTED, defd->_.table.ot->ot_new_prefix, col->_.col.col->col_name));
+  if (!col->_.col.vc)
+    name = col->_.col.col->col_name;
+  else
+    name = col->_.col.vc->vc_tree->_.col_ref.name;
+  ref_dfe = sqlo_df (so, t_listst (3, COL_DOTTED, defd->_.table.ot->ot_new_prefix, name));
   so->so_gen_pt = dt_dfe->_.sub.last;
   sqlo_place_exp (so, dt_dfe, ref_dfe);
   out = dt_dfe->_.sub.dt_out;
@@ -1588,7 +1593,7 @@ sqlo_place_col (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 	      sqlo_record_lp (so, tb_dfe, dfe);
 	      return so->so_gen_pt;
 	    }
-	  if (!dfe->_.col.vc)
+	  if (!dfe->_.col.vc || HR_REF == tb_dfe->_.table.hash_role)
 	    t_set_push (&tb_dfe->_.table.out_cols, (void *) dfe);
 	  tb_dfe->dfe_unit = 0;
 	  sqlo_rdf_col_card (so, tb_dfe, dfe);

@@ -70,6 +70,7 @@
 #define LTE_CLUSTER_SYNC 15	/* unsynced async updates at time of transact */
 #define LTE_PREPARED_NOT_COMMITTED 16	/* if a commit msg was dropped, then another action on same trx no, give this error */
 #define LTE_UNSPECIFIED 17	/* use when not OK but no lte */
+#define LTE_NO_PERM 18		/* no permission */
 
 #define SET_DK_MEM_RESERVE_STATE(trx) \
      { \
@@ -891,10 +892,12 @@ extern resource_t *rb_page_rc;
 #if defined (PAGE_TRACE) || 0	/* off unless page trace */
 #define rdbg_printf(a) printf a
 #define rdbg_printf_2(a) printf a
+#define rdbg_printf_if(c, a) if (c) printf a
 
 #else
 #define rdbg_printf(a)
 #define rdbg_printf_2(a)
+#define rdbg_printf_if(c, a)
 
 #endif
 

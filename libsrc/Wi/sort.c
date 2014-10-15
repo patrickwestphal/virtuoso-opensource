@@ -245,7 +245,8 @@ setp_top_merge (setp_node_t * setp, caddr_t * inst, cl_op_t * clo, int copy)
 	  mutex_leave (&top_clo->_.top.mtx);
 	  dk_free_box (oldv);
 	}
-      mutex_leave (&top_clo->_.top.mtx);
+      else
+	mutex_leave (&top_clo->_.top.mtx);
     }
   else if (clo->_.top.is_full)
     {

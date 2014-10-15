@@ -6689,7 +6689,7 @@ rdf_make_long_of_typedsqlval_strings (caddr_t * qst, caddr_t strval, caddr_t dt_
 		    if (NULL == seq_name)
 		      seq_name = box_dv_short_string ("RDF_URL_IID_BLANK");
 		    blank_iids_ptr[0][idx] =
-			box_num (sequence_next_inc_and_log ((query_instance_t *) qst, err_ret, seq_name, 1, 1000));
+			box_iri_id (sequence_next_inc_and_log ((query_instance_t *) qst, err_ret, seq_name, 1, 1000));
 		  }
 		val = blank_iids_ptr[0][idx];
 		break;

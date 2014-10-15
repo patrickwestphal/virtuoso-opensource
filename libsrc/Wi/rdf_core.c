@@ -61,6 +61,8 @@ extern "C"
 #include "../util/md5.h"
 #endif				/* _SSL */
 #include "mhash.h"
+#include "sqlo.h"
+#include "rdfinf.h"
 
 int uriqa_dynamic_local = 0;
 
@@ -2903,6 +2905,35 @@ bif_iri_to_id_if_cached (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return res;
 }
 
+
+caddr_t
+bif_rdf_p_stat (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t err = NULL;
+  int looked = 0;
+  float p_stat[4];
+  char text[100];
+  QNCAST (QI, qi, qst);
+  query_t *qr;
+  iri_id_t p = bif_iri_id_arg (qst, args, 0, "rdf_p_stat");
+  for (;;)
+    {
+      dbe_table_t *rq = sch_name_to_table (wi_inst.wi_schema, "DB.DBA.RDF_QUAD");
+      if (!rq)
+	sqlr_new_error ("42000", "NORQT", "rdf_quad table does not exist in rdf_p_stat");
+      if (ric_p_stat_from_cache (empty_ric, rq->tb_primary_key, p, p_stat))
+	return list (4, box_float (p_stat[0]), box_float (p_stat[1]), box_float (p_stat[2]), box_float (p_stat[3]));
+      if (looked)
+	return dk_alloc_box (0, DV_DB_NULL);
+      snprintf (text, sizeof (text), "select count (*) from rdf_quad where p = #i%Ld", p);
+      qr = sql_compile (text, qi->qi_client, &err, SQLC_DEFAULT);
+      qr_free (qr);
+      looked = 1;
+    }
+  return NULL;
+}
+
+
 caddr_t
 tb_id_to_name (lock_trx_t * lt, char *tb_name, caddr_t id)
 {
@@ -4244,6 +4275,8 @@ rdf_core_init (void)
   bif_set_vectored (bif_rdf_cache_id_to_name, bif_rdf_cache_id_to_name_vec);
   bif_define ("iri_id_cache_flush", bif_iri_id_cache_flush);
   bif_define ("iri_id_new", bif_iri_id_new);
+  bif_define_typed ("rdf_p_stat", bif_rdf_p_stat, &bt_any_box);
+  bif_set_uses_index (bif_rdf_p_stat);
   bif_define ("__rdf_obj_ft_rule_add", bif_rdf_obj_ft_rule_add);
   bif_define ("__rdf_obj_ft_rule_del", bif_rdf_obj_ft_rule_del);
   bif_define ("__rdf_obj_ft_rule_zap_all", bif_rdf_obj_ft_rule_zap_all);

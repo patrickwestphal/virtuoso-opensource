@@ -504,6 +504,32 @@ sqlr_new_error (const char *code, const char *virt_code, const char *string, ...
   longjmp_splice (self->thr_reset_ctx, RST_ERROR);
 }
 
+void
+sqlr_trx_error (lock_trx_t * lt, int lt_status, int lt_code, const char *code, const char *virt_code, const char *string, ...)
+{
+  du_thread_t *self;
+  static char temp[2000];
+  va_list list;
+  caddr_t err;
+  ASSERT_OUTSIDE_TXN;
+  va_start (list, string);
+  vsnprintf (temp, sizeof (temp), string, list);
+  va_end (list);
+  temp[sizeof (temp) - 1] = '\0';
+  err = srv_make_new_error (code, virt_code, "%s", temp);
+  self = THREAD_CURRENT_THREAD;
+  thr_set_error_code (self, err);
+  CLAQ_UNWIND_CK;
+  lt->lt_error = lt_code;
+  lt->lt_status = lt_status;
+  lt->lt_error_detail = box_dv_short_string (temp);
+  IN_TXN;
+  lt_bust_main_lt (lt);
+  LEAVE_TXN;
+
+  longjmp_splice (self->thr_reset_ctx, RST_ERROR);
+}
+
 sqw_mode sql_warning_mode = SQW_ON;
 
 void
@@ -1432,6 +1458,7 @@ void ts_top_oby_limit (table_source_t * ts, caddr_t * inst, it_cursor_t * itc);
 
 int enable_ro_rc = 1;
 extern int qp_even_if_lock;
+extern int enable_cr_trace;
 
 int
 ks_start_search (key_source_t * ks, caddr_t * inst, caddr_t * state,
@@ -2031,6 +2058,8 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
 #endif
 	  if (ts->ts_need_placeholder)
 	    ts_set_placeholder (ts, inst, order_itc, &order_buf);
+	  rdbg_printf_if (enable_cr_trace, ("register %p L=%d pos=%d col_row=%d\n", order_itc, order_itc->itc_page,
+		  order_itc->itc_map_pos, order_itc->itc_col_row));
 	  itc_register_and_leave (order_itc, order_buf);
 	}
       else
@@ -2062,6 +2091,8 @@ table_source_input (table_source_t * ts, caddr_t * inst, caddr_t * volatile stat
 	      {
 		order_itc->itc_ltrx = qi->qi_trx;	/* in sliced cluster a local can be continued under many different lt's dependeing on which aq thread gets the continue */
 		order_buf = page_reenter_excl (order_itc);
+		rdbg_printf_if (enable_cr_trace, ("%p reenter L=%d pos=%d col_row=%d\n", order_itc, order_itc->itc_page,
+			order_itc->itc_map_pos, order_itc->itc_col_row));
 	      }
 	    if (ts->ts_order_ks->ks_vec_source)
 	      {

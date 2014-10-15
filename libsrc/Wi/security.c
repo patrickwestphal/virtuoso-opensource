@@ -2612,3 +2612,23 @@ sec_read_tb_rls (client_connection_t * cli, query_instance_t * caller_qi, char *
 
   return err;
 }
+
+
+cl_op_t *
+sec_copy (cl_op_t * sec)
+{
+  cl_op_t *cp;
+  if (!sec)
+    return sec;
+  cp = clo_allocate (CLO_SEC_TOKEN);
+  cp->_.sec.g_wr_id = sec->_.sec.g_wr_id;
+  cp->_.sec.g_wr = (index_tree_t *) box_copy ((caddr_t) sec->_.sec.g_wr);
+  return cp;
+}
+
+cli_set_sec (client_connection_t * cli, cl_op_t * sec)
+{
+  if (cli->cli_sec)
+    dk_free_box ((caddr_t) cli->cli_sec);
+  cli->cli_sec = sec;
+}

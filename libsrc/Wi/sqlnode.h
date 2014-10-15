@@ -1954,6 +1954,7 @@ typedef struct client_connection_s
   user_t *cli_user;
   caddr_t cli_user_info;
   char *cli_password;
+  struct cl_op_s *cli_sec;
   id_hash_t *cli_statements;
   id_hash_t *cli_cursors;
   dk_mutex_t *cli_mtx;

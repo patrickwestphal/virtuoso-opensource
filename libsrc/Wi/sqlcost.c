@@ -108,7 +108,7 @@ lin_int (lin_int_t * li, float x)
 
 void dfe_list_cost (df_elt_t * dfe, float *unit_ret, float *arity_ret, float *overhead_ret, locus_t * loc);
 #define ABS(x) (x < 0 ? -(x) : x)
-#define IS_OV(f) (NAN == (f) || -NAN == (f) || INFINITY == (f) || -INFINITY == (f))
+#define IS_OV(f) (NAN == (f) || -NAN == (f) || INFINITY == (f) || -INFINITY == (f) || 0xffc00000 == *(uint32*)&f)
 
 int float_is_ov (float f);
 
@@ -1081,9 +1081,10 @@ sqlo_eq_cost (dbe_column_t * left_col, df_elt_t * right, df_elt_t * lower, float
 	  int is_rdf_col = (tb_is_rdf_quad (left_col->col_defined_in) || (right_col && tb_is_rdf_quad (right_col->col_defined_in)));
 	  if (right_col && lower && dfe_pk_fk_ref_card (lower, a1))
 	    return;
-	  if (!is_rdf_col && right_col && right_col->col_n_distinct && right_col->col_n_distinct < left_col->col_n_distinct)
+	  if (!is_rdf_col && right_col && right_col->col_n_distinct > 0 && right_col->col_n_distinct < left_col->col_n_distinct)
 	    n_dist = right_col->col_n_distinct;
-	  if (!is_rdf_col && right_col && COL_KP_UNQ != left_col->col_is_key_part && COL_KP_UNQ == right_col->col_is_key_part)
+	  if (!is_rdf_col && right_col && COL_KP_UNQ != left_col->col_is_key_part && COL_KP_UNQ == right_col->col_is_key_part
+	      && right_col->col_n_distinct > 0)
 	    n_dist = right_col->col_n_distinct;
 	  *a1 = 1.0 / n_dist;
 	}
@@ -2816,10 +2817,12 @@ sqlo_inx_sample_1 (df_elt_t * tb_dfe, dbe_key_t * key, df_elt_t ** lowers, df_el
       place = (tb_sample_t *) id_hash_get (sop->sop_ric->ric_samples, (caddr_t) & sc_key);
       if (place)
 	{
-	  c = place->smp_card;
+	  c = MAX (1e-6, place->smp_card);
 	  if (sop->sop_cols && c)
 	    goto sample_for_cols;	/* if this is a non-zero cached sample and col samples are wanted then go get them but if 0 then return this */
-	  ic->ic_inx_card = place->smp_inx_card;
+	  if (place->smp_inx_card < 0.3)
+	    c = 0.3;
+	  ic->ic_inx_card = MAX (0.3, place->smp_inx_card);
 	  mutex_leave (sop->sop_ric->ric_mtx);
 	  dk_free_tree (sc_key);
 	  itc_free (itc);

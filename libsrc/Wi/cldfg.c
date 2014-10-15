@@ -87,7 +87,6 @@ stn_in_batch (stage_node_t * stn, caddr_t * inst, cl_message_t * cm, caddr_t in,
   cl_op_t *clo = clo_allocate (CLO_STN_IN);
   cl_op_t *dfg_state;
   rbuf_t *rbuf = QST_BOX (rbuf_t *, inst, stn->stn_rbuf->ssl_index);
-  int fill;
   clo->_.stn_in.in = in;
   clo->_.stn_in.read_to = read_to;
   clo->_.stn_in.bytes = bytes;
@@ -250,7 +249,7 @@ stn_in_uncompress (cl_op_t * in)
 void
 stn_roj_outer (stage_node_t * stn, caddr_t * inst)
 {
-  hash_source_t *hs = qn_next_qn (stn, hash_source_input);
+  hash_source_t *hs = (hash_source_t *) qn_next_qn ((data_source_t *) stn, (qn_input_fn) hash_source_input);
   SRC_IN_STATE (stn, inst) = NULL;
   QST_INT (inst, hs->hs_roj_state) = 1;
   QST_INT (inst, hs->clb.clb_nth_set) = 0;
@@ -290,7 +289,7 @@ stn_continue (stage_node_t * stn, caddr_t * inst)
   cl_ses_t clses;
   dk_session_t *ses = &clib.clib_in_strses;
   int ctr;
-  int no_dc_break = stn->stn_loc_ts->ts_order_ks->ks_is_flood && IS_QN (qn_next (stn), chash_read_input);
+  int no_dc_break = stn->stn_loc_ts->ts_order_ks->ks_is_flood && IS_QN (qn_next ((data_source_t *) stn), chash_read_input);
   cl_op_t *itcl_clo = (cl_op_t *) qst_get (inst, stn->clb.clb_itcl);
   itc_cluster_t *itcl = itcl_clo ? itcl_clo->_.itcl.itcl : NULL;
   stn_divide_bulk_input (stn, inst);
@@ -1215,7 +1214,7 @@ dfg_feed_short (stage_node_t * stn, caddr_t * inst, cl_queue_t * bsk,
 	      SLICE_QUEUES (queue);
 	      continue;
 	    }
-	  if (local_cll.cll_this_host == coord && !qi->qi_is_dfg_slice)
+	  if (local_cll.cll_this_host == coord && !qi->qi_is_dfg_slice && CL_RUN_LOCAL != cl_run_local_only)
 	    dfg_ssm_not_known (stn, inst, cm);
 	  if (!qi->qi_is_dfg_slice)
 	    {

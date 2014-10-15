@@ -34,11 +34,13 @@
 #define GMTIMESTAMP_STRUCT TIMESTAMP_STRUCT
 
 /* datesupp.c */
-int32 date2num (const int year, const int month, const int day);
-void num2date (int32 julian_days, int *year, int *month, int *day);
-int ymd_valid_p (const int year, const int month, const int day);
-int date2weekday (const int year, const int month, const int day);
+typedef int32 jday_t;
+jday_t date2num (int year, int month, int day);
+void num2date (jday_t julian_days, int *year, int *month, int *day);
+int ymd_valid_p (int year, int month, int day);
+int date2weekday (int year, int month, int day);
 void dt_now (caddr_t dt);
+void dt_now_tz (caddr_t dt);
 void time_t_to_dt (time_t tim, long fraction, char *dt);
 #if defined (WIN32) && (defined (_AMD64_) || defined (_FORCE_WIN32_FILE_TIME))
 int file_mtime_to_dt (const char *name, char *dt);
@@ -47,6 +49,7 @@ void sec2time (int sec, int *day, int *hour, int *min, int *tsec);
 int time2sec (int day, int hour, int min, int sec);
 void ts_add (TIMESTAMP_STRUCT * ts, boxint n, const char *unit);
 int dt_validate (caddr_t dt);
+extern int dt_compare (caddr_t dt1, caddr_t dt2, int cmp_is_safe);
 void dt_to_GMTimestamp_struct (ccaddr_t dt, GMTIMESTAMP_STRUCT * ts);
 void GMTimestamp_struct_to_dt (GMTIMESTAMP_STRUCT * ts_in, char *dt);
 void dt_to_timestamp_struct (ccaddr_t dt, TIMESTAMP_STRUCT * ts);
@@ -55,6 +58,7 @@ void dt_to_date_struct (char *dt, DATE_STRUCT * ots);
 void date_struct_to_dt (DATE_STRUCT * ts, char *dt);
 void dt_to_time_struct (char *dt, TIME_STRUCT * ots);
 void time_struct_to_dt (TIME_STRUCT * ts, char *dt);
+int dt_local_tzmin_for_parts (int year, int month, int day, int hour, int minute, int second);
 void dt_date_round (char *dt);
 void dt_init (void);
 int dt_part_ck (char *str, int min, int max, int *err);
@@ -77,22 +81,26 @@ int print_dt_to_buffer (char *buf, caddr_t arg, int mode);
 #define DTFLAG_DATE	(DTFLAG_YY | DTFLAG_MM | DTFLAG_DD)
 #define DTFLAG_TIME	(DTFLAG_HH | DTFLAG_MIN | DTFLAG_SS | DTFLAG_SF)
 #define DTFLAG_TIMEZONE	(DTFLAG_ZH | DTFLAG_ZM)
+#define DTFLAG_DATES_AND_TIMES_ARE_ISO	0x0800
 #define DTFLAG_ALLOW_ODBC_SYNTAX	0x1000
-#define DTFLAG_FORMAT_SETS_FLAGS	0x2000
-#define DTFLAG_FORCE_DAY_ZERO		0x4000
+#define DTFLAG_T_FORMAT_SETS_TZL	0x2000
+#define DTFLAG_FORMAT_SETS_FLAGS	0x4000
+#define DTFLAG_FORCE_DAY_ZERO		0x8000
 
 extern void iso8601_or_odbc_string_to_dt (const char *str, char *dt, int dtflags, int dt_type, caddr_t * err_msg_ret);
 #define odbc_string_to_any_dt(str,dt,err_msg_ret) \
   iso8601_or_odbc_string_to_dt ((str), (dt), \
-    (DTFLAG_DATE | DTFLAG_TIME | DTFLAG_TIMEZONE | DTFLAG_ALLOW_ODBC_SYNTAX | DTFLAG_FORMAT_SETS_FLAGS), \
+    (DTFLAG_DATE | DTFLAG_TIME | DTFLAG_TIMEZONE | DTFLAG_ALLOW_ODBC_SYNTAX | DTFLAG_T_FORMAT_SETS_TZL | DTFLAG_FORMAT_SETS_FLAGS | \
+      ((DT_TZL_PREFER == timezoneless_datetimes) ? DTFLAG_DATES_AND_TIMES_ARE_ISO : 0)), \
     DT_TYPE_DATETIME, err_msg_ret )
 #define odbc_string_to_time_dt(str,dt,err_msg_ret) \
   iso8601_or_odbc_string_to_dt ((str), (dt), \
-    (DTFLAG_TIME | DTFLAG_TIMEZONE | DTFLAG_ALLOW_ODBC_SYNTAX | DTFLAG_FORMAT_SETS_FLAGS | DTFLAG_FORCE_DAY_ZERO), \
+    (DTFLAG_TIME | DTFLAG_TIMEZONE | DTFLAG_ALLOW_ODBC_SYNTAX | DTFLAG_T_FORMAT_SETS_TZL | DTFLAG_FORMAT_SETS_FLAGS | DTFLAG_FORCE_DAY_ZERO | \
+      ((DT_TZL_PREFER == timezoneless_datetimes) ? DTFLAG_DATES_AND_TIMES_ARE_ISO : 0)), \
     DT_TYPE_TIME, err_msg_ret )
 #define iso8601_string_to_datetime_dt(str,dt,err_msg_ret) \
   iso8601_or_odbc_string_to_dt ((str), (dt), \
-    (DTFLAG_DATE | DTFLAG_TIME | DTFLAG_TIMEZONE), \
+    (DTFLAG_DATE | DTFLAG_TIME | DTFLAG_TIMEZONE | DTFLAG_T_FORMAT_SETS_TZL | DTFLAG_DATES_AND_TIMES_ARE_ISO), \
     DT_TYPE_DATETIME, err_msg_ret )
 
 void dt_to_tv (char *dt, char *dv);
@@ -110,8 +118,13 @@ int days_in_february (const int year);
 extern int dt_print_to_buffer (char *buf, caddr_t arg, int mode);
 extern int dt_scan_from_buffer (const char *buf, int mode, caddr_t * dt_ret, const char **err_msg_ret);
 
-extern int dt_local_tz;
-int dt_compare (caddr_t dt1, caddr_t dt2);
+#define DT_TZL_NEVER		0	/*!< Never use timezoneless, always set local timezone on parsing strings, setting tzl by BIF will signal error, but TZL values still may come from outside as dezerializations of DV_DATETIME boxes. Should be 0 because this is the default for older versions and thus 0 filler past the end of old wi_database_t serializations */
+#define DT_TZL_BY_ISO		1	/*!< Set timezoneless if ISO format tells so */
+#define DT_TZL_PREFER		2	/*!< Set timezoneless always, exception is when the parsed string contains explicit timezone or RFC requires GMT or timezone is set by bif. Should be greater than \c DT_TZL_BY_ISO */
+
+extern int timezoneless_datetimes;	/*!< One of DT_TZL_XXX values. The default for newly created databases is DT_TZL_BY_DEFAULT, */
+extern int dt_local_tz_for_logs;	/* minutes from GMT */
+extern int dt_local_tz_for_weird_dates;	/* minutes from GMT */
 unsigned int64 dt_seconds (caddr_t dt);
 void dt_print (caddr_t dt);
 

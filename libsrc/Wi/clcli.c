@@ -431,6 +431,9 @@ clo_destroy (cl_op_t * clo)
     case CLO_IEXT_CR:
       clo->_.iext.free_cb (clo->_.iext.cr);
       break;
+    case CLO_SEC_TOKEN:
+      dk_free_tree ((caddr_t) clo->_.sec.g_wr);
+      break;
     }
   return 0;
 }

@@ -1046,7 +1046,7 @@ next_fragment:
 	day = tm->tm_mday;
 	year = tm->tm_year + 1900;
 	snprintf (tmp, sizeof (tmp), "[%02d/%s/%04d:%02d:%02d:%02d %+05li]",
-	    (tm->tm_mday), monday[month - 1], year, tm->tm_hour, tm->tm_min, tm->tm_sec, (long) dt_local_tz / 36 * 100);
+	    (tm->tm_mday), monday[month - 1], year, tm->tm_hour, tm->tm_min, tm->tm_sec, (long) dt_local_tz_for_logs / 36 * 100);
       }
       break;
     case 'r':
@@ -1136,7 +1136,7 @@ log_info_http (ws_connection_t * ws, const char *code, OFF_T len)
 
   snprintf (buf, sizeof (buf),
       "%s %s [%02d/%s/%04d:%02d:%02d:%02d %+05li] \"%.2000s%s\" %d " OFF_T_PRINTF_FMT " \"%.1000s\" \"%.500s\"\n", ws->ws_client_ip,
-      u_id, (tm->tm_mday), monday[month - 1], year, tm->tm_hour, tm->tm_min, tm->tm_sec, (long) dt_local_tz / 36 * 100,
+      u_id, (tm->tm_mday), monday[month - 1], year, tm->tm_hour, tm->tm_min, tm->tm_sec, (long) dt_local_tz_for_logs / 36 * 100,
       (ws->ws_req_line
 #ifdef WM_ERROR
 	  && ws->ws_method != WM_ERROR
@@ -1867,6 +1867,7 @@ ws_clear (ws_connection_t * ws, int error_cleanup)
       dk_free_tree ((box_t) ws->ws_resource);
       ws->ws_resource = NULL;
       ws->ws_in_error_handler = 0;
+      cli_set_sec (ws->ws_cli, NULL);
     }
   dk_free_tree ((box_t) ws->ws_stream_params);
   ws->ws_stream_params = NULL;
@@ -2418,7 +2419,7 @@ ws_strses_reply (ws_connection_t * ws, const char *volatile code)
 	char dt[DT_LENGTH];
 	char last_modify[100];
 
-	dt_now (dt);
+	dt_now_tz (dt);
 	dt_to_rfc1123_string (dt, last_modify, sizeof (last_modify));
 	SES_PRINT (ws->ws_session, "Date: ");
 	SES_PRINT (ws->ws_session, last_modify);
@@ -2905,7 +2906,7 @@ ws_file (ws_connection_t * ws)
   int n_ranges = 0;
 
   box_date = dk_alloc_box (DT_LENGTH, DV_DATETIME);
-  dt_now (box_date);
+  dt_now_tz (box_date);
   dt_to_rfc1123_string (box_date, date_now, sizeof (date_now));
   dk_free_box (box_date);
 
@@ -10544,7 +10545,7 @@ bif_ftp_log (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
   snprintf (buff, sizeof (buff), "%s %s [%02d/%s/%04d:%02d:%02d:%02d %+05li] \"%.2000s\" %.3s %ld\n",
       host_name, user, (tm->tm_mday), monday[month - 1], year,
-      tm->tm_hour, tm->tm_min, tm->tm_sec, (long) dt_local_tz / 36 * 100, command, resp, len);
+      tm->tm_hour, tm->tm_min, tm->tm_sec, (long) dt_local_tz_for_logs / 36 * 100, command, resp, len);
 
   dk_free_box (host_name);
 

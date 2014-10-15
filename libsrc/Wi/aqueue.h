@@ -51,6 +51,7 @@ typedef struct async_queue_s
   cl_call_stack_t *aq_cl_stack;
   int64 aq_main_trx_no;
   int64 aq_rc_w_id;
+  cl_op_t *aq_sec;
   char aq_lt_timestamp[DT_LENGTH];
 } async_queue_t;
 

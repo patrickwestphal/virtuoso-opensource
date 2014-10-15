@@ -288,6 +288,7 @@ cm_free (cl_message_t * cm)
     resource_store (cl_strses_rc, (void *) cm->cm_strses);
   if (cm->cm_in_string)
     cl_msg_string_free (cm->cm_in_string);
+  dk_free_box ((caddr_t) cm->cm_sec);
   dk_free ((caddr_t) cm, sizeof (cl_message_t));
 }
 
@@ -338,6 +339,21 @@ cl_buf_str_free (caddr_t str)
 }
 
 resource_t *cl_buf_rc;
+
+
+caddr_t
+dv_clo_deserialize (dk_session_t * ses, dtp_t dtp)
+{
+  return (caddr_t) cl_deserialize_cl_op_t (ses);
+}
+
+
+void
+dv_clo_serialize (caddr_t clo, dk_session_t * out)
+{
+  session_buffered_write_char (DV_CLOP, out);
+  cl_serialize_cl_op_t (out, (cl_op_t *) clo);
+}
 
 void
 cluster_init ()

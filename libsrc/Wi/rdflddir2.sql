@@ -167,7 +167,6 @@ ld_file (in f varchar, in graph varchar)
     return;
   };
 
-  --log_message (sprintf ('loading: %s', f));
   connection_set ('ld_file', f);
   if (graph like 'sql:%')
     {
@@ -198,7 +197,6 @@ ld_file (in f varchar, in graph varchar)
     }
 
   log_stats (sprintf ('RDF load %s', f));
-  --log_message (sprintf ('loaded %s', f));
 }
 ;
 
@@ -327,7 +325,11 @@ rdf_loader_run (in max_files integer := null, in log_enable int := 2)
 	  if (0 = arr[inx])
 	    goto arr_done;
 	  ld_file (arr[inx][0], arr[inx][1]);
+	  set isolation = 'serializable';
+	  log_enable (tx_mode, 1);
 	  update DB.DBA.LOAD_LIST set LL_STATE = 2, LL_DONE = curdatetime () where LL_FILE = arr[inx][0];
+	  commit work;
+	  set isolation = 'committed';
           if (max_files is not null) max_files := max_files - 1;
 	}
     arr_done:

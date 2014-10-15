@@ -224,6 +224,7 @@ cu_rdf_ins_cb (cucurbit_t * cu, caddr_t * row)
   static char *col_names[] = { "G", "S", "P", "O", NULL };
   caddr_t values[4];
   cl_req_group_t *clrg = cu->cu_clrg;
+  iri_id_t g;
   if (RDF_LD_INS_GS == cu->cu_rdf_load_mode)
     {
       values[0] = row[2];
@@ -306,6 +307,8 @@ cu_rdf_ins_cb (cucurbit_t * cu, caddr_t * row)
 exec:
   if (DV_RDF == DV_TYPE_OF (values[3]))
     rdf_box_audit ((rdf_box_t *) values[3]);
+  g = unbox_iri_id (values[0]);
+  rdf_g_sec_check (cu->cu_clrg->clrg_inst, &g, 1);
   DO_SET (dbe_key_t *, key, &quad->tb_keys)
   {
     cl_op_t *clo;

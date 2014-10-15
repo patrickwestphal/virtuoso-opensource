@@ -445,7 +445,6 @@ dfe_in_list_left (df_elt_t * call, ST ** subr)
   return call->_.call.args[0]->_.call.args[0]->_.col.col;
 }
 
-
 search_spec_t *
 sqlg_chash_in_spec (sql_comp_t * sc, key_source_t * ks, df_elt_t * call, ST ** subr, int is_not)
 {
@@ -4012,10 +4011,6 @@ sqlg_may_parallelize (sql_comp_t * sc, data_source_t * qn)
 	goto no;
       if (IS_TS (ts))
 	{
-	  if (ts->ts_inx_op || !ts->ts_order_ks)
-	    goto no;
-	  if (KI_TEMP == ts->ts_order_ks->ks_key->key_id)
-	    goto no;
 	}
       if (IS_QN (ts, setp_node_input) && ((setp_node_t *) ts)->setp_distinct && enable_dfg < 2)
 	goto no;
@@ -4832,10 +4827,6 @@ sqlg_fref_qp (sql_comp_t * sc, fun_ref_node_t * fref, df_elt_t * dt_dfe)
 	continue;
       if (IS_TS (ts))
 	{
-	  if (ts->ts_inx_op || !ts->ts_order_ks)
-	    return;
-	  if (KI_TEMP == ts->ts_order_ks->ks_key->key_id)
-	    return;
 	  sqlg_parallel_ts_seq (sc, dt_dfe, first_ts, fref, NULL);
 	  return;
 	}

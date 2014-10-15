@@ -737,7 +737,7 @@ typedef struct hash_range_spec_s
 #define HR_NO_BLOOM 2		/* bloom not selective, do not check */
 #define HR_RANGE_ONLY 4
 #define HRNG_IN 8		/* in pred with literals */
-
+#define HRNG_SEC 16		/* if no match, no permissions, signal error */
 
 
 struct row_range_s
@@ -908,6 +908,7 @@ struct it_cursor_s
   bitf_t itc_col_need_preimage:1;	/* whether need to fetch any pre-image of uncommitted updated in col filter/decode */
   bitf_t itc_hash_row_spec:2;
   bitf_t itc_value_ret_hash_spec:1;	/* set if last hash spec sets result columns.  Must always be last row spec, no reordering */
+  bitf_t itc_sec_hash_spec:1;	/* set if last hash spec for security, must be last, else may give false error */
   bitf_t itc_local_key_spec:1;	/* set if key spec extended to represent range partitioned scan partitions */
   bitf_t itc_top_row_spec:1;	/* is a top oby condition added to the row spec? */
   bitf_t itc_col_prefetch:1;	/* set if must preread next page's cols.  Off if all so far in memory */

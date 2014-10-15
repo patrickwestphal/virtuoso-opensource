@@ -283,6 +283,12 @@ itc_col_lock_1 (it_cursor_t * itc, buffer_desc_t * buf, int row, row_no_t * poin
 	GPF_T1 ("itc_pl and itc_page inconsistent in setting col lock");
       itc->itc_lock_lt = lt_add_pl (itc->itc_ltrx, itc->itc_pl, 0);
     }
+  if (!at_or_above)
+    {
+      row_no_t point = 0, next;
+      itc_clk_at (itc, row, &point, &next);
+      at_or_above = point;
+    }
   for (inx = at_or_above; inx < rl->rl_n_cols; inx++)
     {
       clk = rl->rl_cols[inx];

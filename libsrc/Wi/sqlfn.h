@@ -492,7 +492,7 @@ EXE_EXPORT (void, sqlr_new_error, (const char *code, const char *virt_code, cons
 extern void sqlr_error (const char *code, const char *msg, ...) __attribute__ ((format (printf, 2, 3)));
 extern void sqlr_new_error (const char *code, const char *virt_code, const char *msg, ...) __attribute__ ((format (printf, 3, 4)));
 #endif
-
+void sqlr_trx_error (lock_trx_t * lt, int lt_status, int lt_code, const char *code, const char *virt_code, const char *string, ...);
 void sqlr_warning (const char *code, const char *virt_code, const char *msg, ...);
 #ifdef __GNUC__
 void sqlr_warning (const char *code, const char *virt_code, const char *msg, ...) __attribute__ ((format (printf, 3, 4)));
@@ -934,6 +934,7 @@ extern int32 cli_utf8_execs;
 extern int32 cli_no_system_tables;
 extern int32 cli_binary_timestamp;
 extern long cli_encryption_on_password;
+extern int timezoneless_datetimes;
 int current_of_node_scrollable (current_of_node_t * co, query_instance_t * qi, char *cr_name);
 void cli_set_scroll_current_ofs (client_connection_t * cli, caddr_t * current_ofs);
 void stmt_start_scroll (client_connection_t * cli, srv_stmt_t * stmt, caddr_t ** params, char *cursor_name, stmt_options_t * opts);
@@ -1469,9 +1470,11 @@ int setp_chash_group (setp_node_t * setp, caddr_t * inst);
 int setp_chash_distinct (setp_node_t * setp, caddr_t * inst);
 void chash_to_memcache (caddr_t * inst, index_tree_t * it, hash_area_t * ha);
 int ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, int rl);
+index_tree_t *qi_g_wr_tree (caddr_t * inst, state_slot_t * ht);
 void setp_chash_fill (setp_node_t * setp, caddr_t * inst);
 void hash_source_chash_input (hash_source_t * hs, caddr_t * inst, caddr_t * state);
 void cha_free (chash_t * cha);
+int cha_check_1_int (chash_t * cha, int64 offset);
 int itc_hash_compare (it_cursor_t * itc, buffer_desc_t * buf, search_spec_t * sp);
 int ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc);
 int fref_hash_partitions_left (fun_ref_node_t * fref, caddr_t * inst);
