@@ -2921,6 +2921,13 @@ sqlg_qf_param_order (sql_comp_t * sc, query_frag_t * qf)
 }
 
 
+int
+qf_contains_qn (query_frag_t * qf, data_source_t * qn)
+{
+  return 0;
+}
+
+
 void
 sqlg_vec_stn (sql_comp_t * sc, stage_node_t * stn)
 {
@@ -3671,6 +3678,7 @@ sqlg_prev_with_sets (sql_comp_t * sc)
   return (data_source_t *) sc->sc_vec_pred->data;
 }
 
+
 void
 qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * all_res, int *non_cl_local)
 {
@@ -3869,7 +3877,8 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
 	      QNCAST (table_source_t, ts, pred->data);
 	      if (IS_QN (pred->data, stage_node_input)
 		  || (sc->sc_in_qf && (query_frag_t *) pred->data == sc->sc_in_qf)
-		  || (IS_QN (ts, chash_read_input) && ts->ts_part_gby_reader))
+		  || (IS_QN (ts, chash_read_input) && ts->ts_part_gby_reader)
+		  || IS_QN (ts, query_frag_input) && qf_contains_qn ((query_frag_t *) ts, sel->sel_set_ctr))
 		{
 		  sel->sel_subq_inlined = SEL_SUBQ_PART_READER;
 		  break;

@@ -331,6 +331,7 @@ rdf_loader_run (in max_files integer := null, in log_enable int := 2)
 	  commit work;
 	  set isolation = 'committed';
           if (max_files is not null) max_files := max_files - 1;
+	  log_enable (ld_mode, 1);
 	}
     arr_done:
       log_enable (tx_mode, 1);

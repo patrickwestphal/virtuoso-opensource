@@ -351,9 +351,15 @@ dv_clo_deserialize (dk_session_t * ses, dtp_t dtp)
 void
 dv_clo_serialize (caddr_t clo, dk_session_t * out)
 {
-  session_buffered_write_char (DV_CLOP, out);
-  cl_serialize_cl_op_t (out, (cl_op_t *) clo);
+  if (CLO_SEC_TOKEN == ((cl_op_t *) clo)->clo_op)
+    {
+      session_buffered_write_char (DV_CLOP, out);
+      cl_serialize_cl_op_t (out, (cl_op_t *) clo);
+    }
+  else
+    session_buffered_write_char (DV_DB_NULL, out);
 }
+
 
 void
 cluster_init ()

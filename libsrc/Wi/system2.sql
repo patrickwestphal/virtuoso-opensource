@@ -1393,10 +1393,9 @@ qt_check (in file varchar, out message varchar, in add_test int := 0) returns in
 	    {
 	      declare delta float;
 	      t := cast (t as double precision);
-	      if (t > c[i])
-	        delta := t - c[i];
-	      else
-		delta := c[i] - t;
+	      delta := 1 - (t / c[i]);
+	      if (delta < 0)
+		delta := -1 * delta;
 	      if (delta > 1e-6)
 		{
 		  message := message || sprintf (' : value at #%d %s <> %s', i,

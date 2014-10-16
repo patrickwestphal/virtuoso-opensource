@@ -2626,6 +2626,7 @@ sec_copy (cl_op_t * sec)
   return cp;
 }
 
+void
 cli_set_sec (client_connection_t * cli, cl_op_t * sec)
 {
   if (cli->cli_sec)
