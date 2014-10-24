@@ -150,6 +150,7 @@ select_node_input_subq_vec (select_node_t * sel, caddr_t * inst, caddr_t * state
     }
   else if (SEL_VEC_SCALAR == sel->sel_vec_role && sel->sel_scalar_ret)
     {
+      data_col_t *set_no_dc = NULL;
       int64 *ext_sets = (int64 *) QST_BOX (data_col_t *, inst, sel->sel_ext_set_no->ssl_index)->dc_values;
       data_col_t *out_dc = QST_BOX (data_col_t *, inst, sel->sel_out_slots[0]->ssl_index);
       data_col_t *ret_dc = QST_BOX (data_col_t *, inst, sel->sel_out_slots[0]->ssl_index);
@@ -157,8 +158,15 @@ select_node_input_subq_vec (select_node_t * sel, caddr_t * inst, caddr_t * state
       db_buf_t bits = QST_BOX (db_buf_t, inst, sel->sel_vec_set_mask);
       for (row = 0; row < n_rows; row++)
 	{
-	  int set_no = sel->sel_set_no ? sslr_set_no (inst, sel->sel_set_no, row) : 0;
-	  int ext_set_no = ext_sets[set_no];
+	  int set_no = 0, ext_set_no;
+	  if (sel->sel_set_no)
+	    {
+	      /* the set no can be a row number in the input sets if set no is returned from cluster.  The previous qn can have many rows per set.  The row no is not an index into the ext sets.  The row number becomes a set no in the set ctr via the set no dc.  This then points at the extermal set no which may not be the same as the set no inside the set ctr if conditional invocation of scalar subq */
+	      set_no_dc = QST_BOX (data_col_t *, inst, sel->sel_set_no->ssl_index);
+	      set_no = sslr_set_no (inst, sel->sel_set_no, row);
+	      set_no = ((int64 *) set_no_dc->dc_values)[set_no];
+	    }
+	  ext_set_no = ext_sets[set_no];
 	  if (ext_set_no > bits_max)
 	    bits = sel_extend_bits (sel, inst, ext_set_no, &bits_max);
 	  if (!(bits[ext_set_no >> 3] & (1 << (ext_set_no & 7))))

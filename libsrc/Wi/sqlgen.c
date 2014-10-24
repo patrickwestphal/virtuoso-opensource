@@ -1618,6 +1618,9 @@ sqlg_make_np_ts (sqlo_t * so, df_elt_t * tb_dfe, dk_set_t * pre_code)
   ts->ts_card_measured = 0 != tb_dfe->_.table.is_arity_sure;
   ts->ts_inx_cardinality = tb_dfe->_.table.inx_card;
   so->so_sc->sc_order = ord;
+  if (sc->sc_gen_rdf_rd_sec)
+    sqlg_rdf_ck (sc, ts, 0);
+
   return (data_source_t *) ts;
 }
 
@@ -7089,6 +7092,8 @@ sqlg_top_1 (sqlo_t * so, df_elt_t * dfe, state_slot_t *** sel_out_ret)
   if (so->so_sc->sc_parallel_dml)
     sqlg_parallel_ts_seq (so->so_sc, dfe, (table_source_t *) so->so_sc->sc_cc->cc_query->qr_head_node, NULL, NULL);
   sqlg_set_no_if_needed (so->so_sc, &so->so_sc->sc_cc->cc_query->qr_head_node);
+  if (so->so_sc->sc_gen_rdf_rd_sec)
+    so->so_sc->sc_cc->cc_query->qr_need_cli_sec = 1;
   if (so->so_sc->sc_any_clb)
     {
       so->so_sc->sc_sel_out = sel_out_ret ? *sel_out_ret : NULL;

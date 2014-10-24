@@ -370,6 +370,10 @@ typedef struct cl_op_s
     {
       uint64 g_wr_id;
       index_tree_t *g_wr;
+      uint64 g_rd_id;
+      index_tree_t *g_rd;
+      char g_rd_empty;
+      char g_all_allowed;	/* for example inside sec query itself */
     } sec;
   } _;
 } cl_op_t;

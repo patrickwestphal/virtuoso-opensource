@@ -738,6 +738,7 @@ typedef struct hash_range_spec_s
 #define HR_RANGE_ONLY 4
 #define HRNG_IN 8		/* in pred with literals */
 #define HRNG_SEC 16		/* if no match, no permissions, signal error */
+#define HRNG_RD_SEC 32		/* filter out based on rdf sec settings in cli_sec */
 
 
 struct row_range_s

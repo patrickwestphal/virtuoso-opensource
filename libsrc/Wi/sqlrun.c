@@ -3108,6 +3108,16 @@ qi_alloc (query_t * qr, stmt_options_t * opts, caddr_t * auto_qi, int auto_qi_le
 
 
 void
+subq_not_continuable (query_t * qr, caddr_t * inst)
+{
+  /* when a skip node decides at end, the containing query will not be continueable.  But subq init is too much since will free hash build sides, gby temps etc which may be refd from anies in dcs still to be returned. So just set continuable off */
+
+  DO_SET (data_source_t *, qn, &qr->qr_nodes) SRC_IN_STATE (qn, inst) = NULL;
+  END_DO_SET ();
+}
+
+
+void
 skip_node_input (skip_node_t * sk, caddr_t * inst, caddr_t * qst)
 {
   QNCAST (query_instance_t, qi, inst);
@@ -3157,7 +3167,7 @@ skip_node_input (skip_node_t * sk, caddr_t * inst, caddr_t * qst)
 		  int n_save;
 		  qn_result ((data_source_t *) sk, inst, set);
 		  n_save = QST_INT (inst, sk->src_gen.src_out_fill);
-		  subq_init (sk->src_gen.src_query, inst);
+		  subq_not_continuable (sk->src_gen.src_query, inst);
 		  QST_INT (inst, sk->src_gen.src_out_fill) = n_save;
 		  is_reset = 1;
 		  break;
@@ -4258,6 +4268,7 @@ qi_init_sz (query_instance_t * caller, caddr_t * params)
   return 1;
 }
 
+
 caddr_t
 qr_exec_lit_params (query_instance_t * qi)
 {
@@ -4467,6 +4478,8 @@ params_done:
   {
     if (n_actual_params == -1)
       sqlr_new_error ("07001", "SR205", "Not enough actual parameters.");
+    if (qr->qr_need_cli_sec)
+      cli_ensure_sec (qi, cli);
     qn_input (qr->qr_head_node, inst, state);
     qr_resume_pending_nodes (qr, inst);
     if (qi->qi_log_stats)
@@ -4692,6 +4705,8 @@ qr_dml_array_exec (client_connection_t * cli, query_t * qr,
     {
       if (n_actual_params == -1)
 	sqlr_new_error ("07001", "SR205", "Not enough actual parameters.");
+      if (qr->qr_need_cli_sec)
+	cli_ensure_sec (qi, cli);
       qn_input (qr->qr_head_node, inst, state);
     }
     QR_RESET_CODE

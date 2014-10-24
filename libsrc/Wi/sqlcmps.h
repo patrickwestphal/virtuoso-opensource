@@ -257,8 +257,13 @@ typedef struct sql_comp_s
   char sc_is_first_cond;	/* true if doing 1st condition in a conditional exp, i.e. will always execute */
   char sc_delay_colocate;	/* do not do cluster colocating qr by qr, the qrs may be modified and only then located */
   char sc_is_single_state;	/* always single set of input, can omit set no */
+  char sc_any_rdf;
+  char sc_gen_rdf_rd_sec;
+
   dk_set_t sc_re_emitted_dfes;
   rdf_inf_slots_t *sc_rdf_inf_slots;
+  dk_hash_t *sc_safe_g;		/* ssls with g values checked for safety. if g eequals one of these, no check needed */
+
   caddr_t *sc_big_ssl_consts;	/*!< Vector of saved values for SSL consts of unusual types (like vectors) or just too big to fit into SQL text in a plain way */
   dk_set_t sc_vec_pred;
   dk_hash_t *sc_vec_ssl_def;

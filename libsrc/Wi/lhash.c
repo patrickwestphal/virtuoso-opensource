@@ -7567,7 +7567,7 @@ sp_copy (search_spec_t * sp)
 
 
 index_tree_t *
-qi_g_wr_tree (caddr_t * inst, state_slot_t * ht)
+qi_g_tree (caddr_t * inst, state_slot_t * ht, int is_wr)
 {
   return NULL;
 }
@@ -7576,10 +7576,49 @@ qi_g_wr_tree (caddr_t * inst, state_slot_t * ht)
 #define IS_PARTITIONED(inst, hrng) \
   (QST_INT (inst, hrng->hrng_min) != 0 || (uint32)QST_INT (inst, hrng->hrng_max) != (uint32)0xffffffff)
 
+
+void
+sp_set_last (search_spec_t ** list_ret, search_spec_t ** sp_ret)
+{
+  search_spec_t **prev = list_ret;
+  search_spec_t *sp = *list_ret;
+  for (sp = *list_ret; sp; (prev = &sp->sp_next, sp = sp->sp_next));
+  if (prev == sp_ret)
+    return;
+  *sp_ret = (*sp_ret)->sp_next;
+  (*sp_ret)->sp_next = NULL;
+  *prev = *sp_ret;
+}
+
+void
+itc_hash_spec_order (search_spec_t ** sp_ret)
+{
+  /* g write perm check must be last, value returning inlined hash probe last or right before g sec ck */
+  search_spec_t **prev = sp_ret;
+  search_spec_t *sp, **sec = NULL, **val = NULL;
+  for (sp = *prev; sp; (prev = &sp->sp_next, sp = sp->sp_next))
+    {
+      if (CMP_HASH_RANGE == sp->sp_min_op)
+	{
+	  QNCAST (hash_range_spec_t, hrng, sp->sp_min_ssl);
+	  if ((HRNG_SEC & hrng->hrng_flags))
+	    sec = prev;
+	  else if (!hrng->hrng_hs && hrng->hrng_hs->hs_ha->ha_n_deps)
+	    val = prev;
+	}
+    }
+  if (val)
+    sp_set_last (sp_ret, val);
+  if (sec)
+    sp_set_last (sp_ret, sec);
+}
+
+
 int
 ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
 {
   /* if hash range or hash exists spec, add the spec to row specs.  A known unique hash source that produces a value can be added as last.  */
+  QNCAST (QI, qi, inst);
   search_spec_t **copy, *sp_copy_1 = NULL, *sp;
   int fill = 0, inx, best, best_deps, range_only;
   int64 best_sz = 1L << 50;	/* smaller is better */
@@ -7596,9 +7635,19 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
       continue;			/* no partition, no merged hash join */
     if ((HRNG_SEC & hrng->hrng_flags))
       {
-	if (!((QI *) inst)->qi_client->cli_sec)
+	if (!qi->qi_client->cli_sec)
 	  continue;
 	itc->itc_sec_hash_spec = 1;
+      }
+    if ((HRNG_RD_SEC & hrng->hrng_flags))
+      {
+	cl_op_t *sec = qi->qi_client->cli_sec;
+	if (!sec || sec->_.sec.g_all_allowed)
+	  continue;
+	if (sec->_.sec.g_rd_empty)
+	  return 1;		/* no g read perms at all */
+	if (!sec->_.sec.g_rd_id && !sec->_.sec.g_rd)
+	  continue;		/* no read restrictions */
       }
     sps[fill++] = sp;
     if (fill > 255)
@@ -7636,7 +7685,9 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
 	    {
 	      best = inx;
 	      if ((HRNG_SEC & hrng->hrng_flags))
-		tree = qi_g_wr_tree (inst, hrng->hrng_ht);
+		tree = qi_g_tree (inst, hrng->hrng_ht, 1);
+	      else if ((HRNG_RD_SEC & hrng->hrng_flags))
+		tree = qi_g_tree (inst, hrng->hrng_ht, 0);
 	      else
 		tree = qst_get_chash (inst, hrng->hrng_ht, hrng->hrng_ht_id, NULL);
 	      cha = tree ? tree->it_hi->hi_chash : NULL;
@@ -7695,6 +7746,8 @@ ks_add_hash_spec (key_source_t * ks, caddr_t * inst, it_cursor_t * itc)
 	}
     }
   while (best != -1);
+  if (itc->itc_value_ret_hash_spec || itc->itc_sec_hash_spec)
+    itc_hash_spec_order (&sp_copy_1);
   itc->itc_row_specs = sp_copy_1;
   itc->itc_hash_row_spec = RSP_CHANGED;
   if (itc->itc_is_col)

@@ -559,6 +559,8 @@ sco_add_table (sql_scope_t * sco, op_table_t * ot)
   so->so_this_dt->ot_from_ots = dk_set_conc (so->so_this_dt->ot_from_ots, t_cons ((void *) ot, NULL));
   ot->ot_super = so->so_this_dt;
   sco->sco_tables = dk_set_conc (sco->sco_tables, t_cons (ot, NULL));
+  if (ot->ot_table && tb_is_rdf_quad (ot->ot_table))
+    so->so_sc->sc_any_rdf = 1;
 }
 
 

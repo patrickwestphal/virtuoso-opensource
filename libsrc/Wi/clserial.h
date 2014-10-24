@@ -1,5 +1,4 @@
 /*
- *  $Id$
  *
  *  Struct serialization templates for cluster
  *

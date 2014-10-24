@@ -2013,47 +2013,99 @@ sqlg_del_ik (sql_comp_t * sc, delete_node_t * del1, dbe_key_t * key)
 }
 
 
+int
+sqlg_g_ckd (sql_comp_t * sc, search_spec_t * sp)
+{
+  if (CMP_EQ == sp->sp_min_op && sp->sp_col && 0 == stricmp (sp->sp_col->col_name, "G")
+      && sp->sp_min_ssl && gethash ((void *) sp->sp_min_ssl, sc->sc_safe_g))
+    return 1;
+  return 0;
+}
 
 
 int
-sqlg_rdf_del_ck (sql_comp_t * sc, table_source_t * ts)
+sqlg_g_sec_checked (sql_comp_t * sc, key_source_t * ks, dbe_column_t * g_col)
+{
+  void *g_ssl = NULL;
+  int nth = 0;
+  search_spec_t *sp;
+  if (!sc->sc_safe_g)
+    sc->sc_safe_g = hash_table_allocate (23);
+  for (sp = ks->ks_spec.ksp_spec_array; sp; sp = sp->sp_next)
+    if (sqlg_g_ckd (sc, sp))
+      return 1;
+  for (sp = ks->ks_row_spec; sp; sp = sp->sp_next)
+    if (sqlg_g_ckd (sc, sp))
+      return 1;
+  DO_SET (dbe_column_t *, col, &ks->ks_out_cols)
+  {
+    if (0 == stricmp (col->col_name, "G"))
+      goto found;
+    nth++;
+  }
+  END_DO_SET ();
+  return 0;
+found:
+  g_ssl = dk_set_nth (ks->ks_out_slots, nth);
+  sethash (g_ssl, sc->sc_safe_g, (void *) 1);
+  return 0;
+}
+
+
+int
+tb_is_g_sec (dbe_table_t * tb)
+{
+  /* a table to which graph security applies, rdf quad or a cset table */
+  return tb_is_rdf_quad (tb);
+}
+
+
+int
+sqlg_rdf_ck (sql_comp_t * sc, table_source_t * ts, int is_wr)
 {
   dbe_column_t *g_col = NULL;
   key_source_t *ks = ts->ts_order_ks;
-  if (ks->ks_is_deleting && tb_is_rdf_quad (ks->ks_key->key_table))
-    {
-      dbe_key_t *key = ks->ks_key;
-      DO_SET (dbe_column_t *, col, &key->key_parts)
+  dbe_key_t *key = ks->ks_key;
+  if (!tb_is_g_sec (ks->ks_key->key_table))
+    return 0;
+  if (is_wr && !ks->ks_is_deleting)
+    return 0;
+  if (!is_wr && !enable_g_in_sec)
+    return 0;
+  DO_SET (dbe_column_t *, col, &key->key_parts)
+  {
+    if ('G' == toupper (col->col_name[0]))
       {
-	if ('G' == toupper (col->col_name[0]))
-	  {
-	    g_col = col;
-	    break;
-	  }
+	g_col = col;
+	break;
       }
-      END_DO_SET ();
-      if (g_col)
-	{
-	  dtp_t dtp;
-	  hash_range_spec_t *hrng = (hash_range_spec_t *) dk_alloc (sizeof (hash_range_spec_t));
-	  NEW_VARZ (search_spec_t, sp);
-	  memset (hrng, 0, sizeof (hash_range_spec_t));
-	  sp->sp_min_op = CMP_HASH_RANGE;
-	  sp->sp_col_filter = ce_op_hash;
-	  sp->sp_min_ssl = (state_slot_t *) hrng;
-	  hrng->hrng_ht = ssl_new_variable (sc->sc_cc, "rdf_perm", DV_INDEX_TREE);
-	  hrng->hrng_ht_id = ssl_new_variable (sc->sc_cc, "rdf_perm_id", DV_LONG_INT);
-	  sp->sp_col = g_col;
-	  if (ks->ks_key->key_is_col)
-	    sp->sp_cl = *cl_list_find (ks->ks_key->key_row_var, g_col->col_id);
-	  else
-	    sp->sp_cl = *key_find_cl (ks->ks_key, g_col->col_id);
-	  dtp = g_col->col_sqt.sqt_col_dtp;
-	  hrng->hrng_flags = HRNG_IN | HRNG_SEC;
-	  hrng->hrng_dc = ssl_new_vec (sc->sc_cc, "hrng_tmp", dtp);
-	  dk_set_push (&ks->ks_hash_spec, (void *) sp);
-	  return 1;
-	}
+  }
+  END_DO_SET ();
+  if (!is_wr && g_col && sqlg_g_sec_checked (sc, ks, g_col))
+    return 0;
+  if (g_col)
+    {
+      dtp_t dtp;
+      hash_range_spec_t *hrng = (hash_range_spec_t *) dk_alloc (sizeof (hash_range_spec_t));
+      NEW_VARZ (search_spec_t, sp);
+      memset (hrng, 0, sizeof (hash_range_spec_t));
+      sp->sp_min_op = CMP_HASH_RANGE;
+      sp->sp_col_filter = ce_op_hash;
+      sp->sp_min_ssl = (state_slot_t *) hrng;
+      hrng->hrng_ht = ssl_new_variable (sc->sc_cc, "rdf_perm", DV_INDEX_TREE);
+      hrng->hrng_ht->ssl_qr_global = 1;
+      hrng->hrng_ht_id = ssl_new_variable (sc->sc_cc, "rdf_perm_id", DV_LONG_INT);
+      hrng->hrng_ht_id->ssl_qr_global = 1;
+      sp->sp_col = g_col;
+      if (ks->ks_key->key_is_col)
+	sp->sp_cl = *cl_list_find (ks->ks_key->key_row_var, g_col->col_id);
+      else
+	sp->sp_cl = *key_find_cl (ks->ks_key, g_col->col_id);
+      dtp = g_col->col_sqt.sqt_col_dtp;
+      hrng->hrng_flags = HRNG_IN | (is_wr ? HRNG_SEC : HRNG_RD_SEC);
+      hrng->hrng_dc = ssl_new_vec (sc->sc_cc, "hrng_tmp", dtp);
+      dk_set_push (&ks->ks_hash_spec, (void *) sp);
+      return 1;
     }
   return 0;
 }
@@ -2076,7 +2128,7 @@ sqlg_set_ts_delete (sql_comp_t * sc, table_source_t * ts)
       dk_free_box ((caddr_t) om);
     }
   ks->ks_is_deleting = 1;
-  sqlg_rdf_del_ck (sc, ts);
+  sqlg_rdf_ck (sc, ts, 1);
 }
 
 
@@ -4859,7 +4911,10 @@ sqlg_vec_ts (sql_comp_t * sc, table_source_t * ts)
   DO_SET (search_spec_t *, sp, &ks->ks_hash_spec)
   {
     hash_range_spec_t *hrng = (hash_range_spec_t *) sp->sp_min_ssl;
-    REF_SSL (res, hrng->hrng_ht);
+    if ((HRNG_RD_SEC & hrng->hrng_flags))
+      ASG_SSL (NULL, NULL, hrng->hrng_ht);
+    else
+      REF_SSL (res, hrng->hrng_ht);
   }
   END_DO_SET ();
   cv_vec_slots (sc, ks->ks_local_test, NULL, NULL, &ign);

@@ -606,12 +606,12 @@ l_make_ro_disp (cucurbit_t * cu, caddr_t * args, value_state_t * vs)
     }
   else if (DV_STRING == dtp)
     len = box_length (box) - 1;
-  if (DV_STRING != dtp || (!rdf_no_string_inline && len < RB_MAX_INLINED_CHARS))
+  if ((DV_STRING != dtp && DV_UNAME != dtp) || (!rdf_no_string_inline && len < RB_MAX_INLINED_CHARS))
     {
       cu_set_value (cu, vs, box_copy_tree (box));
       return NULL;
     }
-  if (BF_IRI == box_flags (box))
+  if (BF_IRI == box_flags (box) || DV_UNAME == dtp)
     return l_iri_id_disp (cu, box, vs);
 
   dt_lang = (RDF_BOX_DEFAULT_TYPE << 16) | RDF_BOX_DEFAULT_LANG;
@@ -746,7 +746,7 @@ rdf_g_sec_check (caddr_t * inst, iri_id_t * g, int n_g)
   int inx;
   if (!qi->qi_client->cli_sec)
     return;
-  tree = qi_g_wr_tree (inst, NULL);
+  tree = qi_g_tree (inst, NULL, 1);
   if (!tree || !tree->it_hi || !tree->it_hi->hi_chash)
     goto no;
   for (inx = 0; inx < n_g; inx++)

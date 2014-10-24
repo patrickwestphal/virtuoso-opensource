@@ -2622,7 +2622,9 @@ sec_copy (cl_op_t * sec)
     return sec;
   cp = clo_allocate (CLO_SEC_TOKEN);
   cp->_.sec.g_wr_id = sec->_.sec.g_wr_id;
+  cp->_.sec.g_rd_id = sec->_.sec.g_rd_id;
   cp->_.sec.g_wr = (index_tree_t *) box_copy ((caddr_t) sec->_.sec.g_wr);
+  cp->_.sec.g_rd = (index_tree_t *) box_copy ((caddr_t) sec->_.sec.g_rd);
   return cp;
 }
 

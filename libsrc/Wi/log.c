@@ -2772,6 +2772,27 @@ log_geo_replay (dbe_key_t * key, lock_trx_t * lt, caddr_t * row)
   geo_insert (&qi, key->key_table, (caddr_t) & g, id, 0, 1);
 }
 
+
+iri_id_t row_tr_1, row_tr_2;
+
+void
+rq_row_trap (caddr_t * row)
+{
+  int wanted = (row_tr_1 != 0) + (row_tr_2 != 0);
+  int hits = 0, inx, len = BOX_ELEMENTS (row);
+  if (!wanted)
+    return;
+  for (inx = 1; inx < len; inx++)
+    {
+      if (row_tr_1 && row_tr_1 == unbox_iri_int64 (row[inx]))
+	hits++;
+      else if (row_tr_2 && row_tr_2 == unbox_iri_int64 (row[inx]))
+	hits++;
+    }
+  if (hits >= wanted)
+    bing ();
+}
+
 caddr_t
 log_replay_entry_async (lr_executor_t * executor, lock_trx_t * lt, dtp_t op, dk_session_t * in, int is_pushback)
 {
@@ -2796,6 +2817,7 @@ log_replay_entry_async (lr_executor_t * executor, lock_trx_t * lt, dtp_t op, dk_
 	dbe_key_t *key;
 	row = (caddr_t *) scan_session (in);
 	key_id = row_key_id (row);
+	rq_row_trap (row);
 	if (LOG_KEY_INSERT == op && enable_log_key_count)
 	  log_key_count (key_id);
 	key = sch_id_to_key (wi_inst.wi_schema, unbox (row[0]));

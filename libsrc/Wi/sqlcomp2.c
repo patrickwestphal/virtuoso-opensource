@@ -1123,6 +1123,8 @@ sc_free (sql_comp_t * sc)
     hash_table_free (sc->sc_vec_last_ref);
   if (sc->sc_vec_save_shadow)
     hash_table_free (sc->sc_vec_save_shadow);
+  if (sc->sc_safe_g)
+    hash_table_free (sc->sc_safe_g);
   sc_dfr_free (sc);
 }
 

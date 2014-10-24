@@ -58,3 +58,8 @@ void
 rdf_ctx_status ()
 {
 }
+
+void
+cli_ensure_sec (query_instance_t * qi, client_connection_t * cli)
+{
+}

@@ -8054,6 +8054,11 @@ sqlo_unique_rows (sql_comp_t * sc, op_table_t * top_ot, ST * tree)
   sc->sc_cc->cc_query->qr_hidden_columns = hidden_cols;
 }
 
+void
+sqlo_need_rdf_sec (sqlo_t * so)
+{
+}
+
 
 int sqlo_print_debug_output = 0;
 
@@ -8067,6 +8072,8 @@ sqlo_top_2 (sqlo_t * so, sql_comp_t * sc, ST ** ptree)
   sc->sc_so = so;
   sqlo_scope (so, ptree);
   tree = *ptree;
+  if (sc->sc_any_rdf)
+    sqlo_need_rdf_sec (so);
   if (so->so_is_select)
     {
       DO_SET (op_table_t *, ot, &so->so_tables)

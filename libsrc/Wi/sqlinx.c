@@ -1190,6 +1190,8 @@ sqlg_make_path_ts (sqlo_t * so, df_elt_t * tb_dfe)
   DO_SET (index_choice_t *, ic, &tb_dfe->_.table.index_path)
   {
     ts = sqlg_make_1_ts (so, tb_dfe, ic, jt, nxt ? 0 : 1);
+    if (so->so_sc->sc_gen_rdf_rd_sec)
+      sqlg_rdf_ck (so->so_sc, ts, 0);
     last_ts = (table_source_t *) ts;
     if (!ret_ts)
       ret_ts = ts;

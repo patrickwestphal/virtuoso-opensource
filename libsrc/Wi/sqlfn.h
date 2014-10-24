@@ -943,6 +943,8 @@ void stmt_scroll_close (srv_stmt_t * stmt);
 /* security.c */
 int sec_tb_check (dbe_table_t * tb, oid_t group, oid_t user, int op);
 int sec_col_check (dbe_column_t * col, oid_t group, oid_t user, int op);
+void cli_ensure_sec (query_instance_t * qi, client_connection_t * cli);
+
 
 /* disk.c */
 void buf_bsort (buffer_desc_t ** bs, int n_bufs, sort_key_func_t key);
@@ -1470,7 +1472,8 @@ int setp_chash_group (setp_node_t * setp, caddr_t * inst);
 int setp_chash_distinct (setp_node_t * setp, caddr_t * inst);
 void chash_to_memcache (caddr_t * inst, index_tree_t * it, hash_area_t * ha);
 int ce_int_chash_check (col_pos_t * cpo, db_buf_t val, dtp_t flags, int64 offset, int rl);
-index_tree_t *qi_g_wr_tree (caddr_t * inst, state_slot_t * ht);
+index_tree_t *qi_g_tree (caddr_t * inst, state_slot_t * ht, int is_wr);
+extern int enable_g_in_sec;
 void setp_chash_fill (setp_node_t * setp, caddr_t * inst);
 void hash_source_chash_input (hash_source_t * hs, caddr_t * inst, caddr_t * state);
 void cha_free (chash_t * cha);

@@ -37,15 +37,17 @@ void
 ceic_del_dbg_log (ce_ins_ctx_t * ceic)
 {
   /* debug func for logging delete locality and order.  Log the batch of rows that went intoo this seg */
+  client_connection_t *cli = sqlc_client ();
   it_cursor_t *itc = ceic->ceic_itc;
-  lock_trx_t *lt = itc->itc_ltrx;
+  lock_trx_t *lt = cli->cli_trx;
   caddr_t *repl = lt->lt_replicate;
   dk_session_t *save = lt->lt_log;
   dk_session_t *ses;
-
   caddr_t *h = NULL;
   int fd;
   int inx;
+  if (!ceic->ceic_dbg_del_rds)
+    return;
   lt->lt_log = ses = strses_allocate ();
   lt->lt_replicate = REPL_LOG;
   ceic->ceic_dbg_del_rds = dk_set_nreverse (ceic->ceic_dbg_del_rds);
@@ -54,7 +56,7 @@ ceic_del_dbg_log (ce_ins_ctx_t * ceic)
     DO_BOX (row_delta_t *, rd, inx, rds)
     {
       cl_non_logged_write_mode = 0;
-      log_delete (itc->itc_ltrx, rd, dbf_col_ins_dbg_log > 0 ? LOG_KEY_ONLY : 0);
+      log_delete (lt, rd, dbf_col_ins_dbg_log > 0 ? LOG_KEY_ONLY : 0);
     }
     END_DO_BOX;
   }
@@ -107,6 +109,8 @@ ceic_del_dbg_log_row (ce_ins_ctx_t * ceic, buffer_desc_t * buf)
       if (COL_NO_ROW == itc->itc_ranges[inx].r_end)
 	n_del++;
     }
+  if (!n_del)
+    return;
   itc->itc_matches = mp_alloc_box (ceic->ceic_mp, n_del * sizeof (row_no_t), DV_BIN);
   log_rds = (row_delta_t **) mp_alloc_box (ceic->ceic_mp, sizeof (caddr_t) * n_del, DV_BIN);
   for (inx = 0; inx < itc->itc_range_fill; inx++)
@@ -121,7 +125,7 @@ ceic_del_dbg_log_row (ce_ins_ctx_t * ceic, buffer_desc_t * buf)
 	  itc->itc_matches[fill++] = itc->itc_ranges[inx].r_first;
 	}
     }
-  end = itc->itc_matches[itc->itc_n_matches - 1] + 1;
+  end = itc->itc_matches[fill - 1] + 1;
   cpo.cpo_itc = itc;
   cpo.cpo_value_cb = ce_result;
   memzero (&dc, sizeof (dc));
@@ -187,6 +191,8 @@ ceic_del_dbg_log_row (ce_ins_ctx_t * ceic, buffer_desc_t * buf)
 	row += rows_on_page;
       }
   next_col:;
+    if (cpo.cpo_dc->dc_n_values != n_del)
+      GPF_T1 ("missed read of dc for del dbg  log");
     if (cpo.cpo_dc->dc_n_values > cpo.cpo_dc->dc_n_places)
       GPF_T1 ("filled dc past end");
     for (inx = 0; inx < n_del; inx++)
