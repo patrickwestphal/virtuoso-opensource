@@ -203,7 +203,7 @@ static caddr_t java_vm_detach (void);
 #endif
 static caddr_t java_exception_text (JNIEnv * env);
 
-#define DV_EXTENSION_OBJ 255
+#define DV_EXTENSION_OBJ 251
 typedef struct extension_obj_s
 {
   ptrlong exo_type;
