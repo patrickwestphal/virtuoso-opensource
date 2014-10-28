@@ -299,7 +299,7 @@ bits_checkpoint (bits_inst_t * bi, int is_shutdown, caddr_t * err_ret)
   int fd;
   *err_ret = NULL;
   rwlock_rdlock (bi->bi_rw);
-  fd = open (bi->bi_file, O_RDWR | O_CREAT);
+  fd = open (bi->bi_file, O_RDWR | O_CREAT, S_IRWXU);
   ftruncate (fd, 0);
   DO_HT (ptrlong, id, ptrlong, int_id, bi->bi_id_to_int)
     {
