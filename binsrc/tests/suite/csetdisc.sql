@@ -17,3 +17,21 @@ insert into cset_cand select pvec, count (*) from (select s, serialize (vector_a
 
 select dbg_obj_print (cnt, deserialize (cc_ps)) from cset_cand;
 
+CREATE FUNCTION dbg_iri_vec_to_str(in vec any) {
+    vec := deserialize(vec);
+    declare _len, _ctr integer;
+    declare res varchar;
+    res := '|';
+    _len := length (vec);
+    res := concat(res, _len, ' | ');
+    _ctr := 0;
+    while (_ctr < _len) {
+        if (_ctr > 0)
+            res := concat(res, ', ');
+        res := concat(res, __id2i( vec[_ctr]));
+        _ctr := _ctr+1;
+    }
+
+    return res;
+}
+
